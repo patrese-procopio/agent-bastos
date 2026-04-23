@@ -1,0 +1,68 @@
+{
+  "totais": {
+    "2026": {
+      "Jan": {
+        "RELINTS": 10,
+        "RELTECS": 5,
+        "REPEN": 8,
+        "RIs": 14,
+        "PB": 6
+      },
+      "Fev": {
+        "RELINTS": 12,
+        "RELTECS": 6,
+        "REPEN": 9,
+        "RIs": 14,
+        "PB": 6
+      },
+      "Mar": {
+        "RELINTS": 11,
+        "RELTECS": 7,
+        "REPEN": 12,
+        "RIs": 16,
+        "PB": 9
+      },
+      "Abr": {
+        "RELINTS": 14,
+        "RELTECS": 8,
+        "REPEN": 11,
+        "RIs": 19,
+        "PB": 7
+      }
+    }
+  },
+  "nucleos": {
+    "2026": {
+      "Abr": {
+        "NI": {
+          "RELINTS": 8,
+          "RELTECS": 8,
+          "REPEN": 11,
+          "RIs": 0,
+          "PB": 4
+        },
+        "NCI": {
+          "RELINTS": 6,
+          "RELTECS": 0,
+          "REPEN": 0,
+          "RIs": 0,
+          "PB": 3
+        },
+        "NBE": {
+          "RELINTS": 0,
+          "RELTECS": 0,
+          "REPEN": 0,
+          "RIs": 0,
+          "PB": 0
+        },
+        "NUCADIS": {
+          "RELINTS": 0,
+          "RELTECS": 0,
+          "REPEN": 0,
+          "RIs": 19,
+          "PB": 0
+        }
+      }
+    }
+  }
+}

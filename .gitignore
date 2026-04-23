@@ -1,0 +1,19 @@
+# Credenciais e segredos
+credentials.json
+serviceAccountKey.json
+token.json
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Dados locais
+data/
+chroma_db/
+audios/
+*.log
+
+# VS Code
+.vscode/
