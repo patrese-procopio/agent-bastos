@@ -1,96 +1,118 @@
-import requests
-import json
-from cryptography.fernet import Fernet
+﻿"""
+modules/rag.py - Motor de Inteligencia do Agent Bastos
+=======================================================
+RAG real: busca semantica no ChromaDB + geracao via Groq (LLaMA 70b).
+Mantem seguranca operacional: logs criptografados com Fernet.
+"""
+
 import os
+from groq import Groq
+from dotenv import load_dotenv
+from cryptography.fernet import Fernet
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
-# --- CONFIGURAÇÃO DE SEGURANÇA ---
-CHAVE = b'HO-eVf31rwjok3MHPYnwUJ3sEemwwLHbw8P7rLCGisY='
+load_dotenv()
+
+ROOT_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHROMA_DIR = os.path.join(ROOT_DIR, "data", "chroma_db")
+LOG_PATH   = os.path.join(ROOT_DIR, "logs", "missao.log")
+
+CHAVE  = b'HO-eVf31rwjok3MHPYnwUJ3sEemwwLHbw8P7rLCGisY='
 fernet = Fernet(CHAVE)
-
-# MEMÓRIA DE TRABALHO (AGORA INICIALIZADA PELO LOG)
 historico_conversa = []
 
+print("[*] Carregando modelo de embeddings...")
+_embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
+print("[*] Conectando ao ChromaDB...")
+_db = Chroma(persist_directory=CHROMA_DIR, embedding_function=_embeddings)
+print(f"[+] ChromaDB carregado: {_db._collection.count()} chunks indexados.")
+
 def salvar_log_criptografado(texto):
+    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     token = fernet.encrypt(texto.encode())
-    with open("missao.log", "ab") as f:
+    with open(LOG_PATH, "ab") as f:
         f.write(token + b"\n")
 
 def carregar_memoria_recente():
-    """Lê os últimos registros do log para dar contexto ao Bastos na abertura"""
     global historico_conversa
-    if os.path.exists("missao.log"):
-        try:
-            with open("missao.log", "rb") as f:
-                linhas = f.readlines()
-                # Pega as últimas 4 linhas (2 trocas de conversa) para não sobrecarregar
-                ultimas_linhas = linhas[-4:] 
-                for linha in ultimas_linhas:
-                    texto_claro = fernet.decrypt(linha.strip()).decode()
-                    historico_conversa.append(texto_claro)
-            return True
-        except:
-            return False
-    return False
+    if not os.path.exists(LOG_PATH):
+        return False
+    try:
+        with open(LOG_PATH, "rb") as f:
+            linhas = f.readlines()
+        for linha in linhas[-4:]:
+            texto_claro = fernet.decrypt(linha.strip()).decode()
+            historico_conversa.append(texto_claro)
+        return True
+    except Exception:
+        return False
 
-def carregar_doutrina():
-    caminho_pasta = "doutrina"
-    conteudo_completo = ""
-    if os.path.exists(caminho_pasta):
-        for arquivo in os.listdir(caminho_pasta):
-            if arquivo.endswith(".txt"):
-                with open(os.path.join(caminho_pasta, arquivo), 'r', encoding='utf-8') as f:
-                    conteudo_completo += f"\n--- FONTE: {arquivo} ---\n{f.read()}\n"
-    return conteudo_completo
+def recuperar_contexto_doutrinario(pergunta, top_k=4):
+    documentos = _db.similarity_search(pergunta, k=top_k)
+    if not documentos:
+        return "Nenhum trecho doutrinario relevante encontrado.", []
+    partes = []
+    for i, doc in enumerate(documentos, 1):
+        fonte = doc.metadata.get("fonte", "desconhecida")
+        partes.append(f"[TRECHO {i} - FONTE: {fonte}]\n{doc.page_content}")
+    return "\n\n".join(partes), documentos
 
 def conversar_com_bastos(pergunta):
     global historico_conversa
-    url = "http://localhost:11434/api/generate"
-    conhecimento = carregar_doutrina()
-    contexto_passado = "\n".join(historico_conversa[-6:]) # Mantém as últimas 6 interações
-    
+    contexto_doutrinario, _ = recuperar_contexto_doutrinario(pergunta)
+    contexto_historico = "\n".join(historico_conversa[-6:])
     prompt_final = (
-        f"### DIRETRIZES: Você é o BASTOS-UNIT, analista técnico de inteligência.\n"
-        f"### DOUTRINA BASE:\n{conhecimento}\n\n"
-        f"### HISTÓRICO RECENTE:\n{contexto_passado}\n\n"
-        f"### PERGUNTA ATUAL: {pergunta}\n\n"
-        f"### RESPOSTA TÉCNICA:"
+        "### DIRETRIZ OPERACIONAL\n"
+        "Voce e o BASTOS-UNIT, analista tecnico de inteligencia de seguranca publica. "
+        "Responda APENAS com base nos trechos doutrinarios fornecidos abaixo. "
+        "Se a informacao nao estiver nos trechos, declare isso explicitamente.\n\n"
+        f"### DOUTRINA RECUPERADA\n{contexto_doutrinario}\n\n"
+        f"### HISTORICO RECENTE\n{contexto_historico}\n\n"
+        f"### PERGUNTA\n{pergunta}\n\n"
+        "### RESPOSTA TECNICA:"
     )
-    
-    corpo = {"model": "llama3.2:1b", "prompt": prompt_final, "stream": False}
-    
     try:
-        res = requests.post(url, json=corpo)
-        if res.status_code == 200:
-            resposta = json.loads(res.text)['response']
-            historico_conversa.append(f"Agente: {pergunta}")
-            historico_conversa.append(f"Bastos: {resposta}")
-            salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
-            return resposta
-        return "ERRO: Motor offline."
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt_final}],
+            temperature=0.2,
+            max_tokens=1024,
+        )
+        resposta = completion.choices[0].message.content
     except Exception as e:
         return f"FALHA: {e}"
+    historico_conversa.append(f"AGENTE: {pergunta}")
+    historico_conversa.append(f"BASTOS: {resposta}")
+    salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
+    return resposta
 
-# --- INICIALIZAÇÃO DO SISTEMA ---
-print("\n" + "="*50)
-print("   AGENT BASTOS - SISTEMA DE INTELIGÊNCIA SOBERANA")
-print("="*50)
-
-print("[*] Carregando memórias criptografadas...")
-if carregar_memoria_recente():
-    print("[+] Contexto recuperado do último log com sucesso.")
-else:
-    print("[!] Nenhum log anterior encontrado ou erro de chave.")
-
-print("[*] Sincronizando doutrinas locais...")
-
-while True:
-    comando = input("\n[AGENTE]> ")
-    if comando.lower() == 'protocolo-zero':
-        if os.path.exists("missao.log"): os.remove("missao.log")
-        print("\n[!] DADOS ELIMINADOS. SESSÃO ENCERRADA.")
-        break
-    if comando.lower() in ['sair', 'exit']: break
-    
-    print("\n[PROCESSANDO COM PERSISTÊNCIA DE DADOS...]")
-    analise = conversar_com_bastos(comando)
-    print(f"\n[BASTOS]> {analise}")
+if __name__ == "__main__":
+    print("\n" + "=" * 55)
+    print("   AGENT BASTOS - SISTEMA DE INTELIGENCIA SOBERANA")
+    print("=" * 55)
+    print("\n[*] Carregando memorias criptografadas...")
+    if carregar_memoria_recente():
+        print("[+] Contexto recuperado do ultimo log com sucesso.")
+    else:
+        print("[!] Nenhum log anterior encontrado. Sessao iniciada limpa.")
+    print("[*] Sistema pronto.\n")
+    while True:
+        try:
+            comando = input("[AGENTE]> ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n[!] Sessao encerrada.")
+            break
+        if not comando:
+            continue
+        if comando.lower() == "protocolo-zero":
+            if os.path.exists(LOG_PATH): os.remove(LOG_PATH)
+            print("\n[!] DADOS ELIMINADOS. SESSAO ENCERRADA.")
+            break
+        if comando.lower() in ["sair", "exit"]:
+            print("\n[!] Sessao encerrada.")
+            break
+        print("\n[PROCESSANDO...]")
+        resposta = conversar_com_bastos(comando)
+        print(f"\n[BASTOS]> {resposta}\n")
