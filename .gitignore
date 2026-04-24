@@ -18,3 +18,8 @@ audios/
 # VS Code
 .vscode/
 novachavedogroq.txt
+# Índices e dados operacionais sensíveis
+indice_documentos.json
+producao_aipen.json
+alvos.json
+data/relatorios/
