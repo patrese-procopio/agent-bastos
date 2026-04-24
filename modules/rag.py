@@ -9,8 +9,8 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
