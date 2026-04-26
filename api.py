@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from modules.rag import conversar_com_bastos
+from modules.rag import conversar_com_bastos, conversar_com_fontes
 
 app = FastAPI(title="Agent Bastos API", version="1.0.0")
 
@@ -26,6 +26,13 @@ def chat(req: PerguntaRequest):
         return {"resposta": "Pergunta vazia recebida."}
     resposta = conversar_com_bastos(req.pergunta)
     return {"resposta": resposta}
+
+@app.post("/chat-rag")
+def chat_rag(req: PerguntaRequest):
+    if not req.pergunta.strip():
+        return {"resposta": "Pergunta vazia recebida.", "fontes": [], "confianca": 0}
+    resultado = conversar_com_fontes(req.pergunta)
+    return resultado
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

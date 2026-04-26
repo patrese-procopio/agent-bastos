@@ -88,6 +88,68 @@ def conversar_com_bastos(pergunta):
     salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
     return resposta
 
+
+
+def conversar_com_fontes(pergunta):
+    """
+    RAG avancado: retorna resposta + fontes + score de confianca.
+    Usado pelo endpoint /chat-rag.
+    """
+    global historico_conversa
+
+    resultados = _db.similarity_search_with_relevance_scores(pergunta, k=4)
+
+    fontes = []
+    partes_contexto = []
+
+    for i, (doc, score) in enumerate(resultados, 1):
+        fonte = doc.metadata.get("fonte", "desconhecida")
+        trecho = doc.page_content[:300].strip()
+        partes_contexto.append(f"[TRECHO {i} - FONTE: {fonte}]\n{doc.page_content}")
+        fontes.append({
+            "id": i,
+            "fonte": fonte,
+            "trecho": trecho,
+            "score": round(score * 100, 1)
+        })
+
+    confianca = round(sum(f["score"] for f in fontes) / len(fontes), 1) if fontes else 0
+    contexto_doutrinario = "\n\n".join(partes_contexto)
+    contexto_historico = "\n".join(historico_conversa[-6:])
+
+    prompt_final = (
+        "### DIRETRIZ OPERACIONAL\n"
+        "Voce e o BASTOS-UNIT, analista tecnico de inteligencia de seguranca publica. "
+        "Responda APENAS com base nos trechos doutrinarios fornecidos abaixo. "
+        "Se a informacao nao estiver nos trechos, declare isso explicitamente.\n\n"
+        f"### DOUTRINA RECUPERADA\n{contexto_doutrinario}\n\n"
+        f"### HISTORICO RECENTE\n{contexto_historico}\n\n"
+        f"### PERGUNTA\n{pergunta}\n\n"
+        "### RESPOSTA TECNICA:"
+    )
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt_final}],
+            temperature=0.2,
+            max_tokens=1024,
+        )
+        resposta = completion.choices[0].message.content
+    except Exception as e:
+        return {"resposta": f"FALHA: {e}", "fontes": fontes, "confianca": 0}
+
+    historico_conversa.append(f"AGENTE: {pergunta}")
+    historico_conversa.append(f"BASTOS: {resposta}")
+    salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
+
+    return {
+        "resposta": resposta,
+        "fontes": fontes,
+        "confianca": confianca
+    }
+
 if __name__ == "__main__":
     print("\n" + "=" * 55)
     print("   AGENT BASTOS - SISTEMA DE INTELIGENCIA SOBERANA")
