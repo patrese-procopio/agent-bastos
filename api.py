@@ -1,4 +1,6 @@
 ﻿import uvicorn
+import os
+import glob
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,6 +23,11 @@ app.add_middleware(
 class PerguntaRequest(BaseModel):
     pergunta: str
 
+class RelatorioRequest(BaseModel):
+    mes: str
+    ano: int
+    dados: dict
+
 @app.get("/health")
 def health():
     return {"status": "online", "agente": "BASTOS-UNIT"}
@@ -39,15 +46,8 @@ def chat_rag(req: PerguntaRequest):
     resultado = conversar_com_fontes(req.pergunta)
     return resultado
 
-
-class RelatorioRequest(BaseModel):
-    mes: str
-    ano: int
-    dados: dict
-
 @app.post("/relatorio-dashboard")
 def relatorio_dashboard(req: RelatorioRequest):
-    import os
     from groq import Groq
 
     prompt = f"""Voce e o BASTOS-UNIT, analista de inteligencia institucional.
@@ -82,6 +82,33 @@ Use linguagem tecnica, direta e institucional. Seja especifico com os numeros fo
         return {"analise": f"FALHA: {e}"}
 
     return {"analise": analise}
+
+@app.get("/noticias")
+def noticias():
+    pasta = r"C:\Users\Administrador\Agent_Bastos\data\relatorios"
+    arquivos = []
+
+    if not os.path.exists(pasta):
+        return {"noticias": []}
+
+    for caminho in glob.glob(os.path.join(pasta, "*.txt")):
+        nome = os.path.basename(caminho)
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                conteudo = f.read()
+        except Exception:
+            continue
+        stat = os.stat(caminho)
+        titulo = "Monitor Crimes AM" if nome == "relatorio.txt" else nome.replace(".txt", "").replace("_", " ").title()
+        arquivos.append({
+            "titulo": titulo,
+            "conteudo": conteudo,
+            "arquivo": nome,
+            "atualizado": stat.st_mtime
+        })
+
+    arquivos.sort(key=lambda x: x["atualizado"], reverse=True)
+    return {"noticias": arquivos}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
