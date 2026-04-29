@@ -1,6 +1,7 @@
-﻿import uvicorn
+import uvicorn
 import os
 import glob
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS"],
     allow_headers=["*"],
 )
+
+PASTA_RELATORIOS = r"C:\Users\Administrador\Agent_Bastos\data\relatorios"
 
 class PerguntaRequest(BaseModel):
     pergunta: str
@@ -85,13 +88,45 @@ Use linguagem tecnica, direta e institucional. Seja especifico com os numeros fo
 
 @app.get("/noticias")
 def noticias():
-    pasta = r"C:\Users\Administrador\Agent_Bastos\data\relatorios"
     arquivos = []
+    os.makedirs(PASTA_RELATORIOS, exist_ok=True)
 
-    if not os.path.exists(pasta):
-        return {"noticias": []}
+    # Lê noticias_crimes.json (novo formato estruturado do n8n)
+    json_path = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            stat = os.stat(json_path)
+            # Formato novo: objeto direto com campo noticias
+            noticias_list = None
+            if "noticias" in dados:
+                noticias_list = dados["noticias"]
+            # Formato n8n: campo texto contém JSON como string
+            elif "texto" in dados:
+                inner = json.loads(dados["texto"])
+                if "noticias" in inner:
+                    noticias_list = inner["noticias"]
+            if noticias_list:
+                for n in noticias_list:
+                    arquivos.append({
+                        "titulo": n.get("titulo", "Sem título"),
+                        "resumo": n.get("resumo", ""),
+                        "link": n.get("link", ""),
+                        "imagem": n.get("imagem", ""),
+                        "data_pub": n.get("data", ""),
+                        "categoria": n.get("categoria", "CRIMES"),
+                        "conteudo": n.get("resumo", ""),
+                        "arquivo": "noticias_crimes.json",
+                        "atualizado": stat.st_mtime,
+                        "formato": "estruturado"
+                    })
+                return {"noticias": arquivos}
+        except Exception:
+            pass
 
-    for caminho in glob.glob(os.path.join(pasta, "*.txt")):
+    # Fallback: lê arquivos .txt legados
+    for caminho in glob.glob(os.path.join(PASTA_RELATORIOS, "*.txt")):
         nome = os.path.basename(caminho)
         try:
             with open(caminho, "r", encoding="utf-8") as f:
@@ -102,13 +137,29 @@ def noticias():
         titulo = "Monitor Crimes AM" if nome == "relatorio.txt" else nome.replace(".txt", "").replace("_", " ").title()
         arquivos.append({
             "titulo": titulo,
+            "resumo": conteudo[:200],
+            "link": "",
+            "imagem": "",
+            "data_pub": "",
+            "categoria": "CRIMES",
             "conteudo": conteudo,
             "arquivo": nome,
-            "atualizado": stat.st_mtime
+            "atualizado": stat.st_mtime,
+            "formato": "texto"
         })
 
     arquivos.sort(key=lambda x: x["atualizado"], reverse=True)
     return {"noticias": arquivos}
+
+@app.post("/noticias/salvar")
+async def salvar_noticias(dados: dict):
+    """Endpoint chamado pelo n8n para salvar notícias estruturadas."""
+    os.makedirs(PASTA_RELATORIOS, exist_ok=True)
+    caminho = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=2)
+    total = len(dados.get("noticias", []))
+    return {"status": "salvo", "total": total}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
