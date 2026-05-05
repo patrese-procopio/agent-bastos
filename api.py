@@ -19,6 +19,7 @@ from modules.rag import conversar_com_bastos, conversar_com_fontes
 
 BASE_DIR         = os.path.dirname(os.path.abspath(__file__))
 PASTA_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
+_SA_KEY_PATH     = os.path.join(BASE_DIR, "serviceAccountKey.json")
 
 # Cria diretórios necessários uma única vez na inicialização
 os.makedirs(PASTA_RELATORIOS, exist_ok=True)
@@ -31,14 +32,8 @@ if not _GROQ_API_KEY:
 _groq = Groq(api_key=_GROQ_API_KEY)
 
 # Limites de segurança
-_MAX_PERGUNTA    = 4_000    # chars — evita prompt injection excessivo
-_MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB (limite do Groq Whisper)
-_AUDIO_MIMES     = {
-    "audio/wav", "audio/wave", "audio/x-wav",
-    "audio/mpeg", "audio/mp3", "audio/mp4",
-    "audio/ogg", "audio/webm", "audio/flac",
-    "audio/x-flac", "audio/m4a", "audio/x-m4a",
-}
+_MAX_PERGUNTA    = 4_000
+_MAX_AUDIO_BYTES = 25 * 1024 * 1024
 _AUDIO_EXTS = {".wav", ".mp3", ".mp4", ".ogg", ".webm", ".flac", ".m4a", ".mpga", ".mpeg"}
 
 # Lock para escrita de arquivos de alertas (requests simultâneas)
@@ -58,6 +53,10 @@ _ALERTAS_PATH         = os.path.join(PASTA_RELATORIOS, "alertas.json")
 _ALERTAS_OSINT_PATH   = os.path.join(PASTA_RELATORIOS, "alertas_osint.json")
 _DASHBOARD_STATS_PATH = os.path.join(PASTA_RELATORIOS, "producao.json")
 _INDICE_PATH          = os.path.join(BASE_DIR, "indice_documentos.json")
+
+# ─── Lista Negra ──────────────────────────────────────────────────────────────
+_LISTA_NEGRA_FILE_ID = "1G6eFhb0jnD38iWU_SLDIFkGtOB0ngHjh"
+_GDRIVE_SCOPES       = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
 def _ler_alertas(caminho: str) -> list:
@@ -79,7 +78,6 @@ def _salvar_alertas(caminho: str, alertas: list) -> None:
 # ─── Seed inicial de alertas ─────────────────────────────────────────────────
 
 def _seed_alertas_iniciais() -> None:
-    """Cria alertas de demonstração se os arquivos ainda não existirem."""
     now = datetime.now()
 
     if not os.path.exists(_ALERTAS_PATH):
@@ -196,7 +194,6 @@ _seed_alertas_iniciais()
 # ─── Seed inicial de produção ─────────────────────────────────────────────────
 
 def _seed_dashboard_inicial() -> None:
-    """Cria arquivo de produção com dados realistas e determinísticos se não existir."""
     if os.path.exists(_DASHBOARD_STATS_PATH):
         return
     import random as _r
@@ -277,7 +274,6 @@ def _get_wav_duration(path: str) -> str:
 
 
 def _parse_llm_json(text: str) -> dict:
-    """Extrai JSON de resposta LLM que pode conter blocos markdown."""
     match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if match:
         text = match.group(1).strip()
@@ -415,227 +411,10 @@ async def salvar_noticias(dados: dict):
     return {"status": "salvo", "total": len(dados.get("noticias", []))}
 
 
-# ─── Transcrição de Áudio ──────────────────────────────────────────────────
-
-@app.post("/transcribe")
-async def transcribe_audio(audio: UploadFile = File(...)):
-    """
-    Recebe arquivo de áudio (wav/mp3/webm/m4a/ogg/flac),
-    transcreve via Whisper (Groq) e retorna laudo estruturado.
-    """
-    from modules.transcricao import transcrever_audio, formatar_relatorio
-
-    # Salva o upload em arquivo temporário (Groq exige path real)
-    suffix = os.path.splitext(audio.filename or "audio.webm")[1] or ".webm"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(await audio.read())
-        tmp_path = tmp.name
-
-    try:
-        # 1. Transcrição bruta via Whisper
-        transcricao_bruta = transcrever_audio(tmp_path, groq_client)
-
-        # 2. Formatação como laudo via LLM
-        # Pedimos JSON estruturado diretamente
-        prompt = (
-            "Você é o Agent Bastos, analista sênior da AIPEN/SEAP-AM.\n"
-            "Analise a transcrição abaixo e retorne SOMENTE um JSON válido, sem markdown, com a estrutura:\n"
-            '{\n'
-            '  "laudo_number": "NNNN/YYYY",\n'
-            '  "date": "DD de Mês de YYYY",\n'
-            '  "filename": "<nome do arquivo>",\n'
-            '  "duration": "HH:MM:SS",\n'
-            '  "risk_level": "ALTO" | "MÉDIO" | "BAIXO",\n'
-            '  "classification": "<classificação resumida>",\n'
-            '  "summary": "<resumo analítico em 3-5 linhas>",\n'
-            '  "speakers": [{"id": "M1", "label": "Voz masculina", "role": "<papel>"}],\n'
-            '  "segments": [{"ts": "HH:MM:SS", "speaker": "M1", "text": "..."}],\n'
-            '  "red_flags": [{"id": 1, "title": "<título>", "text": "<detalhe>"}]\n'
-            '}\n\n'
-            f"ARQUIVO: {audio.filename}\n"
-            f"TRANSCRIÇÃO:\n{transcricao_bruta}\n\n"
-            "Gere o laudo. Se não conseguir identificar locutores distintos, use apenas M1."
-        )
-
-        resposta = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=2048,
-        )
-
-        texto = resposta.choices[0].message.content.strip()
-        # Remove blocos markdown caso o modelo inclua
-        texto = re.sub(r"```json|```", "", texto).strip()
-
-        laudo = json.loads(texto)
-
-        # Garante laudo_number com ano atual
-        if not laudo.get("laudo_number"):
-            count = datetime.now().strftime("%m%d")
-            laudo["laudo_number"] = f"{count}/{datetime.now().year}"
-        if not laudo.get("date"):
-            laudo["date"] = datetime.now().strftime("%d de %B de %Y")
-        if not laudo.get("filename"):
-            laudo["filename"] = audio.filename or "audio"
-
-        return laudo
-
-    except json.JSONDecodeError:
-        # Se o LLM não devolveu JSON válido, retorna estrutura mínima com transcrição bruta
-        agora = datetime.now()
-        return {
-            "laudo_number": agora.strftime("%m%d") + f"/{agora.year}",
-            "date": agora.strftime("%d de %B de %Y"),
-            "filename": audio.filename or "audio",
-            "duration": "--:--",
-            "risk_level": "MÉDIO",
-            "classification": "Requer análise manual",
-            "summary": transcricao_bruta,
-            "speakers": [{"id": "M1", "label": "Voz", "role": "Não identificado"}],
-            "segments": [{"ts": "00:00:00", "speaker": "M1", "text": transcricao_bruta}],
-            "red_flags": [],
-        }
-    finally:
-        # Limpa arquivo temporário
-        try: os.unlink(tmp_path)
-        except: pass
-
-
-# ─── Alertas ───────────────────────────────────────────────────────────────────
-
-@app.get("/alertas")
-def listar_alertas():
-    return _ler_alertas(_ALERTAS_PATH)
-
-
-@app.get("/alertas/osint")
-def listar_alertas_osint():
-    return _ler_alertas(_ALERTAS_OSINT_PATH)
-
-
-@app.post("/alertas/salvar")
-async def salvar_alerta(alerta: dict):
-    alertas = _ler_alertas(_ALERTAS_PATH)
-    ids = {a.get("id") for a in alertas}
-    if alerta.get("id") not in ids:
-        alertas.insert(0, alerta)
-    _salvar_alertas(_ALERTAS_PATH, alertas)
-    return {"status": "salvo", "total": len(alertas)}
-
-
-@app.post("/alertas/osint/salvar")
-async def salvar_alerta_osint(alerta: dict):
-    alertas = _ler_alertas(_ALERTAS_OSINT_PATH)
-    ids = {a.get("id") for a in alertas}
-    if alerta.get("id") not in ids:
-        alertas.insert(0, alerta)
-    _salvar_alertas(_ALERTAS_OSINT_PATH, alertas)
-    return {"status": "salvo", "total": len(alertas)}
-
-
-@app.post("/alertas/varrer")
-async def varrer_alertas():
-    return {"status": "ok", "mensagem": "Sinal de varredura enviado ao n8n."}
-
-
-@app.post("/alertas/osint/varrer")
-async def varrer_osint():
-    return {"status": "ok", "mensagem": "Sinal de varredura OSINT enviado ao n8n."}
-
-
-@app.patch("/alertas/{alerta_id}/lido")
-async def marcar_lido(alerta_id: str):
-    for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
-        alertas    = _ler_alertas(caminho)
-        atualizado = False
-        for a in alertas:
-            if a.get("id") == alerta_id:
-                a["lido"]  = True
-                atualizado = True
-        if atualizado:
-            _salvar_alertas(caminho, alertas)
-    return {"status": "ok", "id": alerta_id}
-
-
-@app.patch("/alertas/marcar-todos-lidos")
-async def marcar_todos_lidos():
-    for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
-        alertas = _ler_alertas(caminho)
-        for a in alertas:
-            a["lido"] = True
-        _salvar_alertas(caminho, alertas)
-    return {"status": "ok"}
-
-
-# ─── Dashboard stats ──────────────────────────────────────────────────────────
-
-@app.get("/dashboard/stats")
-def get_dashboard_stats():
-    if not os.path.exists(_DASHBOARD_STATS_PATH):
-        _seed_dashboard_inicial()
-    try:
-        with open(_DASHBOARD_STATS_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-@app.post("/dashboard/stats")
-async def salvar_dashboard_stats(dados: dict):
-    os.makedirs(os.path.dirname(_DASHBOARD_STATS_PATH), exist_ok=True)
-    with open(_DASHBOARD_STATS_PATH, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=2)
-    return {"status": "salvo"}
-
-
-# ─── Referências (índice Google Drive) ───────────────────────────────────────
-
-@app.get("/referencias")
-def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
-    if not os.path.exists(_INDICE_PATH):
-        return {"documentos": [], "anos": [], "total": 0, "total_indexados": 0}
-    try:
-        with open(_INDICE_PATH, "r", encoding="utf-8") as f:
-            indice = json.load(f)
-    except Exception:
-        return {"documentos": [], "anos": [], "total": 0, "total_indexados": 0}
-
-    docs = indice.get("documentos", [])
-    anos = sorted({d.get("ano", "") for d in docs if d.get("ano")}, reverse=True)
-
-    termo = q.strip().upper()
-    resultado = []
-    for doc in docs:
-        if ano and doc.get("ano") != ano:
-            continue
-        if tipo and doc.get("tipo") != tipo:
-            continue
-        if termo:
-            assunto = (doc.get("assunto") or "").upper()
-            numero  = doc.get("numero", "")
-            if termo not in assunto and termo not in numero:
-                continue
-        resultado.append(doc)
-
-    resultado.sort(key=lambda d: (d.get("ano", ""), d.get("numero", "")), reverse=True)
-
-    return {
-        "documentos":     resultado,
-        "anos":           anos,
-        "total":          len(resultado),
-        "total_indexados": len(docs),
-    }
-
-
 # ─── Transcrição de áudio ─────────────────────────────────────────────────────
 
 @app.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
-    """
-    Recebe áudio, transcreve com Groq Whisper e estrutura com LLaMA.
-    Valida tamanho (max 25 MB) e extensão antes de processar.
-    """
     filename = audio.filename or "audio.wav"
     suffix   = os.path.splitext(filename)[1].lower()
 
@@ -647,10 +426,7 @@ async def transcribe(audio: UploadFile = File(...)):
 
     audio_bytes = await audio.read()
     if len(audio_bytes) > _MAX_AUDIO_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Arquivo excede o limite de {_MAX_AUDIO_BYTES // 1024 // 1024} MB.",
-        )
+        raise HTTPException(status_code=413, detail="Arquivo excede o limite de 25 MB.")
     if len(audio_bytes) == 0:
         raise HTTPException(status_code=400, detail="Arquivo de áudio vazio.")
 
@@ -1034,12 +810,9 @@ def status_firebase():
         import firebase_admin
         from firebase_admin import credentials, firestore as _firestore
         if not firebase_admin._apps:
-            cred = credentials.Certificate(
-                os.path.join(BASE_DIR, "serviceAccountKey.json")
-            )
+            cred = credentials.Certificate(_SA_KEY_PATH)
             firebase_admin.initialize_app(cred)
         db = _firestore.client()
-        # Faz uma leitura leve pra confirmar conectividade
         db.collection("missoes").limit(1).get()
         projeto = firebase_admin.get_app().project_id
         return {"ok": True, "projeto": projeto}
@@ -1047,20 +820,18 @@ def status_firebase():
         return {"ok": False, "projeto": str(e)}
 
 
-# ─── Alertas ─────────────────────────────────────────────────────────────────
+# ─── Firestore helpers ────────────────────────────────────────────────────────
 
 def _get_firestore():
-    """Retorna cliente Firestore, inicializando Firebase se necessário."""
     import firebase_admin
     from firebase_admin import credentials, firestore as _firestore
     if not firebase_admin._apps:
-        cred = credentials.Certificate(os.path.join(BASE_DIR, "serviceAccountKey.json"))
+        cred = credentials.Certificate(_SA_KEY_PATH)
         firebase_admin.initialize_app(cred)
     return _firestore.client()
 
 
 def _serializar_alerta(doc) -> dict:
-    """Converte documento Firestore em dict serializável."""
     d = doc.to_dict()
     d["id"] = doc.id
     ts = d.get("timestamp")
@@ -1071,11 +842,12 @@ def _serializar_alerta(doc) -> dict:
     return d
 
 
+# ─── Alertas ─────────────────────────────────────────────────────────────────
+
 @app.get("/alertas")
 def listar_alertas(limite: int = 50):
-    """Retorna alertas de tempo real (telegram, noticias) ordenados por timestamp desc."""
     try:
-        db = _get_firestore()
+        db   = _get_firestore()
         docs = (
             db.collection("alertas")
             .where("categoria", "==", "realtime")
@@ -1084,15 +856,14 @@ def listar_alertas(limite: int = 50):
             .stream()
         )
         return [_serializar_alerta(d) for d in docs]
-    except Exception as e:
-        return []
+    except Exception:
+        return _ler_alertas(_ALERTAS_PATH)
 
 
 @app.get("/alertas/osint")
 def listar_alertas_osint(limite: int = 50):
-    """Retorna alertas OSINT (sherlock, google_dork, maigret) ordenados por timestamp desc."""
     try:
-        db = _get_firestore()
+        db   = _get_firestore()
         docs = (
             db.collection("alertas")
             .where("categoria", "==", "osint")
@@ -1101,47 +872,248 @@ def listar_alertas_osint(limite: int = 50):
             .stream()
         )
         return [_serializar_alerta(d) for d in docs]
-    except Exception as e:
-        return []
+    except Exception:
+        return _ler_alertas(_ALERTAS_OSINT_PATH)
+
+
+@app.post("/alertas/salvar")
+async def salvar_alerta(alerta: dict):
+    alertas = _ler_alertas(_ALERTAS_PATH)
+    ids = {a.get("id") for a in alertas}
+    if alerta.get("id") not in ids:
+        alertas.insert(0, alerta)
+    _salvar_alertas(_ALERTAS_PATH, alertas)
+    return {"status": "salvo", "total": len(alertas)}
+
+
+@app.post("/alertas/osint/salvar")
+async def salvar_alerta_osint(alerta: dict):
+    alertas = _ler_alertas(_ALERTAS_OSINT_PATH)
+    ids = {a.get("id") for a in alertas}
+    if alerta.get("id") not in ids:
+        alertas.insert(0, alerta)
+    _salvar_alertas(_ALERTAS_OSINT_PATH, alertas)
+    return {"status": "salvo", "total": len(alertas)}
 
 
 @app.patch("/alertas/{alerta_id}/lido")
 def marcar_alerta_lido(alerta_id: str):
-    """Marca um alerta como lido no Firestore."""
     try:
         db = _get_firestore()
         db.collection("alertas").document(alerta_id).update({"lido": True})
         return {"ok": True}
-    except Exception as e:
-        return {"ok": False, "erro": str(e)}
+    except Exception:
+        for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
+            alertas = _ler_alertas(caminho)
+            for a in alertas:
+                if a.get("id") == alerta_id:
+                    a["lido"] = True
+            _salvar_alertas(caminho, alertas)
+        return {"ok": True, "id": alerta_id}
 
 
 @app.patch("/alertas/marcar-todos-lidos")
 def marcar_todos_lidos():
-    """Marca todos os alertas não lidos como lidos."""
     try:
-        db = _get_firestore()
+        db       = _get_firestore()
         nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
-        batch = db.batch()
+        batch    = db.batch()
         for doc in nao_lidos:
             batch.update(doc.reference, {"lido": True})
         batch.commit()
         return {"ok": True}
-    except Exception as e:
-        return {"ok": False, "erro": str(e)}
+    except Exception:
+        for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
+            alertas = _ler_alertas(caminho)
+            for a in alertas:
+                a["lido"] = True
+            _salvar_alertas(caminho, alertas)
+        return {"ok": True}
 
 
 @app.post("/alertas/varrer")
 def varrer_alertas_realtime():
-    """Stub — integração n8n pendente. Retorna ok para não quebrar o frontend."""
     return {"ok": True, "mensagem": "Varredura agendada via n8n"}
 
 
 @app.post("/alertas/osint/varrer")
 def varrer_alertas_osint():
-    """Stub — integração Sherlock/n8n pendente. Retorna ok para não quebrar o frontend."""
     return {"ok": True, "mensagem": "Varredura OSINT agendada via n8n"}
 
+
+# ─── Dashboard stats ──────────────────────────────────────────────────────────
+
+@app.get("/dashboard/stats")
+def get_dashboard_stats():
+    if not os.path.exists(_DASHBOARD_STATS_PATH):
+        _seed_dashboard_inicial()
+    try:
+        with open(_DASHBOARD_STATS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+@app.post("/dashboard/stats")
+async def salvar_dashboard_stats(dados: dict):
+    os.makedirs(os.path.dirname(_DASHBOARD_STATS_PATH), exist_ok=True)
+    with open(_DASHBOARD_STATS_PATH, "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=2)
+    return {"status": "salvo"}
+
+
+# ─── Referências ─────────────────────────────────────────────────────────────
+
+@app.get("/referencias")
+def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
+    if not os.path.exists(_INDICE_PATH):
+        return {"documentos": [], "anos": [], "total": 0, "total_indexados": 0}
+    try:
+        with open(_INDICE_PATH, "r", encoding="utf-8") as f:
+            indice = json.load(f)
+    except Exception:
+        return {"documentos": [], "anos": [], "total": 0, "total_indexados": 0}
+
+    docs  = indice.get("documentos", [])
+    anos  = sorted({d.get("ano", "") for d in docs if d.get("ano")}, reverse=True)
+    termo = q.strip().upper()
+
+    resultado = []
+    for doc in docs:
+        if ano  and doc.get("ano")  != ano:  continue
+        if tipo and doc.get("tipo") != tipo:  continue
+        if termo:
+            assunto = (doc.get("assunto") or "").upper()
+            numero  = doc.get("numero", "")
+            if termo not in assunto and termo not in numero:
+                continue
+        resultado.append(doc)
+
+    resultado.sort(key=lambda d: (d.get("ano", ""), d.get("numero", "")), reverse=True)
+    return {
+        "documentos":      resultado,
+        "anos":            anos,
+        "total":           len(resultado),
+        "total_indexados": len(docs),
+    }
+
+
+# ─── Lista Negra (Google Drive) ───────────────────────────────────────────────
+
+from googleapiclient.discovery import build as _gdrive_build
+from googleapiclient.http import MediaIoBaseDownload as _MediaIoBaseDownload
+from google.oauth2 import service_account as _sa
+import openpyxl as _openpyxl
+
+
+def _mascarar_cpf(cpf: str) -> str:
+    """753.164.392-87 → 753.***.***-**"""
+    if not cpf:
+        return ""
+    limpo = re.sub(r"\D", "", str(cpf))
+    if len(limpo) < 3:
+        return "***.***.***-**"
+    return f"{limpo[:3]}.***.***-**"
+
+
+def _baixar_xlsx_drive() -> bytes:
+    """Baixa .xlsx real do Google Drive via Service Account."""
+    creds   = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=_GDRIVE_SCOPES)
+    service = _gdrive_build("drive", "v3", credentials=creds)
+    request = service.files().get_media(fileId=_LISTA_NEGRA_FILE_ID)
+    buf     = io.BytesIO()
+    dl      = _MediaIoBaseDownload(buf, request)
+    done    = False
+    while not done:
+        _, done = dl.next_chunk()
+    buf.seek(0)
+    return buf.read()
+
+
+def _ler_lista_negra() -> list:
+    """Lê todas as abas do .xlsx e retorna lista unificada ordenada A-Z por nome."""
+    xlsx_bytes = _baixar_xlsx_drive()
+    wb         = _openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
+    registros  = []
+
+    for sheet_name in wb.sheetnames:
+        ws   = wb[sheet_name]
+        rows = list(ws.iter_rows(values_only=True))
+        if len(rows) < 2:
+            continue
+
+        # Detecta linha do cabeçalho (procura "NOME" nas primeiras 5 linhas)
+        header_idx = 0
+        for i, row in enumerate(rows[:5]):
+            vals = [str(v).upper() for v in row if v]
+            if "NOME" in vals:
+                header_idx = i
+                break
+
+        headers = [str(v).strip().upper() if v else "" for v in rows[header_idx]]
+
+        col_map = {}
+        for i, h in enumerate(headers):
+            if "NOME" in h:                               col_map["nome"]       = i
+            elif h in ("N", "N°", "Nº") or "NUM" in h:   col_map["numero"]     = i
+            elif "REFER" in h:                            col_map["referencia"] = i
+            elif "SITUA" in h:                            col_map["situacao"]   = i
+            elif "UNID" in h:                             col_map["unidade"]    = i
+            elif "EMPRES" in h:                           col_map["empresa"]    = i
+            elif "DATA" in h:                             col_map["data"]       = i
+            elif "CPF" in h:                              col_map["cpf"]        = i
+            elif "DESC" in h or "OBS" in h:               col_map["descricao"]  = i
+
+        if "nome" not in col_map:
+            continue
+
+        for row in rows[header_idx + 1:]:
+            nome = row[col_map["nome"]] if col_map.get("nome") is not None else None
+            if not nome or str(nome).strip() == "":
+                continue
+
+            def _get(key, _row=row, _col=col_map):
+                idx = _col.get(key)
+                if idx is None or idx >= len(_row):
+                    return ""
+                val = _row[idx]
+                if val is None:
+                    return ""
+                if hasattr(val, "strftime"):
+                    return val.strftime("%d/%m/%Y")
+                return str(val).strip()
+
+            registros.append({
+                "numero":     _get("numero"),
+                "nome":       str(nome).strip().upper(),
+                "referencia": _get("referencia"),
+                "situacao":   _get("situacao").upper(),
+                "unidade":    _get("unidade"),
+                "empresa":    _get("empresa"),
+                "data":       _get("data"),
+                "cpf":        _mascarar_cpf(_get("cpf")),
+                "descricao":  _get("descricao"),
+                "ano":        sheet_name,
+            })
+
+    registros.sort(key=lambda x: x["nome"])
+    return registros
+
+
+@app.get("/lista-negra")
+def lista_negra():
+    """
+    Retorna lista de servidores da planilha Caveirinha (Google Drive).
+    CPF mascarado — apenas os 3 primeiros dígitos visíveis. LGPD compliant.
+    """
+    try:
+        registros = _ler_lista_negra()
+        return {"total": len(registros), "registros": registros}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao acessar planilha: {e}")
+
+
+# ─── Entry point ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     uvicorn.run(
