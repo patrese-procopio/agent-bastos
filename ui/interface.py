@@ -8,6 +8,7 @@ import customtkinter as ctk
 import threading
 from tkinter import filedialog
 
+from modules.config_ui import abrir_configuracoes
 from modules.agente import (
     consultar_agente,
     processar_missiva,
@@ -144,7 +145,13 @@ ctk.CTkButton(
     height=40, font=("Roboto", 13, "bold"),
     fg_color="#1a3a5c", hover_color="#1a2a4c"
 ).pack(pady=(5, 5), padx=15, fill="x")
-
+# No sidebar, depois do botão de Busca de Referências e ANTES de adicionar_agenda_sidebar:
+ctk.CTkButton(
+    sidebar, text="⚙️  Configurações",
+    command=lambda: abrir_configuracoes(app),
+    height=40, font=("Roboto", 13, "bold"),
+    fg_color="#3a3a3a", hover_color="#4a4a4a"
+).pack(pady=(5, 5), padx=15, fill="x")
 adicionar_agenda_sidebar(sidebar, app)
 iniciar_monitoramento(app, intervalo_segundos=60)
 

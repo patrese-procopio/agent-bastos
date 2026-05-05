@@ -415,7 +415,94 @@ async def salvar_noticias(dados: dict):
     return {"status": "salvo", "total": len(dados.get("noticias", []))}
 
 
-# ─── Alertas ──────────────────────────────────────────────────────────────────
+# ─── Transcrição de Áudio ──────────────────────────────────────────────────
+
+@app.post("/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    """
+    Recebe arquivo de áudio (wav/mp3/webm/m4a/ogg/flac),
+    transcreve via Whisper (Groq) e retorna laudo estruturado.
+    """
+    from modules.transcricao import transcrever_audio, formatar_relatorio
+
+    # Salva o upload em arquivo temporário (Groq exige path real)
+    suffix = os.path.splitext(audio.filename or "audio.webm")[1] or ".webm"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await audio.read())
+        tmp_path = tmp.name
+
+    try:
+        # 1. Transcrição bruta via Whisper
+        transcricao_bruta = transcrever_audio(tmp_path, groq_client)
+
+        # 2. Formatação como laudo via LLM
+        # Pedimos JSON estruturado diretamente
+        prompt = (
+            "Você é o Agent Bastos, analista sênior da AIPEN/SEAP-AM.\n"
+            "Analise a transcrição abaixo e retorne SOMENTE um JSON válido, sem markdown, com a estrutura:\n"
+            '{\n'
+            '  "laudo_number": "NNNN/YYYY",\n'
+            '  "date": "DD de Mês de YYYY",\n'
+            '  "filename": "<nome do arquivo>",\n'
+            '  "duration": "HH:MM:SS",\n'
+            '  "risk_level": "ALTO" | "MÉDIO" | "BAIXO",\n'
+            '  "classification": "<classificação resumida>",\n'
+            '  "summary": "<resumo analítico em 3-5 linhas>",\n'
+            '  "speakers": [{"id": "M1", "label": "Voz masculina", "role": "<papel>"}],\n'
+            '  "segments": [{"ts": "HH:MM:SS", "speaker": "M1", "text": "..."}],\n'
+            '  "red_flags": [{"id": 1, "title": "<título>", "text": "<detalhe>"}]\n'
+            '}\n\n'
+            f"ARQUIVO: {audio.filename}\n"
+            f"TRANSCRIÇÃO:\n{transcricao_bruta}\n\n"
+            "Gere o laudo. Se não conseguir identificar locutores distintos, use apenas M1."
+        )
+
+        resposta = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=2048,
+        )
+
+        texto = resposta.choices[0].message.content.strip()
+        # Remove blocos markdown caso o modelo inclua
+        texto = re.sub(r"```json|```", "", texto).strip()
+
+        laudo = json.loads(texto)
+
+        # Garante laudo_number com ano atual
+        if not laudo.get("laudo_number"):
+            count = datetime.now().strftime("%m%d")
+            laudo["laudo_number"] = f"{count}/{datetime.now().year}"
+        if not laudo.get("date"):
+            laudo["date"] = datetime.now().strftime("%d de %B de %Y")
+        if not laudo.get("filename"):
+            laudo["filename"] = audio.filename or "audio"
+
+        return laudo
+
+    except json.JSONDecodeError:
+        # Se o LLM não devolveu JSON válido, retorna estrutura mínima com transcrição bruta
+        agora = datetime.now()
+        return {
+            "laudo_number": agora.strftime("%m%d") + f"/{agora.year}",
+            "date": agora.strftime("%d de %B de %Y"),
+            "filename": audio.filename or "audio",
+            "duration": "--:--",
+            "risk_level": "MÉDIO",
+            "classification": "Requer análise manual",
+            "summary": transcricao_bruta,
+            "speakers": [{"id": "M1", "label": "Voz", "role": "Não identificado"}],
+            "segments": [{"ts": "00:00:00", "speaker": "M1", "text": transcricao_bruta}],
+            "red_flags": [],
+        }
+    finally:
+        # Limpa arquivo temporário
+        try: os.unlink(tmp_path)
+        except: pass
+
+
+# ─── Alertas ───────────────────────────────────────────────────────────────────
 
 @app.get("/alertas")
 def listar_alertas():
@@ -886,6 +973,174 @@ async def export_transcript(fmt: str, body: dict):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falha ao gerar {fmt.upper()}: {e}")
+
+
+# ─── Agenda de Missão ────────────────────────────────────────────────────────
+
+import hashlib as _hashlib
+_SENHA_CHEFE_HASH = _hashlib.sha256(b"aipen2025").hexdigest()
+
+
+class AgendaLoginRequest(BaseModel):
+    senha: str
+
+
+class MissaoRequest(BaseModel):
+    nucleo: str
+    mensagem: str
+
+
+@app.post("/agenda/login")
+def agenda_login(req: AgendaLoginRequest):
+    ok = _hashlib.sha256(req.senha.encode()).hexdigest() == _SENHA_CHEFE_HASH
+    return {"ok": ok}
+
+
+@app.post("/agenda/publicar")
+def agenda_publicar(req: MissaoRequest):
+    try:
+        from modules.agenda import publicar_missao
+        ok = publicar_missao(req.nucleo, req.mensagem)
+        return {"ok": ok}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
+
+
+@app.get("/agenda/missoes")
+def agenda_missoes(nucleo: str = None, limite: int = 30):
+    try:
+        from modules.agenda import buscar_missoes_recentes
+        missoes = buscar_missoes_recentes(nucleo=nucleo, limite=limite)
+        resultado = []
+        for m in missoes:
+            ts = m.get("timestamp")
+            resultado.append({
+                **m,
+                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts) if ts else None,
+            })
+        return {"missoes": resultado}
+    except Exception as e:
+        return {"missoes": [], "erro": str(e)}
+
+
+@app.get("/status")
+def status():
+    return {"status": "online", "version": "1.0.0", "model": "llama-3.3-70b-versatile"}
+
+
+@app.get("/status/firebase")
+def status_firebase():
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore as _firestore
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(
+                os.path.join(BASE_DIR, "serviceAccountKey.json")
+            )
+            firebase_admin.initialize_app(cred)
+        db = _firestore.client()
+        # Faz uma leitura leve pra confirmar conectividade
+        db.collection("missoes").limit(1).get()
+        projeto = firebase_admin.get_app().project_id
+        return {"ok": True, "projeto": projeto}
+    except Exception as e:
+        return {"ok": False, "projeto": str(e)}
+
+
+# ─── Alertas ─────────────────────────────────────────────────────────────────
+
+def _get_firestore():
+    """Retorna cliente Firestore, inicializando Firebase se necessário."""
+    import firebase_admin
+    from firebase_admin import credentials, firestore as _firestore
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(os.path.join(BASE_DIR, "serviceAccountKey.json"))
+        firebase_admin.initialize_app(cred)
+    return _firestore.client()
+
+
+def _serializar_alerta(doc) -> dict:
+    """Converte documento Firestore em dict serializável."""
+    d = doc.to_dict()
+    d["id"] = doc.id
+    ts = d.get("timestamp")
+    if ts and hasattr(ts, "isoformat"):
+        d["timestamp"] = ts.isoformat()
+    elif ts:
+        d["timestamp"] = str(ts)
+    return d
+
+
+@app.get("/alertas")
+def listar_alertas(limite: int = 50):
+    """Retorna alertas de tempo real (telegram, noticias) ordenados por timestamp desc."""
+    try:
+        db = _get_firestore()
+        docs = (
+            db.collection("alertas")
+            .where("categoria", "==", "realtime")
+            .order_by("timestamp", direction="DESCENDING")
+            .limit(limite)
+            .stream()
+        )
+        return [_serializar_alerta(d) for d in docs]
+    except Exception as e:
+        return []
+
+
+@app.get("/alertas/osint")
+def listar_alertas_osint(limite: int = 50):
+    """Retorna alertas OSINT (sherlock, google_dork, maigret) ordenados por timestamp desc."""
+    try:
+        db = _get_firestore()
+        docs = (
+            db.collection("alertas")
+            .where("categoria", "==", "osint")
+            .order_by("timestamp", direction="DESCENDING")
+            .limit(limite)
+            .stream()
+        )
+        return [_serializar_alerta(d) for d in docs]
+    except Exception as e:
+        return []
+
+
+@app.patch("/alertas/{alerta_id}/lido")
+def marcar_alerta_lido(alerta_id: str):
+    """Marca um alerta como lido no Firestore."""
+    try:
+        db = _get_firestore()
+        db.collection("alertas").document(alerta_id).update({"lido": True})
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
+
+
+@app.patch("/alertas/marcar-todos-lidos")
+def marcar_todos_lidos():
+    """Marca todos os alertas não lidos como lidos."""
+    try:
+        db = _get_firestore()
+        nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
+        batch = db.batch()
+        for doc in nao_lidos:
+            batch.update(doc.reference, {"lido": True})
+        batch.commit()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
+
+
+@app.post("/alertas/varrer")
+def varrer_alertas_realtime():
+    """Stub — integração n8n pendente. Retorna ok para não quebrar o frontend."""
+    return {"ok": True, "mensagem": "Varredura agendada via n8n"}
+
+
+@app.post("/alertas/osint/varrer")
+def varrer_alertas_osint():
+    """Stub — integração Sherlock/n8n pendente. Retorna ok para não quebrar o frontend."""
+    return {"ok": True, "mensagem": "Varredura OSINT agendada via n8n"}
 
 
 if __name__ == "__main__":

@@ -4,7 +4,10 @@ import threading, os, glob
 from datetime import datetime
 from tkinter import filedialog
 
-PASTA_AUDIOS = r"C:\Users\Administrador\Downloads\audios"
+PASTA_AUDIOS = os.environ.get(
+    "PASTA_AUDIOS",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "audios"),
+)
 MODELO_WHISPER = "whisper-large-v3-turbo"
 FORMATOS_AUDIO = ["*.wav", "*.mp3", "*.ogg", "*.m4a", "*.flac"]
 
