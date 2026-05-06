@@ -797,7 +797,28 @@ def agenda_missoes(nucleo: str = None, limite: int = 30):
         return {"missoes": resultado}
     except Exception as e:
         return {"missoes": [], "erro": str(e)}
+# ─────────────────────────────────────────────────────────────────────────────
+# ADICIONAR NO api.py — logo após o endpoint GET /agenda/missoes
+# Cole o bloco abaixo no arquivo api.py existente
+# ─────────────────────────────────────────────────────────────────────────────
 
+class CienciaRequest(BaseModel):
+    nucleo: str   # núcleo que está acusando ciência
+
+
+@app.patch("/agenda/missoes/{missao_id}/ciencia")
+def agenda_acusar_ciencia(missao_id: str, req: CienciaRequest):
+    """
+    Agente acusa ciência de uma missão.
+    Atualiza status → 'ciencia' no Firestore.
+    O chefe vê o status atualizado na próxima busca.
+    """
+    try:
+        from modules.agenda import acusar_ciencia
+        ok = acusar_ciencia(missao_id, req.nucleo)
+        return {"ok": ok}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
 
 @app.get("/status")
 def status():
