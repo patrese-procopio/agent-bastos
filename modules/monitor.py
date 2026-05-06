@@ -21,7 +21,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
 
-BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALVOS_PATH  = os.path.join(BASE_DIR, "data", "alvos.json")
 ALERTAS_RT  = os.path.join(BASE_DIR, "data", "relatorios", "alertas.json")
 ALERTAS_OST = os.path.join(BASE_DIR, "data", "relatorios", "alertas_osint.json")
