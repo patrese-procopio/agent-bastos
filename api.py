@@ -954,12 +954,14 @@ def marcar_todos_lidos():
 
 @app.post("/alertas/varrer")
 def varrer_alertas_realtime():
-    return {"ok": True, "mensagem": "Varredura agendada via n8n"}
+    from modules.monitor import varrer_realtime
+    return varrer_realtime()
 
 
 @app.post("/alertas/osint/varrer")
 def varrer_alertas_osint():
-    return {"ok": True, "mensagem": "Varredura OSINT agendada via n8n"}
+    from modules.monitor import varrer_osint
+    return varrer_osint()
 
 
 # ─── Dashboard stats ──────────────────────────────────────────────────────────
