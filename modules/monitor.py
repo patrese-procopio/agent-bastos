@@ -16,10 +16,15 @@ import os
 import re
 import uuid
 import hashlib
+import socket
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
+
+# Timeout global: cobre conexão E leitura de dados
+# urllib.request.urlopen(timeout=N) só cobre conexão — socket cobre os dois
+socket.setdefaulttimeout(5)
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALVOS_PATH  = os.path.join(BASE_DIR, "data", "alvos.json")
@@ -104,7 +109,7 @@ def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
     req     = urllib.request.Request(url, headers=headers)
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req) as resp:
             xml = resp.read()
     except Exception:
         return []
@@ -224,7 +229,7 @@ def varrer_osint() -> dict:
                 req      = urllib.request.Request(url, headers=headers)
 
                 try:
-                    with urllib.request.urlopen(req, timeout=8) as resp:
+                    with urllib.request.urlopen(req) as resp:
                         xml = resp.read()
                     root  = ET.fromstring(xml)
                     items = root.findall(".//item")[:2]
