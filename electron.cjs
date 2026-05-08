@@ -1,10 +1,12 @@
-﻿const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const http = require("http");
 const { spawn } = require("child_process");
 
 let mainWindow;
 let pythonProcess;
+
+const isDev = !app.isPackaged;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,24 +25,31 @@ function createWindow() {
     title: "Agent Bastos",
   });
 
-  const isDev = !app.isPackaged;
-
   if (isDev) {
     mainWindow.loadURL("http://localhost:5174");
-    
   } else {
     mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
   }
 }
 
 function startPythonBackend() {
-  const pythonPath = path.join(
-    __dirname,
-    "../Agent_Bastos/.venv/Scripts/python.exe"
-  );
-  const scriptPath = path.join(__dirname, "../Agent_Bastos/api.py");
+  let pythonPath, scriptPath;
 
-  pythonProcess = spawn(pythonPath, [scriptPath]);
+  if (isDev) {
+    // Desenvolvimento — usa o .venv local
+    pythonPath = path.join(__dirname, "../Agent_Bastos/.venv/Scripts/python.exe");
+    scriptPath = path.join(__dirname, "../Agent_Bastos/api.py");
+  } else {
+    // Produção — backend empacotado junto com o app
+    pythonPath = path.join(process.resourcesPath, "backend", ".venv", "Scripts", "python.exe");
+    scriptPath = path.join(process.resourcesPath, "backend", "api.py");
+  }
+
+  pythonProcess = spawn(pythonPath, [scriptPath], {
+    cwd: isDev
+      ? path.join(__dirname, "../Agent_Bastos")
+      : path.join(process.resourcesPath, "backend"),
+  });
 
   pythonProcess.stdout.on("data", (data) => {
     console.log(`[Python] ${data}`);
@@ -49,12 +58,17 @@ function startPythonBackend() {
   pythonProcess.stderr.on("data", (data) => {
     console.error(`[Python ERR] ${data}`);
   });
+
+  pythonProcess.on("error", (err) => {
+    console.error(`[Python] Falha ao iniciar: ${err.message}`);
+  });
 }
 
 function waitForUrl(url, retries, intervalMs) {
   return new Promise((resolve, reject) => {
     const attempt = (n) => {
-      http.get(url, () => resolve())
+      http
+        .get(url, () => resolve())
         .on("error", () => {
           if (n > 0) setTimeout(() => attempt(n - 1), intervalMs);
           else reject(new Error(`Timeout aguardando ${url}`));
@@ -68,14 +82,14 @@ app.whenReady().then(async () => {
   startPythonBackend();
 
   try {
-    // Aguarda Vite (frontend) e backend Python em paralelo
     await Promise.all([
-      waitForUrl("http://localhost:5174", 30, 1000),
+      isDev
+        ? waitForUrl("http://localhost:5174", 30, 1000)
+        : Promise.resolve(), // em produção não precisa aguardar Vite
       waitForUrl("http://127.0.0.1:8000/health", 60, 1000),
     ]);
     createWindow();
   } catch (err) {
-    // Se o backend não subir, abre mesmo assim (frontend lida com erros de fetch)
     console.error(`[Startup] ${err.message} — abrindo sem backend.`);
     createWindow();
   }
