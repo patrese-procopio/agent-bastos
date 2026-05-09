@@ -1138,6 +1138,92 @@ def lista_negra():
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
+
+
+# --- Download DOCX por file_id (Google Drive) ---
+@app.get("/referencias/download/docx/{file_id}")
+def download_referencia_docx(file_id: str):
+    import io as _io
+    from googleapiclient.discovery import build as _gdrive_build
+    from googleapiclient.http import MediaIoBaseDownload as _MediaDL
+    from google.oauth2 import service_account as _sa2
+    from fastapi.responses import StreamingResponse
+    try:
+        creds = _sa2.Credentials.from_service_account_file(
+            _SA_KEY_PATH, scopes=["https://www.googleapis.com/auth/drive.readonly"])
+        service = _gdrive_build("drive", "v3", credentials=creds)
+        request = service.files().get_media(fileId=file_id)
+        buf = _io.BytesIO()
+        dl = _MediaDL(buf, request)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.seek(0)
+        # Busca nome real no indice
+        import json as _json
+        nome = file_id
+        try:
+            with open(_INDICE_PATH, encoding='utf-8') as _f:
+                _idx = _json.load(_f)
+            _doc = next((d for d in _idx['documentos'] if d.get('file_id') == file_id), None)
+            if _doc:
+                tipo = _doc.get('tipo', '')
+                num = _doc.get('numero', '')
+                ano = _doc.get('ano', '')
+                fmt = _doc.get('formato', 'docx')
+                nome = f"{tipo}_{num}_{ano}.{fmt}"
+        except Exception:
+            pass
+        mt = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if nome.endswith('docx') else "application/pdf"
+        return StreamingResponse(buf, media_type=mt,
+            headers={"Content-Disposition": f"attachment; filename={nome}"})
+    except Exception as e:
+        return {"erro": str(e)}
+
+# --- Download PDF por file_id (Google Drive - converte via API) ---
+@app.get("/referencias/download/pdf/{file_id}")
+def download_referencia_pdf(file_id: str):
+    import io as _io
+    from googleapiclient.discovery import build as _gdrive_build
+    from googleapiclient.http import MediaIoBaseDownload as _MediaDL
+    from google.oauth2 import service_account as _sa2
+    from fastapi.responses import StreamingResponse
+    try:
+        creds = _sa2.Credentials.from_service_account_file(
+            _SA_KEY_PATH, scopes=["https://www.googleapis.com/auth/drive"])
+        service = _gdrive_build("drive", "v3", credentials=creds)
+        # Importa o arquivo como Google Doc
+        meta = {"name": file_id, "mimeType": "application/vnd.google-apps.document"}
+        media_body = service.files().get_media(fileId=file_id)
+        buf_orig = _io.BytesIO()
+        dl = _MediaDL(buf_orig, media_body)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf_orig.seek(0)
+        from googleapiclient.http import MediaIoBaseUpload
+        uploaded = service.files().create(
+            body=meta,
+            media_body=MediaIoBaseUpload(buf_orig,
+                mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            fields="id"
+        ).execute()
+        temp_id = uploaded["id"]
+        # Exporta como PDF
+        pdf_request = service.files().export_media(fileId=temp_id, mimeType="application/pdf")
+        pdf_buf = _io.BytesIO()
+        dl2 = _MediaDL(pdf_buf, pdf_request)
+        done2 = False
+        while not done2:
+            _, done2 = dl2.next_chunk()
+        # Remove arquivo temporario
+        service.files().delete(fileId=temp_id).execute()
+        pdf_buf.seek(0)
+        return StreamingResponse(pdf_buf, media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={file_id}.pdf"})
+    except Exception as e:
+        return {"erro": str(e)}
+
 if __name__ == "__main__":
     uvicorn.run(
         app,
