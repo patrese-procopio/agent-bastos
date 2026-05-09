@@ -14,6 +14,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, field_validator
 from groq import Groq
 from modules.rag import conversar_com_bastos, conversar_com_fontes
+from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 
 # ─── Configuração ────────────────────────────────────────────────────────────
 
@@ -1223,7 +1224,35 @@ def download_referencia_pdf(file_id: str):
             headers={"Content-Disposition": f"attachment; filename={file_id}.pdf"})
     except Exception as e:
         return {"erro": str(e)}
+_IMG_MIME_MAP = {
+    "image/jpeg": ".jpg",
+    "image/png":  ".png",
+    "image/webp": ".webp",
+    "image/gif":  ".gif",
+}
 
+@app.post("/decifrar")
+async def decifrar_missiva(
+    imagem: UploadFile = File(...),
+    tipo_documento: str = "desconhecido",
+    contexto_extra: str = "",
+):
+    if imagem.content_type not in _IMG_MIME_MAP:
+        raise HTTPException(status_code=415, detail=f"Formato não suportado: {imagem.content_type}")
+    dados = await imagem.read()
+    if len(dados) > _MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Imagem excede o limite de 25MB.")
+    try:
+        tipo_enum = TipoDocumento(tipo_documento.lower())
+    except ValueError:
+        tipo_enum = TipoDocumento.DESCONHECIDO
+    return transcrever_documento_bytes(
+        dados=dados,
+        media_type=imagem.content_type,
+        nome_arquivo=imagem.filename or "documento",
+        tipo_documento=tipo_enum,
+        contexto_extra=contexto_extra,
+    )
 if __name__ == "__main__":
     uvicorn.run(
         app,
