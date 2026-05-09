@@ -1,7 +1,7 @@
 {
-  "gerado_em": "08/05/2026 Ã s 21:17",
-  "total_documentos": 1703,
-  "nao_classificados": 95,
+  "gerado_em": "09/05/2026 Ã s 01:50",
+  "total_documentos": 1635,
+  "nao_classificados": 42,
   "documentos": [
     {
       "tipo": "RELINT",
@@ -695,17 +695,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1zeu9aOYPTGpYwHfxc9Xy0PwooYUPUQmx"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2017",
-      "mes": null,
-      "assunto": "controle de relints 2017.xlsx",
-      "data_modificacao": "02/01/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1WvOR51Bq4rlg-jZ_ibZ3WzhuE8XIA0bn"
     },
     {
       "tipo": "RELINT",
@@ -3128,17 +3117,6 @@
       "file_id": "1HHFR4xcll8_O0gmVY-ABPEUQHTaFJ9YW"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0838.tmp",
-      "data_modificacao": "17/12/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1ETRbi4WRnfc0jGxTJ3VGYx5KEIxV___R"
-    },
-    {
       "tipo": "RELINT",
       "numero": "414",
       "ano": "2018",
@@ -3148,17 +3126,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1H32VJeZxmTjoxXjxKIOtHKkBkck4Q3WH"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0739.tmp",
-      "data_modificacao": "13/12/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1T_kqnlykccd97SflPrx6sMpkplZyPOBW"
     },
     {
       "tipo": "RELINT",
@@ -3612,17 +3579,6 @@
       "file_id": "1Qk6E7IyaMsYkBVrsx2Bfrt2YYC5x-PvL"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "logo SKADITOYS.png",
-      "data_modificacao": "18/10/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1yOvs2X5wZoGfa7ldKv1Lyx5yLqvd4jpE"
-    },
-    {
       "tipo": "RELINT",
       "numero": "357",
       "ano": "2018",
@@ -3920,17 +3876,6 @@
       "file_id": "1FucdE0qsSc71gKaBvJ--d4qKe0v75LOh"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL2074.tmp",
-      "data_modificacao": "25/09/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1wYmqfgR5nc0nHaOndk1pGWkrO7BLuYqj"
-    },
-    {
       "tipo": "RELINT",
       "numero": "325",
       "ano": "2018",
@@ -3940,17 +3885,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1D4XLJkwGw8EIwg9Ke_TzadURPs5gcy4l"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0003.tmp",
-      "data_modificacao": "24/09/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1-sEDuPXe3_gRDBmEZeHo6INxUGjnkb6R"
     },
     {
       "tipo": "RELINT",
@@ -4072,17 +4006,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1iYVvycO8H7aGZaCPkMng-IoSW8jrHuGG"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0276.tmp",
-      "data_modificacao": "14/09/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1u5W2Cio48tpG_CbG2K37_A1bzWZaopyC"
     },
     {
       "tipo": "RELINT",
@@ -4327,28 +4250,6 @@
       "file_id": "1UI0FRpCQVByiFhUfZr2JfoMkIKPYY5Cj"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0166.tmp",
-      "data_modificacao": "02/08/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Hd7PaQ2O8Qs-MXdlkdq7GYpBccbnyYAF"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0837.tmp",
-      "data_modificacao": "31/07/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Oy1xbB2JSiSp8L-gizxl_vOjQSgpnuYX"
-    },
-    {
       "tipo": "RELINT",
       "numero": "266",
       "ano": "2018",
@@ -4556,17 +4457,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1InPP34hCu86OCG5SYCDMNaoYuJxzV0Oi"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL0295.tmp",
-      "data_modificacao": "17/07/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1YBId2im4GosBW5Z44wimdAJvMCD5USoT"
     },
     {
       "tipo": "RELINT",
@@ -4976,17 +4866,6 @@
       "file_id": "1w_sqEYL_8qE-H7DMmKjeWo5dZjCIAEGe"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL2512.tmp",
-      "data_modificacao": "20/06/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1NPiKQe7Ja_Jy8GrAbVUhV2lzKD74NXQc"
-    },
-    {
       "tipo": "RELINT",
       "numero": "207",
       "ano": "2018",
@@ -5328,17 +5207,6 @@
       "file_id": "1ztIqND4cVWi14qKB8vc0mlFfbXlysBoC"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL3530.tmp",
-      "data_modificacao": "23/05/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Jm_ejOn2vTBb0fJHed_7ocFSzlFlMwh7"
-    },
-    {
       "tipo": "RELINT",
       "numero": "182",
       "ano": "2018",
@@ -5623,17 +5491,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1fvogNwvxVB4o4jMtObfWssIioKgTOg9T"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "~WRL2682.tmp",
-      "data_modificacao": "07/05/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1fJGL1g_YBFvV4rKDqPJrFa25OBdVviC6"
     },
     {
       "tipo": "RELINT",
@@ -6901,17 +6758,6 @@
       "file_id": "16skbp-kCLE1hcsBzboTT_BwgxaJ9GVE_"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2018",
-      "mes": null,
-      "assunto": "CONTROLE DE RELINT 2018.xlsx",
-      "data_modificacao": "02/01/2018",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1f6iLsUAEjaVHWDwKk8VZDoGyVuBLkmom"
-    },
-    {
       "tipo": "RELINT",
       "numero": "171",
       "ano": "2018",
@@ -6932,28 +6778,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1Ad_DYZ9y7tbYnwhR1h5chFmmDc_1p0Xn"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": null,
-      "assunto": "Thumbs.db",
-      "data_modificacao": "16/03/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1z1dSbe6Q0jnmy0ZMCfRFMuPJW7JBgWU4"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Agosto",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "22/03/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1fS4NqKzsYGS4V5Zfc5c4wO7IMUKf1WiL"
     },
     {
       "tipo": "RELINT",
@@ -7704,17 +7528,6 @@
       "file_id": "1vcJxYHUVjQ1Du141r4HW9oL91CueZmdS"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Fevereiro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "01/06/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "18fjOmxcRPJEgH48jNhuXYGHne18OCOgm"
-    },
-    {
       "tipo": "RELINT",
       "numero": "070",
       "ano": "2019",
@@ -8243,17 +8056,6 @@
       "file_id": "1ctNKMEIK4xK_qQenhOM2QNe0VY6g5d5V"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Março",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "17/03/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "11kyGvff7ibj-jHD_D6lPbJqRTXDVvBUl"
-    },
-    {
       "tipo": "RELINT",
       "numero": "093",
       "ano": "2019",
@@ -8573,17 +8375,6 @@
       "file_id": "1m6XUktjxuzAVwAL_78j5x8tK5P0ZnzFa"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Novembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "29/12/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1k3Nz7DoODp-DQl5PITb4xBUiSb5VuW61"
-    },
-    {
       "tipo": "RELINT",
       "numero": "331",
       "ano": "2019",
@@ -8615,17 +8406,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1X-h9owmrJn5A1mGkgT5bEEA9geY9yzd4"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Julho",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "01/06/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "19jZHQmpMhemIfxMlEyhE2y0tf-Wbqj-j"
     },
     {
       "tipo": "RELINT",
@@ -9662,17 +9442,6 @@
       "file_id": "1cpPv9TNyi5D2w03Kf1hcNqxtIhsmFmEE"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Dezembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "24/03/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Gjl-XhMBKrPVUQOhZWq3SesMc7jleqjC"
-    },
-    {
       "tipo": "RELINT",
       "numero": "339",
       "ano": "2019",
@@ -9847,17 +9616,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1zdXlaR5F-VDu9ezl3x2dJMNctd-o91-A"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Maio",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "15/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1P6UZz_mAArR41zbsVVvITd3TDfZJ9-Sk"
     },
     {
       "tipo": "RELINT",
@@ -10465,17 +10223,6 @@
       "file_id": "1VbDcZLdsEQy8Fp9JPsfw_gzYTMtptD58"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Janeiro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "01/06/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1ChfLaOwa8onYMoH7nYQQBZl6BteJekyW"
-    },
-    {
       "tipo": "RELINT",
       "numero": "021",
       "ano": "2019",
@@ -10993,17 +10740,6 @@
       "file_id": "1RXyXh46I4PYZNBzBxNVtGkabjD-n7zS4"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2019",
-      "mes": "Abril",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "17/03/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1CNnZGVrmjn4GwxpS9lHKIMWT1EI-G2rl"
-    },
-    {
       "tipo": "RELINT",
       "numero": "315",
       "ano": "2019",
@@ -11400,17 +11136,6 @@
       "file_id": "1zHOwzzyanOuApTfhtSSUAnJCVjlnRnsL"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Setembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "22/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1XwiUSB4FU8Wzr1X01GuIeZVlf80yFDdv"
-    },
-    {
       "tipo": "RELINT",
       "numero": "123",
       "ano": "2020",
@@ -11752,17 +11477,6 @@
       "file_id": "1zqeEd_mSlbaiCX8-j8_2AbI-AQjfuvFV"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Agosto",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "23/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1vCkonfb50o3WSylSr6L32Zz_k5rzDaLh"
-    },
-    {
       "tipo": "RELINT",
       "numero": "104",
       "ano": "2020",
@@ -12061,17 +11775,6 @@
     },
     {
       "tipo": "RELINT",
-      "numero": "090",
-      "ano": "2020",
-      "mes": "Agosto",
-      "assunto": "Informações Sobre O Salve Da Fdn.Lnk",
-      "data_modificacao": "10/08/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1tC4TrjUjT2IA5r1XKnxaf7nQvtvATCio"
-    },
-    {
-      "tipo": "RELINT",
       "numero": "089",
       "ano": "2020",
       "mes": "Agosto",
@@ -12135,17 +11838,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1M-_aByYeCAf_Aqqwa5ey8uRbqM8rQQ7a"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Julho",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "23/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1D7NcvfjeLkxnBmLIrbnEbQchZXn-ALXS"
     },
     {
       "tipo": "RELINT",
@@ -12553,17 +12245,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1FzXWd7MJSi3G_4szH8zai3zmNaN3Oqwq"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Junho",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "14/12/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1ZXxkG4G4pGiB36T6IQtN3WSQlVCkzFUL"
     },
     {
       "tipo": "RELINT",
@@ -13050,17 +12731,6 @@
       "file_id": "1Hq54JIpH-yQi_HQ0cHGN9Q9vOdAkNmld"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Novembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "24/03/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1zcl7wOa6JLw2zkIYRqhGPLGGwMNmPNbp"
-    },
-    {
       "tipo": "RELINT",
       "numero": "167",
       "ano": "2020",
@@ -13109,17 +12779,6 @@
       "numero": "165",
       "ano": "2020",
       "mes": "Novembro",
-      "assunto": "Interno Tentou Adentrar A Carceragem Do Cdpm1 Portando Material Ilícito.Crypto",
-      "data_modificacao": "09/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1r-SMgtfN8aGKTysy8yPmJrhvQWOYsdDy"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "165",
-      "ano": "2020",
-      "mes": "Novembro",
       "assunto": "Interno Tentou Adentrar A Carceragem Do Cdpm1 Portando Material Ilícito",
       "data_modificacao": "09/12/2020",
       "formato": "pdf",
@@ -13142,17 +12801,6 @@
       "numero": "164",
       "ano": "2020",
       "mes": "Novembro",
-      "assunto": "Internos Trabalhadores Do Cdpm 1 Estariam Trocando Materiais Por Drogas.Crypto",
-      "data_modificacao": "09/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "108eDQ8TeNcq8UtoVvfGEwib9yKpo2Zge"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "164",
-      "ano": "2020",
-      "mes": "Novembro",
       "assunto": "Internos Trabalhadores Do Cdpm 1 Estariam Trocando Materiais Por Drogas",
       "data_modificacao": "09/12/2020",
       "formato": "pdf",
@@ -13169,17 +12817,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1OJVWHQCE0fUMLkXn9LYKWIUP_mUwEvfx"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "153",
-      "ano": "2020",
-      "mes": "Novembro",
-      "assunto": "Monitoramento - 04 A 12 Nov 2020.Crypto",
-      "data_modificacao": "09/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1IO0n_dFbO0I5IeEeA1JViDDYPyjSGiRe"
     },
     {
       "tipo": "RELINT",
@@ -13263,17 +12900,6 @@
       "numero": "159",
       "ano": "2020",
       "mes": "Novembro",
-      "assunto": "Morte De Faccionados Ligados A Zé Roberto.Crypto",
-      "data_modificacao": "01/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1qX9ieKKgqvlULENQDQ34jD9Kphi4MpkN"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "159",
-      "ano": "2020",
-      "mes": "Novembro",
       "assunto": "Morte De Faccionados Ligados A Zé Roberto",
       "data_modificacao": "01/12/2020",
       "formato": "pdf",
@@ -13323,17 +12949,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1MfBfwV4Rax5oAZHcFb2pIPsJwX5awrMk"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "160",
-      "ano": "2020",
-      "mes": "Novembro",
-      "assunto": "Mensagem Interceptada Através De Catatau No Complexo Penitenciário Anísio Jobim-Compaj Fechado.Crypto",
-      "data_modificacao": "19/11/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1Dxy_TiaC-_bRH00RoQCjZw6iBJT0z_wG"
     },
     {
       "tipo": "RELINT",
@@ -13615,17 +13230,6 @@
       "numero": "154",
       "ano": "2020",
       "mes": "Novembro",
-      "assunto": "Possível Atentado Contra Faccionados Que Retornarão Do Sistema Federal.Crypto",
-      "data_modificacao": "11/11/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1F97OdjN1NfGy30fhnoJobbOfZOOzxdzh"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "154",
-      "ano": "2020",
-      "mes": "Novembro",
       "assunto": "Possível Atentado Contra Faccionados Que Retornarão Do Sistema Federal",
       "data_modificacao": "11/11/2020",
       "formato": "pdf",
@@ -13809,17 +13413,6 @@
       "file_id": "1CFY_bu3rcugihs6LQUXYVwiC3oEERPX2"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Outubro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "23/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1iz4HrrRhxvI4UTQyFhyShK9Ta04rJz6u"
-    },
-    {
       "tipo": "RELINT",
       "numero": "127",
       "ano": "2020",
@@ -13829,17 +13422,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1LStlYRYnQgmziHxKv7XgMq9MzVUniHHU"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "149",
-      "ano": "2020",
-      "mes": "Outubro",
-      "assunto": "Possível Arremesso De Ilitos Na Upp E Plano De Fuga Em Massa.Crypto",
-      "data_modificacao": "26/10/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1IDm8j4CWzQ1_2UqONZeOmc63sRaHQnYb"
     },
     {
       "tipo": "RELINT",
@@ -13879,17 +13461,6 @@
       "numero": "144",
       "ano": "2020",
       "mes": "Outubro",
-      "assunto": "Denuncia Contra Servidora Deresc E Falhas De Segurança No Aplicativo Visita Legal.Crypto",
-      "data_modificacao": "23/10/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1vHxJDKbpnToiw_btOjwx_QgvBYEk--XK"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "144",
-      "ano": "2020",
-      "mes": "Outubro",
       "assunto": "Denuncia Contra Servidora Deresc E Falhas De Segurança No Aplicativo Visita Legal",
       "data_modificacao": "23/10/2020",
       "formato": "pdf",
@@ -13912,17 +13483,6 @@
       "numero": "148",
       "ano": "2020",
       "mes": "Outubro",
-      "assunto": "Possível Plano De Fuga No Cdpmii.Crypto",
-      "data_modificacao": "23/10/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1qjMP8Scei3hpflK6DM979GvXavxLuYQ1"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "148",
-      "ano": "2020",
-      "mes": "Outubro",
       "assunto": "Possível Plano De Fuga No Cdpmii",
       "data_modificacao": "23/10/2020",
       "formato": "docx",
@@ -13939,17 +13499,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1k3s7cxS56jnQ5pX9wLd725lMNN3hU6v2"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "147",
-      "ano": "2020",
-      "mes": "Outubro",
-      "assunto": "Poss´Ível Contato De Faccionados Do Cv 0.Crypto",
-      "data_modificacao": "23/10/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "13MB52V88wMBbH4_Te5GC1QMaJFYuyh6r"
     },
     {
       "tipo": "RELINT",
@@ -14227,17 +13776,6 @@
       "file_id": "1sr3FTk07i4ohe8s-4HKW3lE1k0qHVyL_"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Outubro",
-      "assunto": "EA5A1632.tmp",
-      "data_modificacao": "14/10/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1QrAvliT_jTouoqtJ4g00vBBv6fZrzoRe"
-    },
-    {
       "tipo": "RELINT",
       "numero": "127",
       "ano": "2020",
@@ -14247,17 +13785,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1VAVgdXCtAMhqv7rYwyeKN3VGq-MKZfi5"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Outubro",
-      "assunto": "F64D0C8B.tmp",
-      "data_modificacao": "13/10/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Ud4_X0su-gkuGRQVdNW1fASCgwvCVR9o"
     },
     {
       "tipo": "RELINT",
@@ -14425,17 +13952,6 @@
       "file_id": "1bX3PH6mx813O2d3zgwPFmHlXo-DyP4YO"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Dezembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "24/03/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1QI2R927pVEAiuoZcDdyDRZCLe1_UYEWA"
-    },
-    {
       "tipo": "RELINT",
       "numero": "169",
       "ano": "2020",
@@ -14478,28 +13994,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1IrkvFKmWMYoNZxRAGp3f4QiHtdmvYzEO"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Dezembro",
-      "assunto": "FD6E87BB.tmp",
-      "data_modificacao": "19/01/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "17kKHQundUgdrPBU1liUnhgFr5HbEFkwQ"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Dezembro",
-      "assunto": "D9514A09.tmp",
-      "data_modificacao": "19/01/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1fgpZFCFBIrlkiKrgFWbn2uEhKExOonbs"
     },
     {
       "tipo": "RELINT",
@@ -14577,17 +14071,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1EaDh4DW_W101LcF1FTLLpHAIZQfVHRiY"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "178",
-      "ano": "2020",
-      "mes": "Dezembro",
-      "assunto": "Possível Rebelião Nas Unidades Prisionais Do Estado Do Amazonas.Crypto",
-      "data_modificacao": "23/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1XvB8ozaP69eeQXYtp04R54p38Vf9WQ4d"
     },
     {
       "tipo": "RELINT",
@@ -14825,33 +14308,11 @@
       "numero": "169",
       "ano": "2020",
       "mes": "Dezembro",
-      "assunto": "Possível Racha Na Facção Cv.Crypto",
-      "data_modificacao": "11/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1kPXMr36CW7Ilp3hfK5WMOsgw_f4A1XSQ"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "169",
-      "ano": "2020",
-      "mes": "Dezembro",
       "assunto": "Possível Racha Na Facção Cv",
       "data_modificacao": "11/12/2020",
       "formato": "pdf",
       "classificado": true,
       "file_id": "1bMBMWK8_beNzFdriLw4bfeor0gm1sqDr"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "171",
-      "ano": "2020",
-      "mes": "Dezembro",
-      "assunto": "Monitoramento - 13 A 20 Nov 2020.Crypto",
-      "data_modificacao": "10/12/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1f64EhYYMT59QPnFna6ezU3jWZtvmtCb4"
     },
     {
       "tipo": "RELINT",
@@ -14896,17 +14357,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1cNfxxeALaM7VoqA8PZ9ZK-My0s4K17Yf"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Maio",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "23/06/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1GYX02mHHpurJkxQk8TU3p-oNSBENO9D3"
     },
     {
       "tipo": "RELINT",
@@ -15371,17 +14821,6 @@
       "file_id": "1l3plYyaYy5eWusfmY0131CvBgVXUQ7bb"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Março",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "14/12/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1EXlXpZW3Hf8VF93EOAdTW_vU6Uqgw1tH"
-    },
-    {
       "tipo": "RELINT",
       "numero": "005",
       "ano": "2020",
@@ -15426,28 +14865,6 @@
       "file_id": "153uegq_ShOPRFx-7MHRjjt6SnWy4ut2v"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "18/03/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1xD1lXbLroyNJhDBhJ6qYjmbZYjl0aOut"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "F1C75F00.tmp",
-      "data_modificacao": "02/02/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1Zu5ST7aY6BdWR4wLc-2OkvbOJkxUkqCA"
-    },
-    {
       "tipo": "RELINT",
       "numero": "115",
       "ano": "2020",
@@ -15457,17 +14874,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "14WdmHqND2dB-40_qj5owQBxVwAatcEZZ"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "CE05D4F6.tmp",
-      "data_modificacao": "02/02/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1tyyieh7snjO6kcMzQAvRqI2dSMm8awBv"
     },
     {
       "tipo": "RELINT",
@@ -15490,17 +14896,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1SS3O31qB1LMEbUmsBHj2c6EhgbP_Ju33"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Janeiro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "14/03/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1WCXEtx6yhAWU4Bn7BGYMgUDeE_T3eoUE"
     },
     {
       "tipo": "RELINT",
@@ -15534,28 +14929,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1AbCxPLB3tlYYbmBnPKV0QNJfgo8jo7LO"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Relints",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "15/05/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1XTUqFb3l1qW8-QbHVgmcStVfg2HTTgae"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Setembro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "29/03/2021",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1w5sCoHH10bF0Co3OEqxo6FX5QcyL1Pga"
     },
     {
       "tipo": "RELINT",
@@ -15712,17 +15085,6 @@
       "file_id": "1ngMxLvqBxiiz4NsMY2jDI4Hjk5yrXq_s"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Junho",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "14/07/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1dNrmZ6dvqjFu42A1Fh7nN3O4K3TrkpkO"
-    },
-    {
       "tipo": "RELTEC",
       "numero": "170",
       "ano": "2020",
@@ -15798,17 +15160,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1dQom66ZqqLmzvgdw9YlJfptdYlFMgW2i"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "15/03/2023",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "13wD2Bi_s3KCNB9zg3kaCMb91aU4DRmDa"
     },
     {
       "tipo": "RELTEC",
@@ -16064,17 +15415,6 @@
       "file_id": "1AQFWpfUt6B0IHHptfR3xNtoYaMrNwBVt"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "0d1fbbde-6c5f-4cc3-9314-407f470b8f22.jpg",
-      "data_modificacao": "05/05/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1UK_UeOHD8YI6I_40Tjch7UYaCMqYge2S"
-    },
-    {
       "tipo": "RELTEC",
       "numero": "141",
       "ano": "2020",
@@ -16084,17 +15424,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1nQnZCtXhbstRdkPkG6q3cZQyOkBHU5B7"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "a085ca0c-7446-48f2-852b-33738bff4ccb.jpg",
-      "data_modificacao": "04/05/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1YcMjW229eJx-0_LSpImOWkpsSWOISstA"
     },
     {
       "tipo": "RELTEC",
@@ -16117,28 +15446,6 @@
       "formato": "pdf",
       "classificado": true,
       "file_id": "1Oc5tknpuYg-xVnJ6RPjSQzHcNowBuX4U"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "5e857405-8948-4f9d-9555-ecc7f2a7d0be.jpg",
-      "data_modificacao": "04/05/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1lpxXhdje4dlqIeyrdLbHNzBMXg2jI6b4"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Abril",
-      "assunto": "57c9dc0c-b713-411d-a3df-16c8bc353433.jpg",
-      "data_modificacao": "04/05/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "11pUrNA29VlM4rJ2De1sTcxLhzQTHUaB1"
     },
     {
       "tipo": "RELTEC",
@@ -16647,17 +15954,6 @@
       "file_id": "1WwismkO2SbK9ZL2L-xFjktIST_4K-Hc_"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Maio",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "06/07/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "12VrsgERzeLCHJTU5-IOoykmzQCBy-Vsm"
-    },
-    {
       "tipo": "RELTEC",
       "numero": "160",
       "ano": "2020",
@@ -16711,17 +16007,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1stCt1WJFtM-Guw5bM1uU12FjoO0NxUqB"
-    },
-    {
-      "tipo": "RELINT",
-      "numero": "165",
-      "ano": "2020",
-      "mes": "Maio",
-      "assunto": "Informações Sobre Qtde De Faccionados Nas Ups Capital Para Tese De Doutorado.Xml",
-      "data_modificacao": "28/05/2020",
-      "formato": "docx",
-      "classificado": true,
-      "file_id": "1DgAe3k385GC0ujKTwac8_xTjL90Eh-DQ"
     },
     {
       "tipo": "RELTEC",
@@ -17030,17 +16315,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1LmindHXI1zYrw7i28zLe4HM6DGW3hflB"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Março",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "06/07/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "11XjhZsmoWqc542daL_fCUl_R2l1rL3ty"
     },
     {
       "tipo": "RELTEC",
@@ -17802,17 +17076,6 @@
       "file_id": "1SWyQHgwZNdDXKqIWBhtDz8WpXDFkP6z2"
     },
     {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Fevereiro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "01/07/2022",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1trO9tTgy81kWfgeZ9_UR2P6rB_ztSD2O"
-    },
-    {
       "tipo": "RELINT",
       "numero": "043",
       "ano": "2020",
@@ -18284,17 +17547,6 @@
       "formato": "docx",
       "classificado": true,
       "file_id": "1GltI97UGb9TfQ_-1xKVcabJHV0LcxpV_"
-    },
-    {
-      "tipo": "DESCONHECIDO",
-      "numero": "???",
-      "ano": "2020",
-      "mes": "Janeiro",
-      "assunto": "Thumbs.db",
-      "data_modificacao": "03/04/2020",
-      "formato": "docx",
-      "classificado": false,
-      "file_id": "1pT-jhl3pzHJYyHnHipWtTM-SjEiq5xtp"
     },
     {
       "tipo": "RELTEC",

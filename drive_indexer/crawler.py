@@ -79,6 +79,8 @@ def crawlear_pasta_ano(
                 arquivos = listar_arquivos(service, subpasta["id"])
 
                 for arq in arquivos:
+                    if not arq["name"].lower().endswith(('.docx','.doc','.pdf')):
+                        continue
                     arq["ano"] = ano
                     arq["mes"] = mes
                     arq["pasta_tipo"] = pasta_tipo["name"]
@@ -88,6 +90,8 @@ def crawlear_pasta_ano(
             arquivos = listar_arquivos(service, pasta_tipo["id"])
 
             for arq in arquivos:
+                if not arq["name"].lower().endswith(('.docx','.doc','.pdf')):
+                    continue
                 arq["ano"] = ano
                 arq["mes"] = None
                 arq["pasta_tipo"] = pasta_tipo["name"]
