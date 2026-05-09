@@ -8,6 +8,7 @@ import Referencias from "./Referencias"
 import Configuracoes from "./Configuracoes"
 import Agenda        from "./Agenda"
 import ListaNegra    from "./ListaNegra"
+import Grafoscopia from "./Grafoscopia"
 
 const NAV_GROUPS = [
   { title: "PRINCIPAL", items: [
@@ -21,10 +22,11 @@ const NAV_GROUPS = [
     { label: "Agenda de Missão", color: "#B45309", badge: "2" },
   ]},
   { title: "FERRAMENTAS", items: [
-    { label: "Dashboard", color: "#065F46" },
-    { label: "Transcrição", color: "#3730A3" },
-    { label: "Notícias", color: "#C2410C" },
-  ]},
+    { label: "Dashboard",            color: "#065F46" },
+    { label: "Transcrição",          color: "#3730A3" },
+    { label: "Análise Grafoscópica", color: "#78350F" },  
+    { label: "Notícias",             color: "#C2410C" },
+]},
 ]
 
 const AGENDA = [
@@ -171,7 +173,7 @@ export default function App() {
   const now = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })
 
   // Telas que substituem o main inteiro
-  const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra"].includes(active)
+ const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra","Análise Grafoscópica"].includes(active)
 
   return (
     <div style={S.app}>
@@ -283,8 +285,9 @@ export default function App() {
         {active === "Chat RAG"         && <ChatRAG      onNavigate={setActive} />}
         {active === "Dashboard"        && <Dashboard    onNavigate={setActive} />}
         {active === "Transcrição"      && <Transcricao  onNavigate={setActive} />}
+        {active === "Análise Grafoscópica" && <Grafoscopia onNavigate={setActive} />}
         {active === "Alertas"          && <Alertas      onNavigate={setActive} />}
-        {active === "Notícias"         && <Noticias     onNavigate={setActive} />}
+        {active === "Notícias"         && <Noticias     onNavigate={setActive} />}  
         {active === "Referências"      && <Referencias  onNavigate={setActive} />}
         {active === "Configurações"    && <Configuracoes onNavigate={setActive} />}
         {active === "Agenda de Missão" && <Agenda       onNavigate={setActive} />}
