@@ -201,11 +201,11 @@ function DocCard({ doc, termo }) {
         {highlight(doc.assunto || "—")}
       </div>
 
-      {doc.formato && (
-        <div style={{ marginTop: 6 }}>
-          <span style={{ fontSize: 8, fontFamily: MONO, color: "#94A3B8", padding: "1px 6px", background: "#F1F5F9", borderRadius: 3, border: "1px solid #E2E8F0" }}>
-            {doc.formato.toUpperCase()}
-          </span>
+      {doc.file_id && (
+        <div style={{display:"flex",gap:6,marginTop:8}}>
+          <a href={`http://127.0.0.1:8000/referencias/download/docx/${doc.file_id}`} target="_blank" rel="noreferrer" style={{fontSize:10,fontWeight:700,color:"#FFF",background:"#1D4ED8",padding:"4px 10px",borderRadius:5,textDecoration:"none"}}>
+            DOCX
+          </a>
         </div>
       )}
     </div>
