@@ -328,7 +328,7 @@ export default function App() {
                 <h2 style={S.secLabel}>Notícias em Destaque</h2>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
                   {(liveNews.length > 0
-                    ? [...liveNews.slice(0,4).map((n,i) => ({ title: n.titulo, source: "n8n", time: tempoH(n.atualizado), category: "Intel", bg: "#FFEDD5", color: "#C2410C", img: "https://picsum.photos/seed/n"+i+"/400/200" })), ...NEWS].slice(0,4)
+                ? [...liveNews.slice(0,4).map((n,i) => ({ title: n.titulo, source: "n8n", time: tempoH(n.atualizado), category: "Intel", bg: "#FFEDD5", color: "#C2410C", img: n.imagem || "https://picsum.photos/seed/n"+i+"/400/200" })), ...NEWS].slice(0,4)          
                     : NEWS
                   ).map((n,i) => (
                     <div key={i} style={S.newsCard}>
