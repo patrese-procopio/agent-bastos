@@ -1,114 +1,127 @@
-# 🦉 Agent Bastos
-### Assistente de Inteligência Corporativa com IA
+# Agent Bastos
+### Sistema de Inteligência Corporativa com IA
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react&logoColor=black)
 ![LLaMA](https://img.shields.io/badge/LLaMA_3.3_70B-Groq-F55036?style=flat)
-![Claude](https://img.shields.io/badge/Claude_Vision-Anthropic-191919?style=flat)
+![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Google-4285F4?style=flat&logo=google&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-RAG_Vetorial-6C3483?style=flat)
 ![Status](https://img.shields.io/badge/Status-Em_desenvolvimento-yellow?style=flat)
 
 ---
 
 ## Sobre o Projeto
 
-O **Agent Bastos** é um assistente de inteligência corporativa desenvolvido para modernizar a produção analítica de equipes de segurança e inteligência. Nasceu de uma dor real: analistas perdiam horas consultando doutrinas em documentos dispersos, transcrevendo entrevistas manualmente e buscando referências em acervos desorganizados.
+O **Agent Bastos** é um sistema de inteligência corporativa desenvolvido para modernizar a produção analítica de equipes de segurança e inteligência. Nasceu de uma dor real: analistas perdiam horas consultando doutrinas em documentos dispersos, transcrevendo entrevistas manualmente e buscando referências em acervos desorganizados.
 
-A solução combina **RAG doutrinário**, **transcrição de áudio**, **análise de documentos manuscritos** e **agenda operacional em tempo real** numa única interface integrada — construída para ser implantada em qualquer organização que trabalhe com produção de conhecimento e gestão de inteligência.
+A solução combina **RAG doutrinário**, **transcrição forense de áudio**, **análise grafoscópica de manuscritos** e **agenda operacional em tempo real** numa única interface integrada — construída para ser implantada em qualquer organização que trabalhe com produção de conhecimento e gestão de inteligência.
 
-> Projeto desenvolvido como portfólio de especialização em **IA aplicada à inteligência corporativa**, unindo experiência operacional real em análise de inteligência com Engenharia de Dados e soluções de IA.
+> Projeto desenvolvido como portfólio de especialização em **IA aplicada à inteligência corporativa**, unindo uma década de experiência operacional em análise de inteligência de segurança pública com Engenharia de Dados e soluções de IA.
 
 ---
 
 ## Screenshots
 
-> 💡 *Adicione prints da interface na pasta `docs/screenshots/` e referencie abaixo.*
+| Painel Principal | Chat RAG Doutrinário |
+|---|---|
+| ![Painel](docs/screenshots/painel.png) | ![Chat RAG](docs/screenshots/chat_rag.png) |
 
-```
-docs/
-└── screenshots/
-    ├── interface_principal.png
-    ├── chat_doutrina.png
-    ├── agenda_operacional.png
-    └── dashboard.png
-```
+| Transcrição Forense de Áudio | Análise Grafoscópica |
+|---|---|
+| ![Transcrição](docs/screenshots/transcricao.png) | ![Grafoscopia](docs/screenshots/grafoscopia.png) |
+
+| Agenda Operacional | Dashboard de Produção |
+|---|---|
+| ![Agenda](docs/screenshots/agenda.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+> Screenshots na pasta `docs/screenshots/`
 
 ---
 
 ## Funcionalidades
 
-### 🔍 Consulta Doutrinária com RAG
-Consulta semântica sobre bases de conhecimento e doutrinas corporativas. O agente localiza trechos relevantes e responde com base no conteúdo indexado — sem alucinar, sempre referenciando a origem.
+### 🔍 Consulta Doutrinária com RAG Vetorial
+Consulta semântica sobre bases de conhecimento e doutrinas corporativas via ChromaDB. O agente recupera os trechos mais relevantes e responde com base exclusivamente no conteúdo indexado — **Faithfulness 1.000 nos testes RAGAS**, zero alucinação, sempre referenciando a origem.
 
-### 📎 Análise de Documentos Manuscritos
-Upload de imagens de documentos, bilhetes e registros físicos. O Claude Vision transcreve o conteúdo e o agente gera automaticamente um **Relatório de Inteligência** formal com seções: Assunto, Dados, Análise e Observações.
+### 🔬 Análise Grafoscópica de Manuscritos
+Upload de imagens de documentos, bilhetes e registros físicos apreendidos. O **Gemini 2.5 Flash** transcreve o conteúdo com precisão forense, preservando a grafia original, identificando codinomes e sinalizando trechos duvidosos. Exportação em `.txt` e `.pdf` com cabeçalho de laudo forense.
 
-### 🎙️ Gravação e Transcrição de Entrevistas
-Gravação de áudio diretamente pela interface (até 3 minutos). O arquivo `.wav` é salvo em `data/audios/` e integrado ao pipeline de transcrição via **n8n + Whisper**.
+### 🎙️ Transcrição Forense de Áudio
+Gravação e transcrição de entrevistas, depoimentos e capturas de campo. Pipeline via **Groq Whisper** com geração automática de Relatório de Informação (RI) no padrão institucional — com diarização de speakers, timestamps e identificação de flags de risco.
 
-### 📊 Dashboard de Produção
-Painel de acompanhamento da produção analítica por setor. Indicadores visuais de desempenho por período e por analista — útil para gestão de equipes de inteligência.
+### 📊 Dashboard de Produção Analítica
+Painel de acompanhamento da produção por núcleo e por analista. KPIs com tendência, gráficos de barras e linha, exportação de relatório narrativo gerado por LLM via endpoint `/relatorio-dashboard`.
 
-### 🔒 Agenda Operacional com Firebase
-Sistema de lançamento e visualização de ordens e tarefas em tempo real via Firestore. Acesso hierárquico: gestores lançam tarefas (autenticados por senha hash SHA-256), analistas visualizam por núcleo/setor. Notificação automática em tela ao chegar nova tarefa.
+### 🗓️ Agenda Operacional com Firebase
+Sistema de lançamento e acompanhamento de ordens e missões em tempo real via Firestore. Acesso hierárquico com autenticação por senha hash SHA-256. Notificação automática ao chegar nova tarefa.
 
 ### 🗂️ Busca de Referências em Acervo Documental
-Indexação de acervo histórico diretamente do Google Drive. Permite consulta por palavra-chave sem acessar sistemas internos — ideal para análise de produção histórica e referência cruzada de documentos.
+Indexação do acervo histórico direto do Google Drive (OAuth2). Consulta por palavra-chave sem acessar sistemas internos — ideal para referência cruzada de documentos e análise de produção histórica.
+
+### 🚨 Monitor de Alertas e Lista Negra
+Sistema de alertas operacionais com integração a workflows n8n. Lista negra de alvos com busca e gestão integrada.
 
 ---
 
 ## Arquitetura
 
 ```
-Agent_Bastos/
+Agent_Bastos/          ← Backend (Python + FastAPI)
 │
-├── main.py                  # Entrypoint único
+├── api.py             ← FastAPI — todas as rotas REST
+├── main.py            ← Entrypoint
+├── avaliar_rag.py     ← Pipeline RAGAS (avaliação de qualidade)
 │
-├── config/
-│   └── settings.py          # Centraliza variáveis de ambiente (.env)
+├── modules/           ← Lógica de negócio (desacoplada da API)
+│   ├── rag.py         ← RAG vetorial — ChromaDB + LLaMA 3.3 70B
+│   ├── decifrar.py    ← Análise grafoscópica — Gemini 2.5 Flash
+│   ├── transcricao.py ← Transcrição de áudio — Groq Whisper
+│   ├── agenda.py      ← Agenda operacional — Firebase Firestore
+│   ├── agente.py      ← Agente principal — orquestração LLM
+│   ├── ingestor.py    ← Ingestão de documentos no ChromaDB
+│   └── monitor.py     ← Monitor de alertas e eventos
 │
-├── modules/                 # Lógica de negócio (sem UI)
-│   ├── agente.py            # RAG, consulta LLM, processamento de áudio
-│   ├── agenda.py            # Firebase — agenda operacional
-│   ├── dashboard.py         # Indicadores de produção
-│   ├── decifrar.py          # Claude Vision — análise de documentos
-│   ├── ingestor.py          # Ingestão de documentos no ChromaDB
-│   ├── rag.py               # Pipeline RAG
-│   └── transcricao.py       # Transcrição de áudio
+├── drive_indexer/     ← Indexação do Google Drive (OAuth2)
+├── data/              ← Dados locais — não versionados (LGPD)
+│   ├── doutrina/      ← Base de conhecimento (.txt)
+│   ├── chroma_db/     ← Banco vetorial local
+│   └── relatorios/    ← Laudos e relatórios gerados
+├── scripts/
+│   └── archive/       ← Scripts de desenvolvimento arquivados
+└── docs/screenshots/  ← Capturas de tela do sistema
+
+agent-bastos-app/      ← Frontend (React + Vite)
 │
-├── ui/
-│   └── interface.py         # Interface CustomTkinter (apenas UI)
-│
-├── drive_indexer/           # Módulo de indexação do Google Drive
-│   ├── auth.py
-│   ├── crawler.py
-│   ├── indexer.py
-│   ├── parser.py
-│   └── busca_referencias.py
-│
-├── data/                    # Dados locais (não versionados)
-│   ├── doutrina/            # Base de conhecimento em .txt
-│   ├── audios/              # Gravações de entrevistas
-│   └── chroma_db/           # Banco vetorial local
-│
-├── logs/
-│   └── missao.log
-│
-├── .env                     # Segredos (não versionado)
-└── .gitignore
+├── src/
+│   ├── App.jsx        ← Roteamento e sidebar de navegação
+│   ├── ChatRAG.jsx    ← Interface do RAG doutrinário
+│   ├── Grafoscopia.jsx← Análise grafoscópica de manuscritos
+│   ├── Transcricao.jsx← Transcrição forense de áudio
+│   ├── Dashboard.jsx  ← Dashboard de produção analítica
+│   ├── Agenda.jsx     ← Agenda operacional
+│   ├── Alertas.jsx    ← Monitor de alertas
+│   ├── ListaNegra.jsx ← Gestão de alvos
+│   ├── Noticias.jsx   ← Feed de notícias integrado
+│   ├── Referencias.jsx← Busca no acervo documental
+│   └── Configuracoes.jsx ← Configurações e health checks
 ```
 
 ### Stack Tecnológica
 
-| Camada | Tecnologia |
-|---|---|
-| Interface | CustomTkinter (Python) |
-| LLM Principal | LLaMA 3.3 70B via Groq API |
-| Visão Computacional | Claude Vision (Anthropic) |
-| RAG / Banco Vetorial | ChromaDB + Embeddings |
-| Banco em Tempo Real | Firebase Firestore |
-| Acervo Documental | Google Drive API (OAuth2) |
-| Transcrição de Áudio | Whisper via n8n |
-| Automação de Fluxos | n8n |
+| Camada | Tecnologia | Justificativa |
+|---|---|---|
+| Backend | FastAPI + Python 3.14 | Alta performance, tipagem forte, docs automáticas |
+| Frontend | React 18 + Vite | SPA moderna, HMR, build otimizado |
+| LLM Principal | LLaMA 3.3 70B via Groq | Faithfulness 1.000 nos testes RAGAS |
+| Visão Computacional | Gemini 2.5 Flash | Superior em cursivo denso e linguagem cifrada |
+| RAG / Banco Vetorial | ChromaDB + multilingual-e5-small | Busca semântica em português |
+| Transcrição de Áudio | Whisper via Groq API | Diarização + timestamps em tempo real |
+| Banco em Tempo Real | Firebase Firestore | Sync em tempo real, sem servidor próprio |
+| Acervo Documental | Google Drive API (OAuth2) | Integração com acervo institucional existente |
+| Avaliação de Qualidade | RAGAS | Métricas objetivas: Faithfulness, Relevancy, Precision |
+| Exportação PDF | jsPDF | Geração client-side de laudos forenses |
 
 ---
 
@@ -116,105 +129,122 @@ Agent_Bastos/
 
 ### Pré-requisitos
 - Python 3.10+
-- Conta no [Groq](https://console.groq.com) — LLM gratuito
-- Conta no [Anthropic](https://console.anthropic.com) — Claude Vision
+- Node.js 18+
+- Conta no [Groq](https://console.groq.com) — LLM e Whisper
+- Conta no [Google AI Studio](https://aistudio.google.com) — Gemini
 - Projeto no Firebase com Firestore habilitado
 - Credenciais OAuth2 do Google Drive
 
-### Passo a passo
+### Backend
 
-**1. Clone o repositório**
 ```bash
-git clone https://github.com/seu-usuario/agent-bastos.git
+# 1. Clone o repositório
+git clone https://github.com/patrese-procopio/agent-bastos.git
 cd agent-bastos
-```
 
-**2. Crie e ative o ambiente virtual**
-```bash
+# 2. Crie e ative o ambiente virtual
 python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # Linux/Mac
 
-# Windows
-.venv\Scripts\activate
-```
-
-**3. Instale as dependências**
-```bash
+# 3. Instale as dependências
 pip install -r requirements.txt
+
+# 4. Configure as variáveis de ambiente
+cp .env.example .env
+# Edite o .env com suas chaves
+
+# 5. Adicione os arquivos de credenciais na raiz
+# credentials.json   — OAuth2 do Google Drive
+# serviceAccountKey.json — Firebase Admin SDK
+
+# 6. Execute
+python api.py
 ```
 
-**4. Configure as variáveis de ambiente**
+### Frontend
 
-Crie um arquivo `.env` na raiz com o seguinte conteúdo:
+```bash
+cd agent-bastos-app
+npm install
+npm run dev
+```
+
+### Variáveis de ambiente necessárias
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
 GROQ_API_KEY=gsk_...
+GEMINI_API_KEY=AIzaSy...
 GOOGLE_CREDENTIALS_PATH=credentials.json
-GOOGLE_TOKEN_PATH=token.json
-FIREBASE_KEY_PATH=serviceAccountKey.json
+CHROMA_DIR=data/chroma_db
+DOUTRINA_DIR=data/doutrina
 ```
 
-**5. Adicione os arquivos de credenciais na raiz**
-- `credentials.json` — OAuth2 do Google Drive
-- `serviceAccountKey.json` — Firebase Admin SDK
+---
 
-**6. Execute**
-```bash
-python main.py
-```
+## Avaliação de Qualidade — RAGAS
+
+O projeto inclui pipeline de avaliação objetiva do RAG com 4 métricas:
+
+| Métrica | Resultado | Interpretação |
+|---|---|---|
+| **Faithfulness** | **1.000** | Zero alucinação — respostas 100% baseadas na doutrina |
+| **Answer Relevancy** | **0.782** | Alta relevância das respostas às perguntas |
+| **Context Precision** | **0.794** | Boa precisão na recuperação dos chunks relevantes |
+| **Context Recall** | Em investigação | Otimização de chunking em andamento |
+
+> Avaliação reproduzível via `python avaliar_rag.py`
 
 ---
 
 ## Segurança e LGPD
 
-Este projeto foi desenvolvido com atenção às boas práticas de segurança e conformidade com a **Lei Geral de Proteção de Dados (LGPD)**:
-
 - ✅ Credenciais e chaves de API isoladas em `.env` — nunca versionadas
-- ✅ Arquivos sensíveis protegidos via `.gitignore`
-- ✅ Autenticação hierárquica com senha armazenada em hash SHA-256
+- ✅ Arquivos sensíveis protegidos via `.gitignore` com regras por extensão
+- ✅ Imagens de documentos operacionais não versionadas (`*.jpeg`, `*.png`)
+- ✅ Autenticação hierárquica com senha em hash SHA-256
 - ✅ Dados operacionais armazenados localmente ou em ambiente controlado
-- ✅ Acervo histórico acessado por referência — documentos originais não são replicados
+- ✅ Acervo histórico acessado por referência — documentos originais não replicados
 - ✅ Arquitetura modular que permite auditoria independente por camada
 
 ---
 
 ## Casos de Uso
 
-O Agent Bastos foi projetado para ser adaptável. Pode ser implantado em:
-
-- 🏢 **Empresas com setor de segurança corporativa** — consulta de políticas, análise de incidentes, gestão de ocorrências
-- 🏛️ **Órgãos públicos com produção de conhecimento** — acesso a bases doutrinárias, produção de relatórios, coordenação de equipes
-- 🔍 **Escritórios de investigação e compliance** — análise de documentos, transcrição de depoimentos, gestão de tarefas
-- 🎓 **Centros de treinamento e capacitação** — consulta a bases de conhecimento, produção de material analítico
+- 🏢 **Segurança Corporativa** — consulta de políticas, análise de incidentes, gestão de ocorrências
+- 🏛️ **Órgãos de Inteligência** — acesso a bases doutrinárias, produção de relatórios, coordenação
+- 🔍 **Investigação e Compliance** — análise de manuscritos, transcrição de depoimentos, gestão de alvos
+- 🎓 **Capacitação** — consulta à base de conhecimento, produção de material analítico
 
 ---
 
 ## Roadmap
 
-- [x] RAG com base de conhecimento doutrinário
-- [x] Análise de documentos manuscritos com Claude Vision
+- [x] RAG vetorial com ChromaDB e avaliação RAGAS
+- [x] Análise grafoscópica com Gemini 2.5 Flash
+- [x] Transcrição forense de áudio com diarização
 - [x] Agenda operacional com Firebase em tempo real
-- [x] Dashboard de produção por setor
+- [x] Dashboard de produção analítica por núcleo
 - [x] Indexação de acervo no Google Drive
-- [x] Refatoração com arquitetura MVC (separação UI / lógica)
-- [x] Gestão segura de credenciais com `.env`
-- [ ] Transcrição automática integrada (Whisper + n8n)
-- [ ] Versão mobile
+- [x] Interface React completa com 10 telas
+- [x] Exportação de laudos em PDF
+- [x] Arquitetura segura — LGPD compliant
+- [ ] Autenticação individual por usuário (JWT)
 - [ ] Suporte multi-organização
-- [ ] Autenticação individual por usuário
-- [ ] Exportação de relatórios em PDF
+- [ ] Build desktop via Electron
+- [ ] Versão mobile
 
 ---
 
 ## Autor
 
 **Patrese**
-Especialista em Inteligência | Engenharia de Dados com foco em IA
+Especialista em Inteligência de Segurança Pública · Engenharia de Dados com foco em IA
 
-Construindo soluções que unem experiência operacional real com tecnologia de ponta — da coleta de dados ao insight estratégico.
+Uma década de experiência operacional em análise de inteligência aplicada ao desenvolvimento de soluções que transformam dado bruto em conhecimento acionável.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/seu-perfil)
-[![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/seu-usuario)
+[![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/patrese-procopio)
 
 ---
 
