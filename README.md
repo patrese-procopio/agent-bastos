@@ -238,12 +238,12 @@ O projeto inclui pipeline de avaliação objetiva do RAG com 4 métricas:
 
 ## Autor
 
-**Patrese**
+**Patrese Procopio**
 Especialista em Inteligência de Segurança Pública · Engenharia de Dados com foco em IA
 
 Uma década de experiência operacional em análise de inteligência aplicada ao desenvolvimento de soluções que transformam dado bruto em conhecimento acionável.
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/seu-perfil)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/patrese-procopio)
 [![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/patrese-procopio)
 
 ---
