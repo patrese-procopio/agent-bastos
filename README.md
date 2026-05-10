@@ -26,15 +26,15 @@ A solução combina **RAG doutrinário**, **transcrição forense de áudio**, *
 
 | Painel Principal | Chat RAG Doutrinário |
 |---|---|
-| ![Painel](docs/screenshots/painel.png) | ![Chat RAG](docs/screenshots/chat_rag.png) |
+| ![Painel](docs/screenshots/painel.jpg) | ![Chat RAG](docs/screenshots/chat_rag.jpg) |
 
 | Transcrição Forense de Áudio | Agenda Operacional |
 |---|---|
-| ![Transcrição](docs/screenshots/transcricao.png) | ![Agenda](docs/screenshots/agenda.png) |
+| ![Transcrição](docs/screenshots/transcricao.jpg) | ![Agenda](docs/screenshots/agenda.jpg) |
 
 | Dashboard de Produção | Alertas Operacionais |
 |---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Alertas](docs/screenshots/alertas.png) |
+| ![Dashboard](docs/screenshots/dashboard.jpg) | ![Alertas](docs/screenshots/alertas.jpg) |
 
 > Screenshots na pasta `docs/screenshots/`
 
