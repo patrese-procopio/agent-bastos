@@ -28,13 +28,13 @@ A solução combina **RAG doutrinário**, **transcrição forense de áudio**, *
 |---|---|
 | ![Painel](docs/screenshots/painel.png) | ![Chat RAG](docs/screenshots/chat_rag.png) |
 
-| Transcrição Forense de Áudio | Análise Grafoscópica |
+| Transcrição Forense de Áudio | Agenda Operacional |
 |---|---|
-| ![Transcrição](docs/screenshots/transcricao.png) | ![Grafoscopia](docs/screenshots/grafoscopia.png) |
+| ![Transcrição](docs/screenshots/transcricao.png) | ![Agenda](docs/screenshots/agenda.png) |
 
-| Agenda Operacional | Dashboard de Produção |
+| Dashboard de Produção | Alertas Operacionais |
 |---|---|
-| ![Agenda](docs/screenshots/agenda.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Alertas](docs/screenshots/alertas.png) |
 
 > Screenshots na pasta `docs/screenshots/`
 
@@ -95,16 +95,16 @@ Agent_Bastos/          ← Backend (Python + FastAPI)
 agent-bastos-app/      ← Frontend (React + Vite)
 │
 ├── src/
-│   ├── App.jsx        ← Roteamento e sidebar de navegação
-│   ├── ChatRAG.jsx    ← Interface do RAG doutrinário
-│   ├── Grafoscopia.jsx← Análise grafoscópica de manuscritos
-│   ├── Transcricao.jsx← Transcrição forense de áudio
-│   ├── Dashboard.jsx  ← Dashboard de produção analítica
-│   ├── Agenda.jsx     ← Agenda operacional
-│   ├── Alertas.jsx    ← Monitor de alertas
-│   ├── ListaNegra.jsx ← Gestão de alvos
-│   ├── Noticias.jsx   ← Feed de notícias integrado
-│   ├── Referencias.jsx← Busca no acervo documental
+│   ├── App.jsx           ← Roteamento e sidebar de navegação
+│   ├── ChatRAG.jsx       ← Interface do RAG doutrinário
+│   ├── Grafoscopia.jsx   ← Análise grafoscópica de manuscritos
+│   ├── Transcricao.jsx   ← Transcrição forense de áudio
+│   ├── Dashboard.jsx     ← Dashboard de produção analítica
+│   ├── Agenda.jsx        ← Agenda operacional
+│   ├── Alertas.jsx       ← Monitor de alertas
+│   ├── ListaNegra.jsx    ← Gestão de alvos
+│   ├── Noticias.jsx      ← Feed de notícias integrado
+│   ├── Referencias.jsx   ← Busca no acervo documental
 │   └── Configuracoes.jsx ← Configurações e health checks
 ```
 
@@ -155,8 +155,8 @@ cp .env.example .env
 # Edite o .env com suas chaves
 
 # 5. Adicione os arquivos de credenciais na raiz
-# credentials.json   — OAuth2 do Google Drive
-# serviceAccountKey.json — Firebase Admin SDK
+# credentials.json        — OAuth2 do Google Drive
+# serviceAccountKey.json  — Firebase Admin SDK
 
 # 6. Execute
 python api.py
