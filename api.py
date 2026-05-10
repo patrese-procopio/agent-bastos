@@ -242,7 +242,11 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
+# ─── Health ─────────────────────────────────────────────────────────────────
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "1.0.0"}
 
 # ─── Modelos ─────────────────────────────────────────────────────────────────
 
