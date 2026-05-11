@@ -128,6 +128,12 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [liveNews, setLiveNews] = useState([])
   const [showPolicies, setShowPolicies] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true")
+
+useEffect(() => {
+  document.body.classList.toggle("dark-mode", darkMode)
+  localStorage.setItem("darkMode", darkMode)
+}, [darkMode])
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -289,7 +295,7 @@ export default function App() {
         {active === "Alertas"          && <Alertas      onNavigate={setActive} />}
         {active === "Notícias"         && <Noticias     onNavigate={setActive} />}  
         {active === "Referências"      && <Referencias  onNavigate={setActive} />}
-        {active === "Configurações"    && <Configuracoes onNavigate={setActive} />}
+        {active === "Configurações" && <Configuracoes onNavigate={setActive} darkMode={darkMode} setDarkMode={setDarkMode}/>}
         {active === "Agenda de Missão" && <Agenda       onNavigate={setActive} />}
         {active === "Lista Negra"      && <ListaNegra   onNavigate={setActive} />}
 

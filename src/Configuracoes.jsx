@@ -110,7 +110,7 @@ function Section({ title, icon, children }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ABA — GERAL
 // ═══════════════════════════════════════════════════════════════════════════════
-function AbaGeral() {
+function AbaGeral({ darkMode, setDarkMode }) {
   const stored = JSON.parse(localStorage.getItem("ab_config") || "{}")
   const [agencia,    setAgencia]    = useState(stored.agencia    || "AIPEN — Assessoria de Inteligência Penitenciária")
   const [estado,     setEstado]     = useState(stored.estado     || "AM")
@@ -147,7 +147,33 @@ function AbaGeral() {
         <Field label="URL do Backend (FastAPI)" value={backendUrl} onChange={setBackendUrl} placeholder="http://127.0.0.1:8000" hint="Endereço onde o Agent Bastos Python está rodando."/>
         <Field label="URL do n8n (Automações)" value={n8nUrl} onChange={setN8nUrl} placeholder="http://localhost:5678" hint="Endereço do n8n para integrações e alertas automáticos."/>
       </Section>
-
+<Section title="Aparencia" icon={
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        </svg>
+      }>
+        <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:"#F8FAFC", borderRadius:8, border:"1px solid #E2E8F0"}}>
+          <div>
+            <div style={{fontSize:12, fontWeight:700, color:"#0F172A"}}>Modo Escuro</div>
+            <div style={{fontSize:11, color:"#64748B", marginTop:2}}>Interface dark — ideal para ambientes com pouca luz</div>
+          </div>
+          <div onClick={() => setDarkMode(d => !d)} style={{
+            width:44, height:24, borderRadius:12, cursor:"pointer",
+            background: darkMode ? "#B45309" : "#CBD5E1",
+            position:"relative", transition:"background 0.3s",
+            flexShrink:0,
+          }}>
+            <div style={{
+              position:"absolute", top:3, left: darkMode ? 23 : 3,
+              width:18, height:18, borderRadius:"50%",
+              background:"#FFFFFF", transition:"left 0.3s",
+              boxShadow:"0 1px 4px rgba(0,0,0,0.2)",
+            }}/>
+          </div>
+        </div>
+      </Section>
       <div style={{display:"flex", justifyContent:"flex-end"}}>
         <button onClick={salvar} style={{
           padding:"9px 24px", borderRadius:7, border:"none", cursor:"pointer",
@@ -604,7 +630,7 @@ const ABAS = [
   { id:"conexoes", label:"Conexões", icon:"🔗" },
 ]
 
-export default function Configuracoes({ onNavigate }) {
+export default function Configuracoes({ onNavigate, darkMode, setDarkMode }) {
   const [aba, setAba] = useState("geral")
 
   useEffect(() => {
@@ -655,7 +681,7 @@ export default function Configuracoes({ onNavigate }) {
 
       {/* Conteúdo da aba */}
       <div style={{flex:1, overflowY:"auto", padding:"20px", display:"flex", flexDirection:"column"}}>
-        {aba === "geral"    && <AbaGeral/>}
+        {aba === "geral" && <AbaGeral darkMode={darkMode} setDarkMode={setDarkMode}/>}
         {aba === "conexoes" && <AbaConexoes/>}
       </div>
     </div>

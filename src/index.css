@@ -1,0 +1,12 @@
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+body.dark-mode {
+  filter: invert(1) hue-rotate(180deg);
+}
+body.dark-mode img,
+body.dark-mode video,
+body.dark-mode canvas,
+body.dark-mode svg image {
+  filter: invert(1) hue-rotate(180deg);
+}
