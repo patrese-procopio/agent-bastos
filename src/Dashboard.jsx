@@ -565,7 +565,6 @@ export default function Dashboard({ onNavigate }) {
                     <option value="RELINT">Relatorio de Inteligencia</option>
                     <option value="RELTEC">Relatorio Tecnico</option>
                     <option value="REL_INTERNO">Relatorio Interno</option>
-                    <option value="PARLATORIO">Parlatorio Virtual</option>
                     <option value="PARECER_REM">Parecer Tecnico de Remicao</option>
                     <option value="PED_BUSCA">Pedido de Busca</option>
                     <option value="MEMORANDO">Memorando</option>
