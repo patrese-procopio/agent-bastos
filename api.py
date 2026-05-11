@@ -1257,6 +1257,9 @@ async def decifrar_missiva(
         tipo_documento=tipo_enum,
         contexto_extra=contexto_extra,
     )
+from modules.dashboard_routes import registrar_rotas_dashboard
+registrar_rotas_dashboard(app)
+
 if __name__ == "__main__":
     uvicorn.run(
         app,
