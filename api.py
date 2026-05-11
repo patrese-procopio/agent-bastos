@@ -8,7 +8,7 @@ import tempfile
 import re
 import threading
 from datetime import datetime, timedelta
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Form, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, field_validator
@@ -1238,8 +1238,8 @@ _IMG_MIME_MAP = {
 @app.post("/decifrar")
 async def decifrar_missiva(
     imagem: UploadFile = File(...),
-    tipo_documento: str = "desconhecido",
-    contexto_extra: str = "",
+    tipo_documento: str = Form("desconhecido"),
+    contexto_extra: str = Form(""),
 ):
     if imagem.content_type not in _IMG_MIME_MAP:
         raise HTTPException(status_code=415, detail=f"Formato não suportado: {imagem.content_type}")
