@@ -67,7 +67,9 @@ export default function Grafoscopia({ onNavigate }) {
         const detalhe = await res.json().catch(() => ({}))
         throw new Error(detalhe.detail || `Erro ${res.status}`)
       }
-      setResultado(await res.json())
+      const raw = await res.json()
+      const texto = raw.texto_transcrito || (typeof raw.transcricao === 'string' ? raw.transcricao : '') || ''
+      setResultado({ ...raw, transcricao: texto })
     } catch (e) {
       setErro(e.message)
     } finally {
