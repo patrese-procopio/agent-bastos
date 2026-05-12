@@ -1,5 +1,5 @@
-Set-Content C:\Users\Administrador\agent-bastos-app\src\index.css -Encoding UTF8 -Value @'
-*, *::before, *::after { box-sizing: border-box; }
+﻿*, *::before, *::after { box-sizing: border-box; }
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -10,62 +10,55 @@ body img, body video, body canvas { filter: none; }
 
 body.theme-tactico {
   filter: none;
-  background-color: #080a06;
-  color: #e8f0c8;
+  background-color: #050705 !important;
 }
 body.theme-tactico img,
 body.theme-tactico video,
 body.theme-tactico canvas { filter: none; }
 
-body.theme-tactico .card,
-body.theme-tactico [class*="card"],
 body.theme-tactico aside,
-body.theme-tactico nav,
-body.theme-tactico header,
-body.theme-tactico .sidebar,
-body.theme-tactico .panel {
-  background-color: #0e1208 !important;
-  border-color: #3a4a28 !important;
+body.theme-tactico nav { 
+  background-color: #0a0f08 !important;
 }
-body.theme-tactico h1, body.theme-tactico h2,
-body.theme-tactico h3, body.theme-tactico h4,
-body.theme-tactico p,  body.theme-tactico span,
-body.theme-tactico label, body.theme-tactico li,
-body.theme-tactico td, body.theme-tactico th {
-  color: #e8f0c8 !important;
+body.theme-tactico aside *,
+body.theme-tactico nav * {
+  color: #ffffff !important;
+  border-color: #1a2a10 !important;
 }
-body.theme-tactico .text-muted,
-body.theme-tactico [class*="secondary"],
-body.theme-tactico [class*="muted"] {
-  color: #7a9850 !important;
+body.theme-tactico aside div[style*="background:#FFFFFF"],
+body.theme-tactico aside div[style*="background: #FFFFFF"],
+body.theme-tactico aside div[style*="background:#F8FAFC"],
+body.theme-tactico aside div[style*="background: #F8FAFC"],
+body.theme-tactico aside div[style*="background:#FFFFFF"] *,
+body.theme-tactico aside div[style*="background:#F8FAFC"] * {
+  color: #0a0f08 !important;
+  background-color: #1a2a10 !important;
 }
-body.theme-tactico button,
-body.theme-tactico [class*="btn"] {
-  background-color: #162010 !important;
-  color: #9fd44a !important;
-  border: 1.5px solid #5a8030 !important;
+
+body.theme-tactico main {
+  background-color: #050705 !important;
 }
+body.theme-tactico main * {
+  color: #1a3a5c !important;
+  border-color: #2a3a1a !important;
+}
+
 body.theme-tactico input,
 body.theme-tactico textarea,
 body.theme-tactico select {
-  background-color: #0e1208 !important;
-  color: #e8f0c8 !important;
-  border: 1px solid #3a4a28 !important;
+  background-color: #0d1209 !important;
+  color: #ffffff !important;
+  border: 1px solid #2a3a1a !important;
 }
 body.theme-tactico input::placeholder,
 body.theme-tactico textarea::placeholder {
   color: #4a6030 !important;
+  opacity: 1 !important;
 }
-body.theme-tactico hr,
-body.theme-tactico [class*="divider"] {
-  border-color: #2a3820 !important;
-  background-color: #2a3820 !important;
-}
-body.theme-tactico [class*="alert"],
-body.theme-tactico [class*="warning"] {
-  color: #f0a030 !important;
-  border-color: #6b3800 !important;
-  background-color: #120a00 !important;
+body.theme-tactico button {
+  background-color: #0d1a0a !important;
+  color: #8fd43a !important;
+  border-color: #3a5a1a !important;
 }
 
 body.theme-claro {
@@ -76,4 +69,4 @@ body.theme-claro {
 body.theme-claro img,
 body.theme-claro video,
 body.theme-claro canvas { filter: none; }
-'@
+
