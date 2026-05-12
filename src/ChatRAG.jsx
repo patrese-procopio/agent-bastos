@@ -47,7 +47,27 @@ export default function ChatRAG({ onNavigate }) {
   const [fonteAtiva, setFonteAtiva] = useState(null)
   const chatEndRef = useRef(null)
   const inputRef = useRef(null)
+  const [falando, setFalando] = useState(null)
 
+  function falar(id, texto) {
+    window.speechSynthesis.cancel()
+    if (falando === id) { setFalando(null); return }
+    const utter = new SpeechSynthesisUtterance(texto)
+    utter.lang = "pt-BR"
+    utter.rate = 0.95
+    utter.pitch = 0.8
+    const vozes = window.speechSynthesis.getVoices()
+    const masculina = vozes.find(v =>
+      v.lang.startsWith("pt") && v.name.toLowerCase().includes("male")
+    ) || vozes.find(v =>
+      v.lang.startsWith("pt")
+    )
+    if (masculina) utter.voice = masculina
+    utter.onend = () => setFalando(null)
+    utter.onerror = () => setFalando(null)
+    setFalando(id)
+    window.speechSynthesis.speak(utter)
+  }
   useEffect(() => {
     const style = document.createElement("style")
     style.textContent = GLOBAL_CSS
@@ -318,6 +338,31 @@ export default function ChatRAG({ onNavigate }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                     <span style={{ fontSize: 9, color: "#B45309", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
                     <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>· {now}</span>
+                    <button
+                      onClick={() => falar(i, m.text)}
+                      title={falando === i ? "Parar leitura" : "Ouvir resposta"}
+                      style={{
+                        marginLeft: "auto", display: "flex", alignItems: "center", gap: 4,
+                        padding: "2px 8px", borderRadius: 4, border: "1px solid",
+                        cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: MONO,
+                        transition: "all 0.15s",
+                        background: falando === i ? "#FEF2F2" : "#F0FDF4",
+                        color:      falando === i ? "#DC2626"  : "#16A34A",
+                        borderColor: falando === i ? "rgba(220,38,38,0.3)" : "rgba(22,163,74,0.3)",
+                      }}
+                    >
+                      {falando === i ? (
+                        <>
+                          <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>
+                          PARAR
+                        </>
+                      ) : (
+                        <>
+                          <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>
+                          OUVIR
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
                 {m.text}
