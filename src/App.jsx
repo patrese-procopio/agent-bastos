@@ -128,12 +128,14 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [liveNews, setLiveNews] = useState([])
   const [showPolicies, setShowPolicies] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true")
+  const [tema, setTema] = useState(() => localStorage.getItem("ab_tema") || "dark")
 
 useEffect(() => {
-  document.body.classList.toggle("dark-mode", darkMode)
-  localStorage.setItem("darkMode", darkMode)
-}, [darkMode])
+  document.body.classList.remove("dark-mode", "theme-tactico", "theme-claro")
+  if (tema === "tactico") document.body.classList.add("theme-tactico")
+  if (tema === "claro")   document.body.classList.add("theme-claro")
+  localStorage.setItem("ab_tema", tema)
+}, [tema])
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -295,7 +297,7 @@ useEffect(() => {
         {active === "Alertas"          && <Alertas      onNavigate={setActive} />}
         {active === "Notícias"         && <Noticias     onNavigate={setActive} />}  
         {active === "Referências"      && <Referencias  onNavigate={setActive} />}
-        {active === "Configurações" && <Configuracoes onNavigate={setActive} darkMode={darkMode} setDarkMode={setDarkMode}/>}
+        {active === "Configurações" && <Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/>}
         {active === "Agenda de Missão" && <Agenda       onNavigate={setActive} />}
         {active === "Lista Negra"      && <ListaNegra   onNavigate={setActive} />}
 
