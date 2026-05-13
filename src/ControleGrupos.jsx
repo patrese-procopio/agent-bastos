@@ -85,7 +85,7 @@ export default function ControleGrupos({ onNavigate }) {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>Controle de Grupos</span>
-          <span style={{fontSize:10,color:"#94A3B8",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
+          <span style={{fontSize:13,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:20}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
@@ -104,7 +104,7 @@ export default function ControleGrupos({ onNavigate }) {
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
         <div style={{width:268,flexShrink:0,borderRight:"1px solid #CBD5E1",display:"flex",flexDirection:"column",background:"#FFFFFF",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
-          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
+          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #CBD5E1",background:"#F8FAFC",flexShrink:0}}>
             <div style={{fontSize:10,fontWeight:800,color:"#64748B",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
               {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:11,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
@@ -113,7 +113,7 @@ export default function ControleGrupos({ onNavigate }) {
           <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
             {Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
-              return <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",borderRadius:8,cursor:"pointer",marginBottom:4,transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",border:isA?"1px solid rgba(180,83,9,0.25)":"1px solid transparent",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
+              return <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",borderRadius:8,cursor:"pointer",marginBottom:0,transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",border:"none",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
                 <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
@@ -124,12 +124,12 @@ export default function ControleGrupos({ onNavigate }) {
             })}
           </div>
           <div style={{padding:"10px 16px",borderTop:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
-            <span style={{fontSize:10,color:"#94A3B8",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
+            <span style={{fontSize:13,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px"}}>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:at?1:0.3}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:at?`0 0 4px ${c.dot}66`:"none"}}/><span style={{fontSize:11,color:at?"#334155":"#94A3B8",fontFamily:MONO,fontWeight:at?700:400}}>{g}</span></div> })}
+          <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:1}}><div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 5px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
           </div>
           <div style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#F1F5F9",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
@@ -172,3 +172,7 @@ export default function ControleGrupos({ onNavigate }) {
     </div>
   )
 }
+
+
+
+
