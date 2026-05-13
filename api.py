@@ -1,4 +1,4 @@
-import uvicorn
+﻿import uvicorn
 import os
 import glob
 import json
@@ -16,32 +16,32 @@ from groq import Groq
 from modules.rag import conversar_com_bastos, conversar_com_fontes
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 
-# ─── Configuração ────────────────────────────────────────────────────────────
+# â”€â”€â”€ ConfiguraÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 BASE_DIR         = os.path.dirname(os.path.abspath(__file__))
 PASTA_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
 _SA_KEY_PATH     = os.path.join(BASE_DIR, "serviceAccountKey.json")
 
-# Cria diretórios necessários uma única vez na inicialização
+# Cria diretÃ³rios necessÃ¡rios uma Ãºnica vez na inicializaÃ§Ã£o
 os.makedirs(PASTA_RELATORIOS, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "data", "audios"), exist_ok=True)
 
-# Singleton Groq — uma única conexão reutilizada em todas as requests
+# Singleton Groq â€” uma Ãºnica conexÃ£o reutilizada em todas as requests
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not _GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY não encontrada. Configure o arquivo .env.")
+    raise RuntimeError("GROQ_API_KEY nÃ£o encontrada. Configure o arquivo .env.")
 _groq = Groq(api_key=_GROQ_API_KEY)
 
-# Limites de segurança
+# Limites de seguranÃ§a
 _MAX_PERGUNTA    = 4_000
 _MAX_AUDIO_BYTES = 25 * 1024 * 1024
 _AUDIO_EXTS = {".wav", ".mp3", ".mp4", ".ogg", ".webm", ".flac", ".m4a", ".mpga", ".mpeg"}
 
-# Lock para escrita de arquivos de alertas (requests simultâneas)
+# Lock para escrita de arquivos de alertas (requests simultÃ¢neas)
 _alertas_lock = threading.Lock()
 
 _MESES_PT = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Janeiro", "Fevereiro", "MarÃ§o", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ]
 _EXPORT_MIME = {
@@ -55,7 +55,7 @@ _ALERTAS_OSINT_PATH   = os.path.join(PASTA_RELATORIOS, "alertas_osint.json")
 _DASHBOARD_STATS_PATH = os.path.join(PASTA_RELATORIOS, "producao.json")
 _INDICE_PATH          = os.path.join(BASE_DIR, "indice_documentos.json")
 
-# ─── Lista Negra ──────────────────────────────────────────────────────────────
+# â”€â”€â”€ Lista Negra â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _LISTA_NEGRA_FILE_ID = "1G6eFhb0jnD38iWU_SLDIFkGtOB0ngHjh"
 _GDRIVE_SCOPES       = ["https://www.googleapis.com/auth/drive.readonly"]
 
@@ -76,7 +76,7 @@ def _salvar_alertas(caminho: str, alertas: list) -> None:
             json.dump(alertas, f, ensure_ascii=False, indent=2)
 
 
-# ─── Seed inicial de alertas ─────────────────────────────────────────────────
+# â”€â”€â”€ Seed inicial de alertas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _seed_alertas_iniciais() -> None:
     now = datetime.now()
@@ -86,35 +86,35 @@ def _seed_alertas_iniciais() -> None:
             {
                 "id": "a1", "tipo": "telegram", "fonte": "@manausnoticias",
                 "link": "https://t.me/manausnoticias",
-                "titulo": "Menção via #CVAM",
-                "resumo": "Movimentação no bairro Compensa. Fonte relata presença de elemento "
-                          "conhecido como 'Carnaúba' coordenando distribuição de entorpecentes. #CVAM #Manaus",
+                "titulo": "MenÃ§Ã£o via #CVAM",
+                "resumo": "MovimentaÃ§Ã£o no bairro Compensa. Fonte relata presenÃ§a de elemento "
+                          "conhecido como 'CarnaÃºba' coordenando distribuiÃ§Ã£o de entorpecentes. #CVAM #Manaus",
                 "risco": "ALTO",
                 "timestamp": (now - timedelta(minutes=18)).isoformat(),
                 "lido": False,
-                "alvo_id": 1, "alvo_nome": "Gelson de Lima Carnaúba", "alvo_vulgos": ["Carnaúba"],
-                "termo_encontrado": "carnaúba", "hashtag": "#CVAM",
-                "analise_ia": "Elemento identificado em área de distribuição ativa — risco operacional "
-                              "imediato. Verificação de campo recomendada nas próximas 2h.",
+                "alvo_id": 1, "alvo_nome": "Gelson de Lima CarnaÃºba", "alvo_vulgos": ["CarnaÃºba"],
+                "termo_encontrado": "carnaÃºba", "hashtag": "#CVAM",
+                "analise_ia": "Elemento identificado em Ã¡rea de distribuiÃ§Ã£o ativa â€” risco operacional "
+                              "imediato. VerificaÃ§Ã£o de campo recomendada nas prÃ³ximas 2h.",
             },
             {
                 "id": "b2", "tipo": "noticia", "fonte": "G1 Amazonas",
                 "link": "https://g1.globo.com/am/",
-                "titulo": "Polícia prende suspeito de tráfico no Jorge Teixeira",
-                "resumo": '"John Wick" foi detido com 3 kg de entorpecentes durante operação da DENARC nesta manhã.',
+                "titulo": "PolÃ­cia prende suspeito de trÃ¡fico no Jorge Teixeira",
+                "resumo": '"John Wick" foi detido com 3 kg de entorpecentes durante operaÃ§Ã£o da DENARC nesta manhÃ£.',
                 "risco": "ALTO",
                 "timestamp": (now - timedelta(minutes=45)).isoformat(),
                 "lido": False,
                 "alvo_id": 14, "alvo_nome": "Leandro Costa de Oliveira",
-                "alvo_vulgos": ["John Wick", "Gavião", "Leandrinho"],
+                "alvo_vulgos": ["John Wick", "GaviÃ£o", "Leandrinho"],
                 "termo_encontrado": "john wick",
-                "analise_ia": "Confirmação de prisão — atualizar status do alvo. Verificar mandados pendentes.",
+                "analise_ia": "ConfirmaÃ§Ã£o de prisÃ£o â€” atualizar status do alvo. Verificar mandados pendentes.",
             },
             {
                 "id": "c3", "tipo": "telegram", "fonte": "@policiaamazonas",
                 "link": "https://t.me/policiaamazonas",
-                "titulo": 'Menção: "El Diablo" em @policiaamazonas',
-                "resumo": 'Alerta de fronteira: indivíduo colombiano "El Diablo" teria cruzado pelo município de Tabatinga.',
+                "titulo": 'MenÃ§Ã£o: "El Diablo" em @policiaamazonas',
+                "resumo": 'Alerta de fronteira: indivÃ­duo colombiano "El Diablo" teria cruzado pelo municÃ­pio de Tabatinga.',
                 "risco": "ALTO",
                 "timestamp": (now - timedelta(hours=1, minutes=30)).isoformat(),
                 "lido": True,
@@ -124,15 +124,15 @@ def _seed_alertas_iniciais() -> None:
                 "analise_ia": None,
             },
             {
-                "id": "d4", "tipo": "noticia", "fonte": "Acrítica AM",
+                "id": "d4", "tipo": "noticia", "fonte": "AcrÃ­tica AM",
                 "link": "https://www.acritica.com/",
-                "titulo": "Operação desmantela ponto de venda no Morro da Liberdade",
-                "resumo": '"Professor" foi preso com quatro pessoas durante operação no bairro.',
-                "risco": "MÉDIO",
+                "titulo": "OperaÃ§Ã£o desmantela ponto de venda no Morro da Liberdade",
+                "resumo": '"Professor" foi preso com quatro pessoas durante operaÃ§Ã£o no bairro.',
+                "risco": "MÃ‰DIO",
                 "timestamp": (now - timedelta(hours=3)).isoformat(),
                 "lido": False,
-                "alvo_id": 6, "alvo_nome": "Adalberto Salomão Guedes da Silva",
-                "alvo_vulgos": ["Professor", "Salomão"],
+                "alvo_id": 6, "alvo_nome": "Adalberto SalomÃ£o Guedes da Silva",
+                "alvo_vulgos": ["Professor", "SalomÃ£o"],
                 "termo_encontrado": "professor",
                 "analise_ia": None,
             },
@@ -142,42 +142,42 @@ def _seed_alertas_iniciais() -> None:
     if not os.path.exists(_ALERTAS_OSINT_PATH):
         osint = [
             {
-                "id": "o1", "tipo": "sherlock", "fonte": "Sherlock — TikTok",
+                "id": "o1", "tipo": "sherlock", "fonte": "Sherlock â€” TikTok",
                 "link": "https://www.tiktok.com/",
                 "titulo": "Perfil encontrado: @carnauba_am no TikTok",
-                "resumo": "Username 'carnauba' identificado em conta ativa. Bio: 'Compensa 🔴⚫'. "
-                          "Último post há 3 dias. Possível perfil operacional do alvo.",
+                "resumo": "Username 'carnauba' identificado em conta ativa. Bio: 'Compensa ðŸ”´âš«'. "
+                          "Ãšltimo post hÃ¡ 3 dias. PossÃ­vel perfil operacional do alvo.",
                 "risco": "ALTO",
                 "timestamp": (now - timedelta(hours=2)).isoformat(),
                 "lido": False,
-                "alvo_id": 1, "alvo_nome": "Gelson de Lima Carnaúba", "alvo_vulgos": ["Carnaúba"],
+                "alvo_id": 1, "alvo_nome": "Gelson de Lima CarnaÃºba", "alvo_vulgos": ["CarnaÃºba"],
                 "termo_encontrado": "carnauba", "plataforma": "TikTok",
-                "analise_ia": "Perfil ativo com simbologia de facção na bio. "
-                              "Recomenda-se monitoramento contínuo e extração de contatos/seguidores.",
+                "analise_ia": "Perfil ativo com simbologia de facÃ§Ã£o na bio. "
+                              "Recomenda-se monitoramento contÃ­nuo e extraÃ§Ã£o de contatos/seguidores.",
             },
             {
-                "id": "o2", "tipo": "google_dork", "fonte": "Google Dork — Pastebin",
+                "id": "o2", "tipo": "google_dork", "fonte": "Google Dork â€” Pastebin",
                 "link": "https://pastebin.com/",
-                "titulo": '"Mão Branca" indexado no Pastebin',
-                "resumo": 'Documento indexado contém o termo "Mão Branca" associado a coordenadas e '
-                          "horários de entrega. Possível lista operacional vazada.",
+                "titulo": '"MÃ£o Branca" indexado no Pastebin',
+                "resumo": 'Documento indexado contÃ©m o termo "MÃ£o Branca" associado a coordenadas e '
+                          "horÃ¡rios de entrega. PossÃ­vel lista operacional vazada.",
                 "risco": "ALTO",
                 "timestamp": (now - timedelta(hours=4)).isoformat(),
                 "lido": False,
                 "alvo_id": 23, "alvo_nome": "Josias da Cruz Barroso",
-                "alvo_vulgos": ["Mão Branca", "MB"],
-                "termo_encontrado": "mão branca",
-                "dork": 'site:pastebin.com "Mão Branca"',
-                "analise_ia": "Possível vazamento de dados operacionais. "
-                              "Prioridade máxima — acionar equipe de análise digital.",
+                "alvo_vulgos": ["MÃ£o Branca", "MB"],
+                "termo_encontrado": "mÃ£o branca",
+                "dork": 'site:pastebin.com "MÃ£o Branca"',
+                "analise_ia": "PossÃ­vel vazamento de dados operacionais. "
+                              "Prioridade mÃ¡xima â€” acionar equipe de anÃ¡lise digital.",
             },
             {
-                "id": "o3", "tipo": "sherlock", "fonte": "Sherlock — Instagram",
+                "id": "o3", "tipo": "sherlock", "fonte": "Sherlock â€” Instagram",
                 "link": "https://www.instagram.com/",
                 "titulo": "Perfil encontrado: @rdk_manaus no Instagram",
-                "resumo": "Username 'RDK' identificado em perfil privado. Foto de capa com referências "
-                          "à zona norte de Manaus. 847 seguidores.",
-                "risco": "MÉDIO",
+                "resumo": "Username 'RDK' identificado em perfil privado. Foto de capa com referÃªncias "
+                          "Ã  zona norte de Manaus. 847 seguidores.",
+                "risco": "MÃ‰DIO",
                 "timestamp": (now - timedelta(hours=6)).isoformat(),
                 "lido": False,
                 "alvo_id": 28, "alvo_nome": "Gilson Mattos Rodrigues",
@@ -192,7 +192,7 @@ def _seed_alertas_iniciais() -> None:
 _seed_alertas_iniciais()
 
 
-# ─── Seed inicial de produção ─────────────────────────────────────────────────
+# â”€â”€â”€ Seed inicial de produÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _seed_dashboard_inicial() -> None:
     if os.path.exists(_DASHBOARD_STATS_PATH):
@@ -227,7 +227,7 @@ def _seed_dashboard_inicial() -> None:
 _seed_dashboard_inicial()
 
 
-# ─── App ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app = FastAPI(title="Agent Bastos API", version="1.0.0")
 
@@ -242,13 +242,13 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
-# ─── Health ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
 
-# ─── Modelos ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Modelos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class PerguntaRequest(BaseModel):
     pergunta: str
@@ -267,7 +267,7 @@ class RelatorioRequest(BaseModel):
     dados: dict
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _get_wav_duration(path: str) -> str:
     try:
@@ -293,7 +293,7 @@ def _date_str_pt(dt: datetime) -> str:
     return f"{dt.day} de {_MESES_PT[dt.month - 1]} de {dt.year}"
 
 
-# ─── Endpoints principais ─────────────────────────────────────────────────────
+# â”€â”€â”€ Endpoints principais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/health")
 def health():
@@ -344,7 +344,7 @@ def relatorio_dashboard(req: RelatorioRequest):
         return {"analise": f"FALHA: {e}"}
 
 
-# ─── Notícias ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ NotÃ­cias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/noticias")
 def noticias():
@@ -360,7 +360,7 @@ def noticias():
             if noticias_list:
                 arquivos = [
                     {
-                        "titulo":    n.get("titulo", "Sem título"),
+                        "titulo":    n.get("titulo", "Sem tÃ­tulo"),
                         "resumo":    n.get("resumo", ""),
                         "link":      n.get("link", ""),
                         "imagem":    n.get("imagem", ""),
@@ -416,7 +416,7 @@ async def salvar_noticias(dados: dict):
     return {"status": "salvo", "total": len(dados.get("noticias", []))}
 
 
-# ─── Transcrição de áudio ─────────────────────────────────────────────────────
+# â”€â”€â”€ TranscriÃ§Ã£o de Ã¡udio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
@@ -426,14 +426,14 @@ async def transcribe(audio: UploadFile = File(...)):
     if suffix not in _AUDIO_EXTS:
         raise HTTPException(
             status_code=415,
-            detail=f"Formato não suportado: '{suffix}'. Use: {', '.join(sorted(_AUDIO_EXTS))}",
+            detail=f"Formato nÃ£o suportado: '{suffix}'. Use: {', '.join(sorted(_AUDIO_EXTS))}",
         )
 
     audio_bytes = await audio.read()
     if len(audio_bytes) > _MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Arquivo excede o limite de 25 MB.")
     if len(audio_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Arquivo de áudio vazio.")
+        raise HTTPException(status_code=400, detail="Arquivo de Ã¡udio vazio.")
 
     now          = datetime.now()
     laudo_number = now.strftime("%m%d/%Y")
@@ -455,7 +455,7 @@ async def transcribe(audio: UploadFile = File(...)):
                 model="whisper-large-v3-turbo",
                 language="pt",
                 response_format="verbose_json",
-                prompt="Áudio operacional SEAP/AM. Terminologia policial e penitenciária brasileira.",
+                prompt="Ãudio operacional SEAP/AM. Terminologia policial e penitenciÃ¡ria brasileira.",
             )
 
         raw_text         = transcription.text
@@ -478,9 +478,9 @@ async def transcribe(audio: UploadFile = File(...)):
             segments_text = raw_text
 
         analysis_prompt = (
-            "Você é BASTOS-UNIT, analista de inteligência penitenciária da SEAP/AM.\n\n"
-            "Analise a transcrição abaixo e retorne SOMENTE o JSON (sem markdown):\n\n"
-            f"TRANSCRIÇÃO:\n{segments_text}\n\n"
+            "VocÃª Ã© BASTOS-UNIT, analista de inteligÃªncia penitenciÃ¡ria da SEAP/AM.\n\n"
+            "Analise a transcriÃ§Ã£o abaixo e retorne SOMENTE o JSON (sem markdown):\n\n"
+            f"TRANSCRIÃ‡ÃƒO:\n{segments_text}\n\n"
             "{\n"
             f'  "laudo_number": "{laudo_number}",\n'
             f'  "date": "{date_str}",\n'
@@ -493,7 +493,7 @@ async def transcribe(audio: UploadFile = File(...)):
             '  "summary": "...",\n'
             '  "red_flags": [{"id":1,"title":"...","text":"..."}]\n'
             "}\n\n"
-            "Regras: speakers máx 4 (M1,M2,F1,F2); risk_level=ALTO/MÉDIO/BAIXO; "
+            "Regras: speakers mÃ¡x 4 (M1,M2,F1,F2); risk_level=ALTO/MÃ‰DIO/BAIXO; "
             "red_flags pode ser []; retorne APENAS o JSON."
         )
 
@@ -514,9 +514,9 @@ async def transcribe(audio: UploadFile = File(...)):
             "duration":     duration_str,
             "speakers":     [{"id": "M1", "label": "Voz detectada", "role": "Interlocutor"}],
             "segments":     [{"ts": "00:00:00", "speaker": "M1", "text": raw_text}],
-            "risk_level":   "MÉDIO",
-            "classification": "Transcrição de áudio operacional",
-            "summary":      raw_text[:300] if raw_text else "Sem conteúdo identificado.",
+            "risk_level":   "MÃ‰DIO",
+            "classification": "TranscriÃ§Ã£o de Ã¡udio operacional",
+            "summary":      raw_text[:300] if raw_text else "Sem conteÃºdo identificado.",
             "red_flags":    [],
         }
     except Exception as e:
@@ -528,7 +528,7 @@ async def transcribe(audio: UploadFile = File(...)):
             pass
 
 
-# ─── Exportação de laudos ─────────────────────────────────────────────────────
+# â”€â”€â”€ ExportaÃ§Ã£o de laudos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _build_txt(t: dict) -> bytes:
     sep  = "=" * 60
@@ -591,19 +591,19 @@ def _build_pdf(t: dict) -> bytes:
         "flag":  ParagraphStyle("F", parent=styles["Normal"], fontSize=9,
                                 leftIndent=12, textColor=colors.HexColor("#DC2626")),
     }
-    risk     = t.get("risk_level", "MÉDIO")
-    risk_hex = {"ALTO": "#DC2626", "MÉDIO": "#D97706", "BAIXO": "#16A34A"}.get(risk, "#D97706")
+    risk     = t.get("risk_level", "MÃ‰DIO")
+    risk_hex = {"ALTO": "#DC2626", "MÃ‰DIO": "#D97706", "BAIXO": "#16A34A"}.get(risk, "#D97706")
     nav      = colors.HexColor("#1E3A5F")
 
     elements = [
-        Paragraph("SEAP/AM — AGÊNCIA DE INTELIGÊNCIA PENITENCIÁRIA", S["title"]),
-        Paragraph("LAUDO DE ANÁLISE FONOGRÁFICA — CONFIDENCIAL", S["sub"]),
+        Paragraph("SEAP/AM â€” AGÃŠNCIA DE INTELIGÃŠNCIA PENITENCIÃRIA", S["title"]),
+        Paragraph("LAUDO DE ANÃLISE FONOGRÃFICA â€” CONFIDENCIAL", S["sub"]),
         HRFlowable(width="100%", thickness=1, color=nav), Spacer(1, 8),
     ]
     meta = [
-        ["Nº do Laudo:", t.get("laudo_number","N/A"), "Data:",    t.get("date","N/A")],
-        ["Arquivo:",     t.get("filename","N/A"),     "Duração:", t.get("duration","N/A")],
-        ["Classificação:", t.get("classification","N/A"), "Risco:",
+        ["NÂº do Laudo:", t.get("laudo_number","N/A"), "Data:",    t.get("date","N/A")],
+        ["Arquivo:",     t.get("filename","N/A"),     "DuraÃ§Ã£o:", t.get("duration","N/A")],
+        ["ClassificaÃ§Ã£o:", t.get("classification","N/A"), "Risco:",
          Paragraph(f'<font color="{risk_hex}"><b>{risk}</b></font>', S["body"])],
     ]
     mt = Table(meta, colWidths=[3.5*cm, 7*cm, 2.5*cm, 4*cm])
@@ -618,14 +618,14 @@ def _build_pdf(t: dict) -> bytes:
 
     elements.append(Paragraph("INTERLOCUTORES", S["head"]))
     for sp in t.get("speakers", []):
-        elements.append(Paragraph(f"<b>{sp.get('id')}</b> — {sp.get('label')} / {sp.get('role')}", S["body"]))
+        elements.append(Paragraph(f"<b>{sp.get('id')}</b> â€” {sp.get('label')} / {sp.get('role')}", S["body"]))
 
-    elements.append(Paragraph("TRANSCRIÇÃO SEGMENTADA", S["head"]))
+    elements.append(Paragraph("TRANSCRIÃ‡ÃƒO SEGMENTADA", S["head"]))
     for seg in t.get("segments", []):
         elements.append(Paragraph(
             f"<b>[{seg.get('ts')}] {seg.get('speaker')}:</b> {seg.get('text')}", S["mono"]))
 
-    elements.append(Paragraph("RESUMO ANALÍTICO", S["head"]))
+    elements.append(Paragraph("RESUMO ANALÃTICO", S["head"]))
     elements.append(Paragraph(t.get("summary", ""), S["body"]))
 
     flags = t.get("red_flags", [])
@@ -637,7 +637,7 @@ def _build_pdf(t: dict) -> bytes:
 
     elements += [
         Spacer(1, 16), HRFlowable(width="100%", thickness=1, color=nav),
-        Paragraph("Documento gerado pelo sistema Agent Bastos — BASTOS-UNIT", S["sub"]),
+        Paragraph("Documento gerado pelo sistema Agent Bastos â€” BASTOS-UNIT", S["sub"]),
     ]
     doc.build(elements)
     buf.seek(0)
@@ -651,11 +651,11 @@ def _build_docx(t: dict) -> bytes:
 
     RISK_RGB = {
         "ALTO":  RGBColor(0xDC, 0x26, 0x26),
-        "MÉDIO": RGBColor(0xD9, 0x77, 0x06),
+        "MÃ‰DIO": RGBColor(0xD9, 0x77, 0x06),
         "BAIXO": RGBColor(0x16, 0xA3, 0x4A),
     }
-    risk     = t.get("risk_level", "MÉDIO")
-    risk_rgb = RISK_RGB.get(risk, RISK_RGB["MÉDIO"])
+    risk     = t.get("risk_level", "MÃ‰DIO")
+    risk_rgb = RISK_RGB.get(risk, RISK_RGB["MÃ‰DIO"])
     grey     = RGBColor(0x6B, 0x72, 0x80)
     red      = RGBColor(0xDC, 0x26, 0x26)
 
@@ -666,9 +666,9 @@ def _build_docx(t: dict) -> bytes:
         section.left_margin   = Cm(2.5)
         section.right_margin  = Cm(2.5)
 
-    h = doc.add_heading("SEAP/AM — AGÊNCIA DE INTELIGÊNCIA PENITENCIÁRIA", 0)
+    h = doc.add_heading("SEAP/AM â€” AGÃŠNCIA DE INTELIGÃŠNCIA PENITENCIÃRIA", 0)
     h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sub = doc.add_paragraph("LAUDO DE ANÁLISE FONOGRÁFICA — CONFIDENCIAL")
+    sub = doc.add_paragraph("LAUDO DE ANÃLISE FONOGRÃFICA â€” CONFIDENCIAL")
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sub.runs[0].font.color.rgb = grey
     sub.runs[0].font.size      = Pt(10)
@@ -677,9 +677,9 @@ def _build_docx(t: dict) -> bytes:
     table = doc.add_table(rows=3, cols=4)
     table.style = "Table Grid"
     for i, (k1, v1, k2, v2) in enumerate([
-        ("Nº do Laudo", t.get("laudo_number","N/A"), "Data",        t.get("date","N/A")),
-        ("Arquivo",     t.get("filename","N/A"),      "Duração",     t.get("duration","N/A")),
-        ("Classificação", t.get("classification","N/A"), "Risco",   risk),
+        ("NÂº do Laudo", t.get("laudo_number","N/A"), "Data",        t.get("date","N/A")),
+        ("Arquivo",     t.get("filename","N/A"),      "DuraÃ§Ã£o",     t.get("duration","N/A")),
+        ("ClassificaÃ§Ã£o", t.get("classification","N/A"), "Risco",   risk),
     ]):
         row = table.rows[i]
         for j, (txt, bold) in enumerate([(k1,True),(v1,False),(k2,True),(v2,False)]):
@@ -695,10 +695,10 @@ def _build_docx(t: dict) -> bytes:
     doc.add_heading("INTERLOCUTORES", 2)
     for sp in t.get("speakers", []):
         p = doc.add_paragraph(style="List Bullet")
-        p.add_run(sp.get("id","") + " — ").bold = True
+        p.add_run(sp.get("id","") + " â€” ").bold = True
         p.add_run(f"{sp.get('label','')} / {sp.get('role','')}")
 
-    doc.add_heading("TRANSCRIÇÃO SEGMENTADA", 2)
+    doc.add_heading("TRANSCRIÃ‡ÃƒO SEGMENTADA", 2)
     for seg in t.get("segments", []):
         p  = doc.add_paragraph()
         r1 = p.add_run(f"[{seg.get('ts','')}] {seg.get('speaker','')}: ")
@@ -706,7 +706,7 @@ def _build_docx(t: dict) -> bytes:
         r2 = p.add_run(seg.get("text",""))
         r2.font.name = "Courier New"; r2.font.size = Pt(9)
 
-    doc.add_heading("RESUMO ANALÍTICO", 2)
+    doc.add_heading("RESUMO ANALÃTICO", 2)
     doc.add_paragraph(t.get("summary",""))
 
     flags = t.get("red_flags", [])
@@ -719,7 +719,7 @@ def _build_docx(t: dict) -> bytes:
             p.add_run(fl.get("text",""))
 
     doc.add_paragraph()
-    footer = doc.add_paragraph("Documento gerado pelo sistema Agent Bastos — BASTOS-UNIT")
+    footer = doc.add_paragraph("Documento gerado pelo sistema Agent Bastos â€” BASTOS-UNIT")
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
     footer.runs[0].font.color.rgb = grey
     footer.runs[0].font.size      = Pt(9)
@@ -735,7 +735,7 @@ async def export_transcript(fmt: str, body: dict):
     if fmt not in _EXPORT_MIME:
         raise HTTPException(
             status_code=400,
-            detail=f"Formato '{fmt}' não suportado. Use: {', '.join(_EXPORT_MIME)}",
+            detail=f"Formato '{fmt}' nÃ£o suportado. Use: {', '.join(_EXPORT_MIME)}",
         )
     transcript   = body.get("transcript", {})
     laudo_num    = transcript.get("laudo_number", "laudo").replace("/", "-")
@@ -756,7 +756,7 @@ async def export_transcript(fmt: str, body: dict):
         raise HTTPException(status_code=500, detail=f"Falha ao gerar {fmt.upper()}: {e}")
 
 
-# ─── Agenda de Missão ────────────────────────────────────────────────────────
+# â”€â”€â”€ Agenda de MissÃ£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import hashlib as _hashlib
 _SENHA_CHEFE_HASH = _hashlib.sha256(b"aipen2025").hexdigest()
@@ -802,21 +802,21 @@ def agenda_missoes(nucleo: str = None, limite: int = 30):
         return {"missoes": resultado}
     except Exception as e:
         return {"missoes": [], "erro": str(e)}
-# ─────────────────────────────────────────────────────────────────────────────
-# ADICIONAR NO api.py — logo após o endpoint GET /agenda/missoes
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ADICIONAR NO api.py â€” logo apÃ³s o endpoint GET /agenda/missoes
 # Cole o bloco abaixo no arquivo api.py existente
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class CienciaRequest(BaseModel):
-    nucleo: str   # núcleo que está acusando ciência
+    nucleo: str   # nÃºcleo que estÃ¡ acusando ciÃªncia
 
 
 @app.patch("/agenda/missoes/{missao_id}/ciencia")
 def agenda_acusar_ciencia(missao_id: str, req: CienciaRequest):
     """
-    Agente acusa ciência de uma missão.
-    Atualiza status → 'ciencia' no Firestore.
-    O chefe vê o status atualizado na próxima busca.
+    Agente acusa ciÃªncia de uma missÃ£o.
+    Atualiza status â†’ 'ciencia' no Firestore.
+    O chefe vÃª o status atualizado na prÃ³xima busca.
     """
     try:
         from modules.agenda import acusar_ciencia
@@ -846,7 +846,7 @@ def status_firebase():
         return {"ok": False, "projeto": str(e)}
 
 
-# ─── Firestore helpers ────────────────────────────────────────────────────────
+# â”€â”€â”€ Firestore helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _get_firestore():
     import firebase_admin
@@ -868,7 +868,7 @@ def _serializar_alerta(doc) -> dict:
     return d
 
 
-# ─── Alertas ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Alertas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/alertas")
 def listar_alertas(limite: int = 50):
@@ -969,7 +969,7 @@ def varrer_alertas_osint():
     return varrer_osint()
 
 
-# ─── Dashboard stats ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Dashboard stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/dashboard/stats")
 def get_dashboard_stats():
@@ -990,7 +990,7 @@ async def salvar_dashboard_stats(dados: dict):
     return {"status": "salvo"}
 
 
-# ─── Referências ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ ReferÃªncias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/referencias")
 def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
@@ -1026,7 +1026,7 @@ def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
     }
 
 
-# ─── Lista Negra (Google Drive) ───────────────────────────────────────────────
+# â”€â”€â”€ Lista Negra (Google Drive) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 from googleapiclient.discovery import build as _gdrive_build
 from googleapiclient.http import MediaIoBaseDownload as _MediaIoBaseDownload
@@ -1035,7 +1035,7 @@ import openpyxl as _openpyxl
 
 
 def _mascarar_cpf(cpf: str) -> str:
-    """753.164.392-87 → 753.***.***-**"""
+    """753.164.392-87 â†’ 753.***.***-**"""
     if not cpf:
         return ""
     limpo = re.sub(r"\D", "", str(cpf))
@@ -1059,7 +1059,7 @@ def _baixar_xlsx_drive() -> bytes:
 
 
 def _ler_lista_negra() -> list:
-    """Lê todas as abas do .xlsx e retorna lista unificada ordenada A-Z por nome."""
+    """LÃª todas as abas do .xlsx e retorna lista unificada ordenada A-Z por nome."""
     xlsx_bytes = _baixar_xlsx_drive()
     wb         = _openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
     registros  = []
@@ -1070,7 +1070,7 @@ def _ler_lista_negra() -> list:
         if len(rows) < 2:
             continue
 
-        # Detecta linha do cabeçalho (procura "NOME" nas primeiras 5 linhas)
+        # Detecta linha do cabeÃ§alho (procura "NOME" nas primeiras 5 linhas)
         header_idx = 0
         for i, row in enumerate(rows[:5]):
             vals = [str(v).upper() for v in row if v]
@@ -1083,7 +1083,7 @@ def _ler_lista_negra() -> list:
         col_map = {}
         for i, h in enumerate(headers):
             if "NOME" in h:                               col_map["nome"]       = i
-            elif h in ("N", "N°", "Nº") or "NUM" in h:   col_map["numero"]     = i
+            elif h in ("N", "NÂ°", "NÂº") or "NUM" in h:   col_map["numero"]     = i
             elif "REFER" in h:                            col_map["referencia"] = i
             elif "SITUA" in h:                            col_map["situacao"]   = i
             elif "UNID" in h:                             col_map["unidade"]    = i
@@ -1132,7 +1132,7 @@ def _ler_lista_negra() -> list:
 def lista_negra():
     """
     Retorna lista de servidores da planilha Caveirinha (Google Drive).
-    CPF mascarado — apenas os 3 primeiros dígitos visíveis. LGPD compliant.
+    CPF mascarado â€” apenas os 3 primeiros dÃ­gitos visÃ­veis. LGPD compliant.
     """
     try:
         registros = _ler_lista_negra()
@@ -1141,7 +1141,7 @@ def lista_negra():
         raise HTTPException(status_code=500, detail=f"Erro ao acessar planilha: {e}")
 
 
-# ─── Entry point ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 
@@ -1242,7 +1242,7 @@ async def decifrar_missiva(
     contexto_extra: str = Form(""),
 ):
     if imagem.content_type not in _IMG_MIME_MAP:
-        raise HTTPException(status_code=415, detail=f"Formato não suportado: {imagem.content_type}")
+        raise HTTPException(status_code=415, detail=f"Formato nÃ£o suportado: {imagem.content_type}")
     dados = await imagem.read()
     if len(dados) > _MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Imagem excede o limite de 25MB.")
@@ -1268,3 +1268,150 @@ if __name__ == "__main__":
         log_level="info",
         access_log=True,
     )
+
+
+# --- Controle de Grupos (Google Drive) ---
+_OCUPACAO_FILE_ID = "1sX2vCfneb1_5Rq1WP7IYfQzsorWh5DvS"
+
+def _baixar_ocupacao_drive():
+    import io
+    from googleapiclient.http import MediaIoBaseDownload
+    creds   = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=_GDRIVE_SCOPES)
+    service = _gdrive_build("drive", "v3", credentials=creds)
+    request = service.files().get_media(fileId=_OCUPACAO_FILE_ID)
+    buffer  = io.BytesIO()
+    downloader = MediaIoBaseDownload(buffer, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    buffer.seek(0)
+    return json.loads(buffer.read().decode("utf-8"))
+
+@app.get("/ocupacao")
+def get_ocupacao():
+    try:
+        return _baixar_ocupacao_drive()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Inteligência de Grupos — Snapshots e KPIs ---
+_HISTORICO_FOLDER_ID = "16E2RoJirYN-v7mnLXQ1k-OVz5j8XMhUN"
+
+def _gdrive_service():
+    creds = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=["https://www.googleapis.com/auth/drive"])
+    return _gdrive_build("drive", "v3", credentials=creds)
+
+def _upload_json_drive(nome_arquivo: str, dados: dict, folder_id: str):
+    import io
+    from googleapiclient.http import MediaIoBaseUpload
+    service = _gdrive_service()
+    results = service.files().list(
+        q=f"name='{nome_arquivo}' and '{folder_id}' in parents and trashed=false",
+        fields="files(id)"
+    ).execute()
+    conteudo = json.dumps(dados, ensure_ascii=False, indent=2).encode("utf-8")
+    media = MediaIoBaseUpload(io.BytesIO(conteudo), mimetype="application/json")
+    if results["files"]:
+        service.files().update(fileId=results["files"][0]["id"], media_body=media).execute()
+    else:
+        service.files().create(
+            body={"name": nome_arquivo, "parents": [folder_id]},
+            media_body=media
+        ).execute()
+
+def _baixar_json_drive(nome_arquivo: str, folder_id: str) -> dict:
+    import io
+    from googleapiclient.http import MediaIoBaseDownload
+    service = _gdrive_service()
+    results = service.files().list(
+        q=f"name='{nome_arquivo}' and '{folder_id}' in parents and trashed=false",
+        fields="files(id)"
+    ).execute()
+    if not results["files"]:
+        return None
+    buffer = io.BytesIO()
+    request = service.files().get_media(fileId=results["files"][0]["id"])
+    downloader = MediaIoBaseDownload(buffer, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    buffer.seek(0)
+    return json.loads(buffer.read().decode("utf-8"))
+
+def _salvar_snapshot_automatico():
+    mes_atual = datetime.now().strftime("%Y-%m")
+    nome = f"snapshot_{mes_atual}.json"
+    existente = _baixar_json_drive(nome, _HISTORICO_FOLDER_ID)
+    if existente:
+        return False
+    try:
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
+        _upload_json_drive(nome, snapshot, _HISTORICO_FOLDER_ID)
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
+        if mes_atual not in indice["meses"]:
+            indice["meses"].append(mes_atual)
+            indice["meses"].sort()
+        _upload_json_drive("indice.json", indice, _HISTORICO_FOLDER_ID)
+        return True
+    except Exception:
+        return False
+
+@app.get("/historico/indice")
+def get_indice():
+    try:
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
+        return indice or {"meses": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/historico/{mes}")
+def get_historico_mes(mes: str):
+    try:
+        snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
+        if not snap:
+            raise HTTPException(status_code=404, detail=f"Snapshot {mes} nao encontrado")
+        return snap
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/kpis")
+def get_kpis():
+    try:
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
+        meses = sorted(indice.get("meses", []))
+        historico = []
+        for mes in meses[-6:]:
+            snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
+            if snap:
+                historico.append({"mes": mes, "dados": snap.get("dados", {})})
+        series = {}
+        for h in historico:
+            mes = h["mes"]
+            contagem = {}
+            for u_dados in h["dados"].get("unidades", {}).values():
+                for p in (u_dados.get("pavilhoes") or u_dados.get("pavs") or {}).values():
+                    g = p.get("grupo") or p.get("g", "")
+                    contagem[g] = contagem.get(g, 0) + 1
+            series[mes] = contagem
+        alertas = []
+        meses_list = sorted(series.keys())
+        if len(meses_list) >= 2:
+            atual = series[meses_list[-1]]
+            anterior = series[meses_list[-2]]
+            for grupo, qtd in atual.items():
+                qtd_ant = anterior.get(grupo, 0)
+                if qtd_ant > 0:
+                    variacao = ((qtd - qtd_ant) / qtd_ant) * 100
+                    if abs(variacao) >= 20:
+                        alertas.append({"grupo": grupo, "variacao": round(variacao, 1), "atual": qtd, "anterior": qtd_ant})
+        return {"series": series, "alertas": alertas, "meses": meses_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("startup")
+async def startup_snapshot():
+    import threading
+    threading.Thread(target=_salvar_snapshot_automatico, daemon=True).start()
