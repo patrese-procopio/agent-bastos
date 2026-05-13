@@ -21,61 +21,110 @@ const NOMES_FULL = {
   IPAT:"Instituto Penal Antônio Trindade", UPP:"Unidade Prisional do Puraquequara",
   COMPAJ:"Complexo Penitenciário Anísio Jobim", CDF:"Centro de Detenção Feminino",
 }
-const DADOS = { atualizado:"2026-05", unidades:{
+const FALLBACK = { atualizado:"2026-05", unidades:{
   CDPM1:{ img:"CDPM1.jpg", pavs:{
-    P01:{l:"Pavilhão 01",g:"RDA",x:41,y:43}, PANEXO:{l:"Pavilhão Anexo",g:"AMARELINHOS",x:21,y:47},
-    P02A1:{l:"Pav. 02 Ala 01",g:"MED. SEGURANÇA",x:60,y:40}, P02A2:{l:"Pav. 02 Ala 02",g:"LIDERANÇAS CV",x:60,y:51},
-    P03:{l:"Pavilhão 03",g:"CRIMES SEXUAIS",x:30,y:30}, P04:{l:"Pavilhão 04",g:"CV/AM",x:67,y:29},
-    P05:{l:"Pavilhão 05",g:"JACK/TDA",x:30,y:10}, P06:{l:"Pavilhão 06",g:"JACK/TDA",x:68,y:9},
+    P01:{l:"Pavilhão 01",g:"RDA",x:41,y:43},
+    PANEXO:{l:"Pavilhão Anexo",g:"AMARELINHOS",x:21,y:47},
+    P02A1:{l:"Pav. 02 Ala 01",g:"MED. SEGURANÇA",x:60,y:40},
+    P02A2:{l:"Pav. 02 Ala 02",g:"LIDERANÇAS CV",x:60,y:51},
+    P03:{l:"Pavilhão 03",g:"CRIMES SEXUAIS",x:30,y:30},
+    P04:{l:"Pavilhão 04",g:"CV/AM",x:67,y:29},
+    P05:{l:"Pavilhão 05",g:"JACK/TDA",x:30,y:10},
+    P06:{l:"Pavilhão 06",g:"JACK/TDA",x:68,y:9},
   }},
   CDPM2:{ img:"CDPM2.jpg", pavs:{
-    P01:{l:"Pavilhão 01",g:"PCC",x:55,y:46}, P02:{l:"Pavilhão 02",g:"CV/AM",x:35,y:46},
-    P03:{l:"Pavilhão 03",g:"AMARELINHOS",x:72,y:30}, P04:{l:"Pavilhão 04",g:"CV/AM",x:36,y:30},
-    P05:{l:"Pavilhão 05",g:"AMARELINHOS",x:70,y:11}, P06:{l:"Pavilhão 06",g:"CV/AM",x:33,y:11},
+    P01:{l:"Pavilhão 01",g:"PCC",x:55,y:46},
+    P02:{l:"Pavilhão 02",g:"CV/AM",x:35,y:46},
+    P03:{l:"Pavilhão 03",g:"AMARELINHOS",x:72,y:30},
+    P04:{l:"Pavilhão 04",g:"CV/AM",x:36,y:30},
+    P05:{l:"Pavilhão 05",g:"AMARELINHOS",x:70,y:11},
+    P06:{l:"Pavilhão 06",g:"CV/AM",x:33,y:11},
     P07:{l:"Pavilhão 07",g:"LIDERANÇAS PCC",x:74,y:80},
   }},
   IPAT:{ img:"IPAT.jpg", pavs:{
-    PA:{l:"Pavilhão A",g:"CV/AM",x:30,y:34}, PB:{l:"Pavilhão B",g:"AMARELINHOS",x:51,y:19},
-    PC:{l:"Pavilhão C",g:"CV/AM",x:70,y:34}, PD:{l:"Pavilhão D",g:"LIDERANÇAS CV",x:67,y:71},
+    PA:{l:"Pavilhão A",g:"CV/AM",x:30,y:34},
+    PB:{l:"Pavilhão B",g:"AMARELINHOS",x:51,y:19},
+    PC:{l:"Pavilhão C",g:"CV/AM",x:70,y:34},
+    PD:{l:"Pavilhão D",g:"LIDERANÇAS CV",x:67,y:71},
   }},
   UPP:{ img:"UPP.jpg", pavs:{
-    G0102:{l:"Galerias 01 e 02",g:"AMARELINHOS",x:71,y:61}, G0304:{l:"Galerias 03 e 04",g:"NEUTROS",x:68,y:47},
-    G0607:{l:"Galerias 06 e 07",g:"NEUTROS",x:70,y:37}, G05:{l:"Galeria 05",g:"NEUTROS",x:43,y:45},
-    G08:{l:"Galeria 08",g:"ISOLAMENTO",x:43,y:37}, G11:{l:"Galeria 11",g:"LGBTQIAPN+",x:43,y:23},
+    G0102:{l:"Galerias 01 e 02",g:"AMARELINHOS",x:71,y:61},
+    G0304:{l:"Galerias 03 e 04",g:"NEUTROS",x:68,y:47},
+    G0607:{l:"Galerias 06 e 07",g:"NEUTROS",x:70,y:37},
+    G05:{l:"Galeria 05",g:"NEUTROS",x:43,y:45},
+    G08:{l:"Galeria 08",g:"ISOLAMENTO",x:43,y:37},
+    G11:{l:"Galeria 11",g:"LGBTQIAPN+",x:43,y:23},
     G0910:{l:"Galerias 09 e 10",g:"JACK/TDA",x:73,y:22},
   }},
   COMPAJ:{ img:"COMPAJ.jpg", pavs:{
-    P01:{l:"Pavilhão 01",g:"CV/AM",x:43,y:16}, P02:{l:"Pavilhão 02",g:"CV/AM",x:46,y:32},
-    P03:{l:"Pavilhão 03",g:"CV/AM",x:46,y:49}, P05:{l:"Pavilhão 05",g:"CV/AM",x:46,y:79},
+    P01:{l:"Pavilhão 01",g:"CV/AM",x:43,y:16},
+    P02:{l:"Pavilhão 02",g:"CV/AM",x:46,y:32},
+    P03:{l:"Pavilhão 03",g:"CV/AM",x:46,y:49},
+    P05:{l:"Pavilhão 05",g:"CV/AM",x:46,y:79},
     P07:{l:"Pavilhão 07",g:"AMARELINHOS",x:20,y:62},
   }},
   CDF:{ img:"CDF.jpg", pavs:{
-    P01A:{l:"Pav. 01-A",g:"CV/AM",x:51,y:32}, P01B:{l:"Pav. 01-B",g:"AMARELINHOS",x:25,y:28},
-    P02:{l:"Pav. 02 Condenadas",g:"CV/AM",x:74,y:27}, P03:{l:"Pavilhão 03",g:"ISOLAMENTO",x:74,y:37},
+    P01A:{l:"Pav. 01-A",g:"CV/AM",x:51,y:32},
+    P01B:{l:"Pav. 01-B",g:"AMARELINHOS",x:25,y:28},
+    P02:{l:"Pav. 02 Condenadas",g:"CV/AM",x:74,y:27},
+    P03:{l:"Pavilhão 03",g:"ISOLAMENTO",x:74,y:37},
     BERC:{l:"Berçário",g:"MED. SEGURANÇA",x:64,y:62},
   }},
 }}
+
+function normalizar(d) {
+  if (!d?.unidades) return FALLBACK
+  const out = { atualizado: d.atualizado || "-", unidades: {} }
+  for (const [k, u] of Object.entries(d.unidades)) {
+    const img = u.imagem || u.img || k + ".jpg"
+    const pavs = {}
+    for (const [id, p] of Object.entries(u.pavilhoes || u.pavs || {})) {
+      pavs[id] = { l: p.label || p.l, g: p.grupo || p.g, x: p.x, y: p.y }
+    }
+    out.unidades[k] = { img, pavs }
+  }
+  return out
+}
+
 const CSS = `
   @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0px rgba(0,0,0,0.1)}50%{box-shadow:0 0 0 10px rgba(0,0,0,0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .cg-enter{animation:fadeIn 0.2s ease forwards}
   .ppulse{animation:pulse 1.2s ease-in-out 3}
+  .spin{animation:spin 1s linear infinite}
   ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
-  .pr:hover{background:#FFFBEB!important;border-color:rgba(180,83,9,0.2)!important}
+  .pr:hover{background:#FFFBEB!important}
   .ut:hover{background:#F1F5F9!important;color:#0F172A!important}
 `
+
 export default function ControleGrupos({ onNavigate }) {
-  const [unit, setUnit] = useState("CDPM1")
-  const [pav, setPav]   = useState(null)
-  const [err, setErr]   = useState({})
-  const [imgRect, setImgRect] = useState(null)
-  const imgRef    = useRef(null)
-  const wrapRef   = useRef(null)
+  const [unit, setUnit]             = useState("CDPM1")
+  const [pav, setPav]               = useState(null)
+  const [err, setErr]               = useState({})
+  const [imgRect, setImgRect]       = useState(null)
+  const [dados, setDados]           = useState(FALLBACK)
+  const [carregando, setCarregando] = useState(true)
+  const [erroApi, setErroApi]       = useState(false)
+  const imgRef  = useRef(null)
+  const wrapRef = useRef(null)
 
   useEffect(() => {
-    const s = document.createElement("style"); s.textContent = CSS; document.head.appendChild(s)
+    const s = document.createElement("style")
+    s.textContent = CSS
+    document.head.appendChild(s)
     return () => document.head.removeChild(s)
   }, [])
+
+  useEffect(() => {
+    setCarregando(true)
+    fetch("http://127.0.0.1:8000/ocupacao")
+      .then(r => r.json())
+      .then(d => { setDados(normalizar(d)); setErroApi(false) })
+      .catch(() => { setDados(FALLBACK); setErroApi(true) })
+      .finally(() => setCarregando(false))
+  }, [])
+
   useEffect(() => { setPav(null); setImgRect(null) }, [unit])
 
   const calcRect = useCallback(() => {
@@ -86,22 +135,31 @@ export default function ControleGrupos({ onNavigate }) {
     const iW = img.naturalWidth,  iH = img.naturalHeight
     const scale = Math.min(wW / iW, wH / iH)
     const rW = iW * scale, rH = iH * scale
-    const offX = (wW - rW) / 2, offY = (wH - rH) / 2
-    setImgRect({ offX, offY, rW, rH, wW, wH })
+    setImgRect({ offX:(wW-rW)/2, offY:(wH-rH)/2, rW, rH, wW, wH })
   }, [])
 
   function pinPos(px, py) {
-    if (!imgRect) return { left: px + "%", top: py + "%" }
+    if (!imgRect) return { left:px+"%", top:py+"%" }
     const { offX, offY, rW, rH, wW, wH } = imgRect
-    const left = ((offX + (px / 100) * rW) / wW * 100).toFixed(2) + "%"
-    const top  = ((offY + (py / 100) * rH) / wH * 100).toFixed(2) + "%"
-    return { left, top }
+    return {
+      left: ((offX + (px/100)*rW) / wW * 100).toFixed(2) + "%",
+      top:  ((offY + (py/100)*rH) / wH * 100).toFixed(2) + "%",
+    }
   }
 
-  const ud    = DADOS.unidades[unit]
-  const pavs  = ud?.pavs || {}
-  const img   = `./src/assets/unidades/${ud?.img}`
-  const grups = [...new Set(Object.values(pavs).map(p => p.g))]
+  const ud     = dados.unidades[unit]
+  const pavs   = ud?.pavs || {}
+  const imgSrc = `./src/assets/unidades/${ud?.img}`
+  const grups  = [...new Set(Object.values(pavs).map(p => p.g))]
+
+  if (carregando) return (
+    <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
+      <svg className="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      </svg>
+      <span style={{fontSize:12,color:"#94A3B8",fontFamily:MONO}}>Carregando dados do Drive...</span>
+    </div>
+  )
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#F1F5F9",fontFamily:SANS}}>
@@ -111,19 +169,24 @@ export default function ControleGrupos({ onNavigate }) {
           <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>Controle de Grupos</span>
           <span style={{fontSize:13,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:20}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
-          <span style={{fontSize:9,color:"#166534",fontFamily:MONO,fontWeight:600}}>atualizado: {DADOS.atualizado}</span>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {erroApi && <span style={{fontSize:9,color:"#DC2626",fontFamily:MONO,background:"#FEF2F2",padding:"2px 8px",borderRadius:4,border:"1px solid #FECACA"}}>offline — dados locais</span>}
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:20}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
+            <span style={{fontSize:9,color:"#166534",fontFamily:MONO,fontWeight:600}}>atualizado: {dados.atualizado}</span>
+          </div>
         </div>
       </div>
       <div style={{display:"flex",gap:2,padding:"8px 14px 0",background:"#FFFFFF",borderBottom:"1px solid #E2E8F0",flexShrink:0,overflowX:"auto"}}>
         {Object.entries(NOMES).map(([k,n]) => {
           const isA = unit===k
-          const gs  = [...new Set(Object.values(DADOS.unidades[k]?.pavs||{}).map(p=>p.g))]
+          const gs  = [...new Set(Object.values(dados.unidades[k]?.pavs||{}).map(p=>p.g))]
           const cor = gs.some(g=>g.includes("CV")) ? "#DC2626" : gs.some(g=>g.includes("PCC")) ? "#3B82F6" : "#94A3B8"
-          return <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"6px 16px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:11,fontWeight:600,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#F1F5F9":"transparent",color:isA?"#0F172A":"#64748B",borderColor:isA?"#E2E8F0":"transparent"}}>
-            <span style={{width:7,height:7,borderRadius:"50%",background:cor,display:"inline-block",marginRight:6,verticalAlign:"middle"}}/>{n}
-          </button>
+          return (
+            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"6px 16px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:11,fontWeight:600,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#F1F5F9":"transparent",color:isA?"#0F172A":"#64748B",borderColor:isA?"#E2E8F0":"transparent"}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:cor,display:"inline-block",marginRight:6,verticalAlign:"middle"}}/>{n}
+            </button>
+          )
         })}
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
@@ -134,17 +197,19 @@ export default function ControleGrupos({ onNavigate }) {
               {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:11,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
             </div>
           </div>
-          <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
+          <div style={{flex:1,overflowY:"auto"}}>
             {Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
-              return <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",borderRadius:0,cursor:"pointer",marginBottom:0,transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",border:"none",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
-                <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
-                  <div style={{fontSize:11,color:c.text,fontFamily:MONO,marginTop:2,fontWeight:700}}>{p.g}</div>
+              return (
+                <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
+                  <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
+                    <div style={{fontSize:11,color:c.text,fontFamily:MONO,marginTop:2,fontWeight:700}}>{p.g}</div>
+                  </div>
+                  {isA && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>}
                 </div>
-                {isA && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>}
-              </div>
+              )
             })}
           </div>
           <div style={{padding:"10px 16px",borderTop:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
@@ -153,27 +218,22 @@ export default function ControleGrupos({ onNavigate }) {
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px"}}>
           <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:1}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
+            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:at?700:400,opacity:at?1:0.35}}>{g}</span></div> })}
           </div>
-          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#1a1a1a",backgroundImage:`url(./src/assets/unidades/${ud?.img})`,backgroundSize:"cover",backgroundPosition:"center",backgroundRepeat:"no-repeat",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",minHeight:0,background:"#1a1a1a",backgroundImage:`url(${imgSrc})`,backgroundSize:"cover",backgroundPosition:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:8}}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Imagem não encontrada: {ud?.img}</span>
               </div>
-           ) : (
+            ) : (
               <>
                 <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(0,0,0,0.35)",zIndex:0}}/>
-                <img ref={imgRef} src={img} alt={unit}
-                  onLoad={calcRect}
-                  onError={()=>setErr(e=>({...e,[unit]:true}))}
-                  style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}
-                />
+                <img ref={imgRef} src={imgSrc} alt={unit} onLoad={calcRect} onError={()=>setErr(e=>({...e,[unit]:true}))} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}/>
               </>
             )}
             {!err[unit] && imgRect && Object.entries(pavs).map(([id,p]) => {
-              const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
-              const pos = pinPos(p.x, p.y)
+              const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id; const pos=pinPos(p.x,p.y)
               return (
                 <div key={id} onClick={()=>setPav(v=>v===id?null:id)} style={{position:"absolute",left:pos.left,top:pos.top,transform:"translate(-50%,-50%)",cursor:"pointer",zIndex:isA?20:10,display:"flex",flexDirection:"column",alignItems:"center"}}>
                   {isA && <div className="ppulse" style={{position:"absolute",top:0,left:"50%",transform:"translate(-50%,-50%)",width:36,height:36,borderRadius:"50%",border:`2px solid ${c.dot}`,background:c.dot+"22",pointerEvents:"none"}}/>}
@@ -182,27 +242,33 @@ export default function ControleGrupos({ onNavigate }) {
                     <div style={{fontSize:9,fontWeight:700,color:"#0F172A",fontFamily:MONO,lineHeight:1.3}}>{p.l}</div>
                     <div style={{fontSize:8,color:c.text,fontFamily:MONO,fontWeight:700,lineHeight:1.3}}>{p.g}</div>
                   </div>
-                  {isA && <div style={{position:"absolute",bottom:"calc(100% + 12px)",left:"50%",transform:"translateX(-50%)",background:"#FFFFFF",border:`2px solid ${c.dot}`,borderRadius:8,padding:"8px 14px",whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,0.15)",zIndex:30,minWidth:150}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>{p.l}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/><span style={{fontSize:11,color:c.text,fontWeight:700}}>{p.g}</span></div>
-                    <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#FFFFFF",border:`2px solid ${c.dot}`,borderTop:"none",borderLeft:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
-                  </div>}
+                  {isA && (
+                    <div style={{position:"absolute",bottom:"calc(100% + 12px)",left:"50%",transform:"translateX(-50%)",background:"#FFFFFF",border:`2px solid ${c.dot}`,borderRadius:8,padding:"8px 14px",whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,0.15)",zIndex:30,minWidth:150}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>{p.l}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginTop:5}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/>
+                        <span style={{fontSize:11,color:c.text,fontWeight:700}}>{p.g}</span>
+                      </div>
+                      <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#FFFFFF",border:`2px solid ${c.dot}`,borderTop:"none",borderLeft:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-          {pav && pavs[pav] && (() => { const c=CORES[pavs[pav].g]||CORES["NEUTROS"]; return (
-            <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#FFFFFF",border:`1px solid ${c.border}`,borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
-              <div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0}}/>
-              <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{pavs[pav].l}</span>
-              <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:4,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO}}>{pavs[pav].g}</span>
-              <button onClick={()=>setPav(null)} style={{marginLeft:"auto",background:"transparent",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:18}}>×</button>
-            </div>
-          )})()}
+          {pav && pavs[pav] && (() => {
+            const c = CORES[pavs[pav].g] || CORES["NEUTROS"]
+            return (
+              <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#FFFFFF",border:`1px solid ${c.border}`,borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0}}/>
+                <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{pavs[pav].l}</span>
+                <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:4,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO}}>{pavs[pav].g}</span>
+                <button onClick={()=>setPav(null)} style={{marginLeft:"auto",background:"transparent",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:18}}>×</button>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
   )
 }
-
-
