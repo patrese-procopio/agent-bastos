@@ -155,18 +155,21 @@ export default function ControleGrupos({ onNavigate }) {
           <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
             {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:1}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
           </div>
-          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#1a1a1a",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#1a1a1a",backgroundImage:`url(./src/assets/unidades/${ud?.img})`,backgroundSize:"cover",backgroundPosition:"center",backgroundRepeat:"no-repeat",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:8}}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Imagem não encontrada: {ud?.img}</span>
               </div>
-            ) : (
-              <img ref={imgRef} src={img} alt={unit}
-                onLoad={calcRect}
-                onError={()=>setErr(e=>({...e,[unit]:true}))}
-                style={{width:"100%",height:"100%",objectFit:"contain",display:"block"}}
-              />
+           ) : (
+              <>
+                <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(0,0,0,0.35)",zIndex:0}}/>
+                <img ref={imgRef} src={img} alt={unit}
+                  onLoad={calcRect}
+                  onError={()=>setErr(e=>({...e,[unit]:true}))}
+                  style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}
+                />
+              </>
             )}
             {!err[unit] && imgRect && Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
@@ -201,3 +204,5 @@ export default function ControleGrupos({ onNavigate }) {
     </div>
   )
 }
+
+
