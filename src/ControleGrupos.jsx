@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+﻿import { useState, useEffect, useRef, useCallback } from "react"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const CORES = {
@@ -15,9 +15,7 @@ const CORES = {
   "ISOLAMENTO":     { bg:"#F8FAFC", text:"#374151", border:"#D1D5DB", dot:"#6B7280" },
   "MED. SEGURANÇA": { bg:"#F8FAFC", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
 }
-const NOMES = {
-  CDPM1:"CDPM I", CDPM2:"CDPM II", IPAT:"IPAT", UPP:"UPP", COMPAJ:"COMPAJ", CDF:"CDF"
-}
+const NOMES = { CDPM1:"CDPM I", CDPM2:"CDPM II", IPAT:"IPAT", UPP:"UPP", COMPAJ:"COMPAJ", CDF:"CDF" }
 const NOMES_FULL = {
   CDPM1:"Centro de Detenção Provisória I", CDPM2:"Centro de Detenção Provisória II",
   IPAT:"Instituto Penal Antônio Trindade", UPP:"Unidade Prisional do Puraquequara",
@@ -70,15 +68,41 @@ export default function ControleGrupos({ onNavigate }) {
   const [unit, setUnit] = useState("CDPM1")
   const [pav, setPav]   = useState(null)
   const [err, setErr]   = useState({})
+  const [imgRect, setImgRect] = useState(null)
+  const imgRef    = useRef(null)
+  const wrapRef   = useRef(null)
+
   useEffect(() => {
     const s = document.createElement("style"); s.textContent = CSS; document.head.appendChild(s)
     return () => document.head.removeChild(s)
   }, [])
-  useEffect(() => { setPav(null) }, [unit])
+  useEffect(() => { setPav(null); setImgRect(null) }, [unit])
+
+  const calcRect = useCallback(() => {
+    if (!imgRef.current || !wrapRef.current) return
+    const img  = imgRef.current
+    const wrap = wrapRef.current
+    const wW = wrap.offsetWidth, wH = wrap.offsetHeight
+    const iW = img.naturalWidth,  iH = img.naturalHeight
+    const scale = Math.min(wW / iW, wH / iH)
+    const rW = iW * scale, rH = iH * scale
+    const offX = (wW - rW) / 2, offY = (wH - rH) / 2
+    setImgRect({ offX, offY, rW, rH, wW, wH })
+  }, [])
+
+  function pinPos(px, py) {
+    if (!imgRect) return { left: px + "%", top: py + "%" }
+    const { offX, offY, rW, rH, wW, wH } = imgRect
+    const left = ((offX + (px / 100) * rW) / wW * 100).toFixed(2) + "%"
+    const top  = ((offY + (py / 100) * rH) / wH * 100).toFixed(2) + "%"
+    return { left, top }
+  }
+
   const ud    = DADOS.unidades[unit]
   const pavs  = ud?.pavs || {}
   const img   = `./src/assets/unidades/${ud?.img}`
   const grups = [...new Set(Object.values(pavs).map(p => p.g))]
+
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#F1F5F9",fontFamily:SANS}}>
       <div style={{height:44,borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#FFFFFF",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
@@ -104,7 +128,7 @@ export default function ControleGrupos({ onNavigate }) {
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
         <div style={{width:268,flexShrink:0,borderRight:"1px solid #CBD5E1",display:"flex",flexDirection:"column",background:"#FFFFFF",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
-          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #CBD5E1",background:"#F8FAFC",flexShrink:0}}>
+          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
             <div style={{fontSize:10,fontWeight:800,color:"#64748B",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
               {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:11,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
@@ -113,7 +137,7 @@ export default function ControleGrupos({ onNavigate }) {
           <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
             {Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
-              return <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",borderRadius:8,cursor:"pointer",marginBottom:0,transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",border:"none",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
+              return <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",borderRadius:0,cursor:"pointer",marginBottom:0,transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",border:"none",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
                 <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
@@ -124,26 +148,31 @@ export default function ControleGrupos({ onNavigate }) {
             })}
           </div>
           <div style={{padding:"10px 16px",borderTop:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
-            <span style={{fontSize:13,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
+            <span style={{fontSize:10,color:"#94A3B8",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px"}}>
           <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:1}}><div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 5px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
+            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5,opacity:1}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
           </div>
-          <div style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#F1F5F9",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",background:"#1a1a1a",minHeight:0,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:8}}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Imagem não encontrada: {ud?.img}</span>
               </div>
             ) : (
-              <img src={img} alt={unit} onError={()=>setErr(e=>({...e,[unit]:true}))} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+              <img ref={imgRef} src={img} alt={unit}
+                onLoad={calcRect}
+                onError={()=>setErr(e=>({...e,[unit]:true}))}
+                style={{width:"100%",height:"100%",objectFit:"contain",display:"block"}}
+              />
             )}
-            {!err[unit] && Object.entries(pavs).map(([id,p]) => {
+            {!err[unit] && imgRect && Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
+              const pos = pinPos(p.x, p.y)
               return (
-                <div key={id} onClick={()=>setPav(v=>v===id?null:id)} style={{position:"absolute",left:p.x+"%",top:p.y+"%",transform:"translate(-50%,-50%)",cursor:"pointer",zIndex:isA?20:10,display:"flex",flexDirection:"column",alignItems:"center"}}>
+                <div key={id} onClick={()=>setPav(v=>v===id?null:id)} style={{position:"absolute",left:pos.left,top:pos.top,transform:"translate(-50%,-50%)",cursor:"pointer",zIndex:isA?20:10,display:"flex",flexDirection:"column",alignItems:"center"}}>
                   {isA && <div className="ppulse" style={{position:"absolute",top:0,left:"50%",transform:"translate(-50%,-50%)",width:36,height:36,borderRadius:"50%",border:`2px solid ${c.dot}`,background:c.dot+"22",pointerEvents:"none"}}/>}
                   <div style={{width:isA?16:13,height:isA?16:13,borderRadius:"50%",background:c.dot,border:"2.5px solid #FFFFFF",boxShadow:isA?`0 0 0 3px ${c.dot}55,0 2px 10px rgba(0,0,0,0.4)`:"0 1px 5px rgba(0,0,0,0.4)",transition:"all 0.2s",position:"relative",zIndex:2,flexShrink:0}}/>
                   <div style={{marginTop:4,background:"rgba(255,255,255,0.93)",border:`1px solid ${c.border}`,borderRadius:4,padding:"3px 7px",whiteSpace:"nowrap",boxShadow:"0 1px 4px rgba(0,0,0,0.15)",textAlign:"center",zIndex:2}}>
@@ -172,7 +201,3 @@ export default function ControleGrupos({ onNavigate }) {
     </div>
   )
 }
-
-
-
-
