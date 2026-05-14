@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { jsPDF } from "jspdf"
 
 const API = "http://127.0.0.1:8000"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
@@ -298,6 +299,250 @@ export default function InteligenciaGrupos({ onNavigate }) {
     }
   }
 
+  // ── Exportação PDF ─────────────────────────────────────────────────────────
+  function exportarPDF() {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+    const W = 210, ml = 18, mr = 18, cw = W - ml - mr
+    let y = 0
+
+    // Paleta
+    const AZUL  = [15, 23, 42]    // #0F172A
+    const GOLD  = [180, 83, 9]    // #B45309
+    const CINZA = [100, 116, 139] // #64748B
+    const BORDA = [226, 232, 240] // #E2E8F0
+    const BRANCO = [255, 255, 255]
+
+    // ── Cabeçalho ──────────────────────────────────────────────────────────────
+    doc.setFillColor(...AZUL)
+    doc.rect(0, 0, W, 28, "F")
+    doc.setFillColor(...GOLD)
+    doc.rect(0, 28, W, 2, "F")
+
+    doc.setTextColor(...BRANCO)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(15)
+    doc.text("AGENT BASTOS", ml, 11)
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
+    doc.text("Sistema de Inteligência e Segurança Corporativa", ml, 17)
+    doc.setFontSize(7)
+    doc.text(`Relatório gerado em: ${new Date().toLocaleString("pt-BR")}`, ml, 22)
+
+    // Selo CONFIDENCIAL
+    doc.setFillColor(...GOLD)
+    doc.roundedRect(W - mr - 32, 8, 32, 10, 2, 2, "F")
+    doc.setTextColor(...BRANCO)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7)
+    doc.text("CONFIDENCIAL", W - mr - 16, 14.5, { align: "center" })
+
+    y = 36
+
+    // ── Título do relatório ────────────────────────────────────────────────────
+    doc.setTextColor(...AZUL)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(13)
+    doc.text("RELATÓRIO DE INTELIGÊNCIA DE GRUPOS", ml, y + 7)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(...CINZA)
+    doc.text(`Competência: ${formatarMes(mesSelecionado)}  ·  Fonte: Drive Institucional  ·  Atualização automática mensal`, ml, y + 13)
+    doc.setDrawColor(...BORDA)
+    doc.line(ml, y + 16, W - mr, y + 16)
+    y += 22
+
+    // ── Resumo executivo ───────────────────────────────────────────────────────
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(ml, y, cw, 18, 2, 2, "F")
+    doc.setDrawColor(...BORDA)
+    doc.roundedRect(ml, y, cw, 18, 2, 2, "S")
+
+    const colW = cw / 3
+    const resumos = [
+      { label: "GRUPOS DISTINTOS",    valor: String(totalGrupos) },
+      { label: "PAVILHÕES MAPEADOS",  valor: String(totalPavilhoes) },
+      { label: "ALERTAS DE VARIAÇÃO", valor: String(alertasAtivos) },
+    ]
+    resumos.forEach(({ label, valor }, i) => {
+      const cx = ml + colW * i + colW / 2
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(16)
+      doc.setTextColor(...AZUL)
+      doc.text(valor, cx, y + 9, { align: "center" })
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(6.5)
+      doc.setTextColor(...CINZA)
+      doc.text(label, cx, y + 14, { align: "center" })
+      if (i < 2) {
+        doc.setDrawColor(...BORDA)
+        doc.line(ml + colW * (i + 1), y + 3, ml + colW * (i + 1), y + 15)
+      }
+    })
+    y += 24
+
+    // ── Alertas de variação ────────────────────────────────────────────────────
+    if (kpis?.alertas?.length > 0) {
+      doc.setFillColor(254, 242, 242)
+      doc.roundedRect(ml, y, cw, 8 + kpis.alertas.length * 6, 2, 2, "F")
+      doc.setDrawColor(254, 202, 202)
+      doc.roundedRect(ml, y, cw, 8 + kpis.alertas.length * 6, 2, 2, "S")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7.5)
+      doc.setTextColor(220, 38, 38)
+      doc.text("⚠  ALERTAS DE VARIAÇÃO SIGNIFICATIVA (≥ 20%)", ml + 4, y + 6)
+      kpis.alertas.forEach((a, i) => {
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(7)
+        doc.setTextColor(127, 29, 29)
+        const seta = a.variacao > 0 ? "▲" : "▼"
+        doc.text(
+          `${a.grupo}:  ${seta} ${Math.abs(a.variacao).toFixed(1)}%  (anterior: ${a.anterior}  →  atual: ${a.atual})`,
+          ml + 6, y + 12 + i * 6
+        )
+      })
+      y += 12 + kpis.alertas.length * 6 + 4
+    }
+
+    // ── Seção: KPIs por grupo ──────────────────────────────────────────────────
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(9)
+    doc.setTextColor(...AZUL)
+    doc.text("DISTRIBUIÇÃO POR GRUPO", ml, y + 5)
+    doc.setFillColor(...GOLD)
+    doc.rect(ml, y + 7, 30, 0.8, "F")
+    y += 12
+
+    // Grade 3 colunas
+    const cardW = (cw - 8) / 3
+    const cardH = 16
+    grupos.forEach((grupo, i) => {
+      const col = i % 3
+      const row = Math.floor(i / 3)
+      const cx = ml + col * (cardW + 4)
+      const cy = y + row * (cardH + 4)
+
+      // Fundo do card
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(cx, cy, cardW, cardH, 1.5, 1.5, "F")
+
+      // Borda esquerda colorida
+      const hex = corDoGrupo(grupo, i)
+      const r = parseInt(hex.slice(1,3),16)
+      const g = parseInt(hex.slice(3,5),16)
+      const b = parseInt(hex.slice(5,7),16)
+      doc.setFillColor(r, g, b)
+      doc.rect(cx, cy, 2, cardH, "F")
+
+      // Número grande
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(14)
+      doc.setTextColor(r, g, b)
+      doc.text(String(contagemAtual[grupo] || 0), cx + 6, cy + 9)
+
+      // Nome do grupo
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(6)
+      doc.setTextColor(...AZUL)
+      const nomeCorto = grupo.length > 16 ? grupo.slice(0, 14) + "..." : grupo
+      doc.text(nomeCorto, cx + 6, cy + 13)
+
+      // Variação
+      if (variacoes[grupo] != null) {
+        const v = variacoes[grupo]
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(5.5)
+        doc.setTextColor(v > 0 ? 220 : 22, v > 0 ? 38 : 163, v > 0 ? 38 : 74)
+        doc.text(`${v > 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`, cx + cardW - 14, cy + 13)
+      }
+    })
+
+    const linhasKpi = Math.ceil(grupos.length / 3)
+    y += linhasKpi * (cardH + 4) + 8
+
+    // ── Seção: Detalhamento por unidade ───────────────────────────────────────
+    // Verifica se cabe na página, senão adiciona nova
+    if (y > 220) { doc.addPage(); y = 18 }
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(9)
+    doc.setTextColor(...AZUL)
+    doc.text("DETALHAMENTO POR UNIDADE", ml, y + 5)
+    doc.setFillColor(...GOLD)
+    doc.rect(ml, y + 7, 40, 0.8, "F")
+    y += 14
+
+    Object.entries(porUnidade).forEach(([unidade, pavilhoes]) => {
+      if (y > 255) { doc.addPage(); y = 18 }
+
+      // Header da unidade
+      doc.setFillColor(...AZUL)
+      doc.roundedRect(ml, y, cw, 8, 1, 1, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7.5)
+      doc.setTextColor(...BRANCO)
+      doc.text(unidade, ml + 4, y + 5.5)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(6.5)
+      doc.text(`${pavilhoes.length} pavilhões`, W - mr - 4, y + 5.5, { align: "right" })
+      y += 10
+
+      // Pavilhões em grade 2 colunas
+      pavilhoes.forEach((pav, i) => {
+        const col = i % 2
+        const px = ml + col * (cw / 2 + 2)
+        const py = y + Math.floor(i / 2) * 8
+
+        if (py > 265) return
+
+        const hex = corDoGrupo(pav.grupo, i)
+        const r = parseInt(hex.slice(1,3),16)
+        const g = parseInt(hex.slice(3,5),16)
+        const b = parseInt(hex.slice(5,7),16)
+
+        // Fundo branco com borda colorida
+        doc.setFillColor(255, 255, 255)
+        doc.setDrawColor(r, g, b)
+        doc.roundedRect(px, py, cw/2 - 2, 7, 1, 1, "FD")
+
+        // Barra colorida esquerda
+        doc.setFillColor(r, g, b)
+        doc.rect(px, py, 2, 7, "F")
+
+        // Label do pavilhão
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(6)
+        doc.setTextColor(15, 23, 42)
+        const labelCorto = pav.label.length > 22 ? pav.label.slice(0,20)+"..." : pav.label
+        doc.text(labelCorto, px + 5, py + 3.2)
+
+        // Grupo
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(5.5)
+        doc.setTextColor(r, g, b)
+        doc.text(pav.grupo, px + 5, py + 6)
+      })
+
+      y += Math.ceil(pavilhoes.length / 2) * 8 + 6
+    })
+
+    // ── Rodapé ────────────────────────────────────────────────────────────────
+    const pageCount = doc.getNumberOfPages()
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p)
+      doc.setFillColor(...AZUL)
+      doc.rect(0, 287, W, 10, "F")
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(6)
+      doc.setTextColor(...BRANCO)
+      doc.text("Agent Bastos · Sistema de Inteligência Corporativa · USO INTERNO · CONFIDENCIAL", ml, 293)
+      doc.text(`Página ${p} de ${pageCount}`, W - mr, 293, { align: "right" })
+    }
+
+    const nomeMes = formatarMes(mesSelecionado).replace(" ", "-")
+    doc.save(`inteligencia-grupos-${nomeMes}.pdf`)
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const idxMes = meses.indexOf(mesSelecionado)
   const podePrev = idxMes < meses.length - 1
   const podeProx = idxMes > 0
@@ -392,6 +637,21 @@ export default function InteligenciaGrupos({ onNavigate }) {
               }}
             >›</button>
           </div>
+
+          <button
+            onClick={exportarPDF}
+            disabled={grupos.length === 0}
+            style={{
+              background: grupos.length === 0 ? "#F1F5F9" : "#B45309",
+              color: grupos.length === 0 ? "#94A3B8" : "#FFFFFF",
+              border: "none", borderRadius: 7, padding: "6px 14px",
+              fontSize: 10, fontWeight: 700,
+              cursor: grupos.length === 0 ? "not-allowed" : "pointer",
+              fontFamily: MONO, letterSpacing: "0.05em",
+            }}
+          >
+            ↓ EXPORTAR PDF
+          </button>
 
           <button
             onClick={forcarSnapshot}
