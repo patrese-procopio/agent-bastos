@@ -1336,7 +1336,7 @@ def _baixar_json_drive(nome_arquivo: str, folder_id: str) -> dict:
     while not done:
         _, done = downloader.next_chunk()
     buffer.seek(0)
-    return json.loads(buffer.read().decode("utf-8"))
+    return json.loads(buffer.read().decode("utf-8-sig"))
 
 def _salvar_snapshot_automatico():
     mes_atual = datetime.now().strftime("%Y-%m")
