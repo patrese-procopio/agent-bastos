@@ -1260,6 +1260,95 @@ async def decifrar_missiva(
 from modules.dashboard_routes import registrar_rotas_dashboard
 registrar_rotas_dashboard(app)
 
+# --- Lideranças por Unidade ---
+_LIDERANCAS_DADOS_FOLDER_ID = "1L3qfj7-wYkPsOFyN578QG2XrSpbJkKTW"
+_LIDERANCAS_FOTOS_FOLDER_ID = "1UTDAaDKn31FTEEiChFwvj-RAWxXuh7_D"
+
+@app.get("/liderancas/{unidade}")
+def get_liderancas(unidade: str, competencia: str = None):
+    """
+    Retorna lideranças de uma unidade para uma competência.
+    Se competencia não informada, busca o mês mais recente disponível.
+    """
+    try:
+        service = _gdrive_service()
+        # Lista arquivos da pasta dados filtrando pela unidade
+        q = f"'{_LIDERANCAS_DADOS_FOLDER_ID}' in parents and trashed=false and name contains 'liderancas_{unidade}'"
+        results = service.files().list(q=q, fields="files(id, name)", orderBy="name desc").execute()
+        arquivos = results.get("files", [])
+        if not arquivos:
+            raise HTTPException(status_code=404, detail=f"Nenhum dado encontrado para {unidade}")
+        # Se competencia informada, busca arquivo exato; senao pega o mais recente
+        arquivo = None
+        if competencia:
+            arquivo = next((a for a in arquivos if competencia in a["name"]), None)
+        if not arquivo:
+            arquivo = arquivos[0]  # mais recente (orderBy name desc)
+        # Baixa e retorna o JSON
+        import io
+        from googleapiclient.http import MediaIoBaseDownload
+        buffer = io.BytesIO()
+        request = service.files().get_media(fileId=arquivo["id"])
+        downloader = MediaIoBaseDownload(buffer, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        buffer.seek(0)
+        dados = json.loads(buffer.read().decode("utf-8-sig"))
+        dados["_arquivo"] = arquivo["name"]
+        return dados
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/liderancas/{unidade}/competencias")
+def get_competencias_disponiveis(unidade: str):
+    """Lista todas as competências disponíveis para uma unidade."""
+    try:
+        service = _gdrive_service()
+        q = f"'{_LIDERANCAS_DADOS_FOLDER_ID}' in parents and trashed=false and name contains 'liderancas_{unidade}'"
+        results = service.files().list(q=q, fields="files(id, name)", orderBy="name desc").execute()
+        arquivos = results.get("files", [])
+        competencias = []
+        for a in arquivos:
+            # Extrai competencia do nome: liderancas_CDPM2_2026-05.json -> 2026-05
+            partes = a["name"].replace(".json", "").split("_")
+            if len(partes) >= 3:
+                competencias.append(partes[-1])
+        return {"unidade": unidade, "competencias": competencias}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/liderancas/foto/{file_id}")
+def get_foto_lideranca(file_id: str):
+    """
+    Serve foto de liderança do Drive como imagem.
+    O frontend chama esse endpoint para exibir a foto com segurança.
+    """
+    import io
+    from googleapiclient.http import MediaIoBaseDownload
+    from fastapi.responses import StreamingResponse
+    try:
+        service = _gdrive_service()
+        # Detecta mime type pelo metadata
+        meta = service.files().get(fileId=file_id, fields="mimeType,name").execute()
+        mime = meta.get("mimeType", "image/jpeg")
+        request = service.files().get_media(fileId=file_id)
+        buffer = io.BytesIO()
+        downloader = MediaIoBaseDownload(buffer, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        buffer.seek(0)
+        return StreamingResponse(buffer, media_type=mime,
+            headers={"Cache-Control": "max-age=3600"})
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Foto não encontrada: {e}")
+
+
 if __name__ == "__main__":
     uvicorn.run(
         app,
