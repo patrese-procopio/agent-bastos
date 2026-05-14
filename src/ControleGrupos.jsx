@@ -1,4 +1,6 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react"
+import { jsPDF } from "jspdf"
+import html2canvas from "html2canvas"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const CORES = {
@@ -106,6 +108,7 @@ export default function ControleGrupos({ onNavigate }) {
   const [dados, setDados]           = useState(FALLBACK)
   const [carregando, setCarregando] = useState(true)
   const [erroApi, setErroApi]       = useState(false)
+  const [exportando, setExportando] = useState(false)
   const imgRef  = useRef(null)
   const wrapRef = useRef(null)
 
@@ -152,6 +155,184 @@ export default function ControleGrupos({ onNavigate }) {
   const imgSrc = `./src/assets/unidades/${ud?.img}`
   const grups  = [...new Set(Object.values(pavs).map(p => p.g))]
 
+  // ── Exportação PDF ─────────────────────────────────────────────────────────
+  async function exportarPDF() {
+    if (!wrapRef.current || exportando) return
+    setExportando(true)
+    try {
+      const W = 210, ml = 16, mr = 16, cw = W - ml - mr
+      const AZUL   = [15, 23, 42]
+      const GOLD   = [180, 83, 9]
+      const CINZA  = [100, 116, 139]
+      const BORDA  = [226, 232, 240]
+      const BRANCO = [255, 255, 255]
+
+      // 1. Captura o mapa como imagem
+      const canvas = await html2canvas(wrapRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        backgroundColor: "#1a1a1a",
+        logging: false,
+      })
+      const mapaImg   = canvas.toDataURL("image/jpeg", 0.92)
+      const mapaRatio = canvas.height / canvas.width
+      const mapaW     = cw
+      const mapaH     = Math.min(mapaW * mapaRatio, 100) // máx 100mm de altura
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+      let y = 0
+
+      // ── Cabeçalho ───────────────────────────────────────────────────────────────
+      doc.setFillColor(...AZUL)
+      doc.rect(0, 0, W, 28, "F")
+      doc.setFillColor(...GOLD)
+      doc.rect(0, 28, W, 2, "F")
+      doc.setTextColor(...BRANCO)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(15)
+      doc.text("AGENT BASTOS", ml, 11)
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "normal")
+      doc.text("Sistema de Inteligência e Segurança Corporativa", ml, 17)
+      doc.setFontSize(7)
+      doc.text(`Relatório gerado em: ${new Date().toLocaleString("pt-BR")}`, ml, 22)
+      doc.setFillColor(...GOLD)
+      doc.roundedRect(W - mr - 32, 8, 32, 10, 2, 2, "F")
+      doc.setTextColor(...BRANCO)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7)
+      doc.text("CONFIDENCIAL", W - mr - 16, 14.5, { align: "center" })
+      y = 36
+
+      // ── Título da unidade ──────────────────────────────────────────────────────
+      doc.setTextColor(...AZUL)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(13)
+      doc.text("MAPA DE CONTROLE DE GRUPOS", ml, y + 7)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(...CINZA)
+      doc.text(`Unidade: ${NOMES_FULL[unit]}  ·  Competência: ${dados.atualizado}  ·  ${Object.keys(pavs).length} locais mapeados`, ml, y + 13)
+      doc.setDrawColor(...BORDA)
+      doc.line(ml, y + 16, W - mr, y + 16)
+      y += 22
+
+      // ── Mapa ─────────────────────────────────────────────────────────────────────
+      doc.setDrawColor(...BORDA)
+      doc.roundedRect(ml, y, mapaW, mapaH, 2, 2, "S")
+      doc.addImage(mapaImg, "JPEG", ml, y, mapaW, mapaH, undefined, "FAST")
+      y += mapaH + 8
+
+      // ── Legenda dos grupos ─────────────────────────────────────────────────────
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(...AZUL)
+      doc.text("GRUPOS PRESENTES NESTA UNIDADE", ml, y + 5)
+      doc.setFillColor(...GOLD)
+      doc.rect(ml, y + 7, 46, 0.7, "F")
+      y += 11
+
+      // Chips de grupo em linha
+      let gx = ml
+      grups.forEach((g, i) => {
+        const hex = CORES[g]?.dot || "#94A3B8"
+        const r = parseInt(hex.slice(1,3),16)
+        const gv = parseInt(hex.slice(3,5),16)
+        const b = parseInt(hex.slice(5,7),16)
+        const chipW = Math.min(doc.getTextWidth(g) * 2.8 + 10, 45)
+        if (gx + chipW > W - mr) { gx = ml; y += 9 }
+        doc.setFillColor(248, 250, 252)
+        doc.setDrawColor(r, gv, b)
+        doc.roundedRect(gx, y, chipW, 7, 1.5, 1.5, "FD")
+        doc.setFillColor(r, gv, b)
+        doc.circle(gx + 3.5, y + 3.5, 1.3, "F")
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(6)
+        doc.setTextColor(15, 23, 42)
+        doc.text(g, gx + 7, y + 4.5)
+        gx += chipW + 4
+      })
+      y += 13
+
+      // ── Tabela de pavilhões ─────────────────────────────────────────────────────
+      if (y > 220) { doc.addPage(); y = 18 }
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(...AZUL)
+      doc.text("DETALHAMENTO DOS LOCAIS", ml, y + 5)
+      doc.setFillColor(...GOLD)
+      doc.rect(ml, y + 7, 34, 0.7, "F")
+      y += 12
+
+      // Cabeçalho da tabela
+      doc.setFillColor(...AZUL)
+      doc.rect(ml, y, cw, 7, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7)
+      doc.setTextColor(...BRANCO)
+      doc.text("LOCAL / PAVILHÃO", ml + 3, y + 5)
+      doc.text("GRUPO", ml + cw * 0.65, y + 5)
+
+      y += 7
+      Object.entries(pavs).forEach(([id, p], i) => {
+        if (y > 265) { doc.addPage(); y = 18 }
+        const hex = CORES[p.g]?.dot || "#94A3B8"
+        const r = parseInt(hex.slice(1,3),16)
+        const gv = parseInt(hex.slice(3,5),16)
+        const b = parseInt(hex.slice(5,7),16)
+
+        // Fundo alternado
+        doc.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 250 : 255, i % 2 === 0 ? 252 : 255)
+        doc.rect(ml, y, cw, 7, "F")
+
+        // Barra colorida
+        doc.setFillColor(r, gv, b)
+        doc.rect(ml, y, 2.5, 7, "F")
+
+        // Nome do pavilhão
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(7)
+        doc.setTextColor(15, 23, 42)
+        doc.text(p.l, ml + 6, y + 4.8)
+
+        // Grupo com círculo colorido
+        doc.setFillColor(r, gv, b)
+        doc.circle(ml + cw * 0.65, y + 3.5, 1.5, "F")
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(6.5)
+        doc.setTextColor(r, gv, b)
+        doc.text(p.g, ml + cw * 0.65 + 4, y + 4.8)
+
+        // Linha divisora
+        doc.setDrawColor(...BORDA)
+        doc.line(ml, y + 7, ml + cw, y + 7)
+        y += 7
+      })
+
+      // ── Rodapé em todas as páginas ───────────────────────────────────────────
+      const pageCount = doc.getNumberOfPages()
+      for (let p2 = 1; p2 <= pageCount; p2++) {
+        doc.setPage(p2)
+        doc.setFillColor(...AZUL)
+        doc.rect(0, 287, W, 10, "F")
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(6)
+        doc.setTextColor(...BRANCO)
+        doc.text("Agent Bastos · Sistema de Inteligência Corporativa · USO INTERNO · CONFIDENCIAL", ml, 293)
+        doc.text(`Página ${p2} de ${pageCount}`, W - mr, 293, { align: "right" })
+      }
+
+      doc.save(`mapa-controle-${unit.toLowerCase()}-${dados.atualizado}.pdf`)
+    } catch (e) {
+      console.error("Erro ao exportar PDF:", e)
+    } finally {
+      setExportando(false)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   if (carregando) return (
     <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
       <svg className="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
@@ -171,6 +352,19 @@ export default function ControleGrupos({ onNavigate }) {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {erroApi && <span style={{fontSize:9,color:"#DC2626",fontFamily:MONO,background:"#FEF2F2",padding:"2px 8px",borderRadius:4,border:"1px solid #FECACA"}}>offline — dados locais</span>}
+          <button
+            onClick={exportarPDF}
+            disabled={exportando}
+            style={{
+              background: exportando ? "#F1F5F9" : "#B45309",
+              color: exportando ? "#94A3B8" : "#FFFFFF",
+              border: "none", borderRadius: 7, padding: "5px 12px",
+              fontSize: 10, fontWeight: 700, cursor: exportando ? "not-allowed" : "pointer",
+              fontFamily: MONO, letterSpacing: "0.05em",
+            }}
+          >
+            {exportando ? "GERANDO..." : "↓ EXPORTAR PDF"}
+          </button>
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:20}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
             <span style={{fontSize:9,color:"#166534",fontFamily:MONO,fontWeight:600}}>atualizado: {dados.atualizado}</span>
