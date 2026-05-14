@@ -1295,7 +1295,7 @@ def get_ocupacao():
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- Inteligência de Grupos — Snapshots e KPIs ---
-_HISTORICO_FOLDER_ID = "16E2RoJirYN-v7mnLXQ1k-OVz5j8XMhUN"
+_HISTORICO_FOLDER_ID = "1-hQE2t9P7Kpk31V5oKCUoylM03nCNhT_"
 
 def _gdrive_service():
     creds = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=["https://www.googleapis.com/auth/drive"])
@@ -1457,65 +1457,25 @@ def debug_snapshot_erro():
     except Exception as e:
         return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
 
-# --- Snapshots locais ---
+# --- Snapshots: Drive (fonte de verdade) + Local (cache/fallback) ---
 import os as _os
 _SNAPSHOTS_DIR = _os.path.join(BASE_DIR, "data", "snapshots")
 _os.makedirs(_SNAPSHOTS_DIR, exist_ok=True)
 
-def _salvar_snapshot_local():
-    mes_atual = datetime.now().strftime("%Y-%m")
-    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes_atual}.json")
-    if _os.path.exists(path):
-        return False
-    try:
-        ocupacao = _baixar_ocupacao_drive()
-        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(snapshot, f, ensure_ascii=False, indent=2)
-        indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-        indice = json.loads(open(indice_path).read()) if _os.path.exists(indice_path) else {"meses": []}
-        if mes_atual not in indice["meses"]:
-            indice["meses"].append(mes_atual)
-            indice["meses"].sort()
-        with open(indice_path, "w", encoding="utf-8") as f:
-            json.dump(indice, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
 
-@app.get("/historico/indice")
-def get_indice_local():
-    path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-    if not _os.path.exists(path):
-        return {"meses": []}
-    return json.loads(open(path).read())
-
-@app.get("/historico/{mes}")
-def get_historico_mes_local(mes: str):
-    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
-    if not _os.path.exists(path):
-        raise HTTPException(status_code=404, detail=f"Snapshot {mes} nao encontrado")
-    return json.loads(open(path).read())
-
-@app.get("/kpis")
-def get_kpis_local():
-    indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-    if not _os.path.exists(indice_path):
-        return {"series": {}, "alertas": [], "meses": []}
-    indice = json.loads(open(indice_path).read())
-    meses = sorted(indice.get("meses", []))
+def _computar_series_kpis(meses_snaps: list) -> dict:
+    """Recebe lista de {'mes': str, 'dados': dict} e retorna series + alertas."""
     series = {}
-    for mes in meses[-6:]:
-        path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
-        if not _os.path.exists(path):
-            continue
-        snap = json.loads(open(path).read())
+    for item in meses_snaps:
+        mes = item["mes"]
         contagem = {}
-        for u_dados in snap.get("dados", {}).get("unidades", {}).values():
+        for u_dados in item.get("dados", {}).get("unidades", {}).values():
             for p in (u_dados.get("pavilhoes") or u_dados.get("pavs") or {}).values():
                 g = p.get("grupo") or p.get("g", "")
-                contagem[g] = contagem.get(g, 0) + 1
+                if g:
+                    contagem[g] = contagem.get(g, 0) + 1
         series[mes] = contagem
+
     alertas = []
     meses_list = sorted(series.keys())
     if len(meses_list) >= 2:
@@ -1526,30 +1486,161 @@ def get_kpis_local():
             if qtd_ant > 0:
                 variacao = ((qtd - qtd_ant) / qtd_ant) * 100
                 if abs(variacao) >= 20:
-                    alertas.append({"grupo": grupo, "variacao": round(variacao, 1), "atual": qtd, "anterior": qtd_ant})
+                    alertas.append({
+                        "grupo": grupo,
+                        "variacao": round(variacao, 1),
+                        "atual": qtd,
+                        "anterior": qtd_ant,
+                    })
     return {"series": series, "alertas": alertas, "meses": meses_list}
 
-@app.post("/snapshot/forcar")
-def forcar_snapshot_local():
+
+def _salvar_snapshot_completo():
+    """
+    Salva snapshot do mês atual TANTO no Drive quanto localmente.
+    Drive = fonte de verdade e histórico persistente.
+    Local = cache offline/fallback.
+    Idempotente: não sobrescreve se já existir no Drive no mesmo mês.
+    """
+    mes_atual = datetime.now().strftime("%Y-%m")
+    nome_arquivo = f"snapshot_{mes_atual}.json"
+
+    existente_drive = _baixar_json_drive(nome_arquivo, _HISTORICO_FOLDER_ID)
+    if existente_drive:
+        return {"criado": False, "destino": "drive", "mes": mes_atual}
+
     try:
-        mes_atual = datetime.now().strftime("%Y-%m")
-        path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes_atual}.json")
         ocupacao = _baixar_ocupacao_drive()
-        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(snapshot, f, ensure_ascii=False, indent=2)
-        indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-        indice = json.loads(open(indice_path).read()) if _os.path.exists(indice_path) else {"meses": []}
+        snapshot = {
+            "mes": mes_atual,
+            "gerado_em": datetime.now().isoformat(),
+            "dados": ocupacao,
+        }
+
+        # Drive
+        _upload_json_drive(nome_arquivo, snapshot, _HISTORICO_FOLDER_ID)
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
         if mes_atual not in indice["meses"]:
             indice["meses"].append(mes_atual)
             indice["meses"].sort()
-        with open(indice_path, "w", encoding="utf-8") as f:
-            json.dump(indice, f, ensure_ascii=False, indent=2)
-        return {"ok": True, "mes": mes_atual}
+        _upload_json_drive("indice.json", indice, _HISTORICO_FOLDER_ID)
+
+        # Local (cache)
+        path_local = _os.path.join(_SNAPSHOTS_DIR, nome_arquivo)
+        with open(path_local, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        indice_local_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+        ind_local = json.loads(open(indice_local_path).read()) if _os.path.exists(indice_local_path) else {"meses": []}
+        if mes_atual not in ind_local["meses"]:
+            ind_local["meses"].append(mes_atual)
+            ind_local["meses"].sort()
+        with open(indice_local_path, "w", encoding="utf-8") as f:
+            json.dump(ind_local, f, ensure_ascii=False, indent=2)
+
+        return {"criado": True, "destino": "drive+local", "mes": mes_atual}
+    except Exception as e:
+        return {"criado": False, "erro": str(e)}
+
+
+@app.on_event("startup")
+async def startup_snapshot_unificado():
+    import threading
+    threading.Thread(target=_salvar_snapshot_completo, daemon=True).start()
+
+
+@app.post("/snapshot/forcar")
+def forcar_snapshot_unificado():
+    """Força snapshot sobrescrevendo qualquer versão anterior. Drive + local."""
+    try:
+        mes_atual = datetime.now().strftime("%Y-%m")
+        nome_arquivo = f"snapshot_{mes_atual}.json"
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {
+            "mes": mes_atual,
+            "gerado_em": datetime.now().isoformat(),
+            "dados": ocupacao,
+        }
+
+        _upload_json_drive(nome_arquivo, snapshot, _HISTORICO_FOLDER_ID)
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
+        if mes_atual not in indice["meses"]:
+            indice["meses"].append(mes_atual)
+            indice["meses"].sort()
+        _upload_json_drive("indice.json", indice, _HISTORICO_FOLDER_ID)
+
+        path_local = _os.path.join(_SNAPSHOTS_DIR, nome_arquivo)
+        with open(path_local, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        indice_local_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+        ind_local = json.loads(open(indice_local_path).read()) if _os.path.exists(indice_local_path) else {"meses": []}
+        if mes_atual not in ind_local["meses"]:
+            ind_local["meses"].append(mes_atual)
+            ind_local["meses"].sort()
+        with open(indice_local_path, "w", encoding="utf-8") as f:
+            json.dump(ind_local, f, ensure_ascii=False, indent=2)
+
+        return {"ok": True, "mes": mes_atual, "destino": "drive+local"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.on_event("startup")
-async def startup_snapshot_local():
-    import threading
-    threading.Thread(target=_salvar_snapshot_local, daemon=True).start()
+
+@app.get("/historico/indice")
+def get_indice_unificado():
+    """Drive primeiro, local como fallback."""
+    try:
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
+        if indice:
+            return indice
+    except Exception:
+        pass
+    path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+    return json.loads(open(path).read()) if _os.path.exists(path) else {"meses": []}
+
+
+@app.get("/historico/{mes}")
+def get_historico_mes_unificado(mes: str):
+    """Drive primeiro, local como fallback."""
+    try:
+        snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
+        if snap:
+            return snap
+    except Exception:
+        pass
+    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
+    if _os.path.exists(path):
+        return json.loads(open(path).read())
+    raise HTTPException(status_code=404, detail=f"Snapshot {mes} não encontrado")
+
+
+@app.get("/kpis")
+def get_kpis_unificado():
+    """KPIs dos últimos 6 meses. Drive primeiro, local como fallback."""
+    indice = None
+    usar_local = False
+    try:
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
+    except Exception:
+        usar_local = True
+
+    if not indice:
+        path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+        indice = json.loads(open(path).read()) if _os.path.exists(path) else {"meses": []}
+        usar_local = True
+
+    meses = sorted(indice.get("meses", []))
+    meses_snaps = []
+    for mes in meses[-6:]:
+        snap = None
+        if not usar_local:
+            try:
+                snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
+            except Exception:
+                pass
+        if not snap:
+            path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
+            if _os.path.exists(path):
+                snap = json.loads(open(path).read())
+        if snap:
+            meses_snaps.append({"mes": mes, "dados": snap.get("dados", {})})
+
+    return _computar_series_kpis(meses_snaps)
