@@ -1415,3 +1415,141 @@ def get_kpis():
 async def startup_snapshot():
     import threading
     threading.Thread(target=_salvar_snapshot_automatico, daemon=True).start()
+
+@app.post("/snapshot/forcar")
+def forcar_snapshot():
+    try:
+        mes_atual = datetime.now().strftime("%Y-%m")
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
+        _upload_json_drive(f"snapshot_{mes_atual}.json", snapshot, _HISTORICO_FOLDER_ID)
+        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
+        if mes_atual not in indice["meses"]:
+            indice["meses"].append(mes_atual)
+            indice["meses"].sort()
+        _upload_json_drive("indice.json", indice, _HISTORICO_FOLDER_ID)
+        return {"ok": True, "mes": mes_atual}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/debug/drive")
+def debug_drive():
+    import traceback
+    try:
+        service = _gdrive_service()
+        results = service.files().list(
+            q=f"'{_HISTORICO_FOLDER_ID}' in parents and trashed=false",
+            fields="files(id, name)"
+        ).execute()
+        return {"ok": True, "arquivos": results.get("files", [])}
+    except Exception as e:
+        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
+
+@app.get("/debug/snapshot-erro")
+def debug_snapshot_erro():
+    import traceback
+    try:
+        mes_atual = datetime.now().strftime("%Y-%m")
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
+        _upload_json_drive(f"snapshot_{mes_atual}.json", snapshot, _HISTORICO_FOLDER_ID)
+        return {"ok": True, "mes": mes_atual}
+    except Exception as e:
+        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
+
+# --- Snapshots locais ---
+import os as _os
+_SNAPSHOTS_DIR = _os.path.join(BASE_DIR, "data", "snapshots")
+_os.makedirs(_SNAPSHOTS_DIR, exist_ok=True)
+
+def _salvar_snapshot_local():
+    mes_atual = datetime.now().strftime("%Y-%m")
+    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes_atual}.json")
+    if _os.path.exists(path):
+        return False
+    try:
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+        indice = json.loads(open(indice_path).read()) if _os.path.exists(indice_path) else {"meses": []}
+        if mes_atual not in indice["meses"]:
+            indice["meses"].append(mes_atual)
+            indice["meses"].sort()
+        with open(indice_path, "w", encoding="utf-8") as f:
+            json.dump(indice, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+@app.get("/historico/indice")
+def get_indice_local():
+    path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+    if not _os.path.exists(path):
+        return {"meses": []}
+    return json.loads(open(path).read())
+
+@app.get("/historico/{mes}")
+def get_historico_mes_local(mes: str):
+    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
+    if not _os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Snapshot {mes} nao encontrado")
+    return json.loads(open(path).read())
+
+@app.get("/kpis")
+def get_kpis_local():
+    indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+    if not _os.path.exists(indice_path):
+        return {"series": {}, "alertas": [], "meses": []}
+    indice = json.loads(open(indice_path).read())
+    meses = sorted(indice.get("meses", []))
+    series = {}
+    for mes in meses[-6:]:
+        path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
+        if not _os.path.exists(path):
+            continue
+        snap = json.loads(open(path).read())
+        contagem = {}
+        for u_dados in snap.get("dados", {}).get("unidades", {}).values():
+            for p in (u_dados.get("pavilhoes") or u_dados.get("pavs") or {}).values():
+                g = p.get("grupo") or p.get("g", "")
+                contagem[g] = contagem.get(g, 0) + 1
+        series[mes] = contagem
+    alertas = []
+    meses_list = sorted(series.keys())
+    if len(meses_list) >= 2:
+        atual = series[meses_list[-1]]
+        anterior = series[meses_list[-2]]
+        for grupo, qtd in atual.items():
+            qtd_ant = anterior.get(grupo, 0)
+            if qtd_ant > 0:
+                variacao = ((qtd - qtd_ant) / qtd_ant) * 100
+                if abs(variacao) >= 20:
+                    alertas.append({"grupo": grupo, "variacao": round(variacao, 1), "atual": qtd, "anterior": qtd_ant})
+    return {"series": series, "alertas": alertas, "meses": meses_list}
+
+@app.post("/snapshot/forcar")
+def forcar_snapshot_local():
+    try:
+        mes_atual = datetime.now().strftime("%Y-%m")
+        path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes_atual}.json")
+        ocupacao = _baixar_ocupacao_drive()
+        snapshot = {"mes": mes_atual, "gerado_em": datetime.now().isoformat(), "dados": ocupacao}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        indice_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
+        indice = json.loads(open(indice_path).read()) if _os.path.exists(indice_path) else {"meses": []}
+        if mes_atual not in indice["meses"]:
+            indice["meses"].append(mes_atual)
+            indice["meses"].sort()
+        with open(indice_path, "w", encoding="utf-8") as f:
+            json.dump(indice, f, ensure_ascii=False, indent=2)
+        return {"ok": True, "mes": mes_atual}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("startup")
+async def startup_snapshot_local():
+    import threading
+    threading.Thread(target=_salvar_snapshot_local, daemon=True).start()
