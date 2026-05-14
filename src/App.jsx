@@ -10,12 +10,14 @@ import Agenda        from "./Agenda"
 import ListaNegra    from "./ListaNegra"
 import Grafoscopia from "./Grafoscopia"
 import ControleGrupos from "./ControleGrupos"
+import InteligenciaGrupos from "./InteligenciaGrupos"
 
 const NAV_GROUPS = [
   { title: "PRINCIPAL", items: [
     { label: "Painel", color: "#B45309", active: true },
     { label: "Alertas", color: "#DC2626", pulse: true },
     { label: "Controle de Grupos", color: "#DC2626" },
+    { label: "Inteligência de Grupos", color: "#7C3AED" },
     { label: "Lista Negra", color: "#1E293B" },
   ]},
   { title: "INTELIGÊNCIA", items: [
@@ -183,7 +185,7 @@ useEffect(() => {
   const now = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })
 
   // Telas que substituem o main inteiro
- const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra","Análise Grafoscópica", "Controle de Grupos"].includes(active)
+ const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra","Análise Grafoscópica", "Controle de Grupos", "Inteligência de Grupos"].includes(active)
 
   return (
     <div style={S.app}>
@@ -301,6 +303,7 @@ useEffect(() => {
         {active === "Referências"      && <Referencias  onNavigate={setActive} />}
         {active === "Configurações" && <Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/>}
         {active === "Controle de Grupos" && <ControleGrupos onNavigate={setActive} />}
+        {active === "Inteligência de Grupos" && <InteligenciaGrupos onNavigate={setActive} />}
         {active === "Agenda de Missão" && <Agenda       onNavigate={setActive} />}
         {active === "Lista Negra"      && <ListaNegra   onNavigate={setActive} />}
 
@@ -461,7 +464,7 @@ useEffect(() => {
         )}
 
         {/* Telas ainda não implementadas */}
-        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências","Configurações","Agenda de Missão","Lista Negra", "Controle de Grupos"].includes(active) && (
+        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências","Configurações","Agenda de Missão","Lista Negra","Controle de Grupos","Inteligência de Grupos"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{active}</div>
             <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Em desenvolvimento</div>
