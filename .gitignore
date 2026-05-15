@@ -39,3 +39,12 @@ mover_rota.py
 testar_sa.py
 gerar_agenda.py
 App_backup.jsx
+
+fix_*.py
+patch_*.py
+diagnostico_*.py
+remove_*.py
+inject_*.py
+*.js.bak
+*.jsx.bak
+*.py.bak
