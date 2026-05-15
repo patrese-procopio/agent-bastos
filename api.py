@@ -1,4 +1,4 @@
-﻿import uvicorn
+import uvicorn
 import os
 import glob
 import json
@@ -15,6 +15,14 @@ from pydantic import BaseModel, field_validator
 from groq import Groq
 from modules.rag import conversar_com_bastos, conversar_com_fontes
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
+from api_liderancas_router import liderancas_router
+from modules.liderancas import (
+    ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, estrutura_com_celas,
+    criar_lider, atualizar_lider, deletar_lider,
+    buscar_lider, listar_por_unidade,
+    salvar_foto, carregar_foto,
+)
+
 
 # â”€â”€â”€ ConfiguraÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -239,9 +247,11 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
     ],
-    allow_methods=["POST", "GET", "OPTIONS", "PATCH"],
+    allow_methods=["POST", "GET", "OPTIONS", "PATCH", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
+app.include_router(liderancas_router)
+
 # â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/health")
@@ -294,55 +304,6 @@ def _date_str_pt(dt: datetime) -> str:
 
 
 # â”€â”€â”€ Endpoints principais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@app.get("/health")
-def health():
-    return {"status": "online", "agente": "BASTOS-UNIT"}
-
-
-@app.post("/chat")
-def chat(req: PerguntaRequest):
-    if not req.pergunta.strip():
-        return {"resposta": "Pergunta vazia recebida."}
-    return {"resposta": conversar_com_bastos(req.pergunta)}
-
-
-@app.post("/chat-rag")
-def chat_rag(req: PerguntaRequest):
-    if not req.pergunta.strip():
-        return {"resposta": "Pergunta vazia recebida.", "fontes": [], "confianca": 0}
-    return conversar_com_fontes(req.pergunta)
-
-
-@app.post("/relatorio-dashboard")
-def relatorio_dashboard(req: RelatorioRequest):
-    prompt = (
-        "Voce e o BASTOS-UNIT, analista de inteligencia institucional.\n"
-        "Com base nos dados de producao documental da agencia abaixo, "
-        "gere um RELATORIO ANALITICO EXECUTIVO completo e profissional.\n\n"
-        f"MES DE REFERENCIA: {req.mes}/{req.ano}\n\n"
-        f"DADOS DE PRODUCAO:\n{req.dados}\n\n"
-        "Estruture o relatorio com:\n"
-        "1. SUMARIO EXECUTIVO\n"
-        "2. DESTAQUES POSITIVOS\n"
-        "3. PONTOS DE ATENCAO\n"
-        "4. ANALISE POR NUCLEO (NI, NCI, NBE)\n"
-        "5. ANALISE DOS NUCADIs\n"
-        "6. RECOMENDACOES ESTRATEGICAS (3-5 acoes)\n"
-        "7. CONCLUSAO\n\n"
-        "Use linguagem tecnica, direta e institucional."
-    )
-    try:
-        completion = _groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=2048,
-        )
-        return {"analise": completion.choices[0].message.content}
-    except Exception as e:
-        return {"analise": f"FALHA: {e}"}
-
 
 # â”€â”€â”€ NotÃ­cias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1261,121 +1222,6 @@ from modules.dashboard_routes import registrar_rotas_dashboard
 registrar_rotas_dashboard(app)
 
 # --- Lideranças por Unidade ---
-_LIDERANCAS_DADOS_FOLDER_ID = "1L3qfj7-wYkPsOFyN578QG2XrSpbJkKTW"
-_LIDERANCAS_FOTOS_FOLDER_ID = "1UTDAaDKn31FTEEiChFwvj-RAWxXuh7_D"
-
-@app.get("/liderancas/{unidade}")
-def get_liderancas(unidade: str, competencia: str = None):
-    """
-    Retorna lideranças de uma unidade para uma competência.
-    Se competencia não informada, busca o mês mais recente disponível.
-    """
-    try:
-        service = _gdrive_service()
-        # Lista arquivos da pasta dados filtrando pela unidade
-        q = f"'{_LIDERANCAS_DADOS_FOLDER_ID}' in parents and trashed=false and name contains 'liderancas_{unidade}'"
-        results = service.files().list(q=q, fields="files(id, name)", orderBy="name desc").execute()
-        arquivos = results.get("files", [])
-        if not arquivos:
-            raise HTTPException(status_code=404, detail=f"Nenhum dado encontrado para {unidade}")
-        # Se competencia informada, busca arquivo exato; senao pega o mais recente
-        arquivo = None
-        if competencia:
-            arquivo = next((a for a in arquivos if competencia in a["name"]), None)
-        if not arquivo:
-            arquivo = arquivos[0]  # mais recente (orderBy name desc)
-        # Baixa e retorna o JSON
-        import io
-        from googleapiclient.http import MediaIoBaseDownload
-        buffer = io.BytesIO()
-        request = service.files().get_media(fileId=arquivo["id"])
-        downloader = MediaIoBaseDownload(buffer, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-        buffer.seek(0)
-        dados = json.loads(buffer.read().decode("utf-8-sig"))
-        dados["_arquivo"] = arquivo["name"]
-        return dados
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/liderancas/{unidade}/competencias")
-def get_competencias_disponiveis(unidade: str):
-    """Lista todas as competências disponíveis para uma unidade."""
-    try:
-        service = _gdrive_service()
-        q = f"'{_LIDERANCAS_DADOS_FOLDER_ID}' in parents and trashed=false and name contains 'liderancas_{unidade}'"
-        results = service.files().list(q=q, fields="files(id, name)", orderBy="name desc").execute()
-        arquivos = results.get("files", [])
-        competencias = []
-        for a in arquivos:
-            # Extrai competencia do nome: liderancas_CDPM2_2026-05.json -> 2026-05
-            partes = a["name"].replace(".json", "").split("_")
-            if len(partes) >= 3:
-                competencias.append(partes[-1])
-        return {"unidade": unidade, "competencias": competencias}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/liderancas/foto/{file_id}")
-def get_foto_lideranca(file_id: str):
-    """
-    Serve foto de liderança do Drive como imagem.
-    O frontend chama esse endpoint para exibir a foto com segurança.
-    """
-    import io
-    from googleapiclient.http import MediaIoBaseDownload
-    from fastapi.responses import StreamingResponse
-    try:
-        service = _gdrive_service()
-        # Detecta mime type pelo metadata
-        meta = service.files().get(fileId=file_id, fields="mimeType,name").execute()
-        mime = meta.get("mimeType", "image/jpeg")
-        request = service.files().get_media(fileId=file_id)
-        buffer = io.BytesIO()
-        downloader = MediaIoBaseDownload(buffer, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-        buffer.seek(0)
-        return StreamingResponse(buffer, media_type=mime,
-            headers={"Cache-Control": "max-age=3600"})
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Foto não encontrada: {e}")
-
-
-if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=8000,
-        log_level="info",
-        access_log=True,
-    )
-
-
-# --- Controle de Grupos (Google Drive) ---
-_OCUPACAO_FILE_ID = "1sX2vCfneb1_5Rq1WP7IYfQzsorWh5DvS"
-
-def _baixar_ocupacao_drive():
-    import io
-    from googleapiclient.http import MediaIoBaseDownload
-    creds   = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=_GDRIVE_SCOPES)
-    service = _gdrive_build("drive", "v3", credentials=creds)
-    request = service.files().get_media(fileId=_OCUPACAO_FILE_ID)
-    buffer  = io.BytesIO()
-    downloader = MediaIoBaseDownload(buffer, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    buffer.seek(0)
-    return json.loads(buffer.read().decode("utf-8"))
-
 @app.get("/ocupacao")
 def get_ocupacao():
     try:
@@ -1500,10 +1346,7 @@ def get_kpis():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.on_event("startup")
-async def startup_snapshot():
-    import threading
-    threading.Thread(target=_salvar_snapshot_automatico, daemon=True).start()
+# startup_snapshot removido — snapshot agora é manual via /snapshot/forcar
 
 @app.post("/snapshot/forcar")
 def forcar_snapshot():
@@ -1631,105 +1474,126 @@ def _salvar_snapshot_completo():
         return {"criado": False, "erro": str(e)}
 
 
-@app.on_event("startup")
-async def startup_snapshot_unificado():
-    import threading
-    threading.Thread(target=_salvar_snapshot_completo, daemon=True).start()
+# startup_snapshot_unificado removido — snapshot agora é manual via /snapshot/forcar
 
 
-@app.post("/snapshot/forcar")
-def forcar_snapshot_unificado():
-    """Força snapshot sobrescrevendo qualquer versão anterior. Drive + local."""
-    try:
-        mes_atual = datetime.now().strftime("%Y-%m")
-        nome_arquivo = f"snapshot_{mes_atual}.json"
-        ocupacao = _baixar_ocupacao_drive()
-        snapshot = {
-            "mes": mes_atual,
-            "gerado_em": datetime.now().isoformat(),
-            "dados": ocupacao,
-        }
+# ═══════════════════════════════════════════════════════════════════════════════
+# LIDERANÇAS DE PAVILHÕES
+# ═══════════════════════════════════════════════════════════════════════════════
 
-        _upload_json_drive(nome_arquivo, snapshot, _HISTORICO_FOLDER_ID)
-        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
-        if mes_atual not in indice["meses"]:
-            indice["meses"].append(mes_atual)
-            indice["meses"].sort()
-        _upload_json_drive("indice.json", indice, _HISTORICO_FOLDER_ID)
-
-        path_local = _os.path.join(_SNAPSHOTS_DIR, nome_arquivo)
-        with open(path_local, "w", encoding="utf-8") as f:
-            json.dump(snapshot, f, ensure_ascii=False, indent=2)
-        indice_local_path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-        ind_local = json.loads(open(indice_local_path).read()) if _os.path.exists(indice_local_path) else {"meses": []}
-        if mes_atual not in ind_local["meses"]:
-            ind_local["meses"].append(mes_atual)
-            ind_local["meses"].sort()
-        with open(indice_local_path, "w", encoding="utf-8") as f:
-            json.dump(ind_local, f, ensure_ascii=False, indent=2)
-
-        return {"ok": True, "mes": mes_atual, "destino": "drive+local"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/liderancas-estrutura")
+def get_estrutura():
+    """Estrutura física completa com celas + facções + cargos por facção."""
+    return {
+        "estrutura":         estrutura_com_celas(),
+        "faccoes":           FACCOES,
+        "cargos_por_faccao": CARGOS_POR_FACCAO,
+    }
 
 
-@app.get("/historico/indice")
-def get_indice_unificado():
-    """Drive primeiro, local como fallback."""
-    try:
-        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
-        if indice:
-            return indice
-    except Exception:
-        pass
-    path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-    return json.loads(open(path).read()) if _os.path.exists(path) else {"meses": []}
+@app.get("/liderancas/{unidade}")
+def get_liderancas_unidade(unidade: str):
+    """Líderes de uma unidade agrupados por pavilhão → ala → cela."""
+    if unidade not in ESTRUTURA:
+        raise HTTPException(status_code=404, detail=f"Unidade '{unidade}' não encontrada.")
+    return {
+        "unidade":  unidade,
+        "label":    ESTRUTURA[unidade]["label"],
+        "pavilhoes": listar_por_unidade(unidade),
+    }
 
 
-@app.get("/historico/{mes}")
-def get_historico_mes_unificado(mes: str):
-    """Drive primeiro, local como fallback."""
-    try:
-        snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
-        if snap:
-            return snap
-    except Exception:
-        pass
-    path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
-    if _os.path.exists(path):
-        return json.loads(open(path).read())
-    raise HTTPException(status_code=404, detail=f"Snapshot {mes} não encontrado")
+@app.post("/liderancas")
+async def post_lider(
+    unidade:    str = Form(...),
+    pavilhao:   str = Form(...),
+    ala:        str = Form(...),
+    cela:       str = Form(""),
+    faccao:     str = Form(...),
+    cargo:      str = Form(...),
+    nome:       str = Form(""),
+    vulgo:      str = Form(""),
+    observacao: str = Form(""),
+    foto: UploadFile = File(None),
+):
+    """Cria um novo líder. Foto é opcional."""
+    dados = {
+        "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
+        "faccao": faccao,   "cargo": cargo,
+        "nome": nome or None, "vulgo": vulgo or None,
+        "observacao": observacao or None,
+        "foto_ext": None,
+    }
+    lider = criar_lider(dados)
+
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
+        conteudo = await foto.read()
+        if len(conteudo) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        ext_salva = salvar_foto(lider["id"], conteudo, ext)
+        lider     = atualizar_lider(lider["id"], {"foto_ext": ext_salva})
+
+    return lider
 
 
-@app.get("/kpis")
-def get_kpis_unificado():
-    """KPIs dos últimos 6 meses. Drive primeiro, local como fallback."""
-    indice = None
-    usar_local = False
-    try:
-        indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
-    except Exception:
-        usar_local = True
+@app.put("/liderancas/{lider_id}")
+async def put_lider(
+    lider_id:   str,
+    unidade:    str = Form(...),
+    pavilhao:   str = Form(...),
+    ala:        str = Form(...),
+    cela:       str = Form(""),
+    faccao:     str = Form(...),
+    cargo:      str = Form(...),
+    nome:       str = Form(""),
+    vulgo:      str = Form(""),
+    observacao: str = Form(""),
+    foto: UploadFile = File(None),
+):
+    """Atualiza líder. Nova foto substitui a anterior."""
+    if not buscar_lider(lider_id):
+        raise HTTPException(status_code=404, detail="Líder não encontrado.")
 
-    if not indice:
-        path = _os.path.join(_SNAPSHOTS_DIR, "indice.json")
-        indice = json.loads(open(path).read()) if _os.path.exists(path) else {"meses": []}
-        usar_local = True
+    dados = {
+        "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
+        "faccao": faccao,   "cargo": cargo,
+        "nome": nome or None, "vulgo": vulgo or None,
+        "observacao": observacao or None,
+    }
 
-    meses = sorted(indice.get("meses", []))
-    meses_snaps = []
-    for mes in meses[-6:]:
-        snap = None
-        if not usar_local:
-            try:
-                snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
-            except Exception:
-                pass
-        if not snap:
-            path = _os.path.join(_SNAPSHOTS_DIR, f"snapshot_{mes}.json")
-            if _os.path.exists(path):
-                snap = json.loads(open(path).read())
-        if snap:
-            meses_snaps.append({"mes": mes, "dados": snap.get("dados", {})})
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
+        conteudo = await foto.read()
+        if len(conteudo) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        ext_salva      = salvar_foto(lider_id, conteudo, ext)
+        dados["foto_ext"] = ext_salva
 
-    return _computar_series_kpis(meses_snaps)
+    return atualizar_lider(lider_id, dados)
+
+
+@app.delete("/liderancas/{lider_id}")
+def delete_lider(lider_id: str):
+    """Remove líder e sua foto do disco."""
+    if not deletar_lider(lider_id):
+        raise HTTPException(status_code=404, detail="Líder não encontrado.")
+    return {"ok": True}
+
+
+@app.get("/liderancas-foto/{lider_id}")
+def get_foto_lider(lider_id: str):
+    """Serve a foto binária do líder com mime type correto."""
+    lider = buscar_lider(lider_id)
+    if not lider or not lider.get("foto_ext"):
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    conteudo = carregar_foto(lider_id, lider["foto_ext"])
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Arquivo de foto ausente no disco.")
+    ext  = lider["foto_ext"].lstrip(".")
+    mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+            "png": "image/png",  "webp": "image/webp"}.get(ext, "image/jpeg")
+    return Response(content=conteudo, media_type=mime)
+
+if __name__ == "__main__":
+    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=False)

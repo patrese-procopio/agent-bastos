@@ -1,0 +1,5 @@
+f = open(r'C:\Users\Administrador\agent-bastos-app\src\Dashboard.jsx', encoding='latin-1', errors='replace')
+c = f.read()
+f.close()
+open(r'C:\Users\Administrador\agent-bastos-app\src\Dashboard.jsx', 'w', encoding='utf-8').write(c)
+print('convertido utf-8')
