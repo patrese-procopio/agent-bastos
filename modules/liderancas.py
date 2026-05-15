@@ -4,12 +4,11 @@ liderancas.py — Módulo de Lideranças de Pavilhões
 Agent Bastos | AIPEN
 
 Hierarquia: Unidade → Pavilhão → Ala → Cela → Líder
+Histórico:  cada líder tem competencia (AAAA-MM) + criado_em (timestamp automático)
 
 Regra de celas:
   - Alas "Berçário" e "Triagem" → Celas 01 a 05
   - Todas as demais              → Celas 01 a 15
-
-Armazena fotos em data/liderancas/fotos/ como arquivos binários (UUID + ext).
 """
 
 import os
@@ -25,17 +24,14 @@ FOTOS_DIR = os.path.join(BASE_DIR, "data", "liderancas", "fotos")
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 os.makedirs(FOTOS_DIR, exist_ok=True)
 
-# ── Alas com limite reduzido de celas ────────────────────────────────────────
+# ── Alas com limite reduzido de celas ─────────────────────────────────────────
 _ALAS_REDUZIDAS = {"Berçário", "Triagem"}
 
 def _gerar_celas(ala: str) -> list[str]:
-    """Retorna lista de celas de acordo com a regra da ala."""
     limite = 5 if ala in _ALAS_REDUZIDAS else 15
     return [f"Cela {i:02d}" for i in range(1, limite + 1)]
 
-# ── Estrutura física das unidades ─────────────────────────────────────────────
-# Formato: { unidade: { label, pavilhoes: { pavilhao: [alas] } } }
-# As celas são geradas dinamicamente via _gerar_celas(ala).
+# ── Estrutura física ──────────────────────────────────────────────────────────
 ESTRUTURA = {
     "CDPM1": {
         "label": "CDPM I",
@@ -70,27 +66,13 @@ ESTRUTURA = {
     "UPP": {
         "label": "UPP",
         "pavilhoes": {
-            "Galeria 01":  ["Ala única"],
-            "Galeria 02":  ["Ala única"],
-            "Galeria 03":  ["Ala única"],
-            "Galeria 04":  ["Ala única"],
-            "Galeria 05":  ["Ala única"],
-            "Galeria 06":  ["Ala única"],
-            "Galeria 07":  ["Ala única"],
-            "Galeria 08":  ["Ala única"],
-            "Galeria 09":  ["Ala única"],
-            "Galeria 10":  ["Ala única"],
-            "Galeria 11":  ["Ala única"],
+            **{f"Galeria {i:02d}": ["Ala única"] for i in range(1, 12)},
         },
     },
     "COMPAJ": {
         "label": "COMPAJ",
         "pavilhoes": {
-            "Pavilhão 01": ["Ala 01", "Ala 02"],
-            "Pavilhão 02": ["Ala 01", "Ala 02"],
-            "Pavilhão 03": ["Ala 01", "Ala 02"],
-            "Pavilhão 04": ["Ala 01", "Ala 02"],
-            "Pavilhão 05": ["Ala 01", "Ala 02"],
+            **{f"Pavilhão {i:02d}": ["Ala 01", "Ala 02"] for i in range(1, 6)},
         },
     },
     "CDF": {
@@ -105,24 +87,16 @@ ESTRUTURA = {
 }
 
 def estrutura_com_celas() -> dict:
-    """
-    Retorna ESTRUTURA expandida com a lista de celas por ala.
-    Usado pelo endpoint /liderancas/estrutura para o frontend
-    montar os dropdowns em cascata sem nenhuma lógica extra.
-    """
     resultado = {}
     for unidade, meta in ESTRUTURA.items():
-        resultado[unidade] = {
-            "label": meta["label"],
-            "pavilhoes": {},
-        }
+        resultado[unidade] = {"label": meta["label"], "pavilhoes": {}}
         for pavilhao, alas in meta["pavilhoes"].items():
             resultado[unidade]["pavilhoes"][pavilhao] = {
                 ala: _gerar_celas(ala) for ala in alas
             }
     return resultado
 
-# ── Cargos por facção ─────────────────────────────────────────────────────────
+# ── Cargos por facção ──────────────────────────────────────────────────────────
 CARGOS_POR_FACCAO = {
     "CV/AM": [
         "Presidente", "Vice-presidente", "Porta-voz", "Tesoureiro",
@@ -133,36 +107,19 @@ CARGOS_POR_FACCAO = {
         "Biqueira", "Biqueira apoio", "Conselheiro", "Conselheiro apoio",
         "Representante",
     ],
-    "PCC": [
-        "Jet", "Disciplina", "Liderança dos Gravatas", "Liderança",
-        "Jet Geral", "Disciplina Geral",
-    ],
-    "RDA": [
-        "Representante", "Representante Geral",
-    ],
-    "NEUTROS": [
-        "Conselheiro", "Presidente", "Vice-presidente", "Porta voz",
-    ],
-    "CRIMES SEXUAIS": [
-        "Liderança", "Porta voz", "Subordinado",
-    ],
-    "JACK/TDA": [
-        "Representante",
-    ],
-    "AMARELINHOS": [
-        "Representante",
-    ],
-    "ISOLAMENTO": [
-        "Interno",
-    ],
-    "MED. SEGURANÇA": [
-        "Interno",
-    ],
+    "PCC":            ["Jet", "Disciplina", "Liderança dos Gravatas", "Liderança", "Jet Geral", "Disciplina Geral"],
+    "RDA":            ["Representante", "Representante Geral"],
+    "NEUTROS":        ["Conselheiro", "Presidente", "Vice-presidente", "Porta voz"],
+    "CRIMES SEXUAIS": ["Liderança", "Porta voz", "Subordinado"],
+    "JACK/TDA":       ["Representante"],
+    "AMARELINHOS":    ["Representante"],
+    "ISOLAMENTO":     ["Interno"],
+    "MED. SEGURANÇA": ["Interno"],
 }
 
 FACCOES = list(CARGOS_POR_FACCAO.keys())
 
-# ── Banco de dados ────────────────────────────────────────────────────────────
+# ── Banco de dados ─────────────────────────────────────────────────────────────
 
 @contextmanager
 def _conn():
@@ -176,7 +133,7 @@ def _conn():
 
 
 def init_db():
-    """Cria tabela e índices. Idempotente — seguro rodar mais de uma vez."""
+    """Cria tabela e índices. Idempotente — aplica migrações seguras."""
     with _conn() as con:
         con.execute("""
             CREATE TABLE IF NOT EXISTS liderancas (
@@ -191,30 +148,68 @@ def init_db():
                 vulgo         TEXT,
                 foto_ext      TEXT,
                 observacao    TEXT,
+                competencia   TEXT NOT NULL DEFAULT '',
                 criado_em     TEXT NOT NULL,
                 atualizado_em TEXT NOT NULL
             )
         """)
-        # Migração segura: adiciona coluna cela se vier de versão anterior
+
+        # Migrações seguras para versões anteriores do banco
         cols = [r[1] for r in con.execute("PRAGMA table_info(liderancas)").fetchall()]
         if "cela" not in cols:
             con.execute("ALTER TABLE liderancas ADD COLUMN cela TEXT NOT NULL DEFAULT ''")
+        if "competencia" not in cols:
+            # Preenche competência existente com o mês de criação do registro
+            con.execute("ALTER TABLE liderancas ADD COLUMN competencia TEXT NOT NULL DEFAULT ''")
+            con.execute("""
+                UPDATE liderancas
+                SET competencia = substr(criado_em, 1, 7)
+                WHERE competencia = ''
+            """)
 
-        con.execute("CREATE INDEX IF NOT EXISTS idx_unidade  ON liderancas(unidade)")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_localizacao ON liderancas(unidade, pavilhao, ala, cela)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_unidade     ON liderancas(unidade)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_competencia ON liderancas(competencia)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_loc         ON liderancas(unidade, pavilhao, ala, cela)")
 
 
-# ── CRUD ──────────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _competencia_atual() -> str:
+    """Retorna competência do mês atual no formato AAAA-MM."""
+    return datetime.now().strftime("%Y-%m")
+
+
+def listar_competencias() -> list[str]:
+    """Retorna todas as competências distintas ordenadas do mais recente."""
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT DISTINCT competencia FROM liderancas ORDER BY competencia DESC"
+        ).fetchall()
+    return [r[0] for r in rows if r[0]]
+
+
+def listar_competencias_unidade(unidade: str) -> list[str]:
+    """Competências disponíveis para uma unidade específica."""
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT DISTINCT competencia FROM liderancas WHERE unidade = ? ORDER BY competencia DESC",
+            (unidade,),
+        ).fetchall()
+    return [r[0] for r in rows if r[0]]
+
+
+# ── CRUD ───────────────────────────────────────────────────────────────────────
 
 def criar_lider(dados: dict) -> dict:
     agora    = datetime.now(timezone.utc).isoformat()
     lider_id = str(uuid.uuid4())
+    comp     = dados.get("competencia") or _competencia_atual()
     with _conn() as con:
         con.execute("""
             INSERT INTO liderancas
               (id, unidade, pavilhao, ala, cela, faccao, cargo,
-               nome, vulgo, foto_ext, observacao, criado_em, atualizado_em)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+               nome, vulgo, foto_ext, observacao, competencia, criado_em, atualizado_em)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             lider_id,
             dados["unidade"], dados["pavilhao"], dados["ala"], dados.get("cela", ""),
@@ -222,7 +217,7 @@ def criar_lider(dados: dict) -> dict:
             dados.get("nome"), dados.get("vulgo"),
             dados.get("foto_ext"),
             dados.get("observacao"),
-            agora, agora,
+            comp, agora, agora,
         ))
     return buscar_lider(lider_id)
 
@@ -231,10 +226,10 @@ def atualizar_lider(lider_id: str, dados: dict) -> dict:
     agora  = datetime.now(timezone.utc).isoformat()
     campos = {k: v for k, v in dados.items() if k in (
         "unidade", "pavilhao", "ala", "cela",
-        "faccao", "cargo", "nome", "vulgo", "foto_ext", "observacao",
+        "faccao", "cargo", "nome", "vulgo", "foto_ext", "observacao", "competencia",
     )}
     campos["atualizado_em"] = agora
-    sets   = ", ".join(f"{k} = ?" for k in campos)
+    sets    = ", ".join(f"{k} = ?" for k in campos)
     valores = list(campos.values()) + [lider_id]
     with _conn() as con:
         con.execute(f"UPDATE liderancas SET {sets} WHERE id = ?", valores)
@@ -262,56 +257,71 @@ def buscar_lider(lider_id: str) -> dict | None:
     return dict(row) if row else None
 
 
-def listar_por_unidade(unidade: str) -> dict:
+def listar_por_unidade(unidade: str, competencia: str | None = None) -> dict:
     """
-    Retorna estrutura aninhada pronta para o frontend:
-    { pavilhao: { ala: { cela: [lideres] } } }
-    Inclui todas as combinações da estrutura física, mesmo vazias.
+    Retorna { pavilhao: { ala: { cela: [lideres] } } }
+    Filtrado por competência se fornecida, senão mostra a mais recente.
     """
+    # Determina competência alvo
+    if not competencia:
+        comps = listar_competencias_unidade(unidade)
+        competencia = comps[0] if comps else _competencia_atual()
+
     with _conn() as con:
         rows = con.execute(
             """SELECT * FROM liderancas
-               WHERE unidade = ?
+               WHERE unidade = ? AND competencia = ?
                ORDER BY pavilhao, ala, cela, cargo""",
-            (unidade,),
+            (unidade, competencia),
         ).fetchall()
 
     estrutura_unidade = ESTRUTURA.get(unidade, {}).get("pavilhoes", {})
     resultado: dict = {}
 
-    # Monta esqueleto completo com celas vazias
     for pavilhao, alas in estrutura_unidade.items():
         resultado[pavilhao] = {}
         for ala in alas:
-            resultado[pavilhao][ala] = {
-                cela: [] for cela in _gerar_celas(ala)
-            }
+            resultado[pavilhao][ala] = {cela: [] for cela in _gerar_celas(ala)}
 
-    # Preenche com registros do banco
     for row in rows:
         r    = dict(row)
         pav  = r["pavilhao"]
         ala  = r["ala"]
         cela = r["cela"] or "Cela 01"
-
         if pav not in resultado:
             resultado[pav] = {}
         if ala not in resultado[pav]:
             resultado[pav][ala] = {}
         if cela not in resultado[pav][ala]:
             resultado[pav][ala][cela] = []
-
         resultado[pav][ala][cela].append(_serializar(r))
 
     return resultado
 
 
+def listar_todas_unidades(competencia: str | None = None) -> dict:
+    """
+    Retorna dados de TODAS as unidades para exportação PDF geral.
+    { unidade_label: { pavilhao: { ala: [lideres] } } }
+    """
+    if not competencia:
+        comps = listar_competencias()
+        competencia = comps[0] if comps else _competencia_atual()
+
+    resultado = {}
+    for key, meta in ESTRUTURA.items():
+        pavilhoes = listar_por_unidade(key, competencia)
+        resultado[meta["label"]] = pavilhoes
+
+    return resultado
+
+
 def _serializar(row: dict) -> dict:
-    foto_url = f"/liderancas/foto/{row['id']}" if row.get("foto_ext") else None
+    foto_url = f"/api/liderancas/foto/{row['id']}" if row.get("foto_ext") else None
     return {**row, "foto_url": foto_url}
 
 
-# ── Fotos ─────────────────────────────────────────────────────────────────────
+# ── Fotos ──────────────────────────────────────────────────────────────────────
 
 def salvar_foto(lider_id: str, conteudo: bytes, ext: str) -> str:
     ext = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
@@ -333,5 +343,5 @@ def carregar_foto(lider_id: str, foto_ext: str) -> bytes | None:
         return f.read()
 
 
-# Inicializa banco ao importar o módulo
+# Inicializa banco ao importar
 init_db()

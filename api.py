@@ -1,4 +1,4 @@
-import uvicorn
+﻿import uvicorn
 import os
 import glob
 import json
