@@ -74,9 +74,9 @@ function Campo({ label, children, required }) {
   )
 }
 
-// ── Modal de exportação PDF ───────────────────────────────────────────────────
+// ── Modal PDF ─────────────────────────────────────────────────────────────────
 function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }) {
-  const [tipo, setTipo]         = useState("unidade") // "unidade" | "geral"
+  const [tipo, setTipo]         = useState("unidade")
   const [comp, setComp]         = useState(competencia)
   const [baixando, setBaixando] = useState(false)
 
@@ -91,15 +91,10 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
       const blob = await res.blob()
       const a    = document.createElement("a")
       a.href     = URL.createObjectURL(blob)
-      a.download = tipo === "geral"
-        ? `liderancas_geral_${comp}.pdf`
-        : `liderancas_${unidade}_${comp}.pdf`
+      a.download = tipo === "geral" ? `liderancas_geral_${comp}.pdf` : `liderancas_${unidade}_${comp}.pdf`
       a.click()
-    } catch (e) {
-      alert("Erro ao gerar PDF: " + e.message)
-    } finally {
-      setBaixando(false)
-    }
+    } catch (e) { alert("Erro ao gerar PDF: " + e.message) }
+    finally { setBaixando(false) }
   }
 
   return (
@@ -119,47 +114,34 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
             borderRadius:6,width:30,height:30,cursor:"pointer",color:"#FFF",fontSize:18,
             display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
-
         <div style={{padding:20,display:"flex",flexDirection:"column",gap:16}}>
-          {/* Tipo de relatório */}
           <Campo label="Tipo de relatório" required>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[
-                {id:"unidade", label:`${unidadeLabel} apenas`},
-                {id:"geral",   label:"Todas as unidades"},
-              ].map(t => (
-                <button key={t.id} onClick={() => setTipo(t.id)} style={{
+              {[{id:"unidade",label:`${unidadeLabel} apenas`},{id:"geral",label:"Todas as unidades"}].map(t=>(
+                <button key={t.id} onClick={()=>setTipo(t.id)} style={{
                   padding:"10px",borderRadius:8,cursor:"pointer",
                   border:`2px solid ${tipo===t.id?"#B45309":"#E2E8F0"}`,
                   background:tipo===t.id?"#FFFBEB":"#F8FAFC",
                   color:tipo===t.id?"#B45309":"#475569",
-                  fontSize:11,fontWeight:tipo===t.id?800:500,fontFamily:MONO,
-                  transition:"all 0.15s",
+                  fontSize:11,fontWeight:tipo===t.id?800:500,fontFamily:MONO,transition:"all 0.15s",
                 }}>{t.label}</button>
               ))}
             </div>
           </Campo>
-
-          {/* Competência */}
           <Campo label="Competência (mês/ano)" required>
             <select value={comp} onChange={e=>setComp(e.target.value)} style={inputStyle}>
-              {competencias.length > 0
-                ? competencias.map(c => <option key={c} value={c}>{fmtComp(c)}</option>)
-                : <option value={competencia}>{fmtComp(competencia)}</option>
-              }
+              {competencias.length>0
+                ? competencias.map(c=><option key={c} value={c}>{fmtComp(c)}</option>)
+                : <option value={competencia}>{fmtComp(competencia)}</option>}
             </select>
           </Campo>
-
-          {/* Preview info */}
           <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",
             borderRadius:8,fontSize:11,color:"#475569",fontFamily:MONO}}>
-            📄 {tipo==="geral" ? "6 unidades" : unidadeLabel} · Competência: <strong>{fmtComp(comp)}</strong>
+            Relatório: {tipo==="geral"?"6 unidades":unidadeLabel} · Competência: <strong>{fmtComp(comp)}</strong>
           </div>
         </div>
-
         <div style={{padding:"12px 20px",borderTop:"1px solid #E2E8F0",
-          display:"flex",justifyContent:"flex-end",gap:8,background:"#F8FAFC",
-          borderRadius:"0 0 14px 14px"}}>
+          display:"flex",justifyContent:"flex-end",gap:8,background:"#F8FAFC",borderRadius:"0 0 14px 14px"}}>
           <button onClick={onFechar} style={{padding:"8px 18px",borderRadius:7,
             border:"1px solid #E2E8F0",background:"#FFFFFF",fontSize:12,fontWeight:600,
             color:"#475569",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
@@ -172,8 +154,7 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
               ? <><svg style={{animation:"spin 1s linear infinite"}} width="12" height="12"
                   viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Gerando...</>
-              : "↓ Baixar PDF"
-            }
+              : "↓ Baixar PDF"}
           </button>
         </div>
       </div>
@@ -242,7 +223,6 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
       <div style={{background:"#FFFFFF",borderRadius:14,width:"100%",maxWidth:560,
         boxShadow:"0 20px 60px rgba(0,0,0,0.25)",display:"flex",flexDirection:"column",
         maxHeight:"92vh",overflow:"hidden"}}>
-
         <div style={{padding:"16px 20px",background:"#0F172A",borderRadius:"14px 14px 0 0",
           display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
@@ -257,14 +237,9 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
             borderRadius:6,width:30,height:30,cursor:"pointer",color:"#FFF",fontSize:18,
             display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
-
         <div style={{padding:20,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
-
-          {/* Foto + identificação */}
           <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
-            <FotoUpload
-              fotoUrl={isEdicao&&lider.foto_ext?`${API_LID}/foto/${lider.id}`:null}
-              onChange={setFotoFile}/>
+            <FotoUpload fotoUrl={isEdicao&&lider.foto_ext?`${API_LID}/foto/${lider.id}`:null} onChange={setFotoFile}/>
             <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
               <Campo label="Vulgo / Apelido">
                 <input value={form.vulgo} onChange={e=>set("vulgo",e.target.value)}
@@ -277,33 +252,22 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
               </Campo>
             </div>
           </div>
-
           <div style={{height:1,background:"#E2E8F0"}}/>
-
-          {/* Competência — destaque especial */}
           <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FCD34D",
             borderRadius:8,display:"flex",alignItems:"center",gap:12}}>
             <div style={{flex:1}}>
               <div style={{fontSize:9,fontWeight:700,color:"#92400E",fontFamily:MONO,
                 letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>
-                📅 Competência (mês/ano de referência) *
+                Competência (mês/ano de referência) *
               </div>
-              <input
-                type="month"
-                value={form.competencia}
-                onChange={e=>set("competencia",e.target.value)}
-                style={{...inputStyle,borderColor:"#FCD34D",background:"#FFFFFF",
-                  fontFamily:MONO,fontWeight:700,color:"#B45309"}}
-              />
+              <input type="month" value={form.competencia} onChange={e=>set("competencia",e.target.value)}
+                style={{...inputStyle,borderColor:"#FCD34D",background:"#FFFFFF",fontFamily:MONO,fontWeight:700,color:"#B45309"}}/>
             </div>
             <div style={{fontSize:9,color:"#92400E",fontFamily:MONO,lineHeight:1.5,maxWidth:140}}>
               Define o período histórico deste registro
             </div>
           </div>
-
           <div style={{height:1,background:"#E2E8F0"}}/>
-
-          {/* Localização */}
           <div>
             <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
               letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Localização</div>
@@ -336,10 +300,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
               </Campo>
             </div>
           </div>
-
           <div style={{height:1,background:"#E2E8F0"}}/>
-
-          {/* Facção + Cargo */}
           <div>
             <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
               letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Função na facção</div>
@@ -360,27 +321,22 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
               </Campo>
             </div>
           </div>
-
           <Campo label="Observação operacional">
             <textarea value={form.observacao} onChange={e=>set("observacao",e.target.value)}
               placeholder="Informações adicionais relevantes..." rows={3}
               style={{...inputStyle,resize:"vertical",lineHeight:1.5}}/>
           </Campo>
-
           {erro && <div style={{padding:"8px 12px",background:"#FEF2F2",border:"1px solid #FECACA",
             borderRadius:6,fontSize:11,color:"#DC2626",fontFamily:MONO}}>{erro}</div>}
         </div>
-
         <div style={{padding:"12px 20px",borderTop:"1px solid #E2E8F0",
-          display:"flex",justifyContent:"flex-end",gap:8,
-          background:"#F8FAFC",borderRadius:"0 0 14px 14px"}}>
+          display:"flex",justifyContent:"flex-end",gap:8,background:"#F8FAFC",borderRadius:"0 0 14px 14px"}}>
           <button onClick={onFechar} style={{padding:"8px 18px",borderRadius:7,
             border:"1px solid #E2E8F0",background:"#FFFFFF",fontSize:12,fontWeight:600,
             color:"#475569",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
           <button onClick={salvar} disabled={salvando} style={{padding:"8px 20px",borderRadius:7,
             border:"none",background:salvando?"#CBD5E1":"#B45309",color:"#FFFFFF",
-            fontSize:12,fontWeight:800,cursor:salvando?"not-allowed":"pointer",
-            fontFamily:MONO,letterSpacing:"0.04em"}}>
+            fontSize:12,fontWeight:800,cursor:salvando?"not-allowed":"pointer",fontFamily:MONO,letterSpacing:"0.04em"}}>
             {salvando?"Salvando...":isEdicao?"Salvar alterações":"Cadastrar líder"}
           </button>
         </div>
@@ -399,19 +355,18 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
     <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",
       background:"#FFFFFF",border:`1px solid ${cor.border}`,borderLeft:`4px solid ${cor.dot}`,
       borderRadius:10,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
-      {/* Foto */}
-      <div style={{width:56,height:68,borderRadius:7,overflow:"hidden",background:"#1E293B",
+      {/* Foto — 72x90px, proporção 3x4 */}
+      <div style={{width:72,height:90,borderRadius:8,overflow:"hidden",background:"#1E293B",
         flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
         {lider.foto_ext
           ? <img src={`${API_LID}/foto/${lider.id}?t=${lider.atualizado_em}`} alt={lider.vulgo}
               style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}
               onError={e=>{e.target.style.display="none"}}/>
-          : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1">
+          : <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
         }
       </div>
-
       {/* Dados */}
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
@@ -422,7 +377,6 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
             border:`1px solid ${cor.border}`,padding:"2px 7px",borderRadius:3,fontFamily:MONO}}>
             {lider.faccao}
           </span>
-          {/* Badge de competência */}
           {lider.competencia && (
             <span style={{fontSize:9,color:"#92400E",background:"#FFFBEB",
               border:"1px solid #FCD34D",padding:"2px 7px",borderRadius:3,fontFamily:MONO,fontWeight:700}}>
@@ -435,9 +389,7 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
             fontFamily:MONO,letterSpacing:"0.01em",marginBottom:4}}>{lider.nome}</div>
         )}
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:10,fontWeight:700,color:"#334155",fontFamily:MONO}}>
-            {lider.cargo}
-          </span>
+          <span style={{fontSize:10,fontWeight:700,color:"#334155",fontFamily:MONO}}>{lider.cargo}</span>
           {lider.cela && (
             <><span style={{color:"#CBD5E1",fontSize:9}}>·</span>
             <span style={{fontSize:10,color:"#64748B",fontFamily:MONO,
@@ -445,9 +397,7 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
           )}
           {dataCadastro && (
             <><span style={{color:"#CBD5E1",fontSize:9}}>·</span>
-            <span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO}}>
-              cadastrado {dataCadastro}
-            </span></>
+            <span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO}}>cadastrado {dataCadastro}</span></>
           )}
         </div>
         {lider.observacao && (
@@ -456,7 +406,6 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
           </div>
         )}
       </div>
-
       {/* Ações */}
       <div style={{display:"flex",gap:5,flexShrink:0}}>
         <button onClick={()=>onEditar(lider)} style={{width:30,height:30,borderRadius:6,
@@ -534,7 +483,6 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
         .sort((a,b)=>todosLideres.filter(l=>l.faccao===b).length-todosLideres.filter(l=>l.faccao===a).length)[0]
     : null
   const cor = corF(faccaoDom)
-
   return (
     <div style={{background:"#FFFFFF",borderRadius:10,border:"1px solid #E2E8F0",
       overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
@@ -543,11 +491,11 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
         borderBottom:aberto?`3px solid ${cor.dot||"#334155"}`:"none",
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:10,height:10,borderRadius:"50%",
-            background:faccaoDom?cor.dot:"#475569",
+          <div style={{width:10,height:10,borderRadius:"50%",background:faccaoDom?cor.dot:"#475569",
             boxShadow:faccaoDom?`0 0 7px ${cor.dot}`:"none"}}/>
-          <span style={{fontSize:13,fontWeight:800,color:"#FFFFFF",
-            letterSpacing:"0.06em",fontFamily:MONO}}>{pavilhao}</span>
+          <span style={{fontSize:13,fontWeight:800,color:"#FFFFFF",letterSpacing:"0.06em",fontFamily:MONO}}>
+            {pavilhao}
+          </span>
           {total>0&&<span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,
             background:"rgba(255,255,255,0.08)",padding:"2px 8px",borderRadius:4}}>
             {total} líder{total!==1?"es":""}
@@ -588,30 +536,25 @@ export default function LiderancasUnidade({ onNavigate }) {
   const [toast, setToast]             = useState(null)
   const [compAtual, setCompAtual]     = useState("")
 
-  const unidadesLabel = Object.fromEntries(
-    Object.entries(estrutura).map(([k,v])=>[k,v.label])
-  )
+  const unidadesLabel = Object.fromEntries(Object.entries(estrutura).map(([k,v])=>[k,v.label]))
 
   function exibirToast(msg, tipo="ok") { setToast({msg,tipo}); setTimeout(()=>setToast(null),3000) }
 
   async function carregarEstrutura() {
     try {
       const d = await fetch(`${API_LID}/estrutura`).then(r=>r.json())
-      setEstrutura(d.estrutura)
-      setFaccoes(d.faccoes)
-      setCargosPorFaccao(d.cargos_por_faccao)
-      setCompAtual(d.competencia_atual || "")
+      setEstrutura(d.estrutura); setFaccoes(d.faccoes)
+      setCargosPorFaccao(d.cargos_por_faccao); setCompAtual(d.competencia_atual||"")
     } catch {}
   }
 
   async function carregarCompetencias(u=unidade) {
     try {
       const d = await fetch(`${API_LID}/competencias/${u}`).then(r=>r.json())
-      const comps = d.competencias || []
+      const comps = d.competencias||[]
       setCompetencias(comps)
-      // Define competência ativa: a mais recente disponível ou o mês atual
-      if (comps.length > 0 && !competencia) setCompetencia(comps[0])
-      else if (comps.length > 0 && !comps.includes(competencia)) setCompetencia(comps[0])
+      if (comps.length>0 && !competencia) setCompetencia(comps[0])
+      else if (comps.length>0 && !comps.includes(competencia)) setCompetencia(comps[0])
     } catch {}
   }
 
@@ -628,21 +571,13 @@ export default function LiderancasUnidade({ onNavigate }) {
   }
 
   useEffect(() => { carregarEstrutura() }, [])
-
-  useEffect(() => {
-    setCompetencia("")
-    carregarCompetencias(unidade).then(() => carregarDados(unidade))
-  }, [unidade])
-
-  useEffect(() => {
-    if (competencia) carregarDados(unidade, competencia)
-  }, [competencia])
+  useEffect(() => { setCompetencia(""); carregarCompetencias(unidade).then(()=>carregarDados(unidade)) }, [unidade])
+  useEffect(() => { if (competencia) carregarDados(unidade, competencia) }, [competencia])
 
   async function deletar(id) {
     try {
       await fetch(`${API_LID}/${id}`, {method:"DELETE"})
-      exibirToast("Líder removido.")
-      carregarDados()
+      exibirToast("Líder removido."); carregarDados()
     } catch { exibirToast("Erro ao remover.","erro") }
   }
 
@@ -650,23 +585,18 @@ export default function LiderancasUnidade({ onNavigate }) {
 
   const totalLideres = dados
     ? Object.values(dados).reduce((s,alas)=>s+Object.values(alas).reduce((s2,celas)=>
-        s2+Object.values(celas).reduce((s3,l)=>s3+l.length,0),0),0)
-    : 0
+        s2+Object.values(celas).reduce((s3,l)=>s3+l.length,0),0),0) : 0
 
   function filtrar(dados) {
     if (!busca||!dados) return dados
-    const b=busca.toLowerCase()
-    const r={}
+    const b=busca.toLowerCase(), r={}
     for (const [pav,alas] of Object.entries(dados)) {
       r[pav]={}
       for (const [ala,celas] of Object.entries(alas)) {
         r[pav][ala]={}
         for (const [cela,lids] of Object.entries(celas)) {
           r[pav][ala][cela]=lids.filter(l=>
-            l.vulgo?.toLowerCase().includes(b)||
-            l.nome?.toLowerCase().includes(b)||
-            l.cargo?.toLowerCase().includes(b)
-          )
+            l.vulgo?.toLowerCase().includes(b)||l.nome?.toLowerCase().includes(b)||l.cargo?.toLowerCase().includes(b))
         }
       }
     }
@@ -676,8 +606,7 @@ export default function LiderancasUnidade({ onNavigate }) {
   const dadosFiltrados = filtrar(dados)
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",
-      background:"#F8FAFC",fontFamily:SANS,overflow:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#F8FAFC",fontFamily:SANS,overflow:"hidden"}}>
 
       {/* Topbar */}
       <div style={{height:56,background:"#FFFFFF",borderBottom:"1px solid #E2E8F0",
@@ -693,40 +622,30 @@ export default function LiderancasUnidade({ onNavigate }) {
             </div>
           </div>
         </div>
-
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {/* Seletor de competência */}
-          <div style={{display:"flex",alignItems:"center",gap:6,
-            background:"#FFFBEB",border:"1px solid #FCD34D",borderRadius:8,
-            padding:"0 4px 0 10px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:"#FFFBEB",
+            border:"1px solid #FCD34D",borderRadius:8,padding:"0 4px 0 10px"}}>
             <span style={{fontSize:9,fontWeight:700,color:"#92400E",fontFamily:MONO,whiteSpace:"nowrap"}}>
-              📅 MÊS/ANO
+              MES/ANO
             </span>
             <select value={competencia} onChange={e=>setCompetencia(e.target.value)}
               style={{fontSize:11,fontFamily:MONO,fontWeight:800,border:"none",borderRadius:6,
                 padding:"8px 4px",background:"transparent",color:"#B45309",cursor:"pointer",outline:"none"}}>
-              {competencias.length > 0
+              {competencias.length>0
                 ? competencias.map(c=><option key={c} value={c}>{fmtComp(c)}</option>)
-                : <option value={compAtual}>{fmtComp(compAtual)||"Nenhum"}</option>
-              }
+                : <option value={compAtual}>{fmtComp(compAtual)||"Nenhum"}</option>}
             </select>
           </div>
-
-          {/* Busca */}
           <div style={{position:"relative"}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2"
               strokeLinecap="round" style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)"}}>
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input value={busca} onChange={e=>setBusca(e.target.value)}
-              placeholder="Buscar vulgo, nome..."
+            <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar vulgo, nome..."
               style={{...inputStyle,paddingLeft:28,width:180,border:"1px solid #E2E8F0",background:"#F8FAFC"}}/>
           </div>
-
-          {/* PDF */}
-          <button onClick={()=>setModalPDF(true)} style={{
-            padding:"8px 14px",borderRadius:7,border:"1px solid #E2E8F0",
-            background:"#FFFFFF",color:"#64748B",
+          <button onClick={()=>setModalPDF(true)} style={{padding:"8px 14px",borderRadius:7,
+            border:"1px solid #E2E8F0",background:"#FFFFFF",color:"#64748B",
             fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:MONO,
             display:"flex",alignItems:"center",gap:5}}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
@@ -736,8 +655,6 @@ export default function LiderancasUnidade({ onNavigate }) {
             </svg>
             PDF
           </button>
-
-          {/* Novo líder */}
           <button onClick={()=>setModal({pavilhao:"",ala:""})} style={{
             padding:"8px 16px",borderRadius:7,border:"none",background:"#B45309",color:"#FFF",
             fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:MONO,
@@ -779,8 +696,7 @@ export default function LiderancasUnidade({ onNavigate }) {
             {Object.entries(dadosFiltrados).map(([pav,alas])=>(
               <SecaoPavilhao key={pav} pavilhao={pav} alas={alas}
                 onNovo={(p,a)=>setModal({pavilhao:p,ala:a||""})}
-                onEditar={l=>setModal({lider:l})}
-                onDeletar={deletar}/>
+                onEditar={l=>setModal({lider:l})} onDeletar={deletar}/>
             ))}
           </div>
         ) : (
@@ -790,34 +706,14 @@ export default function LiderancasUnidade({ onNavigate }) {
         )}
       </div>
 
-      {/* Modal de cadastro */}
-      {modal && (
-        <ModalLider
-          lider={modal.lider||null}
-          estrutura={estrutura}
-          faccoes={faccoes}
-          cargosPorFaccao={cargosPorFaccao}
-          unidadeAtiva={unidade}
-          pavilhaoInicial={modal.pavilhao}
-          alaInicial={modal.ala}
-          competenciaAtiva={competencia||compAtual}
-          onSalvar={aoSalvar}
-          onFechar={()=>setModal(null)}
-        />
-      )}
+      {modal && <ModalLider lider={modal.lider||null} estrutura={estrutura} faccoes={faccoes}
+        cargosPorFaccao={cargosPorFaccao} unidadeAtiva={unidade}
+        pavilhaoInicial={modal.pavilhao} alaInicial={modal.ala}
+        competenciaAtiva={competencia||compAtual} onSalvar={aoSalvar} onFechar={()=>setModal(null)}/>}
 
-      {/* Modal PDF */}
-      {modalPDF && (
-        <ModalPDF
-          unidade={unidade}
-          unidadeLabel={unidadesLabel[unidade]||unidade}
-          competencia={competencia||compAtual}
-          competencias={competencias}
-          onFechar={()=>setModalPDF(false)}
-        />
-      )}
+      {modalPDF && <ModalPDF unidade={unidade} unidadeLabel={unidadesLabel[unidade]||unidade}
+        competencia={competencia||compAtual} competencias={competencias} onFechar={()=>setModalPDF(false)}/>}
 
-      {/* Toast */}
       {toast && (
         <div style={{position:"fixed",bottom:24,right:24,padding:"10px 18px",borderRadius:8,
           background:toast.tipo==="erro"?"#DC2626":"#0F172A",color:"#FFF",fontSize:12,fontWeight:700,
