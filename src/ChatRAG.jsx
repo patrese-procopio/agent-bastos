@@ -21,10 +21,12 @@ const GLOBAL_CSS = `
   .dot2 { animation: thinking 1.2s ease infinite 0.2s; }
   .dot3 { animation: thinking 1.2s ease infinite 0.4s; }
   .live-dot { animation: pulse-dot 2.5s ease-in-out infinite; }
-  .fonte-item:hover { background: #FFFBEB !important; border-color: rgba(180,83,9,0.3) !important; }
-  ::-webkit-scrollbar { width: 3px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  .fonte-item:hover { background: rgba(180,83,9,0.12) !important; border-color: rgba(180,83,9,0.3) !important; }
+  .rag-input::placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1 !important; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius:4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
 `
 
 function scoreColor(s) {
@@ -272,16 +274,16 @@ export default function ChatRAG({ onNavigate }) {
         {/* Header */}
         <div style={S.chatHeader}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div className="live-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
-            <div>
-              <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Chat RAG</div>
-              <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, marginTop: 1 }}>
-                BASTOS-UNIT · Doutrina Nacional · LLaMA 70b
-              </div>
-            </div>
+          <div className="live-dot" style={{ width: 9, height: 9, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
+          <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#F8FAFC" }}>Chat RAG</div>
+          <div style={{ fontSize: 11, color: "#64748B", fontFamily: MONO, marginTop: 2 }}>
+          BASTOS-UNIT · Doutrina Nacional · LLaMA 70b
+          </div>
+          </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>{messages.length} mensagens</span>
+          <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO }}>{messages.length} mensagens</span>
             <button
               onClick={exportar}
               disabled={messages.length === 0}
@@ -324,15 +326,16 @@ export default function ChatRAG({ onNavigate }) {
           {messages.map((m, i) => (
             <div key={i} className="msg-enter" style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "78%", display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{
-                background: m.role === "user" ? "#0F172A" : "#111827",
-                borderRadius: 6,
+                background: m.role === "user" ? "linear-gradient(135deg,#1E3A5F,#0F2840)" : "rgba(255,255,255,0.04)",
+                borderRadius: 10,
                 borderLeft: m.role === "bastos" ? "3px solid #EAB308" : "none",
-                border: m.role === "user" ? "none" : "1px solid rgba(255,255,255,0.07)",
-                padding: "10px 14px",
-                fontSize: 16.9,
-                color: m.role === "user" ? "#111827" : "#1E293B",
-                lineHeight: 1.7,
-                boxShadow: m.role === "user" ? "0 4px 16px rgba(15,23,42,0.2)" : "0 2px 8px rgba(0,0,0,0.06)",
+                border: m.role === "user" ? "1px solid rgba(96,165,250,0.25)" : "1px solid rgba(255,255,255,0.07)",
+                padding: "12px 16px",
+                fontSize: 15,
+                color: "#F1F5F9",
+                lineHeight: 1.75,
+                boxShadow: m.role === "user" ? "0 4px 16px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.15)",
+                backdropFilter: "blur(8px)",
               }}>
                 {m.role === "bastos" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -415,6 +418,7 @@ export default function ChatRAG({ onNavigate }) {
             </div>
             <input
               ref={inputRef}
+              className="rag-input"
               style={S.input}
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -433,8 +437,9 @@ export default function ChatRAG({ onNavigate }) {
               </svg>
             </button>
           </div>
-          <p style={{ fontSize: 16.9, color: "rgba(0,0,0,0.45)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
-            Pressione Enter para enviar · Respostas baseadas exclusivamente na base doutrinária indexada
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
+            <span style={{ color: "#E8A020", fontWeight: 700 }}>↵ Pressione Enter</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}> para enviar · Respostas baseadas na base doutrinária indexada</span>
           </p>
         </div>
       </div>
@@ -447,11 +452,11 @@ const S = {
   aside: { width: 268, flexShrink: 0, background: "#0B1120", borderRight: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" },
   asideHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 },
   confiancaBox: { margin: "10px 12px", padding: "10px 12px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", flexShrink: 0 },
-  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#111827", minHeight: 0 },
-  chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#111827", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
-  headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 14.3, fontWeight: 500, color: "#475569", background: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
+  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0F172A", minHeight: 0 },
+  chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.15)" },
+  headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#CBD5E1", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
   messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, justifyContent: "flex-end" },
-  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#111827", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.04)" },
-  input: { flex: 1, background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 7, padding: "10px 14px", fontSize: 16.9, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s" },
+  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.15)" },
+  input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 15, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", "--placeholder": "rgba(255,255,255,0.55)" },
   sendBtn: { width: 36, height: 36, background: "linear-gradient(135deg,#F59E0B,#B45309)", border: "none", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(180,83,9,0.3)", transition: "opacity 0.2s" },
 }
