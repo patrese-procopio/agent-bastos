@@ -15,30 +15,24 @@ import LiderancasUnidade from "./LiderancasUnidade"
 
 const NAV_GROUPS = [
   { title: "PRINCIPAL", items: [
-    { label: "Painel", color: "#B45309", active: true },
-    { label: "Alertas", color: "#DC2626", pulse: true },
-    { label: "Controle de Grupos", color: "#DC2626" },
-    { label: "Inteligência de Grupos", color: "#7C3AED" },
-    { label: "Lideranças por Unidade", color: "#DC2626" },
-    { label: "Lista Negra", color: "#1E293B" },
+    { label: "Painel", color: "#F59E0B", active: true },
+    { label: "Alertas", color: "#F87171", pulse: true },
+    { label: "Controle de Grupos", color: "#F87171" },
+    { label: "Inteligência de Grupos", color: "#A78BFA" },
+    { label: "Lideranças por Unidade", color: "#F87171" },
+    { label: "Lista Negra", color: "#94A3B8" },
   ]},
   { title: "INTELIGÊNCIA", items: [
-    { label: "Chat RAG", color: "#1D4ED8" },
-    { label: "Referências", color: "#6D28D9" },
-    { label: "Agenda de Missão", color: "#B45309", badge: "2" },
+    { label: "Chat RAG", color: "#60A5FA" },
+    { label: "Referências", color: "#C4B5FD" },
+    { label: "Agenda de Missão", color: "#F59E0B", badge: "2" },
   ]},
   { title: "FERRAMENTAS", items: [
-    { label: "Dashboard",            color: "#065F46" },
-    { label: "Transcrição",          color: "#3730A3" },
-    { label: "Análise Grafoscópica", color: "#78350F" },  
-    { label: "Notícias",             color: "#C2410C" },
-]},
-]
-
-const AGENDA = [
-  { time: "09:00", desc: "Briefing com setor operacional", status: "HOJE" },
-  { time: "14:30", desc: "Revisão — Setor Norte", status: "HOJE" },
-  { time: "10:00", desc: "Reunião com comando regional", status: "AMANHÃ" },
+    { label: "Dashboard",            color: "#34D399" },
+    { label: "Transcrição",          color: "#818CF8" },
+    { label: "Análise Grafoscópica", color: "#FBBF24" },
+    { label: "Notícias",             color: "#FB923C" },
+  ]},
 ]
 
 const NEWS = [
@@ -60,19 +54,48 @@ const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const DOT_GRID = `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.8' fill='%2394A3B8' fill-opacity='0.2'/%3E%3C/svg%3E")`
 
-const SPARK = [3,5,4,7,6,8,5,9,7,10,8,11,9,10,12]
-
 const GLOBAL_CSS = `
   @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 4px 1px rgba(22,163,74,0.5); }
     50% { box-shadow: 0 0 10px 3px rgba(22,163,74,0.85); }
   }
   .chip-dot-pulse { animation: pulse-glow 2.5s ease-in-out infinite; }
-  input::placeholder { color: #0F172A !important; font-weight: 700 !important; opacity: 0.45 !important; }
+  input::placeholder { color: rgba(255,255,255,0.45) !important; font-weight: 600 !important; opacity: 1 !important; }
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
   .ref-btn:hover { background: #FFFBEB !important; border-color: rgba(180,83,9,0.35) !important; }
+  .config-btn:hover { background: rgba(255,255,255,0.07) !important; }
+
+  /* ── NAV ITEM: seta › à direita + hover dourado — comunica "clicável" ── */
+  .nav-item {
+    position: relative;
+  }
+  .nav-item::after {
+    content: '›';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: rgba(255,255,255,0);
+    transition: color 0.15s ease, right 0.15s ease;
+    pointer-events: none;
+    line-height: 1;
+  }
+  .nav-item:hover {
+    background: rgba(232,160,32,0.1) !important;
+    border-left-color: rgba(232,160,32,0.6) !important;
+  }
+  .nav-item:hover::after {
+    color: rgba(232,160,32,0.7);
+    right: 8px;
+  }
+  .nav-item:active {
+    background: rgba(232,160,32,0.18) !important;
+    transform: scale(0.983);
+    transition: transform 0.08s ease;
+  }
 `
 
 const OwlBlueprint = () => (
@@ -101,24 +124,8 @@ const OwlBlueprint = () => (
   </svg>
 )
 
-const Sparkline = ({ data }) => {
-  const w = 80, h = 22
-  const max = Math.max(...data), min = Math.min(...data)
-  const pts = data.map((v,i) => {
-    const x = (i/(data.length-1))*w
-    const y = h - ((v-min)/(max-min))*(h-4) - 2
-    return `${x},${y}`
-  }).join(" ")
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={pts} fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx={parseFloat(pts.split(" ").at(-1).split(",")[0])} cy={parseFloat(pts.split(" ").at(-1).split(",")[1])} r="2" fill="#16A34A"/>
-    </svg>
-  )
-}
-
 const GearIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
@@ -136,12 +143,13 @@ export default function App() {
   const [showPolicies, setShowPolicies] = useState(false)
   const [tema, setTema] = useState(() => localStorage.getItem("ab_tema") || "dark")
 
-useEffect(() => {
-  document.body.classList.remove("dark-mode", "theme-tactico", "theme-claro")
-  if (tema === "tactico") document.body.classList.add("theme-tactico")
-  if (tema === "claro")   document.body.classList.add("theme-claro")
-  localStorage.setItem("ab_tema", tema)
-}, [tema])
+  useEffect(() => {
+    document.body.classList.remove("dark-mode", "theme-tactico", "theme-claro")
+    if (tema === "tactico") document.body.classList.add("theme-tactico")
+    if (tema === "claro")   document.body.classList.add("theme-claro")
+    localStorage.setItem("ab_tema", tema)
+  }, [tema])
+
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -186,131 +194,119 @@ useEffect(() => {
 
   const now = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })
 
-  // Telas que substituem o main inteiro
- const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra","Análise Grafoscópica", "Controle de Grupos", "Inteligência de Grupos", "Lideranças por Unidade"].includes(active)
+  const isFullScreen = ["Chat RAG","Dashboard","Transcrição","Alertas","Referências","Configurações","Agenda de Missão","Lista Negra","Análise Grafoscópica", "Controle de Grupos", "Inteligência de Grupos", "Lideranças por Unidade"].includes(active)
 
   return (
     <div style={S.app}>
       <div style={S.dotGrid}/>
 
-      {/* ── SIDEBAR — sempre visível ── */}
+      {/* ── SIDEBAR ── */}
       <aside style={S.sidebar}>
 
+        {/* ── LOGO AREA: logo centralizada sobre o nome, layout em coluna ── */}
         <div style={S.logoArea}>
           <div style={S.logoRing}>
             <img src="./src/assets/logo.png" alt="AB" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           </div>
-          <div>
+          <div style={S.logoText}>
             <div style={S.logoName}>Agent Bastos</div>
             <div style={S.logoTagline}>Inteligência Soberana</div>
           </div>
         </div>
 
-        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
-
+        {/* Nav */}
+        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",padding:"6px 0"}}>
           <nav style={S.nav}>
             {NAV_GROUPS.map(group => (
-              <div key={group.title} style={{marginBottom:10}}>
-                <div style={S.groupLabel}>{group.title}</div>
+              <div key={group.title} style={{marginBottom:16}}>
+                <div style={S.groupLabel}>
+                  <span style={S.groupLabelBar}/>
+                  {group.title}
+                </div>
                 {group.items.map(item => {
                   const isActive = active === item.label
                   return (
-                    <button key={item.label} style={{
-                      ...S.ni,
-                      ...(isActive ? {
-                        background:"#FFFFFF",
-                        borderLeft:`3px solid ${item.color}`,
-                        boxShadow:"0 1px 6px rgba(0,0,0,0.07)",
-                        paddingLeft:9,
-                      } : { borderLeft:"3px solid transparent", paddingLeft:9 })
-                    }} onClick={()=>setActive(item.label)}>
-                      <span style={{fontSize:11.5,flex:1,color:isActive?"#0F172A":"#475569",fontWeight:isActive?600:400}}>{item.label}</span>
-                      {item.badge && <span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:8,background:item.color,color:"#fff",fontFamily:MONO}}>{item.badge}</span>}
-                      {item.pulse && <span style={{width:6,height:6,borderRadius:"50%",background:"#DC2626",flexShrink:0,boxShadow:"0 0 5px rgba(220,38,38,0.7)"}}/>}
+                    <button
+                      key={item.label}
+                      className="nav-item"
+                      style={{
+                        ...S.ni,
+                        ...(isActive ? {
+                          background:"rgba(255,255,255,0.15)",
+                          borderLeft:`3px solid ${item.color}`,
+                          boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.08)",
+                        } : { borderLeft:"3px solid transparent" })
+                      }}
+                      onClick={()=>setActive(item.label)}
+                    >
+                      <span style={{
+                        fontSize: 13,
+                        flex: 1,
+                        color: isActive ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+                        fontWeight: isActive ? 700 : 400,
+                        letterSpacing: "0.01em",
+                      }}>
+                        {item.label}
+                      </span>
+                      {item.badge && (
+                        <span style={{
+                          fontSize:9,fontWeight:700,padding:"1px 6px",
+                          borderRadius:8,background:item.color,
+                          color:"#0F172A",fontFamily:MONO,
+                        }}>
+                          {item.badge}
+                        </span>
+                      )}
+                      {item.pulse && (
+                        <span style={{
+                          width:7,height:7,borderRadius:"50%",
+                          background:"#F87171",flexShrink:0,
+                          boxShadow:"0 0 6px rgba(248,113,113,0.8)",
+                        }}/>
+                      )}
                     </button>
                   )
                 })}
               </div>
             ))}
           </nav>
-
-          <div style={{height:1,background:"#E2E8F0",margin:"0 10px 8px"}}/>
-
-          <div style={S.agendaWidget}>
-            <div style={S.agendaWidgetHeader}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span style={{fontSize:9,fontWeight:800,color:"#334155",letterSpacing:"0.1em",textTransform:"uppercase"}}>Agenda</span>
-              <span style={{fontSize:8,color:"#B45309",fontWeight:700,fontFamily:MONO,marginLeft:"auto"}}>+2</span>
-            </div>
-            {AGENDA.map((a,i) => (
-              <div key={i} style={{display:"flex",alignItems:"baseline",gap:5,padding:"4px 0",borderBottom:i<AGENDA.length-1?"1px solid #F1F5F9":"none"}}>
-                <span style={{fontSize:9,fontWeight:700,color:"#B45309",flexShrink:0,fontFamily:MONO,minWidth:30}}>{a.time}</span>
-                <span style={{fontSize:10,color:"#334155",flex:1,lineHeight:1.3}}>{a.desc}</span>
-                <span style={{fontSize:7,fontWeight:700,padding:"1px 4px",borderRadius:2,flexShrink:0,fontFamily:MONO,...(a.status==="HOJE"?{background:"#FEF3C7",color:"#92400E",border:"1px solid #F59E0B"}:{background:"#F1F5F9",color:"#64748B",border:"1px solid #CBD5E1"})}}>{a.status}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{height:1,background:"#E2E8F0",margin:"8px 10px"}}/>
-
-          <div style={S.statusWidget}>
-            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:8}}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#065F46" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span style={{fontSize:9,fontWeight:800,color:"#334155",letterSpacing:"0.1em",textTransform:"uppercase"}}>Status de Operação</span>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div>
-                <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
-                  <span style={{width:5,height:5,borderRadius:"50%",background:"#16A34A",flexShrink:0,boxShadow:"0 0 4px rgba(22,163,74,0.7)"}}/>
-                  <span style={{fontSize:9,color:"#0F172A",fontFamily:MONO}}>IA: Operacional</span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{width:5,height:5,borderRadius:"50%",background:"#1D4ED8",flexShrink:0}}/>
-                  <span style={{fontSize:9,color:"#0F172A",fontFamily:MONO}}>Agentes: 04 Ativos</span>
-                </div>
-              </div>
-              <Sparkline data={SPARK}/>
-            </div>
-            <div style={{height:2,borderRadius:2,background:"#F1F5F9",overflow:"hidden"}}>
-              <div style={{height:"100%",width:"78%",background:"linear-gradient(90deg,#16A34A,#34D399)",borderRadius:2}}/>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
-              <span style={{fontSize:8,color:"#64748B",fontFamily:MONO}}>Carga do sistema</span>
-              <span style={{fontSize:8,color:"#16A34A",fontWeight:700,fontFamily:MONO}}>78%</span>
-            </div>
-          </div>
         </div>
 
+        {/* ── FOOTER ── */}
         <div style={S.sidebarFooter}>
-          <div style={{height:1,background:"#CBD5E1",marginBottom:6}}/>
-          <button style={S.configBtn} onClick={()=>setActive("Configurações")}>
+          <div style={S.footerDivider}/>
+          <button className="config-btn" style={S.configBtn} onClick={()=>setActive("Configurações")}>
             <GearIcon/>
-            <span style={{fontSize:11,color:"rgba(15,23,42,0.8)",fontWeight:500}}>Configurações</span>
+            <span style={{fontSize:13,color:"#FFFFFF",fontWeight:600,letterSpacing:"0.01em"}}>Configurações</span>
           </button>
-          <button style={S.policyBtn} onClick={()=>setShowPolicies(true)}>Políticas de uso</button>
-          <div style={S.copyright}>© 2026 Agent Bastos · Todos os direitos reservados</div>
+          <button style={S.policyBtn} onClick={()=>setShowPolicies(true)}>
+            Políticas de uso
+          </button>
+          <div style={S.copyright}>
+            © 2026 <span style={{color:"#F59E0B",fontWeight:700}}>Agent Bastos</span>
+            <span style={{display:"block",marginTop:1}}>Todos os direitos reservados</span>
+          </div>
         </div>
       </aside>
 
-      {/* ── MAIN — conteúdo dinâmico ── */}
+      {/* ── MAIN ── */}
       <main style={S.main}>
 
-        {/* ── Telas que tomam o espaço inteiro do main ── */}
-        {active === "Chat RAG"         && <ChatRAG      onNavigate={setActive} />}
-        {active === "Dashboard"        && <Dashboard    onNavigate={setActive} />}
-        {active === "Transcrição"      && <Transcricao  onNavigate={setActive} />}
-        {active === "Análise Grafoscópica" && <Grafoscopia onNavigate={setActive} />}
-        {active === "Alertas"          && <Alertas      onNavigate={setActive} />}
-        {active === "Notícias"         && <Noticias     onNavigate={setActive} />}  
-        {active === "Referências"      && <Referencias  onNavigate={setActive} />}
-        {active === "Configurações" && <Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/>}
-        {active === "Controle de Grupos" && <ControleGrupos onNavigate={setActive} />}
+        {active === "Chat RAG"               && <ChatRAG      onNavigate={setActive} />}
+        {active === "Dashboard"              && <Dashboard    onNavigate={setActive} />}
+        {active === "Transcrição"            && <Transcricao  onNavigate={setActive} />}
+        {active === "Análise Grafoscópica"   && <Grafoscopia  onNavigate={setActive} />}
+        {active === "Alertas"                && <Alertas      onNavigate={setActive} />}
+        {active === "Notícias"               && <Noticias     onNavigate={setActive} />}
+        {active === "Referências"            && <Referencias  onNavigate={setActive} />}
+        {active === "Configurações"          && <Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/>}
+        {active === "Controle de Grupos"     && <ControleGrupos onNavigate={setActive} />}
         {active === "Inteligência de Grupos" && <InteligenciaGrupos onNavigate={setActive} />}
         {active === "Lideranças por Unidade" && <LiderancasUnidade onNavigate={setActive} />}
-        {active === "Agenda de Missão" && <Agenda       onNavigate={setActive} />}
-        {active === "Lista Negra"      && <ListaNegra   onNavigate={setActive} />}
+        {active === "Agenda de Missão"       && <Agenda       onNavigate={setActive} />}
+        {active === "Lista Negra"            && <ListaNegra   onNavigate={setActive} />}
 
-        {/* ── Painel Principal ── */}
+        {/* Painel Principal */}
         {active === "Painel" && (
           <>
             <header style={S.topbar}>
@@ -345,7 +341,7 @@ useEffect(() => {
                 <h2 style={S.secLabel}>Notícias em Destaque</h2>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
                   {(liveNews.length > 0
-                ? [...liveNews.slice(0,4).map((n,i) => ({ title: n.titulo, source: "n8n", time: tempoH(n.atualizado), category: "Intel", bg: "#FFEDD5", color: "#C2410C", img: n.imagem || "https://picsum.photos/seed/n"+i+"/400/200" })), ...NEWS].slice(0,4)          
+                    ? [...liveNews.slice(0,4).map((n,i) => ({ title: n.titulo, source: "n8n", time: tempoH(n.atualizado), category: "Intel", bg: "#FFEDD5", color: "#C2410C", img: n.imagem || "https://picsum.photos/seed/n"+i+"/400/200" })), ...NEWS].slice(0,4)
                     : NEWS
                   ).map((n,i) => (
                     <div key={i} style={S.newsCard}>
@@ -466,7 +462,6 @@ useEffect(() => {
           </>
         )}
 
-        {/* Telas ainda não implementadas */}
         {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências","Configurações","Agenda de Missão","Lista Negra","Controle de Grupos","Inteligência de Grupos", "Lideranças por Unidade"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{active}</div>
@@ -475,9 +470,8 @@ useEffect(() => {
         )}
 
       </main>
-      {/* ── MODAL POLÍTICAS DE USO ── */}
-      {showPolicies && <PoliciesModal onClose={()=>setShowPolicies(false)}/>}
 
+      {showPolicies && <PoliciesModal onClose={()=>setShowPolicies(false)}/>}
     </div>
   )
 }
@@ -485,21 +479,136 @@ useEffect(() => {
 const S = {
   app:{display:"flex",height:"100vh",background:"#F8FAFC",overflow:"hidden",fontFamily:SANS,position:"relative",color:"#0F172A"},
   dotGrid:{position:"fixed",inset:0,backgroundImage:DOT_GRID,backgroundSize:"24px 24px",pointerEvents:"none",zIndex:0},
-  sidebar:{width:224,background:"#F1F5F9",borderRight:"1px solid #CBD5E1",display:"flex",flexDirection:"column",flexShrink:0,height:"100vh",position:"relative",zIndex:10},
-  logoArea:{padding:"12px 14px 10px",borderBottom:"1px solid #CBD5E1",display:"flex",alignItems:"center",gap:10,flexShrink:0},
-  logoRing:{width:34,height:34,borderRadius:"50%",border:"2px solid #B45309",overflow:"hidden",flexShrink:0,background:"#FEF3C7",boxShadow:"0 0 0 2px rgba(180,83,9,0.1)"},
-  logoName:{fontSize:12,fontWeight:700,color:"#0F172A"},
-  logoTagline:{fontSize:8,color:"#B45309",letterSpacing:"0.16em",textTransform:"uppercase",marginTop:1,fontWeight:700},
-  nav:{padding:"8px 6px 0",flexShrink:0},
-  groupLabel:{fontSize:10,fontWeight:800,color:"#334155",letterSpacing:"0.05em",padding:"0 8px 4px",marginBottom:1},
-  ni:{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",borderRadius:6,cursor:"pointer",marginBottom:1,border:"none",background:"transparent",width:"100%",textAlign:"left",transition:"all 0.12s ease"},
-  agendaWidget:{margin:"0 8px 0",padding:"7px 10px",background:"#FFFFFF",borderRadius:8,border:"1px solid #E2E8F0",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",flexShrink:0},
-  agendaWidgetHeader:{display:"flex",alignItems:"center",gap:5,marginBottom:6,paddingBottom:5,borderBottom:"1px solid #F1F5F9"},
-  statusWidget:{margin:"0 8px",padding:"8px 10px",background:"#FFFFFF",borderRadius:8,border:"1px solid #E2E8F0",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",flexShrink:0},
-  sidebarFooter:{padding:"0 8px 8px",flexShrink:0},
-  configBtn:{display:"flex",alignItems:"center",gap:7,padding:"6px 8px",cursor:"pointer",border:"none",background:"transparent",width:"100%",textAlign:"left",borderRadius:6},
-  policyBtn:{display:"block",width:"100%",textAlign:"center",fontSize:10,color:"rgba(15,23,42,0.7)",background:"transparent",border:"none",cursor:"pointer",padding:"2px 0",fontWeight:500},
-  copyright:{fontSize:9,color:"rgba(15,23,42,0.45)",textAlign:"center",padding:"2px 0 0",lineHeight:1.4},
+
+  /* ── SIDEBAR ── */
+  sidebar:{
+    width: 240,
+    background: "linear-gradient(180deg, #0C3B6E 0%, #0A3260 40%, #082848 100%)",
+    borderRight: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    height: "100vh",
+    position: "relative",
+    zIndex: 10,
+    boxShadow: "4px 0 24px rgba(0,0,0,0.25)",
+  },
+
+  /* ── LOGO AREA: coluna centralizada, logo em cima, texto embaixo ── */
+  logoArea:{
+    padding: "18px 16px 16px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    display: "flex",
+    flexDirection: "column",   /* empilha logo e texto verticalmente */
+    alignItems: "center",      /* centraliza tudo */
+    gap: 10,
+    flexShrink: 0,
+  },
+  logoRing:{
+    /* 40px → 56px (+40%) */
+    width: 56,
+    height: 56,
+    borderRadius: "50%",
+    border: "2px solid rgba(245,158,11,0.85)",
+    overflow: "hidden",
+    flexShrink: 0,
+    background: "rgba(245,158,11,0.15)",
+    boxShadow: "0 0 16px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.3)",
+  },
+  logoText:{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",      /* nome e tagline centralizados sob a logo */
+    gap: 2,
+  },
+  logoName:{
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#FFFFFF",
+    letterSpacing: "0.01em",
+    textAlign: "center",
+  },
+  logoTagline:{
+    fontSize: 10,
+    color: "#F59E0B",
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+    fontWeight: 700,
+    textAlign: "center",
+  },
+
+  nav:{ padding:"10px 8px 0", flexShrink:0 },
+
+  /* ── TÍTULOS DE GRUPO ── */
+  groupLabel:{
+    display: "flex",
+    alignItems: "center",
+    gap: 7,
+    fontSize: 14.3,
+    fontWeight: 900,
+    color: "#E8A020",
+    letterSpacing: "0.03em",
+    padding: "0 10px 6px",
+    marginBottom: 3,
+    textTransform: "uppercase",
+    textShadow: "0 1px 4px rgba(0,0,0,0.7), 0 -1px 0 rgba(255,200,50,0.2)",
+  },
+  groupLabelBar:{
+    display: "inline-block",
+    width: 3,
+    height: 13,
+    background: "#E8A020",
+    borderRadius: 2,
+    flexShrink: 0,
+    boxShadow: "0 0 6px rgba(232,160,32,0.5)",
+  },
+
+  /* ── ITENS DE NAV ── */
+  ni:{
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "8px 10px",
+    paddingRight: 28,
+    borderRadius: 7,
+    cursor: "pointer",
+    marginBottom: 2,
+    border: "none",
+    background: "transparent",
+    width: "100%",
+    textAlign: "left",
+    transition: "all 0.12s ease",
+  },
+
+  /* ── FOOTER ── */
+  sidebarFooter:{ padding:"0 12px 12px", flexShrink:0 },
+  footerDivider:{
+    height: 1,
+    background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.4), transparent)",
+    marginBottom: 10,
+  },
+  configBtn:{
+    display:"flex", alignItems:"center", gap:10,
+    padding:"9px 10px", cursor:"pointer",
+    border:"none", background:"transparent",
+    width:"100%", textAlign:"left",
+    borderRadius:7, transition:"background 0.12s",
+    marginBottom: 4,
+  },
+  policyBtn:{
+    display:"block", width:"100%", textAlign:"center",
+    fontSize:11, color:"#F59E0B",
+    background:"transparent", border:"none",
+    cursor:"pointer", padding:"4px 0",
+    fontWeight:600, letterSpacing:"0.04em", opacity:0.85,
+  },
+  copyright:{
+    fontSize:10, color:"#FFFFFF",
+    textAlign:"center", padding:"5px 0 0",
+    lineHeight:1.5, fontWeight:500, opacity:0.75,
+  },
+
+  /* ── MAIN ── */
   main:{flex:1,display:"flex",flexDirection:"column",minWidth:0,height:"100vh",position:"relative",zIndex:10},
   topbar:{height:44,borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#FFFFFF",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"},
   wc:{display:"flex",gap:6,alignItems:"center",marginRight:12},
@@ -546,34 +655,13 @@ const POLICY_DEFAULT = {
   versao: "1.0.0",
   data: "Abril de 2026",
   clausulas: [
-    {
-      titulo: "1. Finalidade do Sistema",
-      texto: "O Agent Bastos é um sistema de inteligência corporativa desenvolvido para apoiar atividades de análise, monitoramento e produção de conhecimento em segurança pública e corporativa. Seu uso é restrito a agentes devidamente autorizados pela instituição responsável pelo licenciamento.",
-    },
-    {
-      titulo: "2. Responsabilidade pelo Uso",
-      texto: "O usuário é integralmente responsável pela utilização dos dados, relatórios e análises gerados pelo sistema. Todo acesso é registrado e auditável. O uso indevido das informações, incluindo compartilhamento não autorizado ou utilização para fins pessoais, constitui violação das normas institucionais e pode acarretar sanções administrativas, civis e penais.",
-    },
-    {
-      titulo: "3. Proteção de Dados — LGPD",
-      texto: "Este sistema processa dados pessoais de terceiros no estrito cumprimento da Lei Geral de Proteção de Dados (Lei nº 13.709/2018). Os dados são tratados exclusivamente para finalidades legítimas de segurança pública e investigação. O armazenamento, compartilhamento e descarte seguem as diretrizes da LGPD e das normas internas da instituição.",
-    },
-    {
-      titulo: "4. Inteligência Artificial e Limitações",
-      texto: "As análises geradas por inteligência artificial têm caráter auxiliar e não substituem o julgamento do agente responsável. Toda informação produzida pelo sistema deve ser validada por supervisor humano antes de embasar decisões operacionais. O sistema não possui valor probatório direto para fins judiciais sem perícia técnica complementar.",
-    },
-    {
-      titulo: "5. Confidencialidade",
-      texto: "Todas as informações processadas, relatórios gerados e análises produzidas são classificadas como RESERVADAS e de USO INTERNO. É vedada a reprodução, cópia ou divulgação do conteúdo do sistema sem autorização expressa da autoridade competente.",
-    },
-    {
-      titulo: "6. Titularidade e Propriedade Intelectual",
-      texto: "O Agent Bastos é produto desenvolvido e licenciado por {empresa}. Todos os direitos de propriedade intelectual, incluindo código-fonte, design, arquitetura e metodologias, são de titularidade exclusiva desta empresa. É vedada a engenharia reversa, reprodução ou distribuição sem autorização.",
-    },
-    {
-      titulo: "7. Vigência e Atualizações",
-      texto: "Estas políticas entram em vigor na data de implantação do sistema e podem ser atualizadas a qualquer momento pela administradora do sistema. Alterações serão comunicadas aos usuários no primeiro acesso após a atualização.",
-    },
+    { titulo: "1. Finalidade do Sistema", texto: "O Agent Bastos é um sistema de inteligência corporativa desenvolvido para apoiar atividades de análise, monitoramento e produção de conhecimento em segurança pública e corporativa. Seu uso é restrito a agentes devidamente autorizados pela instituição responsável pelo licenciamento." },
+    { titulo: "2. Responsabilidade pelo Uso", texto: "O usuário é integralmente responsável pela utilização dos dados, relatórios e análises gerados pelo sistema. Todo acesso é registrado e auditável. O uso indevido das informações, incluindo compartilhamento não autorizado ou utilização para fins pessoais, constitui violação das normas institucionais e pode acarretar sanções administrativas, civis e penais." },
+    { titulo: "3. Proteção de Dados — LGPD", texto: "Este sistema processa dados pessoais de terceiros no estrito cumprimento da Lei Geral de Proteção de Dados (Lei nº 13.709/2018). Os dados são tratados exclusivamente para finalidades legítimas de segurança pública e investigação. O armazenamento, compartilhamento e descarte seguem as diretrizes da LGPD e das normas internas da instituição." },
+    { titulo: "4. Inteligência Artificial e Limitações", texto: "As análises geradas por inteligência artificial têm caráter auxiliar e não substituem o julgamento do agente responsável. Toda informação produzida pelo sistema deve ser validada por supervisor humano antes de embasar decisões operacionais. O sistema não possui valor probatório direto para fins judiciais sem perícia técnica complementar." },
+    { titulo: "5. Confidencialidade", texto: "Todas as informações processadas, relatórios gerados e análises produzidas são classificadas como RESERVADAS e de USO INTERNO. É vedada a reprodução, cópia ou divulgação do conteúdo do sistema sem autorização expressa da autoridade competente." },
+    { titulo: "6. Titularidade e Propriedade Intelectual", texto: "O Agent Bastos é produto desenvolvido e licenciado por {empresa}. Todos os direitos de propriedade intelectual, incluindo código-fonte, design, arquitetura e metodologias, são de titularidade exclusiva desta empresa. É vedada a engenharia reversa, reprodução ou distribuição sem autorização." },
+    { titulo: "7. Vigência e Atualizações", texto: "Estas políticas entram em vigor na data de implantação do sistema e podem ser atualizadas a qualquer momento pela administradora do sistema. Alterações serão comunicadas aos usuários no primeiro acesso após a atualização." },
   ],
 }
 
@@ -592,77 +680,36 @@ function PoliciesModal({ onClose }) {
     setEditing(false)
   }
 
-  function renderTexto(txt) {
-    return txt.replace("{empresa}", data.empresa)
-  }
+  function renderTexto(txt) { return txt.replace("{empresa}", data.empresa) }
 
   return (
-    <div style={{
-      position:"fixed", inset:0, zIndex:1000,
-      background:"rgba(15,23,42,0.65)",
-      display:"flex", alignItems:"center", justifyContent:"center",
-      backdropFilter:"blur(3px)",
-    }} onClick={e=>{ if(e.target===e.currentTarget) onClose() }}>
-
-      <div style={{
-        background:"#FFFFFF", borderRadius:12, width:"min(780px,92vw)",
-        maxHeight:"88vh", display:"flex", flexDirection:"column",
-        boxShadow:"0 24px 64px rgba(0,0,0,0.3)", overflow:"hidden",
-      }}>
-
-        <div style={{
-          padding:"20px 28px 16px", borderBottom:"1px solid #E2E8F0",
-          background:"#F8FAFC", display:"flex", alignItems:"flex-start",
-          justifyContent:"space-between", flexShrink:0,
-        }}>
+    <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(15,23,42,0.65)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(3px)" }}
+      onClick={e=>{ if(e.target===e.currentTarget) onClose() }}>
+      <div style={{ background:"#FFFFFF", borderRadius:12, width:"min(780px,92vw)", maxHeight:"88vh", display:"flex", flexDirection:"column", boxShadow:"0 24px 64px rgba(0,0,0,0.3)", overflow:"hidden" }}>
+        <div style={{ padding:"20px 28px 16px", borderBottom:"1px solid #E2E8F0", background:"#F8FAFC", display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexShrink:0 }}>
           <div>
             <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
               <div style={{width:3, height:20, background:"#B45309", borderRadius:2}}/>
-              <span style={{fontSize:9, fontWeight:700, color:"#64748B", letterSpacing:"0.15em", textTransform:"uppercase"}}>
-                Agent Bastos · Documento Institucional
-              </span>
+              <span style={{fontSize:9, fontWeight:700, color:"#64748B", letterSpacing:"0.15em", textTransform:"uppercase"}}>Agent Bastos · Documento Institucional</span>
             </div>
-            <div style={{fontSize:17, fontWeight:800, color:"#0F172A", letterSpacing:"-0.01em"}}>
-              Políticas de Uso
-            </div>
-
+            <div style={{fontSize:17, fontWeight:800, color:"#0F172A", letterSpacing:"-0.01em"}}>Políticas de Uso</div>
             <div style={{display:"flex", alignItems:"center", gap:8, marginTop:6}}>
               {editing ? (
                 <>
-                  <input
-                    value={editEmpresa}
-                    onChange={e=>setEditEmpresa(e.target.value)}
-                    autoFocus
-                    style={{
-                      fontSize:12, fontWeight:600, color:"#0F172A",
-                      border:"1px solid #B45309", borderRadius:5,
-                      padding:"3px 8px", outline:"none", fontFamily:"inherit",
-                      background:"#FEF3C7", width:320,
-                    }}
-                    onKeyDown={e=>{ if(e.key==="Enter") saveEmpresa(); if(e.key==="Escape") setEditing(false) }}
-                  />
-                  <button onClick={saveEmpresa} style={{fontSize:11, fontWeight:700, color:"#16A34A", background:"#F0FDF4", border:"1px solid #86EFAC", borderRadius:5, padding:"3px 10px", cursor:"pointer"}}>
-                    Salvar
-                  </button>
-                  <button onClick={()=>setEditing(false)} style={{fontSize:11, color:"#64748B", background:"transparent", border:"none", cursor:"pointer"}}>
-                    Cancelar
-                  </button>
+                  <input value={editEmpresa} onChange={e=>setEditEmpresa(e.target.value)} autoFocus
+                    style={{ fontSize:12, fontWeight:600, color:"#0F172A", border:"1px solid #B45309", borderRadius:5, padding:"3px 8px", outline:"none", fontFamily:"inherit", background:"#FEF3C7", width:320 }}
+                    onKeyDown={e=>{ if(e.key==="Enter") saveEmpresa(); if(e.key==="Escape") setEditing(false) }}/>
+                  <button onClick={saveEmpresa} style={{fontSize:11, fontWeight:700, color:"#16A34A", background:"#F0FDF4", border:"1px solid #86EFAC", borderRadius:5, padding:"3px 10px", cursor:"pointer"}}>Salvar</button>
+                  <button onClick={()=>setEditing(false)} style={{fontSize:11, color:"#64748B", background:"transparent", border:"none", cursor:"pointer"}}>Cancelar</button>
                 </>
               ) : (
                 <>
-                  <span style={{fontSize:12, fontWeight:600, color:"#475569", fontFamily:MONO_P}}>
-                    {data.empresa}
-                  </span>
-                  <button onClick={()=>{ setEditEmpresa(data.empresa); setEditing(true) }} style={{
-                    fontSize:9, color:"#B45309", background:"#FEF3C7", border:"1px solid #FDE68A",
-                    borderRadius:4, padding:"2px 7px", cursor:"pointer", fontWeight:600,
-                  }}>
-                    ✏ Editar
-                  </button>
+                  <span style={{fontSize:12, fontWeight:600, color:"#475569", fontFamily:MONO_P}}>{data.empresa}</span>
+                  <button onClick={()=>{ setEditEmpresa(data.empresa); setEditing(true) }}
+                    style={{ fontSize:9, color:"#B45309", background:"#FEF3C7", border:"1px solid #FDE68A", borderRadius:4, padding:"2px 7px", cursor:"pointer", fontWeight:600 }}>✏ Editar</button>
                 </>
               )}
             </div>
-
             <div style={{display:"flex", gap:16, marginTop:8}}>
               {[["Versão", data.versao], ["Vigência", data.data], ["Status", "ATIVO"]].map(([k,v])=>(
                 <div key={k}>
@@ -672,65 +719,29 @@ function PoliciesModal({ onClose }) {
               ))}
             </div>
           </div>
-
-          <button onClick={onClose} style={{
-            width:32, height:32, borderRadius:"50%", border:"1px solid #E2E8F0",
-            background:"#F8FAFC", cursor:"pointer", display:"flex",
-            alignItems:"center", justifyContent:"center", fontSize:16,
-            color:"#64748B", flexShrink:0,
-          }}>×</button>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid #E2E8F0", background:"#F8FAFC", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:"#64748B", flexShrink:0 }}>×</button>
         </div>
 
         <div style={{overflowY:"auto", padding:"20px 28px", display:"flex", flexDirection:"column", gap:16}}>
           {data.clausulas.map((c, i) => (
-            <div key={i} style={{
-              padding:"14px 16px", borderRadius:8,
-              background: i % 2 === 0 ? "#FAFBFC" : "#FFFFFF",
-              border:"1px solid #F1F5F9",
-            }}>
-              <div style={{fontSize:11, fontWeight:800, color:"#0F172A", marginBottom:6, letterSpacing:"0.01em"}}>
-                {c.titulo}
-              </div>
-              <div style={{fontSize:12, color:"#475569", lineHeight:1.75}}>
-                {renderTexto(c.texto)}
-              </div>
+            <div key={i} style={{ padding:"14px 16px", borderRadius:8, background: i % 2 === 0 ? "#FAFBFC" : "#FFFFFF", border:"1px solid #F1F5F9" }}>
+              <div style={{fontSize:11, fontWeight:800, color:"#0F172A", marginBottom:6, letterSpacing:"0.01em"}}>{c.titulo}</div>
+              <div style={{fontSize:12, color:"#475569", lineHeight:1.75}}>{renderTexto(c.texto)}</div>
             </div>
           ))}
-
-          <div style={{
-            marginTop:8, padding:"14px 16px",
-            background:"#0F172A", borderRadius:8,
-            display:"flex", alignItems:"center", justifyContent:"space-between",
-            flexWrap:"wrap", gap:8,
-          }}>
-            <span style={{fontSize:10, color:"#94A3B8", fontFamily:MONO_P}}>
-              Agent Bastos · Intelligence System
-            </span>
+          <div style={{ marginTop:8, padding:"14px 16px", background:"#0F172A", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+            <span style={{fontSize:10, color:"#94A3B8", fontFamily:MONO_P}}>Agent Bastos · Intelligence System</span>
             <div style={{display:"flex", gap:6}}>
               {["PROTEGIDO","RESERVADO","USO INTERNO"].map(t=>(
-                <span key={t} style={{fontSize:8, fontWeight:800, color:"#0F172A", background:"#F59E0B", borderRadius:3, padding:"2px 7px", letterSpacing:"0.05em", fontFamily:MONO_P}}>
-                  {t}
-                </span>
+                <span key={t} style={{fontSize:8, fontWeight:800, color:"#0F172A", background:"#F59E0B", borderRadius:3, padding:"2px 7px", letterSpacing:"0.05em", fontFamily:MONO_P}}>{t}</span>
               ))}
             </div>
-            <span style={{fontSize:9, color:"#64748B", fontFamily:MONO_P}}>
-              © 2026 {data.empresa}
-            </span>
+            <span style={{fontSize:9, color:"#64748B", fontFamily:MONO_P}}>© 2026 {data.empresa}</span>
           </div>
         </div>
 
-        <div style={{
-          padding:"12px 28px", borderTop:"1px solid #E2E8F0",
-          background:"#F8FAFC", display:"flex",
-          justifyContent:"flex-end", flexShrink:0,
-        }}>
-          <button onClick={onClose} style={{
-            padding:"8px 24px", background:"#0F172A", color:"#FFF",
-            border:"none", borderRadius:7, fontSize:12, fontWeight:700,
-            cursor:"pointer", letterSpacing:"0.02em",
-          }}>
-            Fechar
-          </button>
+        <div style={{ padding:"12px 28px", borderTop:"1px solid #E2E8F0", background:"#F8FAFC", display:"flex", justifyContent:"flex-end", flexShrink:0 }}>
+          <button onClick={onClose} style={{ padding:"8px 24px", background:"#0F172A", color:"#FFF", border:"none", borderRadius:7, fontSize:12, fontWeight:700, cursor:"pointer", letterSpacing:"0.02em" }}>Fechar</button>
         </div>
       </div>
     </div>
