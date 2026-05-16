@@ -259,11 +259,11 @@ export default function Grafoscopia({ onNavigate }) {
   const conf = resultado ? (CONFIANCA_COR[resultado.confianca] || CONFIANCA_COR.baixo) : null
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: "#0B1120", fontFamily: SANS }}>
 
       {/* ── Header ── */}
       <div style={{
-        background: "#FFF", borderBottom: "1px solid #E2E8F0",
+        background: "#FFF", borderBottom: "1px solid rgba(255,255,255,0.07)",
         padding: "18px 32px", display: "flex",
         alignItems: "center", justifyContent: "space-between",
       }}>
@@ -273,15 +273,15 @@ export default function Grafoscopia({ onNavigate }) {
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
           }}>🔬</div>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em" }}>
+            <div style={{ fontFamily: MONO, fontSize: 14.3, color: "#94A3B8", letterSpacing: "0.1em" }}>
               AGENT BASTOS / FERRAMENTAS
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", letterSpacing: "-0.02em" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#F1F5F9", letterSpacing: "-0.02em" }}>
               Análise Grafoscópica
             </div>
           </div>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8" }}>
+        <div style={{ fontFamily: MONO, fontSize: 14.3, color: "#94A3B8" }}>
           Gemini 2.5 Flash · Transcrição Forense
         </div>
       </div>
@@ -313,10 +313,10 @@ export default function Grafoscopia({ onNavigate }) {
             ) : (
               <>
                 <span style={{ fontSize: 36 }}>📄</span>
-                <span style={{ fontFamily: MONO, fontSize: 12, color: "#64748B", marginTop: 10, textAlign: "center", padding: "0 20px" }}>
+                <span style={{ fontFamily: MONO, fontSize: 15.6, color: "#64748B", marginTop: 10, textAlign: "center", padding: "0 20px" }}>
                   Arraste o documento ou clique para selecionar
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: 10, color: "#94A3B8", marginTop: 6 }}>
+                <span style={{ fontFamily: MONO, fontSize: 16.9, color: "#94A3B8", marginTop: 6 }}>
                   JPEG · PNG · WEBP · GIF
                 </span>
               </>
@@ -327,13 +327,13 @@ export default function Grafoscopia({ onNavigate }) {
 
           {/* Tipo de documento */}
           <div>
-            <label style={{ fontFamily: MONO, fontSize: 10, color: "#64748B", letterSpacing: "0.1em" }}>
+            <label style={{ fontFamily: MONO, fontSize: 16.9, color: "#64748B", letterSpacing: "0.1em" }}>
               TIPO DE DOCUMENTO
             </label>
             <select value={tipoDoc} onChange={e => setTipoDoc(e.target.value)} style={{
               width: "100%", marginTop: 6, padding: "9px 12px",
-              fontFamily: MONO, fontSize: 12, color: "#1E293B",
-              background: "#F8FAFC", border: "1px solid #E2E8F0",
+              fontFamily: MONO, fontSize: 15.6, color: "#F1F5F9",
+              background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)",
               borderRadius: 6, cursor: "pointer", outline: "none",
             }}>
               {TIPO_DOC_OPTIONS.map(o => (
@@ -344,15 +344,15 @@ export default function Grafoscopia({ onNavigate }) {
 
           {/* Contexto */}
           <div>
-            <label style={{ fontFamily: MONO, fontSize: 10, color: "#64748B", letterSpacing: "0.1em" }}>
+            <label style={{ fontFamily: MONO, fontSize: 16.9, color: "#64748B", letterSpacing: "0.1em" }}>
               CONTEXTO OPERACIONAL <span style={{ color: "#CBD5E1" }}>/ OPCIONAL</span>
             </label>
             <textarea value={contexto} onChange={e => setContexto(e.target.value)}
               placeholder="Ex: Apreendido em abordagem, zona norte, 09/05/2026"
               maxLength={500} rows={3} style={{
                 width: "100%", marginTop: 6, padding: "9px 12px",
-                fontFamily: MONO, fontSize: 11, color: "#1E293B",
-                background: "#F8FAFC", border: "1px solid #E2E8F0",
+                fontFamily: MONO, fontSize: 14.3, color: "#F1F5F9",
+                background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)",
                 borderRadius: 6, resize: "vertical", boxSizing: "border-box", outline: "none",
               }} />
           </div>
@@ -363,7 +363,7 @@ export default function Grafoscopia({ onNavigate }) {
             background: !arquivo || carregando ? "#E2E8F0" : "#78350F",
             color: !arquivo || carregando ? "#94A3B8" : "#FFF",
             border: "none", borderRadius: 8,
-            fontFamily: MONO, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
+            fontFamily: MONO, fontSize: 15.6, fontWeight: 700, letterSpacing: "0.08em",
             cursor: !arquivo || carregando ? "not-allowed" : "pointer",
             transition: "background .2s",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -383,20 +383,20 @@ export default function Grafoscopia({ onNavigate }) {
           {arquivo && (
             <button onClick={aoLimpar} style={{
               padding: "9px 0", background: "transparent",
-              border: "1px solid #E2E8F0", borderRadius: 8,
-              fontFamily: MONO, fontSize: 11, color: "#64748B", cursor: "pointer",
+              border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8,
+              fontFamily: MONO, fontSize: 14.3, color: "#64748B", cursor: "pointer",
             }}>LIMPAR</button>
           )}
 
           {/* Info box */}
           <div style={{
-            background: "#FFFBEB", border: "1px solid #FDE68A",
+            background: "rgba(232,160,32,0.10)", border: "1px solid #FDE68A",
             borderRadius: 8, padding: "12px 14px",
           }}>
-            <div style={{ fontFamily: MONO, fontSize: 10, color: "#92400E", letterSpacing: "0.08em", marginBottom: 6 }}>
+            <div style={{ fontFamily: MONO, fontSize: 16.9, color: "#E8A020", letterSpacing: "0.08em", marginBottom: 6 }}>
               SOBRE ESTE MÓDULO
             </div>
-            <p style={{ fontFamily: MONO, fontSize: 11, color: "#78350F", margin: 0, lineHeight: 1.7 }}>
+            <p style={{ fontFamily: MONO, fontSize: 14.3, color: "#F1F5F9", margin: 0, lineHeight: 1.7 }}>
               Utiliza visão computacional para transcrição forense de manuscritos apreendidos.
               Preserva grafia original, identifica codinomes e sinaliza trechos duvidosos.
             </p>
@@ -410,7 +410,7 @@ export default function Grafoscopia({ onNavigate }) {
             <div style={{
               background: "#FEE2E2", border: "1px solid #FCA5A5",
               borderRadius: 8, padding: "14px 18px",
-              fontFamily: MONO, fontSize: 12, color: "#B91C1C",
+              fontFamily: MONO, fontSize: 15.6, color: "#B91C1C",
             }}>⚠ {erro}</div>
           )}
 
@@ -422,7 +422,7 @@ export default function Grafoscopia({ onNavigate }) {
               border: "1px dashed #E2E8F0", borderRadius: 10, background: "#FFF",
             }}>
               <span style={{ fontSize: 48 }}>🔍</span>
-              <span style={{ fontFamily: MONO, fontSize: 11, marginTop: 16, color: "#94A3B8" }}>
+              <span style={{ fontFamily: MONO, fontSize: 14.3, marginTop: 16, color: "#94A3B8" }}>
                 Selecione um documento para iniciar a análise forense
               </span>
             </div>
@@ -439,15 +439,15 @@ export default function Grafoscopia({ onNavigate }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{
                     background: conf.bg, color: conf.text, border: `1px solid ${conf.border}`,
-                    fontFamily: MONO, fontSize: 10, fontWeight: 700,
+                    fontFamily: MONO, fontSize: 16.9, fontWeight: 700,
                     padding: "4px 12px", borderRadius: 20, letterSpacing: "0.1em",
                   }}>
                     CONFIANÇA {resultado.confianca?.toUpperCase()}
                   </span>
                   {resultado.requer_revisao_humana && (
                     <span style={{
-                      background: "#FEF9C3", color: "#92400E", border: "1px solid #FDE047",
-                      fontFamily: MONO, fontSize: 10, fontWeight: 600,
+                      background: "#FEF9C3", color: "#E8A020", border: "1px solid #FDE047",
+                      fontFamily: MONO, fontSize: 16.9, fontWeight: 600,
                       padding: "4px 12px", borderRadius: 20, letterSpacing: "0.08em",
                     }}>⚠ REVISÃO NECESSÁRIA</span>
                   )}
@@ -458,7 +458,7 @@ export default function Grafoscopia({ onNavigate }) {
                   <button onClick={exportarTxt} style={{
                     background: "#475569", color: "#FFF", border: "none",
                     borderRadius: 6, padding: "7px 14px",
-                    fontFamily: MONO, fontSize: 10, cursor: "pointer",
+                    fontFamily: MONO, fontSize: 16.9, cursor: "pointer",
                     letterSpacing: "0.08em", transition: "opacity .2s",
                   }}
                     onMouseOver={e => e.target.style.opacity = ".8"}
@@ -469,7 +469,7 @@ export default function Grafoscopia({ onNavigate }) {
                   <button onClick={exportarPdf} style={{
                     background: "#B45309", color: "#FFF", border: "none",
                     borderRadius: 6, padding: "7px 14px",
-                    fontFamily: MONO, fontSize: 10, cursor: "pointer",
+                    fontFamily: MONO, fontSize: 16.9, cursor: "pointer",
                     letterSpacing: "0.08em", transition: "opacity .2s",
                   }}
                     onMouseOver={e => e.target.style.opacity = ".8"}
@@ -482,16 +482,16 @@ export default function Grafoscopia({ onNavigate }) {
 
               {/* Transcrição — com scroll */}
               <div style={{
-                background: "#FFF", border: "1px solid #E2E8F0",
+                background: "#FFF", border: "1px solid rgba(255,255,255,0.07)",
                 borderLeft: "3px solid #B45309",
                 borderRadius: 8, padding: "18px 20px",
               }}>
-                <div style={{ fontFamily: MONO, fontSize: 10, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 12 }}>
+                <div style={{ fontFamily: MONO, fontSize: 16.9, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 12 }}>
                   TRANSCRIÇÃO FORENSE
                 </div>
                 {/* maxHeight + overflowY criam o scroll interno */}
                 <pre style={{
-                  fontFamily: MONO, fontSize: 13, color: "#1E293B",
+                  fontFamily: MONO, fontSize: 16.9, color: "#F1F5F9",
                   whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.8,
                   maxHeight: 420,
                   overflowY: "auto",
@@ -504,13 +504,13 @@ export default function Grafoscopia({ onNavigate }) {
               {/* Observações */}
               {resultado.observacoes && (
                 <div style={{
-                  background: "#F8FAFC", border: "1px solid #E2E8F0",
+                  background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)",
                   borderRadius: 8, padding: "14px 18px",
                 }}>
-                  <div style={{ fontFamily: MONO, fontSize: 10, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 8 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 16.9, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 8 }}>
                     OBSERVAÇÕES FORENSES
                   </div>
-                  <p style={{ fontFamily: SANS, fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.7 }}>
+                  <p style={{ fontFamily: SANS, fontSize: 16.9, color: "#475569", margin: 0, lineHeight: 1.7 }}>
                     {resultado.observacoes}
                   </p>
                 </div>
@@ -519,15 +519,15 @@ export default function Grafoscopia({ onNavigate }) {
               {/* Trechos duvidosos */}
               {resultado.trechos_duvidosos?.length > 0 && (
                 <div style={{
-                  background: "#FFFBEB", border: "1px solid #FDE68A",
+                  background: "rgba(232,160,32,0.10)", border: "1px solid #FDE68A",
                   borderRadius: 8, padding: "14px 18px",
                 }}>
-                  <div style={{ fontFamily: MONO, fontSize: 10, color: "#92400E", letterSpacing: "0.1em", marginBottom: 10 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 16.9, color: "#E8A020", letterSpacing: "0.1em", marginBottom: 10 }}>
                     TRECHOS DUVIDOSOS ({resultado.trechos_duvidosos.length})
                   </div>
                   {resultado.trechos_duvidosos.map((t, i) => (
                     <div key={i} style={{
-                      fontFamily: MONO, fontSize: 12, color: "#78350F", padding: "5px 0",
+                      fontFamily: MONO, fontSize: 15.6, color: "#F1F5F9", padding: "5px 0",
                       borderBottom: i < resultado.trechos_duvidosos.length - 1 ? "1px solid #FDE68A" : "none",
                     }}>
                       {i + 1}. {t}
@@ -546,8 +546,8 @@ export default function Grafoscopia({ onNavigate }) {
                   ["ANÁLISE",  resultado.metadados?.timestamp?.slice(0, 19).replace("T", " ")],
                 ].map(([k, v]) => v && (
                   <span key={k} style={{
-                    background: "#F1F5F9", borderRadius: 6,
-                    padding: "4px 10px", fontFamily: MONO, fontSize: 10, color: "#475569",
+                    background: "#1A2236", borderRadius: 6,
+                    padding: "4px 10px", fontFamily: MONO, fontSize: 16.9, color: "#475569",
                   }}>
                     <span style={{ color: "#94A3B8" }}>{k}: </span>{v}
                   </span>

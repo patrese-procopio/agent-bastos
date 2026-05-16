@@ -6,10 +6,10 @@ const MES_ATUAL = new Date().getMonth()
 const ANO_ATUAL = new Date().getFullYear()
 
 const NUCLEOS = {
-  NI:            { label: "Nucleo de Inteligencia",        short: "NI",     color: "#1D4ED8", docs: ["RELINT","REPEN","PEDIDO DE BUSCA","MINUTA DE OFICIO","PROJETO"] },
-  NCI:           { label: "Nucleo de Contrainteligencia",  short: "NCI",    color: "#6D28D9", docs: ["RELINT","PEDIDO DE BUSCA","RELTEC","MINUTA DE OFICIO","PROJETO"] },
-  NBE:           { label: "Nucleo de Busca Eletronica",    short: "NBE",    color: "#065F46", docs: ["RELINT","RELTEC","PROJETO"] },
-  NUCADI_UPP:    { label: "NUCADI-UPP",    short: "UPP",    color: "#B45309", docs: ["RELATORIO INTERNO"] },
+  NI:            { label: "Nucleo de Inteligencia",        short: "NI",     color: "#60A5FA", docs: ["RELINT","REPEN","PEDIDO DE BUSCA","MINUTA DE OFICIO","PROJETO"] },
+  NCI:           { label: "Nucleo de Contrainteligencia",  short: "NCI",    color: "#A78BFA", docs: ["RELINT","PEDIDO DE BUSCA","RELTEC","MINUTA DE OFICIO","PROJETO"] },
+  NBE:           { label: "Nucleo de Busca Eletronica",    short: "NBE",    color: "#34D399", docs: ["RELINT","RELTEC","PROJETO"] },
+  NUCADI_UPP:    { label: "NUCADI-UPP",    short: "UPP",    color: "#E8A020", docs: ["RELATORIO INTERNO"] },
   NUCADI_COMPAJ: { label: "NUCADI-COMPAJ", short: "COMPAJ", color: "#C2410C", docs: ["RELATORIO INTERNO"] },
   NUCADI_IPAT:   { label: "NUCADI-IPAT",   short: "IPAT",   color: "#0369A1", docs: ["RELATORIO INTERNO"] },
   NUCADI_CDPM1:  { label: "NUCADI-CDPM1",  short: "CDPM1",  color: "#7C3AED", docs: ["RELATORIO INTERNO"] },
@@ -72,7 +72,7 @@ function Sparkline({ values, color, width, height }) {
 function BarraH({ valor, max, color }) {
   const pct = max > 0 ? Math.round((valor / max) * 100) : 0
   return (
-    <div style={{ height: 5, background: "#F1F5F9", borderRadius: 3, overflow: "hidden", flex: 1 }}>
+    <div style={{ height: 5, background: "#1A2236", borderRadius: 3, overflow: "hidden", flex: 1 }}>
       <div style={{ height: "100%", width: pct + "%", background: color, borderRadius: 3, transition: "width 0.5s ease" }}/>
     </div>
   )
@@ -94,7 +94,7 @@ function Seta({ subiu }) {
           : <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>
         }
       </svg>
-      <span style={{ fontSize: 10, fontWeight: 700, color: subiu ? "#16A34A" : "#DC2626", fontFamily: MONO }}>
+      <span style={{ fontSize: 16.9, fontWeight: 700, color: subiu ? "#16A34A" : "#DC2626", fontFamily: MONO }}>
         {"{pct}"}
       </span>
     </div>
@@ -132,7 +132,7 @@ function GraficoLinha({ nucleo, cor }) {
   return (
     <svg width={w} height={h} viewBox={"0 0 " + w + " " + h} style={{ width: "100%" }}>
       {[0.25, 0.5, 0.75, 1].map((f, i) => (
-        <line key={i} x1="10" y1={h - f * (h - 10) - 5} x2={w - 10} y2={h - f * (h - 10) - 5} stroke="#F1F5F9" strokeWidth="1"/>
+        <line key={i} x1="10" y1={h - f * (h - 10) - 5} x2={w - 10} y2={h - f * (h - 10) - 5} stroke="#1A2236" strokeWidth="1"/>
       ))}
       <polyline points={pts} fill="none" stroke={cor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       {valores.map((v, i) => {
@@ -140,7 +140,7 @@ function GraficoLinha({ nucleo, cor }) {
         const y = h - (v / max) * (h - 10) - 5
         return (
           <g key={i}>
-            <circle cx={x} cy={y} r={i === MES_ATUAL ? 4 : 3} fill={i === MES_ATUAL ? cor : "#FFFFFF"} stroke={cor} strokeWidth="1.5"/>
+            <circle cx={x} cy={y} r={i === MES_ATUAL ? 4 : 3} fill={i === MES_ATUAL ? cor : "#111827"} stroke={cor} strokeWidth="1.5"/>
             {i === MES_ATUAL && <circle cx={x} cy={y} r="7" fill="none" stroke={cor} strokeWidth="1" opacity="0.4"/>}
           </g>
         )
@@ -240,27 +240,27 @@ export default function Dashboard({ onNavigate }) {
   const varNucleo = mesNucleoAnt > 0 ? Math.round(((mesNucleo - mesNucleoAnt) / mesNucleoAnt) * 100) : 0
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#F8FAFC" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0B1120" }}>
 
       {/* HEADER */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px 8px", borderBottom: "1px solid #E2E8F0", background: "#FFFFFF", flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px 8px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#111827", flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Dashboard de Producao</div>
+          <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Dashboard de Producao</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 9, color: "#64748B", fontFamily: MONO }}>Agencia de Inteligencia · {ANO_ATUAL}</span>
-            {!dadosReais && <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, background: "#FEF3C7", color: "#B45309", border: "1px solid #FDE68A" }}>SIMULADO</span>}
+            {!dadosReais && <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, background: "rgba(232,160,32,0.12)", color: "#E8A020", border: "1px solid #FDE68A" }}>SIMULADO</span>}
             <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, background: dadosReais ? "#F0FDF4" : "#FEF2F2", color: dadosReais ? "#16A34A" : "#DC2626", border: "1px solid " + (dadosReais ? "#86EFAC" : "#FECACA") }}>{dadosReais ? "AO VIVO" : "OFFLINE"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 10, color: "#64748B", fontFamily: MONO }}>Mes:</span>
+          <span style={{ fontSize: 16.9, color: "#64748B", fontFamily: MONO }}>Mes:</span>
           <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
             {MESES.map((m, i) => (
               <button key={i} onClick={() => setMesSel(i)} style={{
                 padding: "3px 7px", borderRadius: 5, border: "1px solid",
                 fontSize: 9, fontFamily: MONO, cursor: "pointer",
-                background: mesSel === i ? "#0F172A" : "#FFFFFF",
-                color: mesSel === i ? "#FFFFFF" : "#64748B",
+                background: mesSel === i ? "#0F172A" : "#111827",
+                color: mesSel === i ? "#111827" : "#64748B",
                 borderColor: mesSel === i ? "#0F172A" : "#E2E8F0",
                 fontWeight: mesSel === i ? 700 : 400,
               }}>{m}</button>
@@ -270,14 +270,14 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* ABAS + BOTAO BAIXAR PDF */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 20px", background: "#FFFFFF", borderBottom: "1px solid #E2E8F0", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 20px", background: "#111827", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 4 }}>
         {[["geral","Visao Geral"],["nucleo","Por Nucleo"],["documentos","Por Documento"],["lancamento","+ Lancamento"]].map(([id, label]) => (
             <button key={id} onClick={() => setAba(id)} style={{
               padding: "5px 14px", borderRadius: 6, border: "1px solid",
-              fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit",
+              fontSize: 14.3, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit",
               background: aba === id ? "#0F172A" : "transparent",
-              color: aba === id ? "#FFFFFF" : "#64748B",
+              color: aba === id ? "#111827" : "#64748B",
               borderColor: aba === id ? "#0F172A" : "transparent",
             }}>{label}</button>
           ))}
@@ -288,11 +288,11 @@ export default function Dashboard({ onNavigate }) {
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "5px 14px", borderRadius: 7,
-            background: gerando ? "#F1F5F9" : "linear-gradient(135deg, #0F172A, #1E293B)",
-            color: gerando ? "#94A3B8" : "#FFFFFF",
-            border: gerando ? "1px solid #E2E8F0" : "none",
+            background: gerando ? "#1A2236" : "linear-gradient(135deg, #0F172A, #1E293B)",
+            color: gerando ? "#94A3B8" : "#111827",
+            border: gerando ? "1px solid rgba(255,255,255,0.07)" : "none",
             cursor: gerando ? "not-allowed" : "pointer",
-            fontSize: 11, fontWeight: 700, fontFamily: "inherit",
+            fontSize: 14.3, fontWeight: 700, fontFamily: "inherit",
             boxShadow: gerando ? "none" : "0 3px 10px rgba(15,23,42,0.25)",
           }}
         >
@@ -320,60 +320,60 @@ export default function Dashboard({ onNavigate }) {
 
             {/* KPIs */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderTop: "3px solid " + (variacaoMes >= 0 ? "#16A34A" : "#DC2626"), borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid " + (variacaoMes >= 0 ? "#16A34A" : "#DC2626"), borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>Total {MESES[mesSel]}</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                  <div style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", lineHeight: 1, fontFamily: MONO }}>{totalMesAtual}</div>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{totalMesAtual}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 7px", borderRadius: 20, background: variacaoMes >= 0 ? "#F0FDF4" : "#FEF2F2", border: "1px solid " + (variacaoMes >= 0 ? "#86EFAC" : "#FECACA") }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={variacaoMes >= 0 ? "#16A34A" : "#DC2626"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       {variacaoMes >= 0 ? <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></> : <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>}
                     </svg>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: variacaoMes >= 0 ? "#16A34A" : "#DC2626", fontFamily: MONO }}>{Math.abs(variacaoMes)}%</span>
+                    <span style={{ fontSize: 16.9, fontWeight: 700, color: variacaoMes >= 0 ? "#16A34A" : "#DC2626", fontFamily: MONO }}>{Math.abs(variacaoMes)}%</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 5, fontFamily: MONO }}>vs {MESES[mesSel > 0 ? mesSel - 1 : 11]}</div>
+                <div style={{ fontSize: 16.9, color: "#94A3B8", marginTop: 5, fontFamily: MONO }}>vs {MESES[mesSel > 0 ? mesSel - 1 : 11]}</div>
               </div>
 
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderTop: "3px solid #1D4ED8", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid #1D4ED8", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>Total Anual {ANO_ATUAL}</div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", lineHeight: 1, fontFamily: MONO }}>{totalAno}</div>
-                <div style={{ fontSize: 10, color: "#1D4ED8", marginTop: 5, fontFamily: MONO, fontWeight: 600 }}>todos os nucleos</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{totalAno}</div>
+                <div style={{ fontSize: 16.9, color: "#60A5FA", marginTop: 5, fontFamily: MONO, fontWeight: 600 }}>todos os nucleos</div>
               </div>
 
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderTop: "3px solid #6D28D9", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid #6D28D9", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>Nucleos Ativos</div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", lineHeight: 1, fontFamily: MONO }}>{Object.keys(NUCLEOS).length}</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{Object.keys(NUCLEOS).length}</div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <span style={{ fontSize: 9, background: "#EDE9FE", color: "#6D28D9", padding: "2px 7px", borderRadius: 10, fontWeight: 700, fontFamily: MONO }}>3 Nucleos</span>
-                  <span style={{ fontSize: 9, background: "#FEF3C7", color: "#B45309", padding: "2px 7px", borderRadius: 10, fontWeight: 700, fontFamily: MONO }}>6 NUCADIs</span>
+                  <span style={{ fontSize: 9, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "2px 7px", borderRadius: 10, fontWeight: 700, fontFamily: MONO }}>3 Nucleos</span>
+                  <span style={{ fontSize: 9, background: "rgba(232,160,32,0.12)", color: "#E8A020", padding: "2px 7px", borderRadius: 10, fontWeight: 700, fontFamily: MONO }}>6 NUCADIs</span>
                 </div>
               </div>
 
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderTop: "3px solid #B45309", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid #B45309", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>Media Mensal</div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", lineHeight: 1, fontFamily: MONO }}>{Math.round(totalAno / 12)}</div>
-                <div style={{ fontSize: 10, color: "#B45309", marginTop: 5, fontFamily: MONO, fontWeight: 600 }}>docs/mes agencia</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{Math.round(totalAno / 12)}</div>
+                <div style={{ fontSize: 16.9, color: "#E8A020", marginTop: 5, fontFamily: MONO, fontWeight: 600 }}>docs/mes agencia</div>
               </div>
             </div>
 
             {/* Ranking + Barras */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Ranking — {MESES[mesSel]}</div>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Ranking — {MESES[mesSel]}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {totalNucleosMes.map(({ nucleo, total }, i) => (
                     <div key={nucleo} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", fontFamily: MONO, width: 14, textAlign: "right" }}>#{i+1}</span>
-                      <span style={{ fontSize: 10, color: "#0F172A", width: 60, flexShrink: 0, fontWeight: i === 0 ? 700 : 400 }}>{NUCLEOS[nucleo].short}</span>
+                      <span style={{ fontSize: 16.9, color: "#F1F5F9", width: 60, flexShrink: 0, fontWeight: i === 0 ? 700 : 400 }}>{NUCLEOS[nucleo].short}</span>
                       <BarraH valor={total} max={maxNucleo} color={NUCLEOS[nucleo].color}/>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: NUCLEOS[nucleo].color, fontFamily: MONO, width: 24, textAlign: "right" }}>{total}</span>
+                      <span style={{ fontSize: 16.9, fontWeight: 700, color: NUCLEOS[nucleo].color, fontFamily: MONO, width: 24, textAlign: "right" }}>{total}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Comparativo — {MESES[mesSel]}</div>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Comparativo — {MESES[mesSel]}</div>
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginBottom: 4 }}>NUCLEOS PRINCIPAIS</div>
                   <GraficoBarras nucleos={["NI","NCI","NBE"]} mes={mesSel}/>
@@ -386,9 +386,9 @@ export default function Dashboard({ onNavigate }) {
             </div>
 
             {/* Evolucao anual */}
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+            <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase" }}>Evolucao Anual — {ANO_ATUAL}</div>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase" }}>Evolucao Anual — {ANO_ATUAL}</div>
                 <div style={{ display: "flex", gap: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <div style={{ width: 10, height: 3, background: "#0F172A", borderRadius: 2 }}/>
@@ -409,7 +409,7 @@ export default function Dashboard({ onNavigate }) {
                   return (
                     <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                       <span style={{ fontSize: 7, color: i === mesSel ? "#0F172A" : "#94A3B8", fontFamily: MONO, fontWeight: i === mesSel ? 700 : 400 }}>{val}</span>
-                      <div style={{ width: "100%", height: h, background: i === mesSel ? "#0F172A" : isFuture ? "#F1F5F9" : "#CBD5E1", borderRadius: "3px 3px 0 0" }}/>
+                      <div style={{ width: "100%", height: h, background: i === mesSel ? "#0F172A" : isFuture ? "#1A2236" : "#CBD5E1", borderRadius: "3px 3px 0 0" }}/>
                       <span style={{ fontSize: 7, color: i === mesSel ? "#0F172A" : "#94A3B8", fontFamily: MONO, fontWeight: i === mesSel ? 700 : 400 }}>{m}</span>
                     </div>
                   )
@@ -426,9 +426,9 @@ export default function Dashboard({ onNavigate }) {
               {Object.keys(NUCLEOS).map(n => (
                 <button key={n} onClick={() => setNucleoSel(n)} style={{
                   padding: "5px 10px", borderRadius: 6, border: "1px solid",
-                  fontSize: 10, fontFamily: MONO, cursor: "pointer", fontWeight: 600,
-                  background: nucleoSel === n ? NUCLEOS[n].color : "#FFFFFF",
-                  color: nucleoSel === n ? "#FFFFFF" : NUCLEOS[n].color,
+                  fontSize: 16.9, fontFamily: MONO, cursor: "pointer", fontWeight: 600,
+                  background: nucleoSel === n ? NUCLEOS[n].color : "#111827",
+                  color: nucleoSel === n ? "#111827" : NUCLEOS[n].color,
                   borderColor: NUCLEOS[n].color + (nucleoSel === n ? "" : "50"),
                 }}>{NUCLEOS[n].short}</button>
               ))}
@@ -440,7 +440,7 @@ export default function Dashboard({ onNavigate }) {
                 { label: "Total Anual", valor: totalNucleoAno(nucleoSel), tendencia: false },
                 { label: "Media Mensal", valor: Math.round(totalNucleoAno(nucleoSel) / 12), tendencia: false },
               ].map((k, i) => (
-                <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderTop: "3px solid " + corNucleo, borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div key={i} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid " + corNucleo, borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>{k.label}</div>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                     <div style={{ fontSize: 32, fontWeight: 800, color: corNucleo, lineHeight: 1, fontFamily: MONO }}>{k.valor}</div>
@@ -449,7 +449,7 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={varNucleo >= 0 ? "#16A34A" : "#DC2626"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           {varNucleo >= 0 ? <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></> : <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>}
                         </svg>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: varNucleo >= 0 ? "#16A34A" : "#DC2626", fontFamily: MONO }}>{Math.abs(varNucleo)}%</span>
+                        <span style={{ fontSize: 16.9, fontWeight: 700, color: varNucleo >= 0 ? "#16A34A" : "#DC2626", fontFamily: MONO }}>{Math.abs(varNucleo)}%</span>
                       </div>
                     )}
                   </div>
@@ -458,23 +458,23 @@ export default function Dashboard({ onNavigate }) {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{NUCLEOS[nucleoSel].short} — Docs em {MESES[mesSel]}</div>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{NUCLEOS[nucleoSel].short} — Docs em {MESES[mesSel]}</div>
                 {NUCLEOS[nucleoSel].docs.map(doc => {
                   const val = DADOS[nucleoSel][mesSel][doc] || 0
                   const maxDoc = Math.max(...NUCLEOS[nucleoSel].docs.map(d => DADOS[nucleoSel][mesSel][d] || 0), 1)
                   return (
                     <div key={doc} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, color: "#334155", minWidth: 130, fontWeight: 500 }}>{doc}</span>
+                      <span style={{ fontSize: 16.9, color: "#94A3B8", minWidth: 130, fontWeight: 500 }}>{doc}</span>
                       <BarraH valor={val} max={maxDoc} color={corNucleo}/>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: corNucleo, fontFamily: MONO, width: 20, textAlign: "right" }}>{val}</span>
+                      <span style={{ fontSize: 16.9, fontWeight: 700, color: corNucleo, fontFamily: MONO, width: 20, textAlign: "right" }}>{val}</span>
                     </div>
                   )
                 })}
               </div>
 
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Evolucao Anual — {NUCLEOS[nucleoSel].short}</div>
+              <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Evolucao Anual — {NUCLEOS[nucleoSel].short}</div>
                 <div style={{ marginBottom: 16 }}>
                   <GraficoLinha nucleo={nucleoSel} cor={corNucleo}/>
                 </div>
@@ -505,20 +505,20 @@ export default function Dashboard({ onNavigate }) {
               const totalDoc = totalDocMes(doc, mesSel)
               const totalDocAno = MESES.reduce((s, _, m) => s + totalDocMes(doc, m), 0)
               return (
-                <div key={doc} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div key={doc} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase" }}>{doc}</div>
+                      <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase" }}>{doc}</div>
                       {isRI && <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginTop: 2 }}>6 NUCADIs · detalhamento por unidade</div>}
                     </div>
                     <div style={{ display: "flex", gap: 16 }}>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 8, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>{MESES[mesSel]}</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0F172A", fontFamily: MONO }}>{totalDoc}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#F1F5F9", fontFamily: MONO }}>{totalDoc}</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 8, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>Anual</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#1D4ED8", fontFamily: MONO }}>{totalDocAno}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#60A5FA", fontFamily: MONO }}>{totalDocAno}</div>
                       </div>
                     </div>
                   </div>
@@ -528,10 +528,10 @@ export default function Dashboard({ onNavigate }) {
                       const valAno = MESES.reduce((s, _, m) => s + (DADOS[n][m][doc] || 0), 0)
                       const vals12 = MESES.map((_, m) => DADOS[n][m][doc] || 0)
                       return (
-                        <div key={n} style={{ padding: "10px 12px", background: "#F8FAFC", borderRadius: 8, border: "1px solid " + NUCLEOS[n].color + "30", borderTop: "3px solid " + NUCLEOS[n].color }}>
+                        <div key={n} style={{ padding: "10px 12px", background: "#0B1120", borderRadius: 8, border: "1px solid " + NUCLEOS[n].color + "30", borderTop: "3px solid " + NUCLEOS[n].color }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: NUCLEOS[n].color }}/>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: "#334155", letterSpacing: "0.04em" }}>{NUCLEOS[n].short}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.04em" }}>{NUCLEOS[n].short}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
                             <div>
@@ -556,12 +556,12 @@ export default function Dashboard({ onNavigate }) {
       </div>
 {aba === "lancamento" && (
           <div style={{padding:"24px",overflowY:"auto",flex:1}}>
-            <div style={{background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:10,padding:20,maxWidth:480}}>
-              <div style={{fontSize:11,fontWeight:800,color:"#334155",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Registrar Documento</div>
-              {msgLanc && <div style={{padding:"8px 12px",borderRadius:6,marginBottom:12,fontSize:11,fontWeight:600,background:msgLanc.startsWith("OK")?"#F0FDF4":"#FEF2F2",color:msgLanc.startsWith("OK")?"#16A34A":"#DC2626"}}>{msgLanc}</div>}
+            <div style={{background:"#111827",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:20,maxWidth:480}}>
+              <div style={{fontSize:14.3,fontWeight:800,color:"#94A3B8",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Registrar Documento</div>
+              {msgLanc && <div style={{padding:"8px 12px",borderRadius:6,marginBottom:12,fontSize:14.3,fontWeight:600,background:msgLanc.startsWith("OK")?"#F0FDF4":"#FEF2F2",color:msgLanc.startsWith("OK")?"#16A34A":"#DC2626"}}>{msgLanc}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>TIPO DE DOCUMENTO</div>
-                  <select value={formDoc.tipo_codigo} onChange={e=>setFormDoc(p=>({...p,tipo_codigo:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit"}}>
+                <div><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>TIPO DE DOCUMENTO</div>
+                  <select value={formDoc.tipo_codigo} onChange={e=>setFormDoc(p=>({...p,tipo_codigo:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit"}}>
                     <option value="RELINT">Relatorio de Inteligencia</option>
                     <option value="RELTEC">Relatorio Tecnico</option>
                     <option value="REL_INTERNO">Relatorio Interno</option>
@@ -571,12 +571,12 @@ export default function Dashboard({ onNavigate }) {
                     <option value="REPEN">REPEN</option>
                   </select></div>
                 <div style={{display:"flex",gap:10}}>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>NUCLEO</div>
-                    <select value={formDoc.nucleo_sigla} onChange={e=>setFormDoc(p=>({...p,nucleo_sigla:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit"}}>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>NUCLEO</div>
+                    <select value={formDoc.nucleo_sigla} onChange={e=>setFormDoc(p=>({...p,nucleo_sigla:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit"}}>
                       <option value="NI">NI</option><option value="NCI">NCI</option><option value="NBE">NBE</option>
                     </select></div>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>UNIDADE</div>
-                    <select value={formDoc.unidade_sigla} onChange={e=>setFormDoc(p=>({...p,unidade_sigla:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit"}}>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>UNIDADE</div>
+                    <select value={formDoc.unidade_sigla} onChange={e=>setFormDoc(p=>({...p,unidade_sigla:e.target.value}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit"}}>
                       <option value="">-- Nenhuma --</option>
                       <option value="UPP">UPP</option><option value="COMPAJ">COMPAJ</option>
                       <option value="IPAT">IPAT</option><option value="CDPM1">CDPM1</option>
@@ -584,21 +584,21 @@ export default function Dashboard({ onNavigate }) {
                     </select></div>
                 </div>
                 <div style={{display:"flex",gap:10}}>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>MES</div>
-                    <select value={formDoc.mes} onChange={e=>setFormDoc(p=>({...p,mes:parseInt(e.target.value)}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit"}}>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>MES</div>
+                    <select value={formDoc.mes} onChange={e=>setFormDoc(p=>({...p,mes:parseInt(e.target.value)}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit"}}>
                       {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m,i)=>(
                         <option key={i} value={i+1}>{m}</option>
                       ))}
                     </select></div>
-                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>ANO</div>
-                    <select value={formDoc.ano} onChange={e=>setFormDoc(p=>({...p,ano:parseInt(e.target.value)}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit"}}>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>ANO</div>
+                    <select value={formDoc.ano} onChange={e=>setFormDoc(p=>({...p,ano:parseInt(e.target.value)}))} style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit"}}>
                       <option value={2025}>2025</option><option value={2026}>2026</option>
                     </select></div>
                 </div>
-                <div><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>NOME DO ARQUIVO (opcional)</div>
-                  <input value={formDoc.nome_arquivo} onChange={e=>setFormDoc(p=>({...p,nome_arquivo:e.target.value}))} placeholder="Ex: RELINT_NI_001_MAI2026.pdf" style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit",boxSizing:"border-box"}}/></div>
-                <div><div style={{fontSize:10,fontWeight:700,color:"#64748B",marginBottom:4}}>OBSERVACAO</div>
-                  <input value={formDoc.observacao} onChange={e=>setFormDoc(p=>({...p,observacao:e.target.value}))} placeholder="Opcional" style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid #CBD5E1",fontSize:11,fontFamily:"inherit",boxSizing:"border-box"}}/></div>
+                <div><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>NOME DO ARQUIVO (opcional)</div>
+                  <input value={formDoc.nome_arquivo} onChange={e=>setFormDoc(p=>({...p,nome_arquivo:e.target.value}))} placeholder="Ex: RELINT_NI_001_MAI2026.pdf" style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit",boxSizing:"border-box"}}/></div>
+                <div><div style={{fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:4}}>OBSERVACAO</div>
+                  <input value={formDoc.observacao} onChange={e=>setFormDoc(p=>({...p,observacao:e.target.value}))} placeholder="Opcional" style={{width:"100%",padding:"7px 10px",borderRadius:6,border:"1px solid rgba(255,255,255,0.07)",fontSize:14.3,fontFamily:"inherit",boxSizing:"border-box"}}/></div>
                 <button disabled={salvando} onClick={async()=>{
                   setSalvando(true); setMsgLanc("")
                   try {
@@ -610,7 +610,7 @@ export default function Dashboard({ onNavigate }) {
                     setFormDoc(p=>({...p,nome_arquivo:"",observacao:""}))
                   } catch(e){ setMsgLanc("ERRO: "+e.message) }
                   setSalvando(false)
-                }} style={{padding:"10px",borderRadius:7,border:"none",background:"#B45309",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",textTransform:"uppercase"}}>
+                }} style={{padding:"10px",borderRadius:7,border:"none",background:"#B45309",color:"#fff",fontWeight:700,fontSize:14.3,cursor:"pointer",textTransform:"uppercase"}}>
                   {salvando ? "Salvando..." : "Registrar Documento"}
                 </button>
               </div>
@@ -620,14 +620,14 @@ export default function Dashboard({ onNavigate }) {
       {/* MODAL RELATORIO */}
       {modalRelatorio && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: 12, width: "100%", maxWidth: 760, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", border: "1px solid #E2E8F0" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ background: "#111827", borderRadius: 12, width: "100%", maxWidth: 760, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Relatorio Analitico — {MESES[mesSel]}/{ANO_ATUAL}</div>
-                <div style={{ fontSize: 10, color: "#64748B", fontFamily: MONO, marginTop: 2 }}>BASTOS-UNIT · Analise gerada por IA · LLaMA 70b</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#F1F5F9" }}>Relatorio Analitico — {MESES[mesSel]}/{ANO_ATUAL}</div>
+                <div style={{ fontSize: 16.9, color: "#64748B", fontFamily: MONO, marginTop: 2 }}>BASTOS-UNIT · Analise gerada por IA · LLaMA 70b</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={exportarTxt} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, background: "linear-gradient(135deg,#F59E0B,#B45309)", color: "#FFFFFF", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, boxShadow: "0 4px 12px rgba(180,83,9,0.3)" }}>
+                <button onClick={exportarTxt} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, background: "linear-gradient(135deg,#F59E0B,#B45309)", color: "#F1F5F9", border: "none", cursor: "pointer", fontSize: 14.3, fontWeight: 700, boxShadow: "0 4px 12px rgba(180,83,9,0.3)" }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>
@@ -635,13 +635,13 @@ export default function Dashboard({ onNavigate }) {
                   </svg>
                   Exportar
                 </button>
-                <button onClick={() => setModalRelatorio(null)} style={{ padding: "6px 12px", borderRadius: 7, background: "#F1F5F9", border: "1px solid #E2E8F0", cursor: "pointer", fontSize: 11, color: "#475569", fontWeight: 600 }}>Fechar</button>
+                <button onClick={() => setModalRelatorio(null)} style={{ padding: "6px 12px", borderRadius: 7, background: "#1A2236", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer", fontSize: 14.3, color: "#475569", fontWeight: 600 }}>Fechar</button>
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-              <div style={{ fontSize: 13, color: "#1E293B", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{modalRelatorio}</div>
+              <div style={{ fontSize: 16.9, color: "#F1F5F9", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{modalRelatorio}</div>
             </div>
-            <div style={{ padding: "10px 20px", borderTop: "1px solid #E2E8F0", background: "#F8FAFC", flexShrink: 0, borderRadius: "0 0 12px 12px" }}>
+            <div style={{ padding: "10px 20px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0B1120", flexShrink: 0, borderRadius: "0 0 12px 12px" }}>
               <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, textAlign: "center" }}>
                 Agent Bastos · Sistema de Inteligencia e Seguranca Corporativa · Revisar antes de distribuir
               </div>

@@ -5,13 +5,13 @@ const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-
 
 const GLOBAL_CSS = `
   @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes pulse-alert { 0%,100%{box-shadow:0 0 4px 2px rgba(220,38,38,0.4)} 50%{box-shadow:0 0 14px 5px rgba(220,38,38,0.0)} }
+  @keyframes pulse-alert { 0%,100%{box-shadow:0 0 4px 2px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 14px 5px rgba(239,68,68,0.0)} }
   @keyframes spin { to{transform:rotate(360deg)} }
   .alert-enter { animation: fadeIn 0.22s ease forwards; }
   .alert-pulse  { animation: pulse-alert 2s ease-in-out infinite; }
   .spin         { animation: spin 1s linear infinite; }
-  .card-row:hover { background: #FFFBEB !important; cursor: pointer; }
-  ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
+  .card-row:hover { background: rgba(232,160,32,0.06) !important; cursor: pointer; }
+  ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
 `
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -67,9 +67,9 @@ const MOCK_OSINT = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RISK = {
-  ALTO:  { color:"#DC2626", bg:"#FEF2F2", border:"#FCA5A5", dot:"#EF4444" },
-  MÉDIO: { color:"#D97706", bg:"#FFFBEB", border:"#FCD34D", dot:"#F59E0B" },
-  BAIXO: { color:"#16A34A", bg:"#F0FDF4", border:"#86EFAC", dot:"#22C55E" },
+  ALTO:  { color:"#F87171", bg:"rgba(239,68,68,0.12)",  border:"rgba(239,68,68,0.3)",  dot:"#EF4444" },
+  MÉDIO: { color:"#FBBF24", bg:"rgba(251,191,36,0.12)", border:"rgba(251,191,36,0.3)", dot:"#F59E0B" },
+  BAIXO: { color:"#4ADE80", bg:"rgba(74,222,128,0.12)", border:"rgba(74,222,128,0.3)", dot:"#22C55E" },
 }
 const r = (level, key) => (RISK[level] || RISK.MÉDIO)[key]
 
@@ -81,21 +81,20 @@ function timeAgo(iso) {
   return `${Math.floor(diff/86400)}d`
 }
 
-// Configuração de cada tipo de card
 const TIPO_CONFIG = {
-  telegram:     { label:"✈ Telegram",    color:"#3730A3", bg:"#EEF2FF", border:"#C7D2FE", categoria:"realtime" },
-  noticia:      { label:"📰 Notícia",    color:"#065F46", bg:"#ECFDF5", border:"#A7F3D0", categoria:"realtime" },
-  youtube:      { label:"▶ YouTube",     color:"#DC2626", bg:"#FEF2F2", border:"#FCA5A5", categoria:"realtime" },
-  sherlock:     { label:"🔍 Sherlock",   color:"#1D4ED8", bg:"#DBEAFE", border:"#93C5FD", categoria:"osint"    },
-  google_dork:  { label:"🌐 Dork",       color:"#6D28D9", bg:"#EDE9FE", border:"#C4B5FD", categoria:"osint"    },
-  maigret:      { label:"🕵 Maigret",    color:"#0F172A", bg:"#F1F5F9", border:"#CBD5E1", categoria:"osint"    },
+  telegram:     { label:"✈ Telegram",    color:"#818CF8", bg:"rgba(129,140,248,0.12)", border:"rgba(129,140,248,0.3)", categoria:"realtime" },
+  noticia:      { label:"📰 Notícia",    color:"#34D399", bg:"rgba(52,211,153,0.12)",  border:"rgba(52,211,153,0.3)",  categoria:"realtime" },
+  youtube:      { label:"▶ YouTube",     color:"#F87171", bg:"rgba(239,68,68,0.12)",   border:"rgba(239,68,68,0.3)",   categoria:"realtime" },
+  sherlock:     { label:"🔍 Sherlock",   color:"#60A5FA", bg:"rgba(96,165,250,0.12)",  border:"rgba(96,165,250,0.3)",  categoria:"osint"    },
+  google_dork:  { label:"🌐 Dork",       color:"#A78BFA", bg:"rgba(167,139,250,0.12)", border:"rgba(167,139,250,0.3)", categoria:"osint"    },
+  maigret:      { label:"🕵 Maigret",    color:"#94A3B8", bg:"rgba(148,163,184,0.12)", border:"rgba(148,163,184,0.3)", categoria:"osint"    },
 }
 
 const EmptyState = ({ texto }) => (
-  <svg width="380" height="100" viewBox="0 0 380 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{opacity:0.13}}>
-    <text x="190" y="38" textAnchor="middle" fontFamily={SANS} fontSize="28" fontWeight="800" letterSpacing="4" fill="#1E293B">ALERTAS</text>
-    <line x1="50" y1="50" x2="330" y2="50" stroke="#1E293B" strokeWidth="0.6" strokeDasharray="4 6"/>
-    <text x="190" y="76" textAnchor="middle" fontFamily={MONO} fontSize="10" fontWeight="400" letterSpacing="3" fill="#1E293B">{texto}</text>
+  <svg width="380" height="100" viewBox="0 0 380 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{opacity:0.08}}>
+    <text x="190" y="38" textAnchor="middle" fontFamily={SANS} fontSize="28" fontWeight="800" letterSpacing="4" fill="#FFFFFF">ALERTAS</text>
+    <line x1="50" y1="50" x2="330" y2="50" stroke="#FFFFFF" strokeWidth="0.6" strokeDasharray="4 6"/>
+    <text x="190" y="76" textAnchor="middle" fontFamily={MONO} fontSize="10" fontWeight="400" letterSpacing="3" fill="#FFFFFF">{texto}</text>
   </svg>
 )
 
@@ -109,10 +108,10 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
       className="card-row alert-enter"
       onClick={onClick}
       style={{
-        padding:"12px 20px",
-        borderBottom:"1px solid #F8FAFC",
-        background: isSelected ? "#FFFBEB" : alerta.lido ? "#FFFFFF" : isOSINT ? "#F8F8FF" : "#FAFBFF",
-        borderLeft:`3px solid ${alerta.lido ? "transparent" : isOSINT ? "#1D4ED8" : r(alerta.risco,"dot")}`,
+        padding:"14px 20px",
+        borderBottom:"1px solid rgba(255,255,255,0.05)",
+        background: isSelected ? "rgba(232,160,32,0.08)" : "transparent",
+        borderLeft:`3px solid ${alerta.lido ? "transparent" : isOSINT ? "#60A5FA" : r(alerta.risco,"dot")}`,
         transition:"all 0.15s",
       }}
     >
@@ -122,85 +121,80 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
         <div style={{paddingTop:5}}>
           <div style={{
             width:9, height:9, borderRadius:"50%",
-            background: isOSINT ? "#1D4ED8" : r(alerta.risco,"dot"),
+            background: isOSINT ? "#60A5FA" : r(alerta.risco,"dot"),
             boxShadow: !alerta.lido && alerta.risco === "ALTO" ? `0 0 6px ${r(alerta.risco,"dot")}` : "none",
           }}/>
         </div>
 
         {/* Conteúdo */}
         <div>
-          {/* Badges linha 1 */}
-          <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:4, flexWrap:"wrap"}}>
-            {/* Categoria */}
+          <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:5, flexWrap:"wrap"}}>
             <span style={{
-              fontSize:9, fontWeight:800, fontFamily:MONO,
-              color: isOSINT ? "#1D4ED8" : "#64748B",
-              background: isOSINT ? "#DBEAFE" : "#F1F5F9",
-              border:`1px solid ${isOSINT ? "#93C5FD" : "#E2E8F0"}`,
-              padding:"1px 6px", borderRadius:3, letterSpacing:"0.08em",
+              fontSize:10, fontWeight:800, fontFamily:MONO,
+              color: isOSINT ? "#60A5FA" : "#94A3B8",
+              background: isOSINT ? "rgba(96,165,250,0.12)" : "rgba(255,255,255,0.06)",
+              border:`1px solid ${isOSINT ? "rgba(96,165,250,0.3)" : "rgba(255,255,255,0.1)"}`,
+              padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em",
             }}>{isOSINT ? "🔵 OSINT" : "🔴 TEMPO REAL"}</span>
 
-            {/* Tipo */}
             <span style={{
-              fontSize:9, fontWeight:700, fontFamily:MONO,
+              fontSize:10, fontWeight:700, fontFamily:MONO,
               color:tc.color, background:tc.bg, border:`1px solid ${tc.border}`,
-              padding:"1px 6px", borderRadius:3,
+              padding:"2px 7px", borderRadius:4,
             }}>{tc.label}</span>
 
-            {/* Risco — só em tempo real */}
             {!isOSINT && (
               <span style={{
-                fontSize:9, fontWeight:800, fontFamily:MONO,
+                fontSize:10, fontWeight:800, fontFamily:MONO,
                 color:r(alerta.risco,"color"), background:r(alerta.risco,"bg"),
                 border:`1px solid ${r(alerta.risco,"border")}`,
-                padding:"1px 6px", borderRadius:3, letterSpacing:"0.06em",
+                padding:"2px 7px", borderRadius:4, letterSpacing:"0.06em",
               }}>{alerta.risco}</span>
             )}
 
-            {/* Alvo */}
-            <span style={{fontSize:10, fontWeight:700, color:"#B45309"}}>{alerta.alvo_nome}</span>
+            <span style={{fontSize:13, fontWeight:700, color:"#E8A020"}}>{alerta.alvo_nome}</span>
             {alerta.alvo_vulgos?.length > 0 && (
-              <span style={{fontSize:9, color:"#94A3B8", fontFamily:MONO}}>
+              <span style={{fontSize:11, color:"#94A3B8", fontFamily:MONO}}>
                 ({alerta.alvo_vulgos.slice(0,2).join(", ")})
               </span>
             )}
           </div>
 
           {/* Título */}
-          <div style={{fontSize:12, fontWeight:alerta.lido?400:600, color:"#0F172A", marginBottom:4, lineHeight:1.4}}>
+          <div style={{fontSize:15.6, fontWeight:alerta.lido?400:600, color:"#F1F5F9", marginBottom:5, lineHeight:1.4}}>
             {alerta.titulo}
           </div>
 
           {/* Resumo */}
-          <div style={{fontSize:11, color:"#64748B", lineHeight:1.5, marginBottom:6}}>
+          <div style={{fontSize:13, color:"#94A3B8", lineHeight:1.55, marginBottom:7}}>
             {alerta.resumo?.length > 130 ? alerta.resumo.slice(0,130)+"..." : alerta.resumo}
           </div>
 
-          {/* Meta linha */}
+          {/* Meta */}
           <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
-            <span style={{fontSize:10, color:"#94A3B8", fontFamily:MONO}}>{alerta.fonte}</span>
-            <span style={{fontSize:9, color:"#CBD5E1"}}>·</span>
-            <span style={{fontSize:10, color:"#94A3B8", fontFamily:MONO}}>{timeAgo(alerta.timestamp)} atrás</span>
+            <span style={{fontSize:11, color:"#94A3B8", fontFamily:MONO}}>{alerta.fonte}</span>
+            <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+            <span style={{fontSize:11, color:"#94A3B8", fontFamily:MONO}}>{timeAgo(alerta.timestamp)} atrás</span>
             {alerta.termo_encontrado && (
               <>
-                <span style={{fontSize:9, color:"#CBD5E1"}}>·</span>
-                <span style={{fontSize:10, fontFamily:MONO, color:"#B45309", background:"#FEF3C7", padding:"1px 5px", borderRadius:3}}>
+                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize:11, fontFamily:MONO, color:"#E8A020", background:"rgba(232,160,32,0.12)", padding:"1px 6px", borderRadius:3}}>
                   "{alerta.termo_encontrado}"
                 </span>
               </>
             )}
             {alerta.plataforma && (
               <>
-                <span style={{fontSize:9, color:"#CBD5E1"}}>·</span>
-                <span style={{fontSize:10, fontFamily:MONO, color:"#1D4ED8", background:"#DBEAFE", padding:"1px 5px", borderRadius:3}}>
+                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize:11, fontFamily:MONO, color:"#60A5FA", background:"rgba(96,165,250,0.12)", padding:"1px 6px", borderRadius:3}}>
                   {alerta.plataforma}
                 </span>
               </>
             )}
             {alerta.dork && (
               <>
-                <span style={{fontSize:9, color:"#CBD5E1"}}>·</span>
-                <span style={{fontSize:9, fontFamily:MONO, color:"#6D28D9", background:"#EDE9FE", padding:"1px 5px", borderRadius:3, maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"inline-block"}}>
+                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize:10, fontFamily:MONO, color:"#A78BFA", background:"rgba(167,139,250,0.12)", padding:"1px 6px", borderRadius:3, maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"inline-block"}}>
                   {alerta.dork}
                 </span>
               </>
@@ -209,22 +203,22 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
 
           {/* Expansão */}
           {isSelected && (
-            <div className="alert-enter" style={{marginTop:12, display:"flex", flexDirection:"column", gap:10}}>
+            <div className="alert-enter" style={{marginTop:14, display:"flex", flexDirection:"column", gap:10}}>
               {alerta.analise_ia && (
-                <div style={{padding:"10px 14px", background:"#FFFBEB", border:"1px solid #FCD34D", borderLeft:"3px solid #B45309", borderRadius:6}}>
-                  <div style={{fontSize:9, fontWeight:700, color:"#92400E", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:5}}>
+                <div style={{padding:"12px 16px", background:"rgba(232,160,32,0.08)", border:"1px solid rgba(232,160,32,0.25)", borderLeft:"3px solid #E8A020", borderRadius:8}}>
+                  <div style={{fontSize:10, fontWeight:700, color:"#E8A020", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:6}}>
                     ◈ Análise Tática — BASTOS-UNIT
                   </div>
-                  <div style={{fontSize:12, color:"#78350F", lineHeight:1.6}}>{alerta.analise_ia}</div>
+                  <div style={{fontSize:14.3, color:"#F1F5F9", lineHeight:1.65}}>{alerta.analise_ia}</div>
                 </div>
               )}
               <div style={{display:"flex", gap:8}}>
                 <a href={alerta.link} target="_blank" rel="noreferrer" style={{
-                  padding:"6px 14px", background:"#0F172A", color:"#FFF",
-                  borderRadius:6, fontSize:11, fontWeight:700, textDecoration:"none",
+                  padding:"8px 16px", background:"#E8A020", color:"#F1F5F9",
+                  borderRadius:7, fontSize:12, fontWeight:700, textDecoration:"none",
                   display:"flex", alignItems:"center", gap:6,
                 }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                     <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                   </svg>
@@ -232,8 +226,8 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
                 </a>
                 {!alerta.lido && (
                   <button onClick={e=>{e.stopPropagation();onLido(alerta.id)}} style={{
-                    padding:"6px 14px", background:"transparent", color:"#16A34A",
-                    border:"1px solid #86EFAC", borderRadius:6, fontSize:11,
+                    padding:"8px 16px", background:"rgba(74,222,128,0.1)", color:"#4ADE80",
+                    border:"1px solid rgba(74,222,128,0.3)", borderRadius:7, fontSize:12,
                     fontWeight:600, cursor:"pointer",
                   }}>✓ Marcar lido</button>
                 )}
@@ -243,7 +237,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
         </div>
 
         {/* Tempo */}
-        <div style={{fontSize:9, color:"#94A3B8", fontFamily:MONO, whiteSpace:"nowrap", paddingTop:2}}>
+        <div style={{fontSize:11, color:"#94A3B8", fontFamily:MONO, whiteSpace:"nowrap", paddingTop:2}}>
           {timeAgo(alerta.timestamp)}
         </div>
       </div>
@@ -257,7 +251,7 @@ export default function Alertas({ onNavigate }) {
   const [osintAlertas, setOsintAlertas]       = useState([])
   const [loading, setLoading]       = useState(true)
   const [filtroRisco, setFiltroRisco] = useState("TODOS")
-  const [filtroTipo, setFiltroTipo]   = useState("TODOS")   // TODOS | realtime | osint
+  const [filtroTipo, setFiltroTipo]   = useState("TODOS")
   const [filtroLido, setFiltroLido]   = useState("TODOS")
   const [busca, setBusca]             = useState("")
   const [selecionado, setSelecionado] = useState(null)
@@ -285,9 +279,7 @@ export default function Alertas({ onNavigate }) {
     } catch {
       setRealtimeAlertas(MOCK_REALTIME)
       setOsintAlertas(MOCK_OSINT)
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   async function varrerRealtime() {
@@ -295,9 +287,8 @@ export default function Alertas({ onNavigate }) {
     try {
       await fetch("http://127.0.0.1:8000/alertas/varrer", { method:"POST", signal: AbortSignal.timeout(300000) })
       await carregarAlertas()
-    } catch {
-      await new Promise(r=>setTimeout(r,1500))
-    } finally { setVarrendo(false) }
+    } catch { await new Promise(r=>setTimeout(r,1500)) }
+    finally { setVarrendo(false) }
   }
 
   async function varrerOSINT() {
@@ -305,9 +296,8 @@ export default function Alertas({ onNavigate }) {
     try {
       await fetch("http://127.0.0.1:8000/alertas/osint/varrer", { method:"POST", signal: AbortSignal.timeout(300000) })
       await carregarAlertas()
-    } catch {
-      await new Promise(r=>setTimeout(r,2000))
-    } finally { setVarrendoOSINT(false) }
+    } catch { await new Promise(r=>setTimeout(r,2000)) }
+    finally { setVarrendoOSINT(false) }
   }
 
   function marcarLido(id) {
@@ -322,9 +312,7 @@ export default function Alertas({ onNavigate }) {
     try { fetch("http://127.0.0.1:8000/alertas/marcar-todos-lidos",{method:"PATCH"}) } catch{}
   }
 
-  // ── Filtragem ──────────────────────────────────────────────────────────────
   const todos = [...realtimeAlertas, ...osintAlertas].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))
-
   const filtrados = todos.filter(a => {
     const tc = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.noticia
     if (filtroRisco !== "TODOS" && a.risco !== filtroRisco) return false
@@ -346,50 +334,49 @@ export default function Alertas({ onNavigate }) {
   const totalOSINT = osintAlertas.length
   const totalRT    = realtimeAlertas.length
 
-  // ════════════════════════════════════════════════════════════════════════
   return (
     <div style={S.page}>
 
       {/* ══ ASIDE ══════════════════════════════════════════════════════════ */}
       <aside style={S.aside}>
         <div style={S.asideHeader}>
-          <div style={{display:"flex",alignItems:"center",gap:7}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span style={{fontSize:10,fontWeight:800,color:"#334155",letterSpacing:"0.12em",textTransform:"uppercase"}}>Alertas</span>
+            <span style={{fontSize:14.3,fontWeight:800,color:"#E8A020",letterSpacing:"0.1em",textTransform:"uppercase"}}>Alertas</span>
           </div>
           {naoLidos > 0 && (
-            <span style={{fontSize:9,color:"#DC2626",fontWeight:800,fontFamily:MONO,background:"#FEF2F2",padding:"2px 7px",borderRadius:4,border:"1px solid #FCA5A5"}}>
+            <span style={{fontSize:10,color:"#F87171",fontWeight:800,fontFamily:MONO,background:"rgba(239,68,68,0.12)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>
               {naoLidos} novos
             </span>
           )}
         </div>
 
-        <div style={{flex:1,overflowY:"auto",padding:"10px 12px 0",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"auto",padding:"12px 12px 0",display:"flex",flexDirection:"column",gap:10}}>
 
           {/* Contadores */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
             {[
-              {label:"Não lidos",  value:naoLidos,  color:"#DC2626",bg:"#FEF2F2",border:"#FCA5A5"},
-              {label:"Risco Alto", value:altoRisco, color:"#DC2626",bg:"#FEF2F2",border:"#FCA5A5"},
-              {label:"🔴 Tempo Real",value:totalRT,  color:"#D97706",bg:"#FFFBEB",border:"#FCD34D"},
-              {label:"🔵 OSINT",    value:totalOSINT,color:"#1D4ED8",bg:"#DBEAFE",border:"#93C5FD"},
+              {label:"Não lidos",  value:naoLidos,  color:"#F87171", bg:"rgba(239,68,68,0.12)",  border:"rgba(239,68,68,0.3)"},
+              {label:"Risco Alto", value:altoRisco, color:"#F87171", bg:"rgba(239,68,68,0.12)",  border:"rgba(239,68,68,0.3)"},
+              {label:"🔴 Tempo Real",value:totalRT, color:"#FBBF24", bg:"rgba(251,191,36,0.12)", border:"rgba(251,191,36,0.3)"},
+              {label:"🔵 OSINT",    value:totalOSINT,color:"#60A5FA",bg:"rgba(96,165,250,0.12)", border:"rgba(96,165,250,0.3)"},
             ].map(({label,value,color,bg,border})=>(
-              <div key={label} style={{padding:"8px 10px",background:bg,border:`1px solid ${border}`,borderRadius:7}}>
-                <div style={{fontSize:18,fontWeight:800,color,fontFamily:MONO,lineHeight:1}}>{value}</div>
-                <div style={{fontSize:9,color:"#64748B",marginTop:2,lineHeight:1.3}}>{label}</div>
+              <div key={label} style={{padding:"10px 12px",background:bg,border:`1px solid ${border}`,borderRadius:8}}>
+                <div style={{fontSize:20,fontWeight:800,color,fontFamily:MONO,lineHeight:1}}>{value}</div>
+                <div style={{fontSize:11,color:"#94A3B8",marginTop:3,lineHeight:1.3}}>{label}</div>
               </div>
             ))}
           </div>
 
-          <div style={{height:1,background:"#E2E8F0"}}/>
+          <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
 
           {/* Filtro categoria */}
           <div>
             <div style={S.filterLabel}>Categoria</div>
-            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
               {[
                 {id:"TODOS",    label:"Todos os alertas"},
                 {id:"realtime", label:"🔴 Tempo Real"},
@@ -397,26 +384,28 @@ export default function Alertas({ onNavigate }) {
               ].map(f=>(
                 <button key={f.id} onClick={()=>setFiltroTipo(f.id)} style={{
                   ...S.filterBtn,
-                  background:filtroTipo===f.id?"#0F172A":"transparent",
-                  color:filtroTipo===f.id?"#FFF":"#475569",
-                  border:`1px solid ${filtroTipo===f.id?"#0F172A":"#E2E8F0"}`,
+                  background:filtroTipo===f.id?"rgba(232,160,32,0.15)":"transparent",
+                  color:filtroTipo===f.id?"#E8A020":"#94A3B8",
+                  border:`1px solid ${filtroTipo===f.id?"rgba(232,160,32,0.4)":"rgba(255,255,255,0.07)"}`,
+                  fontWeight:filtroTipo===f.id?700:500,
                 }}>{f.label}</button>
               ))}
             </div>
           </div>
 
-          <div style={{height:1,background:"#E2E8F0"}}/>
+          <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
 
           {/* Filtro risco */}
           <div>
             <div style={S.filterLabel}>Risco</div>
-            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
               {["TODOS","ALTO","MÉDIO","BAIXO"].map(f=>(
                 <button key={f} onClick={()=>setFiltroRisco(f)} style={{
                   ...S.filterBtn,
-                  background:filtroRisco===f?"#0F172A":"transparent",
-                  color:filtroRisco===f?"#FFF":"#475569",
-                  border:`1px solid ${filtroRisco===f?"#0F172A":"#E2E8F0"}`,
+                  background:filtroRisco===f?"rgba(232,160,32,0.15)":"transparent",
+                  color:filtroRisco===f?"#E8A020":"#94A3B8",
+                  border:`1px solid ${filtroRisco===f?"rgba(232,160,32,0.4)":"rgba(255,255,255,0.07)"}`,
+                  fontWeight:filtroRisco===f?700:500,
                 }}>
                   {f!=="TODOS" && <span style={{width:7,height:7,borderRadius:"50%",background:r(f,"dot"),flexShrink:0}}/>}
                   {f}
@@ -425,57 +414,53 @@ export default function Alertas({ onNavigate }) {
             </div>
           </div>
 
-          <div style={{height:1,background:"#E2E8F0"}}/>
+          <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
 
           {/* Filtro leitura */}
           <div>
             <div style={S.filterLabel}>Leitura</div>
-            <div style={{display:"flex",gap:5}}>
+            <div style={{display:"flex",gap:6}}>
               {[["TODOS","Todos"],["NAO_LIDOS","Não lidos"]].map(([id,label])=>(
                 <button key={id} onClick={()=>setFiltroLido(id)} style={{
-                  flex:1,padding:"5px 0",borderRadius:5,fontSize:10,fontWeight:600,
-                  border:`1px solid ${filtroLido===id?"#0F172A":"#E2E8F0"}`,
-                  background:filtroLido===id?"#0F172A":"transparent",
-                  color:filtroLido===id?"#FFF":"#475569",
+                  flex:1,padding:"7px 0",borderRadius:6,fontSize:12,fontWeight:600,
+                  border:`1px solid ${filtroLido===id?"rgba(232,160,32,0.4)":"rgba(255,255,255,0.07)"}`,
+                  background:filtroLido===id?"rgba(232,160,32,0.15)":"transparent",
+                  color:filtroLido===id?"#E8A020":"#94A3B8",
                   cursor:"pointer",fontFamily:MONO,
                 }}>{label}</button>
               ))}
             </div>
           </div>
 
-          <div style={{height:1,background:"#E2E8F0"}}/>
+          <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
 
           {/* Ações */}
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            <button onClick={varrerRealtime} disabled={varrendo} style={{...S.actionBtn,"#E2E8F0":true}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <button onClick={varrerRealtime} disabled={varrendo} style={S.actionBtn}>
               {varrendo
-                ? <><svg className="spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Varrendo...</>
-                : <><span style={{fontSize:10}}>🔴</span>Varrer Tempo Real</>}
+                ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Varrendo...</>
+                : <><span>🔴</span>Varrer Tempo Real</>}
             </button>
-            <button onClick={varrerOSINT} disabled={varrendoOSINT} style={{...S.actionBtn,borderColor:"#93C5FD",color:"#1D4ED8"}}>
+            <button onClick={varrerOSINT} disabled={varrendoOSINT} style={{...S.actionBtn,color:"#60A5FA",border:"1px solid rgba(96,165,250,0.3)"}}>
               {varrendoOSINT
-                ? <><svg className="spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Sherlock rodando...</>
-                : <><span style={{fontSize:10}}>🔵</span>Varrer OSINT</>}
+                ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Sherlock rodando...</>
+                : <><span>🔵</span>Varrer OSINT</>}
             </button>
             {naoLidos > 0 && (
-              <button onClick={marcarTodosLidos} style={{...S.actionBtn,color:"#16A34A",borderColor:"#86EFAC"}}>
+              <button onClick={marcarTodosLidos} style={{...S.actionBtn,color:"#4ADE80",border:"1px solid rgba(74,222,128,0.3)"}}>
                 ✓ Marcar todos lidos
               </button>
             )}
           </div>
-
         </div>
 
         {/* Footer */}
-        <div style={{padding:"10px 14px",borderTop:"1px solid #E2E8F0",background:"#F1F5F9",flexShrink:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
-            <div className={altoRisco>0?"alert-pulse":""} style={{
-              width:5,height:5,borderRadius:"50%",
-              background:altoRisco>0?"#DC2626":"#16A34A",
-            }}/>
-            <span style={{fontSize:9,color:"#475569",fontFamily:MONO}}>Monitor OSINT · a cada 2h</span>
+        <div style={{padding:"12px 14px",borderTop:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+            <div className={altoRisco>0?"alert-pulse":""} style={{width:6,height:6,borderRadius:"50%",background:altoRisco>0?"#EF4444":"#4ADE80"}}/>
+            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Monitor OSINT · a cada 2h</span>
           </div>
-          <span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO}}>
+          <span style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:MONO}}>
             Telegram · News · Sherlock · Google Dork
           </span>
         </div>
@@ -483,53 +468,47 @@ export default function Alertas({ onNavigate }) {
 
       {/* ══ ÁREA PRINCIPAL ════════════════════════════════════════════════ */}
       <div style={S.main}>
-
-        {/* Header */}
         <div style={S.mainHeader}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div className={altoRisco>0?"alert-pulse":""} style={{
-              width:8,height:8,borderRadius:"50%",flexShrink:0,
-              background:altoRisco>0?"#DC2626":loading?"#94A3B8":"#16A34A",
-            }}/>
+            <div className={altoRisco>0?"alert-pulse":""} style={{width:9,height:9,borderRadius:"50%",flexShrink:0,
+              background:altoRisco>0?"#EF4444":loading?"#94A3B8":"#4ADE80"}}/>
             <div>
-              <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>Central de Alertas OSINT</div>
-              <div style={{fontSize:9,color:"#64748B",fontFamily:MONO,marginTop:1}}>
-                {loading ? "Carregando..." : `${filtrados.length} alertas · ${naoLidos} não lidos · 🔴 ${totalRT} tempo real · 🔵 ${totalOSINT} OSINT`}
+              <div style={{fontSize:16.9,fontWeight:700,color:"#F1F5F9"}}>Central de Alertas OSINT</div>
+              <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
+                {loading ? "Carregando..." : `${filtrados.length} alertas · ${naoLidos} não lidos · 🔴 ${totalRT} · 🔵 ${totalOSINT} OSINT`}
               </div>
             </div>
           </div>
           <div style={{position:"relative"}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"
-              style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)"}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"
+              style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)"}}>
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input value={busca} onChange={e=>setBusca(e.target.value)}
               placeholder="Buscar alvo, vulgo, termo..."
-              style={{background:"#F8FAFC",border:"1px solid #CBD5E1",borderRadius:6,padding:"6px 10px 6px 28px",fontSize:11,color:"#0F172A",outline:"none",fontFamily:MONO,width:220}}
+              style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,
+                padding:"8px 12px 8px 32px",fontSize:13,color:"#F1F5F9",outline:"none",fontFamily:MONO,width:240,caretColor:"#E8A020"}}
             />
           </div>
         </div>
 
-        {/* Corpo */}
         <div style={S.mainBody}>
           {loading && (
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",flex:1,gap:10}}>
-              <svg className="spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round">
+              <svg className="spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
-              <span style={{fontSize:12,color:"#64748B",fontFamily:MONO}}>Carregando alertas...</span>
+              <span style={{fontSize:15.6,color:"#94A3B8",fontFamily:MONO}}>Carregando alertas...</span>
             </div>
           )}
-
           {!loading && filtrados.length === 0 && (
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12,padding:40,height:"100%"}}>
               <EmptyState texto="OSINT Monitor · Telegram · Google News" />
-              <p style={{fontSize:11,color:"#CBD5E1",fontFamily:MONO,margin:0}}>
+              <p style={{fontSize:13,color:"rgba(255,255,255,0.2)",fontFamily:MONO,margin:0}}>
                 {busca ? "Nenhum alerta encontrado para essa busca" : "Nenhum alerta registrado ainda"}
               </p>
             </div>
           )}
-
           {!loading && filtrados.length > 0 && (
             <div style={{display:"flex",flexDirection:"column"}}>
               {filtrados.map(alerta => (
@@ -550,13 +529,13 @@ export default function Alertas({ onNavigate }) {
 }
 
 const S = {
-  page:{display:"flex",flex:1,minWidth:0,height:"100%",overflow:"hidden"},
-  aside:{width:268,flexShrink:0,background:"#F8FAFC",borderRight:"1px solid #E2E8F0",display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"},
-  asideHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 14px 10px",borderBottom:"1px solid #E2E8F0",flexShrink:0},
-  main:{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#FFFFFF"},
-  mainHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 18px",borderBottom:"1px solid #E2E8F0",background:"#FFFFFF",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},
+  page:{display:"flex",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0B1120"},
+  aside:{width:268,flexShrink:0,background:"#111827",borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"},
+  asideHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0},
+  main:{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0B1120"},
+  mainHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px",borderBottom:"1px solid rgba(255,255,255,0.07)",background:"#111827",flexShrink:0},
   mainBody:{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"},
-  filterLabel:{fontSize:8,fontWeight:700,color:"#94A3B8",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:"'JetBrains Mono','Roboto Mono','Courier New',monospace",marginBottom:5},
-  filterBtn:{width:"100%",padding:"5px 10px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:"'JetBrains Mono','Roboto Mono','Courier New',monospace",transition:"all 0.12s",textAlign:"left"},
-  actionBtn:{width:"100%",padding:"7px",borderRadius:6,border:"1px solid #E2E8F0",background:"transparent",fontSize:10,color:"#64748B",cursor:"pointer",fontFamily:"'JetBrains Mono','Roboto Mono','Courier New',monospace",display:"flex",alignItems:"center",justifyContent:"center",gap:6},
+  filterLabel:{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.32)",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO,marginBottom:6},
+  filterBtn:{width:"100%",padding:"7px 10px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:MONO,transition:"all 0.12s",textAlign:"left"},
+  actionBtn:{width:"100%",padding:"9px",borderRadius:7,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",fontSize:13,color:"#94A3B8",cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6},
 }

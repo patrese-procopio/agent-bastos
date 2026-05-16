@@ -80,39 +80,39 @@ function ModalRelatorio({ noticia, onClose }) {
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
       <div style={{
-        background: "#FFFFFF", borderRadius: 12, width: "100%", maxWidth: 780,
+        background: "#111827", borderRadius: 12, width: "100%", maxWidth: 780,
         maxHeight: "85vh", display: "flex", flexDirection: "column",
-        border: "1px solid #E2E8F0", boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+        border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
         overflow: "hidden",
       }}>
         <div style={{
-          padding: "16px 24px", borderBottom: "1px solid #E2E8F0",
+          padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.07)",
           display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-          flexShrink: 0, background: "#F8FAFC",
+          flexShrink: 0, background: "#0B1120",
         }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em" }}>{cat.label}</span>
-              <span style={{ fontSize: 10, color: "#94A3B8", fontFamily: MONO }}>{formatarData(noticia.atualizado)}</span>
+              <span style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>{formatarData(noticia.atualizado)}</span>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>{noticia.titulo}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#F1F5F9" }}>{noticia.titulo}</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 20, padding: 4, flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
-          <pre style={{ fontFamily: MONO, fontSize: 12.5, color: "#1E293B", lineHeight: 1.9, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+          <pre style={{ fontFamily: MONO, fontSize: 12.5, color: "#F1F5F9", lineHeight: 1.9, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
             {noticia.conteudo}
           </pre>
         </div>
 
         <div style={{
-          padding: "12px 24px", borderTop: "1px solid #E2E8F0",
+          padding: "12px 24px", borderTop: "1px solid rgba(255,255,255,0.07)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0, background: "#F8FAFC",
+          flexShrink: 0, background: "#0B1120",
         }}>
           <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>{noticia.arquivo}</span>
-          <button onClick={onClose} style={{ fontSize: 11, fontWeight: 700, padding: "6px 20px", background: "#0F172A", color: "#FFF", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: MONO }}>FECHAR</button>
+          <button onClick={onClose} style={{ fontSize: 14.3, fontWeight: 700, padding: "6px 20px", background: "#0F172A", color: "#FFF", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: MONO }}>FECHAR</button>
         </div>
       </div>
     </div>
@@ -129,7 +129,7 @@ function CardNoticia({ noticia, onClick, grande }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 12,
+        background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12,
         overflow: "hidden", cursor: "pointer",
         boxShadow: hover ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.05)",
         transform: hover ? "translateY(-3px)" : "translateY(0)",
@@ -179,7 +179,7 @@ function CardNoticia({ noticia, onClick, grande }) {
         {/* Título */}
         <div
           onClick={onClick}
-          style={{ fontSize: grande ? 14 : 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.4, cursor: "pointer" }}
+          style={{ fontSize: grande ? 14 : 13, fontWeight: 700, color: "#F1F5F9", lineHeight: 1.4, cursor: "pointer" }}
         >
           {noticia.titulo}
         </div>
@@ -192,7 +192,7 @@ function CardNoticia({ noticia, onClick, grande }) {
         {/* Footer — data + link */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          paddingTop: 10, borderTop: "1px solid #F1F5F9", marginTop: 4, gap: 8,
+          paddingTop: 10, borderTop: "1px solid #1A2236", marginTop: 4, gap: 8,
         }}>
           <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, flexShrink: 0 }}>
             {formatarData(noticia.atualizado)}
@@ -205,7 +205,7 @@ function CardNoticia({ noticia, onClick, grande }) {
                 rel="noreferrer"
                 onClick={e => e.stopPropagation()}
                 style={{
-                  fontSize: 9, fontWeight: 700, color: "#1D4ED8",
+                  fontSize: 9, fontWeight: 700, color: "#60A5FA",
                   fontFamily: MONO, letterSpacing: "0.05em",
                   display: "flex", alignItems: "center", gap: 4,
                   textDecoration: "none",
@@ -220,7 +220,7 @@ function CardNoticia({ noticia, onClick, grande }) {
             )}
             <span
               onClick={onClick}
-              style={{ fontSize: 10, fontWeight: 700, color: cat.cor, fontFamily: MONO, letterSpacing: "0.06em", cursor: "pointer" }}
+              style={{ fontSize: 16.9, fontWeight: 700, color: cat.cor, fontFamily: MONO, letterSpacing: "0.06em", cursor: "pointer" }}
             >
               VER RELATÓRIO →
             </span>
@@ -276,9 +276,9 @@ export default function Noticias({ onNavigate }) {
 
       {/* Topbar */}
       <header style={{
-        height: 44, borderBottom: "1px solid #E2E8F0", flexShrink: 0,
+        height: 44, borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 18px", background: "#FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        padding: "0 18px", background: "#111827", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginRight: 4 }}>
@@ -287,16 +287,16 @@ export default function Noticias({ onNavigate }) {
             <button style={{ width: 12, height: 12, borderRadius: "50%", background: "#28C840", border: "none", cursor: "pointer" }} onClick={() => window.electronAPI?.maximize()} />
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Notícias</div>
-            <div style={{ fontSize: 10, color: "#64748B", fontFamily: MONO }}>Monitor de Inteligência · Amazonas</div>
+            <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Notícias</div>
+            <div style={{ fontSize: 16.9, color: "#64748B", fontFamily: MONO }}>Monitor de Inteligência · Amazonas</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {ultimaAtt && <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>att {ultimaAtt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>}
           <button onClick={buscarNoticias} disabled={loading} style={{
-            fontSize: 10, fontWeight: 700, padding: "4px 12px",
-            background: loading ? "#F1F5F9" : "#0F172A",
-            color: loading ? "#94A3B8" : "#FFFFFF",
+            fontSize: 16.9, fontWeight: 700, padding: "4px 12px",
+            background: loading ? "#1A2236" : "#0F172A",
+            color: loading ? "#94A3B8" : "#111827",
             border: "none", borderRadius: 6, cursor: loading ? "not-allowed" : "pointer",
             fontFamily: MONO, letterSpacing: "0.06em",
           }}>
@@ -312,14 +312,14 @@ export default function Noticias({ onNavigate }) {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60%", gap: 12 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid #E2E8F0", borderTopColor: "#B45309", animation: "spin 0.8s linear infinite" }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>carregando relatórios...</span>
+            <span style={{ fontSize: 14.3, color: "#94A3B8", fontFamily: MONO }}>carregando relatórios...</span>
           </div>
         )}
 
         {erro && (
-          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 11, color: "#7F1D1D", fontWeight: 600 }}>⚠ {erro}</span>
-            <button onClick={buscarNoticias} style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", background: "#DC2626", color: "#FFF", border: "none", borderRadius: 4, cursor: "pointer", fontFamily: MONO, marginLeft: "auto" }}>TENTAR NOVAMENTE</button>
+          <div style={{ background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 14.3, color: "#FCA5A5", fontWeight: 600 }}>⚠ {erro}</span>
+            <button onClick={buscarNoticias} style={{ fontSize: 16.9, fontWeight: 700, padding: "3px 10px", background: "#DC2626", color: "#FFF", border: "none", borderRadius: 4, cursor: "pointer", fontFamily: MONO, marginLeft: "auto" }}>TENTAR NOVAMENTE</button>
           </div>
         )}
 
@@ -328,8 +328,8 @@ export default function Noticias({ onNavigate }) {
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="0.8" strokeLinecap="round">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
             </svg>
-            <span style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>Nenhum relatório encontrado</span>
-            <span style={{ fontSize: 11, color: "#CBD5E1", fontFamily: MONO }}>Execute o workflow no n8n para gerar relatórios</span>
+            <span style={{ fontSize: 16.9, color: "#94A3B8", fontWeight: 600 }}>Nenhum relatório encontrado</span>
+            <span style={{ fontSize: 14.3, color: "#CBD5E1", fontFamily: MONO }}>Execute o workflow no n8n para gerar relatórios</span>
           </div>
         )}
 
@@ -338,12 +338,12 @@ export default function Noticias({ onNavigate }) {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 800, color: "#334155", letterSpacing: "0.14em", textTransform: "uppercase" }}>Relatórios Ativos</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.14em", textTransform: "uppercase" }}>Relatórios Ativos</span>
                 <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 10, background: "#0F172A", color: "#FFF", fontFamily: MONO }}>{noticias.length}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }} />
-                <span style={{ fontSize: 9, color: "#16A34A", fontFamily: MONO, fontWeight: 600 }}>n8n conectado</span>
+                <span style={{ fontSize: 9, color: "#4ADE80", fontFamily: MONO, fontWeight: 600 }}>n8n conectado</span>
               </div>
             </div>
 

@@ -11,11 +11,11 @@ const CORES = {
   "JACK/TDA":       { bg:"#F5F3FF", text:"#5B21B6", border:"#DDD6FE", dot:"#8B5CF6" },
   "AMARELINHOS":    { bg:"#FFFBEB", text:"#92400E", border:"#FDE68A", dot:"#F59E0B" },
   "RDA":            { bg:"#F0FDF4", text:"#166534", border:"#BBF7D0", dot:"#22C55E" },
-  "NEUTROS":        { bg:"#F8FAFC", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
+  "NEUTROS":        { bg:"#0B1120", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
   "LGBTQIAPN+":     { bg:"#FDF2F8", text:"#9D174D", border:"#FBCFE8", dot:"#EC4899" },
   "CRIMES SEXUAIS": { bg:"#FFF7ED", text:"#9A3412", border:"#FED7AA", dot:"#F97316" },
-  "ISOLAMENTO":     { bg:"#F8FAFC", text:"#374151", border:"#D1D5DB", dot:"#6B7280" },
-  "MED. SEGURANÇA": { bg:"#F8FAFC", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
+  "ISOLAMENTO":     { bg:"#0B1120", text:"#374151", border:"#D1D5DB", dot:"#6B7280" },
+  "MED. SEGURANÇA": { bg:"#0B1120", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
 }
 const NOMES = { CDPM1:"CDPM I", CDPM2:"CDPM II", IPAT:"IPAT", UPP:"UPP", COMPAJ:"COMPAJ", CDF:"CDF" }
 const NOMES_FULL = {
@@ -97,7 +97,7 @@ const CSS = `
   .spin{animation:spin 1s linear infinite}
   ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
   .pr:hover{background:#FFFBEB!important}
-  .ut:hover{background:#F1F5F9!important;color:#0F172A!important}
+  .ut:hover{background:#1A2236!important;color:#0F172A!important}
 `
 
 export default function ControleGrupos({ onNavigate }) {
@@ -334,91 +334,91 @@ export default function ControleGrupos({ onNavigate }) {
   // ─────────────────────────────────────────────────────────────────────────────
 
   if (carregando) return (
-    <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
+    <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"#0B1120"}}>
       <svg className="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
         <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
       </svg>
-      <span style={{fontSize:12,color:"#94A3B8",fontFamily:MONO}}>Carregando dados do Drive...</span>
+      <span style={{fontSize:15.6,color:"#94A3B8",fontFamily:MONO}}>Carregando dados do Drive...</span>
     </div>
   )
 
   return (
-    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#F1F5F9",fontFamily:SANS}}>
-      <div style={{height:44,borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#FFFFFF",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#1A2236",fontFamily:SANS}}>
+      <div style={{height:44,borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#111827",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>Controle de Grupos</span>
-          <span style={{fontSize:13,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
+          <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9"}}>Controle de Grupos</span>
+          <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {erroApi && <span style={{fontSize:9,color:"#DC2626",fontFamily:MONO,background:"#FEF2F2",padding:"2px 8px",borderRadius:4,border:"1px solid #FECACA"}}>offline — dados locais</span>}
+          {erroApi && <span style={{fontSize:11.7,color:"#F87171",fontFamily:MONO,background:"rgba(239,68,68,0.10)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>offline — dados locais</span>}
           <button
             onClick={exportarPDF}
             disabled={exportando}
             style={{
-              background: exportando ? "#F1F5F9" : "#B45309",
-              color: exportando ? "#94A3B8" : "#FFFFFF",
+              background: exportando ? "#1A2236" : "#B45309",
+              color: exportando ? "#94A3B8" : "#111827",
               border: "none", borderRadius: 7, padding: "5px 12px",
-              fontSize: 10, fontWeight: 700, cursor: exportando ? "not-allowed" : "pointer",
+              fontSize: 16.9, fontWeight: 700, cursor: exportando ? "not-allowed" : "pointer",
               fontFamily: MONO, letterSpacing: "0.05em",
             }}
           >
             {exportando ? "GERANDO..." : "↓ EXPORTAR PDF"}
           </button>
-          <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:20}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
-            <span style={{fontSize:9,color:"#166534",fontFamily:MONO,fontWeight:600}}>atualizado: {dados.atualizado}</span>
+            <span style={{fontSize:11.7,color:"#4ADE80",fontFamily:MONO,fontWeight:600}}>atualizado: {dados.atualizado}</span>
           </div>
         </div>
       </div>
-      <div style={{display:"flex",gap:2,padding:"8px 14px 0",background:"#FFFFFF",borderBottom:"1px solid #E2E8F0",flexShrink:0,overflowX:"auto"}}>
+      <div style={{display:"flex",gap:2,padding:"8px 14px 0",background:"#111827",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0,overflowX:"auto"}}>
         {Object.entries(NOMES).map(([k,n]) => {
           const isA = unit===k
           const gs  = [...new Set(Object.values(dados.unidades[k]?.pavs||{}).map(p=>p.g))]
           const cor = gs.some(g=>g.includes("CV")) ? "#DC2626" : gs.some(g=>g.includes("PCC")) ? "#3B82F6" : "#94A3B8"
           return (
-            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"6px 16px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:11,fontWeight:600,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#F1F5F9":"transparent",color:isA?"#0F172A":"#64748B",borderColor:isA?"#E2E8F0":"transparent"}}>
+            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"6px 16px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:14.3,fontWeight:600,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#1A2236":"transparent",color:isA?"#0F172A":"#64748B",borderColor:isA?"#E2E8F0":"transparent"}}>
               <span style={{width:7,height:7,borderRadius:"50%",background:cor,display:"inline-block",marginRight:6,verticalAlign:"middle"}}/>{n}
             </button>
           )
         })}
       </div>
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-        <div style={{width:268,flexShrink:0,borderRight:"1px solid #CBD5E1",display:"flex",flexDirection:"column",background:"#FFFFFF",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
-          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
-            <div style={{fontSize:10,fontWeight:800,color:"#64748B",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
+        <div style={{width:268,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",background:"#111827",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
+          <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #1A2236",background:"#0B1120",flexShrink:0}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#94A3B8",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:11,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
+              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:14.3,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
             </div>
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
             {Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
               return (
-                <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",borderBottom:"1px solid #CBD5E1",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
+                <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",borderBottom:"1px solid rgba(255,255,255,0.07)",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
                   <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
-                    <div style={{fontSize:11,color:c.text,fontFamily:MONO,marginTop:2,fontWeight:700}}>{p.g}</div>
+                    <div style={{fontSize:14.3,color:c.text,fontFamily:MONO,marginTop:2,fontWeight:700}}>{p.g}</div>
                   </div>
                   {isA && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>}
                 </div>
               )
             })}
           </div>
-          <div style={{padding:"10px 16px",borderTop:"1px solid #F1F5F9",background:"#F8FAFC",flexShrink:0}}>
-            <span style={{fontSize:10,color:"#94A3B8",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
+          <div style={{padding:"10px 16px",borderTop:"1px solid #1A2236",background:"#0B1120",flexShrink:0}}>
+            <span style={{fontSize:13,color:"#94A3B8",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px"}}>
-          <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:11,color:"#0F172A",fontFamily:MONO,fontWeight:at?700:400,opacity:at?1:0.35}}>{g}</span></div> })}
+          <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#111827",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:14.3,color:"#F1F5F9",fontFamily:MONO,fontWeight:at?700:400,opacity:at?1:0.35}}>{g}</span></div> })}
           </div>
-          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0",minHeight:0,background:"#1a1a1a",backgroundImage:`url(${imgSrc})`,backgroundSize:"cover",backgroundPosition:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)",minHeight:0,background:"#1a1a1a",backgroundImage:`url(${imgSrc})`,backgroundSize:"cover",backgroundPosition:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:8}}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Imagem não encontrada: {ud?.img}</span>
+                <span style={{fontSize:14.3,color:"#94A3B8",fontFamily:MONO}}>Imagem não encontrada: {ud?.img}</span>
               </div>
             ) : (
               <>
@@ -431,19 +431,19 @@ export default function ControleGrupos({ onNavigate }) {
               return (
                 <div key={id} onClick={()=>setPav(v=>v===id?null:id)} style={{position:"absolute",left:pos.left,top:pos.top,transform:"translate(-50%,-50%)",cursor:"pointer",zIndex:isA?20:10,display:"flex",flexDirection:"column",alignItems:"center"}}>
                   {isA && <div className="ppulse" style={{position:"absolute",top:0,left:"50%",transform:"translate(-50%,-50%)",width:36,height:36,borderRadius:"50%",border:`2px solid ${c.dot}`,background:c.dot+"22",pointerEvents:"none"}}/>}
-                  <div style={{width:isA?16:13,height:isA?16:13,borderRadius:"50%",background:c.dot,border:"2.5px solid #FFFFFF",boxShadow:isA?`0 0 0 3px ${c.dot}55,0 2px 10px rgba(0,0,0,0.4)`:"0 1px 5px rgba(0,0,0,0.4)",transition:"all 0.2s",position:"relative",zIndex:2,flexShrink:0}}/>
+                  <div style={{width:isA?16:13,height:isA?16:13,borderRadius:"50%",background:c.dot,border:"2.5px solid #111827",boxShadow:isA?`0 0 0 3px ${c.dot}55,0 2px 10px rgba(0,0,0,0.4)`:"0 1px 5px rgba(0,0,0,0.4)",transition:"all 0.2s",position:"relative",zIndex:2,flexShrink:0}}/>
                   <div style={{marginTop:4,background:"rgba(255,255,255,0.93)",border:`1px solid ${c.border}`,borderRadius:4,padding:"3px 7px",whiteSpace:"nowrap",boxShadow:"0 1px 4px rgba(0,0,0,0.15)",textAlign:"center",zIndex:2}}>
-                    <div style={{fontSize:9,fontWeight:700,color:"#0F172A",fontFamily:MONO,lineHeight:1.3}}>{p.l}</div>
+                    <div style={{fontSize:11.7,fontWeight:700,color:"#F1F5F9",fontFamily:MONO,lineHeight:1.3}}>{p.l}</div>
                     <div style={{fontSize:8,color:c.text,fontFamily:MONO,fontWeight:700,lineHeight:1.3}}>{p.g}</div>
                   </div>
                   {isA && (
-                    <div style={{position:"absolute",bottom:"calc(100% + 12px)",left:"50%",transform:"translateX(-50%)",background:"#FFFFFF",border:`2px solid ${c.dot}`,borderRadius:8,padding:"8px 14px",whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,0.15)",zIndex:30,minWidth:150}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"#0F172A",fontFamily:MONO}}>{p.l}</div>
+                    <div style={{position:"absolute",bottom:"calc(100% + 12px)",left:"50%",transform:"translateX(-50%)",background:"#111827",border:`2px solid ${c.dot}`,borderRadius:8,padding:"8px 14px",whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,0.15)",zIndex:30,minWidth:150}}>
+                      <div style={{fontSize:15.6,fontWeight:700,color:"#F1F5F9",fontFamily:MONO}}>{p.l}</div>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginTop:5}}>
                         <div style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/>
-                        <span style={{fontSize:11,color:c.text,fontWeight:700}}>{p.g}</span>
+                        <span style={{fontSize:14.3,color:c.text,fontWeight:700}}>{p.g}</span>
                       </div>
-                      <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#FFFFFF",border:`2px solid ${c.dot}`,borderTop:"none",borderLeft:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
+                      <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#111827",border:`2px solid ${c.dot}`,borderTop:"none",borderLeft:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
                     </div>
                   )}
                 </div>
@@ -453,10 +453,10 @@ export default function ControleGrupos({ onNavigate }) {
           {pav && pavs[pav] && (() => {
             const c = CORES[pavs[pav].g] || CORES["NEUTROS"]
             return (
-              <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#FFFFFF",border:`1px solid ${c.border}`,borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
+              <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#111827",border:`1px solid ${c.border}`,borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.06)"}}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0}}/>
-                <span style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{pavs[pav].l}</span>
-                <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:4,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO}}>{pavs[pav].g}</span>
+                <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9"}}>{pavs[pav].l}</span>
+                <span style={{fontSize:14.3,fontWeight:700,padding:"3px 10px",borderRadius:4,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO}}>{pavs[pav].g}</span>
                 <button onClick={()=>setPav(null)} style={{marginLeft:"auto",background:"transparent",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:18}}>×</button>
               </div>
             )

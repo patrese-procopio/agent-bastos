@@ -46,7 +46,7 @@ function StatusBadge({ status }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:5, padding:"3px 9px", borderRadius:20, background:c.bg, border:`1px solid ${c.border}` }}>
       <div style={{ width:6, height:6, borderRadius:"50%", background:c.dot, boxShadow: status==="online" ? `0 0 5px ${c.dot}` : "none" }}/>
-      <span style={{ fontSize:9, fontWeight:700, color:c.dot, fontFamily:MONO, letterSpacing:"0.06em" }}>{c.label}</span>
+      <span style={{ fontSize:11.7, fontWeight:700, color:c.dot, fontFamily:MONO, letterSpacing:"0.06em" }}>{c.label}</span>
     </div>
   )
 }
@@ -54,7 +54,7 @@ function StatusBadge({ status }) {
 function Field({ label, value, onChange, placeholder, type="text", hint }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-      <label style={{ fontSize:10, fontWeight:700, color:"#334155", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
+      <label style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
         {label}
       </label>
       <input
@@ -63,19 +63,19 @@ function Field({ label, value, onChange, placeholder, type="text", hint }) {
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className="cfg-input"
-        style={{ padding:"9px 12px", borderRadius:7, fontSize:12, color:"#0F172A", border:"1px solid #CBD5E1", background:"#F8FAFC", outline:"none", fontFamily:"inherit", transition:"border-color 0.2s, box-shadow 0.2s" }}
+        style={{ padding:"9px 12px", borderRadius:7, fontSize:15.6, color:"#F1F5F9", border:"1px solid rgba(255,255,255,0.07)", background:"#0B1120", outline:"none", fontFamily:"inherit", transition:"border-color 0.2s, box-shadow 0.2s" }}
       />
-      {hint && <span style={{ fontSize:10, color:"#94A3B8", fontFamily:MONO }}>{hint}</span>}
+      {hint && <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>{hint}</span>}
     </div>
   )
 }
 
 function Section({ title, icon, children }) {
   return (
-    <div style={{ background:"#FFFFFF", border:"1px solid #E2E8F0", borderRadius:10, overflow:"hidden", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 16px", borderBottom:"1px solid #F1F5F9", background:"#F8FAFC" }}>
+    <div style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, overflow:"hidden", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 16px", borderBottom:"1px solid #1A2236", background:"#0B1120" }}>
         {icon}
-        <span style={{ fontSize:10, fontWeight:800, color:"#334155", letterSpacing:"0.1em", textTransform:"uppercase" }}>{title}</span>
+        <span style={{ fontSize:13, fontWeight:800, color:"#94A3B8", letterSpacing:"0.1em", textTransform:"uppercase" }}>{title}</span>
       </div>
       <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:14 }}>
         {children}
@@ -133,29 +133,29 @@ function AbaGeral({ tema, setTema }) {
         </svg>
       }>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          <label style={{ fontSize:10, fontWeight:700, color:"#334155", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
+          <label style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
             Tema da Interface
           </label>
           {[
             { id:"dark",    label:"Padrão — Dark",       desc:"Interface escura com filtro de brilho. Ideal para uso geral.",               preview:"#0F172A", accent:"#94A3B8" },
             { id:"tactico", label:"Tático — Operacional", desc:"Alto contraste militar. Verde operacional sobre fundo preto oliva.",         preview:"#080a06", accent:"#9fd44a" },
-            { id:"claro",   label:"Claro",                desc:"Interface clara para ambientes com muita luz.",                              preview:"#F8FAFC", accent:"#B45309" },
+            { id:"claro",   label:"Claro",                desc:"Interface clara para ambientes com muita luz.",                              preview:"#0B1120", accent:"#B45309" },
           ].map(t => {
             const isActive = tema === t.id
             return (
               <div key={t.id} onClick={() => setTema(t.id)} style={{
                 display:"flex", alignItems:"center", gap:12,
                 padding:"11px 14px", borderRadius:8, cursor:"pointer",
-                border: isActive ? "2px solid #B45309" : "1px solid #E2E8F0",
-                background: isActive ? "#FFFBEB" : "#F8FAFC",
+                border: isActive ? "2px solid #B45309" : "1px solid rgba(255,255,255,0.07)",
+                background: isActive ? "#FFFBEB" : "#0B1120",
                 transition:"all 0.15s",
               }}>
-                <div style={{ width:32, height:32, borderRadius:6, flexShrink:0, background:t.preview, border:"1px solid #CBD5E1", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <div style={{ width:32, height:32, borderRadius:6, flexShrink:0, background:t.preview, border:"1px solid rgba(255,255,255,0.07)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                   <div style={{ width:10, height:10, borderRadius:"50%", background:t.accent }}/>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#0F172A" }}>{t.label}</div>
-                  <div style={{ fontSize:10, color:"#64748B", marginTop:2 }}>{t.desc}</div>
+                  <div style={{ fontSize:15.6, fontWeight:700, color:"#F1F5F9" }}>{t.label}</div>
+                  <div style={{ fontSize:13, color:"#94A3B8", marginTop:2 }}>{t.desc}</div>
                 </div>
                 <div style={{ width:16, height:16, borderRadius:"50%", flexShrink:0, border: isActive ? "2px solid #B45309" : "2px solid #CBD5E1", background: isActive ? "#B45309" : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {isActive && (
@@ -174,7 +174,7 @@ function AbaGeral({ tema, setTema }) {
         <button onClick={salvar} style={{
           padding:"9px 24px", borderRadius:7, border:"none", cursor:"pointer",
           background: salvo ? "#16A34A" : "linear-gradient(135deg,#F59E0B,#B45309)",
-          color:"#FFF", fontSize:12, fontWeight:700,
+          color:"#FFF", fontSize:15.6, fontWeight:700,
           boxShadow: salvo ? "0 4px 12px rgba(22,163,74,0.3)" : "0 4px 12px rgba(180,83,9,0.3)",
           transition:"all 0.3s",
         }}>
@@ -278,7 +278,7 @@ function AbaAgenda() {
           <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
             {["TODOS", ...Object.keys(NUCLEOS)].map(n => (
               <button key={n} onClick={() => setNucleoFiltro(n)} style={{
-                padding:"5px 10px", borderRadius:5, fontSize:10, fontWeight:600,
+                padding:"5px 10px", borderRadius:5, fontSize:13, fontWeight:600,
                 border:"1px solid", cursor:"pointer", textAlign:"left", fontFamily:MONO, transition:"all 0.12s",
                 background: nucleoFiltro===n ? "#0F172A" : "transparent",
                 color:       nucleoFiltro===n ? "#FFF"    : "#475569",
@@ -296,8 +296,8 @@ function AbaAgenda() {
         }>
           {!autenticado && !loginMode && (
             <button onClick={() => setLoginMode(true)} style={{
-              padding:"8px", borderRadius:7, border:"1px solid #E2E8F0",
-              background:"#FEF2F2", color:"#DC2626", fontSize:11, fontWeight:700,
+              padding:"8px", borderRadius:7, border:"1px solid rgba(255,255,255,0.07)",
+              background:"rgba(239,68,68,0.10)", color:"#F87171", fontSize:14.3, fontWeight:700,
               cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
             }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
@@ -310,51 +310,51 @@ function AbaAgenda() {
 
           {loginMode && (
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              <span style={{ fontSize:10, color:"#64748B", fontFamily:MONO }}>Digite a senha do Chefe AIPEN:</span>
+              <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>Digite a senha do Chefe AIPEN:</span>
               <input type="password" value={senha} onChange={e=>setSenha(e.target.value)}
                 onKeyDown={e=>e.key==="Enter" && verificarSenha()} autoFocus placeholder="••••••••"
                 className="cfg-input"
-                style={{ padding:"8px 12px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, outline:"none", fontFamily:"inherit" }}
+                style={{ padding:"8px 12px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)", fontSize:15.6, outline:"none", fontFamily:"inherit" }}
               />
-              {erroSenha && <span style={{ fontSize:10, color:"#DC2626", fontFamily:MONO }}>{erroSenha}</span>}
+              {erroSenha && <span style={{ fontSize:13, color:"#F87171", fontFamily:MONO }}>{erroSenha}</span>}
               <div style={{ display:"flex", gap:6 }}>
-                <button onClick={verificarSenha} style={{ flex:1, padding:"7px", borderRadius:6, border:"none", background:"#0F172A", color:"#FFF", fontSize:11, fontWeight:700, cursor:"pointer" }}>Entrar</button>
-                <button onClick={()=>{setLoginMode(false);setSenha("");setErroSenha("")}} style={{ padding:"7px 10px", borderRadius:6, border:"1px solid #E2E8F0", background:"transparent", fontSize:11, color:"#64748B", cursor:"pointer" }}>✕</button>
+                <button onClick={verificarSenha} style={{ flex:1, padding:"7px", borderRadius:6, border:"none", background:"#0F172A", color:"#FFF", fontSize:14.3, fontWeight:700, cursor:"pointer" }}>Entrar</button>
+                <button onClick={()=>{setLoginMode(false);setSenha("");setErroSenha("")}} style={{ padding:"7px 10px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)", background:"transparent", fontSize:14.3, color:"#94A3B8", cursor:"pointer" }}>✕</button>
               </div>
             </div>
           )}
 
           {autenticado && (
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 8px", background:"#F0FDF4", borderRadius:5, border:"1px solid #86EFAC" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 8px", background:"rgba(74,222,128,0.08)", borderRadius:5, border:"1px solid rgba(74,222,128,0.3)" }}>
                 <span style={{ width:6, height:6, borderRadius:"50%", background:"#16A34A" }}/>
-                <span style={{ fontSize:10, fontWeight:600, color:"#16A34A", fontFamily:MONO }}>Autenticado — Chefe AIPEN</span>
+                <span style={{ fontSize:13, fontWeight:600, color:"#4ADE80", fontFamily:MONO }}>Autenticado — Chefe AIPEN</span>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                <span style={{ fontSize:9, fontWeight:700, color:"#64748B", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:MONO }}>Destinatário</span>
-                <select value={novoNucleo} onChange={e=>setNovoNucleo(e.target.value)} style={{ padding:"7px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:11, color:"#0F172A", background:"#F8FAFC", outline:"none", fontFamily:"inherit" }}>
+                <span style={{ fontSize:11.7, fontWeight:700, color:"#94A3B8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:MONO }}>Destinatário</span>
+                <select value={novoNucleo} onChange={e=>setNovoNucleo(e.target.value)} style={{ padding:"7px 10px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)", fontSize:14.3, color:"#F1F5F9", background:"#0B1120", outline:"none", fontFamily:"inherit" }}>
                   {Object.entries(NUCLEOS).map(([k,v]) => (
                     <option key={k} value={k}>{k} — {v}</option>
                   ))}
                 </select>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                <span style={{ fontSize:9, fontWeight:700, color:"#64748B", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:MONO }}>Mensagem / Missão</span>
+                <span style={{ fontSize:11.7, fontWeight:700, color:"#94A3B8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:MONO }}>Mensagem / Missão</span>
                 <textarea value={novaMensagem} onChange={e=>setNovaMensagem(e.target.value)}
                   placeholder="Descreva a missão com clareza e prazo..." rows={5}
-                  style={{ padding:"9px 12px", borderRadius:7, border:"1px solid #CBD5E1", fontSize:12, color:"#0F172A", background:"#F8FAFC", outline:"none", fontFamily:SANS, resize:"vertical", lineHeight:1.6 }}
+                  style={{ padding:"9px 12px", borderRadius:7, border:"1px solid rgba(255,255,255,0.07)", fontSize:15.6, color:"#F1F5F9", background:"#0B1120", outline:"none", fontFamily:SANS, resize:"vertical", lineHeight:1.6 }}
                 />
               </div>
               {feedback && (
-                <div style={{ padding:"6px 10px", background:"#F0FDF4", border:"1px solid #86EFAC", borderRadius:5 }}>
-                  <span style={{ fontSize:10, color:"#16A34A", fontWeight:600, fontFamily:MONO }}>{feedback}</span>
+                <div style={{ padding:"6px 10px", background:"rgba(74,222,128,0.08)", border:"1px solid rgba(74,222,128,0.3)", borderRadius:5 }}>
+                  <span style={{ fontSize:13, color:"#4ADE80", fontWeight:600, fontFamily:MONO }}>{feedback}</span>
                 </div>
               )}
               <button onClick={publicarMissao} disabled={publicando || !novaMensagem.trim()} style={{
                 padding:"9px", borderRadius:7, border:"none",
-                background: publicando ? "#F1F5F9" : "linear-gradient(135deg,#1D4ED8,#1E40AF)",
+                background: publicando ? "#1A2236" : "linear-gradient(135deg,#1D4ED8,#1E40AF)",
                 color: publicando ? "#94A3B8" : "#FFF",
-                fontSize:12, fontWeight:700, cursor: publicando ? "not-allowed" : "pointer",
+                fontSize:15.6, fontWeight:700, cursor: publicando ? "not-allowed" : "pointer",
                 boxShadow: publicando ? "none" : "0 4px 12px rgba(29,78,216,0.3)",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:6,
               }}>
@@ -362,7 +362,7 @@ function AbaAgenda() {
                   <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Publicando...</>
                 ) : "📤 Publicar Missão"}
               </button>
-              <button onClick={()=>setAutenticado(false)} style={{ padding:"5px", background:"transparent", border:"none", fontSize:10, color:"#94A3B8", cursor:"pointer", textDecoration:"underline" }}>
+              <button onClick={()=>setAutenticado(false)} style={{ padding:"5px", background:"transparent", border:"none", fontSize:13, color:"#94A3B8", cursor:"pointer", textDecoration:"underline" }}>
                 Sair da sessão
               </button>
             </div>
@@ -370,18 +370,18 @@ function AbaAgenda() {
         </Section>
       </div>
 
-      <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#FFFFFF", border:"1px solid #E2E8F0", borderRadius:10, overflow:"hidden", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
-        <div style={{ padding:"12px 16px", borderBottom:"1px solid #F1F5F9", background:"#F8FAFC", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, overflow:"hidden", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #1A2236", background:"#0B1120", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/>
               <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            <span style={{ fontSize:10, fontWeight:800, color:"#334155", letterSpacing:"0.1em", textTransform:"uppercase" }}>Missões Registradas</span>
+            <span style={{ fontSize:13, fontWeight:800, color:"#94A3B8", letterSpacing:"0.1em", textTransform:"uppercase" }}>Missões Registradas</span>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontSize:9, color:"#94A3B8", fontFamily:MONO }}>{missoesFiltradas.length} missões</span>
-            <button onClick={carregarMissoes} style={{ padding:"4px 10px", borderRadius:5, border:"1px solid #E2E8F0", background:"transparent", fontSize:10, color:"#64748B", cursor:"pointer", fontFamily:MONO, display:"flex", alignItems:"center", gap:4 }}>
+            <span style={{ fontSize:11.7, color:"#94A3B8", fontFamily:MONO }}>{missoesFiltradas.length} missões</span>
+            <button onClick={carregarMissoes} style={{ padding:"4px 10px", borderRadius:5, border:"1px solid rgba(255,255,255,0.07)", background:"transparent", fontSize:13, color:"#94A3B8", cursor:"pointer", fontFamily:MONO, display:"flex", alignItems:"center", gap:4 }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -395,7 +395,7 @@ function AbaAgenda() {
           {loading && (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:40, gap:10 }}>
               <svg className="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              <span style={{ fontSize:12, color:"#94A3B8", fontFamily:MONO }}>Carregando missões...</span>
+              <span style={{ fontSize:15.6, color:"#94A3B8", fontFamily:MONO }}>Carregando missões...</span>
             </div>
           )}
           {!loading && missoesFiltradas.length === 0 && (
@@ -404,35 +404,35 @@ function AbaAgenda() {
                 <rect x="3" y="4" width="18" height="18" rx="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
-              <span style={{ fontSize:11, color:"#CBD5E1", fontFamily:MONO }}>Nenhuma missão registrada</span>
+              <span style={{ fontSize:14.3, color:"#CBD5E1", fontFamily:MONO }}>Nenhuma missão registrada</span>
             </div>
           )}
           {!loading && missoesFiltradas.map((m, i) => (
             <div key={m.id || i} className="cfg-row" style={{
               padding:"12px 16px",
-              borderBottom: i < missoesFiltradas.length - 1 ? "1px solid #F8FAFC" : "none",
-              background:"#FFFFFF",
+              borderBottom: i < missoesFiltradas.length - 1 ? "1px solid #0B1120" : "none",
+              background:"#111827",
               borderLeft:`3px solid ${m.nucleo==="AIPEN" ? "#16A34A" : "#1D4ED8"}`,
               transition:"background 0.12s",
             }}>
               <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
                 <div style={{ flexShrink:0, marginTop:2 }}>
                   <span style={{
-                    fontSize:9, fontWeight:800, padding:"2px 7px", borderRadius:3, fontFamily:MONO, letterSpacing:"0.06em",
+                    fontSize:11.7, fontWeight:800, padding:"2px 7px", borderRadius:3, fontFamily:MONO, letterSpacing:"0.06em",
                     background: m.nucleo==="AIPEN" ? "#F0FDF4" : "#DBEAFE",
                     color:       m.nucleo==="AIPEN" ? "#16A34A"  : "#1D4ED8",
                     border:`1px solid ${m.nucleo==="AIPEN" ? "#86EFAC" : "#93C5FD"}`,
                   }}>{m.nucleo}</span>
                 </div>
                 <div style={{ flex:1 }}>
-                  <p style={{ fontSize:12, color:"#0F172A", lineHeight:1.6, margin:0, fontWeight:500 }}>{m.mensagem}</p>
+                  <p style={{ fontSize:15.6, color:"#F1F5F9", lineHeight:1.6, margin:0, fontWeight:500 }}>{m.mensagem}</p>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:5 }}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round">
                       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    <span style={{ fontSize:9, color:"#94A3B8", fontFamily:MONO }}>{formatTs(m.timestamp)}</span>
+                    <span style={{ fontSize:11.7, color:"#94A3B8", fontFamily:MONO }}>{formatTs(m.timestamp)}</span>
                     <span style={{ fontSize:8, color:"#CBD5E1" }}>·</span>
-                    <span style={{ fontSize:9, color:"#B45309", fontFamily:MONO }}>🦉 Corujas, juntos somos mais.</span>
+                    <span style={{ fontSize:11.7, color:"#E8A020", fontFamily:MONO }}>🦉 Corujas, juntos somos mais.</span>
                   </div>
                 </div>
               </div>
@@ -496,8 +496,8 @@ function AbaConexoes() {
   return (
     <div className="cfg-enter" style={{ display:"flex", flexDirection:"column", gap:14, maxWidth:600 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <span style={{ fontSize:10, fontWeight:700, color:"#334155", letterSpacing:"0.1em", textTransform:"uppercase" }}>Status dos Serviços</span>
-        <button onClick={verificar} style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:6, border:"1px solid #E2E8F0", background:"transparent", fontSize:10, fontWeight:600, color:"#475569", cursor:"pointer", fontFamily:MONO }}>
+        <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.1em", textTransform:"uppercase" }}>Status dos Serviços</span>
+        <button onClick={verificar} style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)", background:"transparent", fontSize:13, fontWeight:600, color:"#94A3B8", cursor:"pointer", fontFamily:MONO }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round">
             <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -507,26 +507,26 @@ function AbaConexoes() {
       </div>
 
       {SERVICOS.map(s => (
-        <div key={s.key} style={{ background:"#FFFFFF", border:"1px solid #E2E8F0", borderRadius:10, padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
+        <div key={s.key} style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:36, height:36, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"#F8FAFC", border:"1px solid #E2E8F0" }}>
+            <div style={{ width:36, height:36, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"#0B1120", border:"1px solid rgba(255,255,255,0.07)" }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontSize:12, fontWeight:700, color:"#0F172A" }}>{s.label}</div>
-              <div style={{ fontSize:10, color:"#94A3B8", fontFamily:MONO, marginTop:2 }}>{s.desc}</div>
-              {infos[s.key] && <div style={{ fontSize:9, color:"#64748B", fontFamily:MONO, marginTop:2 }}>{infos[s.key]}</div>}
+              <div style={{ fontSize:15.6, fontWeight:700, color:"#F1F5F9" }}>{s.label}</div>
+              <div style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO, marginTop:2 }}>{s.desc}</div>
+              {infos[s.key] && <div style={{ fontSize:11.7, color:"#94A3B8", fontFamily:MONO, marginTop:2 }}>{infos[s.key]}</div>}
             </div>
           </div>
           <StatusBadge status={status[s.key]}/>
         </div>
       ))}
 
-      <div style={{ padding:"12px 16px", background:"#FFFBEB", borderRadius:8, border:"1px solid #FCD34D", borderLeft:"3px solid #B45309", marginTop:4 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:"#92400E", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO, marginBottom:4 }}>
+      <div style={{ padding:"12px 16px", background:"rgba(232,160,32,0.10)", borderRadius:8, border:"1px solid rgba(251,191,36,0.3)", borderLeft:"3px solid #B45309", marginTop:4 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#E8A020", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO, marginBottom:4 }}>
           🔒 LGPD — Nota de Privacidade
         </div>
-        <p style={{ fontSize:11, color:"#78350F", lineHeight:1.7, margin:0 }}>
+        <p style={{ fontSize:14.3, color:"#F1F5F9", lineHeight:1.7, margin:0 }}>
           Os dados processados por este sistema são tratados em conformidade com a Lei nº 13.709/2018 (LGPD). As conexões listadas acima são de uso interno e não expõem dados pessoais a terceiros. Toda comunicação com o Firebase é feita via credenciais de conta de serviço criptografadas.
         </p>
       </div>
@@ -553,18 +553,18 @@ export default function Configuracoes({ onNavigate, tema, setTema }) {
   }, [])
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, height:"100%", overflow:"hidden", background:"#F8FAFC" }}>
+    <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, height:"100%", overflow:"hidden", background:"#0B1120" }}>
 
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px 0", borderBottom:"1px solid #E2E8F0", background:"#FFFFFF", flexShrink:0 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px 0", borderBottom:"1px solid rgba(255,255,255,0.07)", background:"#111827", flexShrink:0 }}>
         <div style={{ paddingBottom:12 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span style={{ fontSize:14, fontWeight:800, color:"#0F172A" }}>Configurações</span>
+            <span style={{ fontSize:14, fontWeight:800, color:"#F1F5F9" }}>Configurações</span>
           </div>
-          <span style={{ fontSize:10, color:"#94A3B8", fontFamily:MONO }}>Agent Bastos · Sistema de Inteligência e Segurança</span>
+          <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>Agent Bastos · Sistema de Inteligência e Segurança</span>
         </div>
 
         <div style={{ display:"flex", gap:2, alignSelf:"flex-end", paddingBottom:0 }}>
@@ -572,8 +572,8 @@ export default function Configuracoes({ onNavigate, tema, setTema }) {
             <button key={a.id} onClick={() => setAba(a.id)} style={{
               padding:"7px 16px", borderRadius:"6px 6px 0 0",
               border:"1px solid", borderBottom:"none",
-              fontSize:11, fontWeight:600, cursor:"pointer", transition:"all 0.15s", fontFamily:"inherit",
-              background: aba===a.id ? "#F8FAFC"  : "transparent",
+              fontSize:14.3, fontWeight:600, cursor:"pointer", transition:"all 0.15s", fontFamily:"inherit",
+              background: aba===a.id ? "#0B1120"  : "transparent",
               color:       aba===a.id ? "#0F172A"  : "#94A3B8",
               borderColor: aba===a.id ? "#E2E8F0"  : "transparent",
             }}>

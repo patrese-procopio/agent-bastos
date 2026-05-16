@@ -165,11 +165,11 @@ export default function ChatRAG({ onNavigate }) {
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
             </svg>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#334155", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 16.9, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Base Doutrinária
             </span>
           </div>
-          <span style={{ fontSize: 9, color: "#B45309", fontWeight: 700, fontFamily: MONO, background: "#FEF3C7", padding: "2px 6px", borderRadius: 4, border: "1px solid #FDE68A" }}>
+          <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, fontFamily: MONO, background: "rgba(232,160,32,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #FDE68A" }}>
             710 chunks
           </span>
         </div>
@@ -178,14 +178,14 @@ export default function ChatRAG({ onNavigate }) {
         {ultimaBastos && ultimaBastos.confianca != null && (
           <div style={S.confiancaBox}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>
                 Confiança
               </span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: scoreColor(ultimaBastos.confianca), fontFamily: MONO }}>
+              <span style={{ fontSize: 15.6, fontWeight: 800, color: scoreColor(ultimaBastos.confianca), fontFamily: MONO }}>
                 {ultimaBastos.confianca}%
               </span>
             </div>
-            <div style={{ height: 6, background: "#F1F5F9", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: 6, background: "#1A2236", borderRadius: 3, overflow: "hidden" }}>
               <div style={{ height: "100%", width: ultimaBastos.confianca + "%", background: scoreColor(ultimaBastos.confianca), borderRadius: 3, transition: "width 0.6s ease" }}/>
             </div>
             <span style={{ fontSize: 9, color: scoreColor(ultimaBastos.confianca), fontWeight: 600, marginTop: 4, display: "block", fontFamily: MONO }}>
@@ -208,7 +208,7 @@ export default function ChatRAG({ onNavigate }) {
                   onClick={() => setFonteAtiva(fonteAtiva && fonteAtiva.id === f.id ? null : f)}
                   style={{
                     padding: "10px 12px",
-                    background: fonteAtiva && fonteAtiva.id === f.id ? "#FFFBEB" : "#FFFFFF",
+                    background: fonteAtiva && fonteAtiva.id === f.id ? "#FFFBEB" : "#111827",
                     border: "1px solid",
                     borderColor: fonteAtiva && fonteAtiva.id === f.id ? "rgba(180,83,9,0.4)" : "#E2E8F0",
                     borderRadius: 8,
@@ -220,10 +220,10 @@ export default function ChatRAG({ onNavigate }) {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "#EDE9FE", color: "#6D28D9", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
                         T{f.id}
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 16.9, fontWeight: 600, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {f.fonte.replace(".txt", "").replace(".pdf", "").replace(/_/g, " ")}
                       </span>
                     </div>
@@ -231,12 +231,12 @@ export default function ChatRAG({ onNavigate }) {
                       {f.score}%
                     </span>
                   </div>
-                  <div style={{ height: 3, background: "#F1F5F9", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
+                  <div style={{ height: 3, background: "#1A2236", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: f.score + "%", background: scoreColor(f.score), borderRadius: 2 }}/>
                   </div>
                   {fonteAtiva && fonteAtiva.id === f.id && (
-                    <div style={{ marginTop: 8, padding: "8px", background: "#F8FAFC", borderRadius: 5, border: "1px solid #E2E8F0" }}>
-                      <p style={{ fontSize: 10, color: "#475569", lineHeight: 1.55, fontFamily: MONO, margin: 0 }}>
+                    <div style={{ marginTop: 8, padding: "8px", background: "#0B1120", borderRadius: 5, border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <p style={{ fontSize: 16.9, color: "#475569", lineHeight: 1.55, fontFamily: MONO, margin: 0 }}>
                         "{f.trecho}..."
                       </p>
                     </div>
@@ -249,7 +249,7 @@ export default function ChatRAG({ onNavigate }) {
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <p style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", lineHeight: 1.5, fontFamily: MONO, margin: 0 }}>
+              <p style={{ fontSize: 14.3, color: "#94A3B8", textAlign: "center", lineHeight: 1.5, fontFamily: MONO, margin: 0 }}>
                 As fontes aparecem aqui após cada consulta
               </p>
             </div>
@@ -257,7 +257,7 @@ export default function ChatRAG({ onNavigate }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "10px 14px", borderTop: "1px solid #E2E8F0", background: "#F1F5F9", flexShrink: 0 }}>
+        <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#1A2236", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#16A34A", boxShadow: "0 0 5px rgba(22,163,74,0.7)" }}/>
             <span style={{ fontSize: 9, color: "#475569", fontFamily: MONO }}>ChromaDB · 710 chunks</span>
@@ -274,7 +274,7 @@ export default function ChatRAG({ onNavigate }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="live-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Chat RAG</div>
+              <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Chat RAG</div>
               <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, marginTop: 1 }}>
                 BASTOS-UNIT · Doutrina Nacional · LLaMA 70b
               </div>
@@ -297,7 +297,7 @@ export default function ChatRAG({ onNavigate }) {
             <button
               onClick={limpar}
               disabled={messages.length === 0}
-              style={{ ...S.headerBtn, color: "#DC2626", borderColor: "rgba(220,38,38,0.2)", background: "rgba(220,38,38,0.04)", opacity: messages.length === 0 ? 0.4 : 1, cursor: messages.length === 0 ? "not-allowed" : "pointer" }}
+              style={{ ...S.headerBtn, color: "#F87171", borderColor: "rgba(220,38,38,0.2)", background: "rgba(220,38,38,0.04)", opacity: messages.length === 0 ? 0.4 : 1, cursor: messages.length === 0 ? "not-allowed" : "pointer" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <polyline points="3 6 5 6 21 6"/>
@@ -316,27 +316,27 @@ export default function ChatRAG({ onNavigate }) {
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <p style={{ fontSize: 13, color: "#94A3B8", fontWeight: 500, margin: "6px 0 2px" }}>Consulte a base doutrinária</p>
-              <p style={{ fontSize: 11, color: "#CBD5E1", fontFamily: MONO, margin: 0 }}>Faça uma pergunta para iniciar a análise</p>
+              <p style={{ fontSize: 16.9, color: "#94A3B8", fontWeight: 500, margin: "6px 0 2px" }}>Consulte a base doutrinária</p>
+              <p style={{ fontSize: 14.3, color: "#CBD5E1", fontFamily: MONO, margin: 0 }}>Faça uma pergunta para iniciar a análise</p>
             </div>
           )}
 
           {messages.map((m, i) => (
             <div key={i} className="msg-enter" style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "78%", display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{
-                background: m.role === "user" ? "#0F172A" : "#FFFFFF",
+                background: m.role === "user" ? "#0F172A" : "#111827",
                 borderRadius: 6,
                 borderLeft: m.role === "bastos" ? "3px solid #EAB308" : "none",
-                border: m.role === "user" ? "none" : "1px solid #E2E8F0",
+                border: m.role === "user" ? "none" : "1px solid rgba(255,255,255,0.07)",
                 padding: "10px 14px",
-                fontSize: 13,
-                color: m.role === "user" ? "#FFFFFF" : "#1E293B",
+                fontSize: 16.9,
+                color: m.role === "user" ? "#111827" : "#1E293B",
                 lineHeight: 1.7,
                 boxShadow: m.role === "user" ? "0 4px 16px rgba(15,23,42,0.2)" : "0 2px 8px rgba(0,0,0,0.06)",
               }}>
                 {m.role === "bastos" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: 9, color: "#B45309", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
+                    <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
                     <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>· {now}</span>
                     <button
                       onClick={() => falar(i, m.text)}
@@ -370,7 +370,7 @@ export default function ChatRAG({ onNavigate }) {
 
               {m.role === "bastos" && m.confianca != null && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 4, flexWrap: "wrap" }}>
-                  <div style={{ width: 140, height: 3, background: "#F1F5F9", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: 140, height: 3, background: "#1A2236", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: m.confianca + "%", background: scoreColor(m.confianca), borderRadius: 2, transition: "width 0.6s ease" }}/>
                   </div>
                   <span style={{ fontSize: 9, color: scoreColor(m.confianca), fontWeight: 700, fontFamily: MONO }}>
@@ -379,7 +379,7 @@ export default function ChatRAG({ onNavigate }) {
                   {m.fontes && m.fontes.length > 0 && (
                     <div style={{ display: "flex", gap: 4 }}>
                       {m.fontes.map((f, j) => (
-                        <span key={j} style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "#EDE9FE", color: "#6D28D9", padding: "1px 5px", borderRadius: 3 }}>
+                        <span key={j} style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3 }}>
                           T{f.id}
                         </span>
                       ))}
@@ -391,14 +391,14 @@ export default function ChatRAG({ onNavigate }) {
           ))}
 
           {loading && (
-            <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#FFFFFF", border: "1px solid #E2E8F0", borderLeft: "3px solid #EAB308", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              <span style={{ fontSize: 9, color: "#B45309", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
+            <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderLeft: "3px solid #EAB308", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 <div className="dot1" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
                 <div className="dot2" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
                 <div className="dot3" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
               </div>
-              <span style={{ fontSize: 10, color: "#94A3B8", fontFamily: MONO }}>consultando doutrina...</span>
+              <span style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>consultando doutrina...</span>
             </div>
           )}
 
@@ -408,7 +408,7 @@ export default function ChatRAG({ onNavigate }) {
         {/* Input */}
         <div style={S.inputArea}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ width: 34, height: 34, borderRadius: 7, background: "#FEF3C7", border: "1px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 7, background: "rgba(232,160,32,0.12)", border: "1px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
@@ -433,7 +433,7 @@ export default function ChatRAG({ onNavigate }) {
               </svg>
             </button>
           </div>
-          <p style={{ fontSize: 10, color: "rgba(0,0,0,0.45)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
+          <p style={{ fontSize: 16.9, color: "rgba(0,0,0,0.45)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
             Pressione Enter para enviar · Respostas baseadas exclusivamente na base doutrinária indexada
           </p>
         </div>
@@ -444,14 +444,14 @@ export default function ChatRAG({ onNavigate }) {
 
 const S = {
   page: { display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden" },
-  aside: { width: 268, flexShrink: 0, background: "#F8FAFC", borderRight: "1px solid #E2E8F0", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" },
-  asideHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 14px 10px", borderBottom: "1px solid #E2E8F0", flexShrink: 0 },
-  confiancaBox: { margin: "10px 12px", padding: "10px 12px", background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", flexShrink: 0 },
-  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#FFFFFF", minHeight: 0 },
-  chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid #E2E8F0", background: "#FFFFFF", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
-  headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 500, color: "#475569", background: "rgba(255,255,255,0.8)", border: "1px solid #E2E8F0", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
+  aside: { width: 268, flexShrink: 0, background: "#0B1120", borderRight: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" },
+  asideHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 },
+  confiancaBox: { margin: "10px 12px", padding: "10px 12px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", flexShrink: 0 },
+  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#111827", minHeight: 0 },
+  chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#111827", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
+  headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 14.3, fontWeight: 500, color: "#475569", background: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
   messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, justifyContent: "flex-end" },
-  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid #E2E8F0", background: "#FFFFFF", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.04)" },
-  input: { flex: 1, background: "#F8FAFC", border: "1px solid #CBD5E1", borderRadius: 7, padding: "10px 14px", fontSize: 13, color: "#0F172A", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s" },
+  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#111827", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.04)" },
+  input: { flex: 1, background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 7, padding: "10px 14px", fontSize: 16.9, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s" },
   sendBtn: { width: 36, height: 36, background: "linear-gradient(135deg,#F59E0B,#B45309)", border: "none", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(180,83,9,0.3)", transition: "opacity 0.2s" },
 }

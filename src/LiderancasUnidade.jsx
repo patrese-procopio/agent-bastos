@@ -9,14 +9,14 @@ const FACCAO_COR = {
   "CV/AM":          { dot:"#DC2626", bg:"#FEF2F2", border:"#FECACA", text:"#991B1B" },
   "PCC":            { dot:"#3B82F6", bg:"#EFF6FF", border:"#BFDBFE", text:"#1E40AF" },
   "RDA":            { dot:"#22C55E", bg:"#F0FDF4", border:"#BBF7D0", text:"#166534" },
-  "NEUTROS":        { dot:"#94A3B8", bg:"#F8FAFC", border:"#CBD5E1", text:"#475569" },
+  "NEUTROS":        { dot:"#94A3B8", bg:"#0B1120", border:"#CBD5E1", text:"#475569" },
   "CRIMES SEXUAIS": { dot:"#F97316", bg:"#FFF7ED", border:"#FED7AA", text:"#9A3412" },
   "JACK/TDA":       { dot:"#8B5CF6", bg:"#F5F3FF", border:"#DDD6FE", text:"#5B21B6" },
   "AMARELINHOS":    { dot:"#F59E0B", bg:"#FFFBEB", border:"#FDE68A", text:"#92400E" },
-  "ISOLAMENTO":     { dot:"#6B7280", bg:"#F8FAFC", border:"#D1D5DB", text:"#374151" },
-  "MED. SEGURANÇA": { dot:"#94A3B8", bg:"#F8FAFC", border:"#CBD5E1", text:"#475569" },
+  "ISOLAMENTO":     { dot:"#6B7280", bg:"#0B1120", border:"#D1D5DB", text:"#374151" },
+  "MED. SEGURANÇA": { dot:"#94A3B8", bg:"#0B1120", border:"#CBD5E1", text:"#475569" },
 }
-function corF(f) { return FACCAO_COR[f] || { dot:"#94A3B8", bg:"#F8FAFC", border:"#E2E8F0", text:"#475569" } }
+function corF(f) { return FACCAO_COR[f] || { dot:"#94A3B8", bg:"#0B1120", border:"#E2E8F0", text:"#475569" } }
 
 const MESES_PT = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
 function fmtComp(comp) {
@@ -26,9 +26,9 @@ function fmtComp(comp) {
 }
 
 const inputStyle = {
-  padding:"8px 10px", borderRadius:6, border:"1px solid #E2E8F0",
-  fontSize:12, color:"#0F172A", fontFamily:MONO,
-  background:"#FFFFFF", outline:"none", width:"100%", boxSizing:"border-box",
+  padding:"8px 10px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)",
+  fontSize:15.6, color:"#F1F5F9", fontFamily:MONO,
+  background:"#111827", outline:"none", width:"100%", boxSizing:"border-box",
 }
 
 // ── Upload de foto ────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function FotoUpload({ fotoUrl, onChange }) {
       onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
       onDrop={e=>{e.preventDefault();setDrag(false);handle(e.dataTransfer.files[0])}}
       style={{width:120,height:150,borderRadius:8,overflow:"hidden",flexShrink:0,
-        border:`2px dashed ${drag?"#B45309":"#CBD5E1"}`,background:drag?"#FFFBEB":"#F8FAFC",
+        border:`2px dashed ${drag?"#B45309":"#CBD5E1"}`,background:drag?"#FFFBEB":"#0B1120",
         cursor:"pointer",position:"relative",display:"flex",alignItems:"center",
         justifyContent:"center",transition:"all 0.15s"}}>
       {preview
@@ -53,7 +53,7 @@ function FotoUpload({ fotoUrl, onChange }) {
               <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            <div style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,marginTop:6,lineHeight:1.4}}>Clique ou<br/>arraste foto</div>
+            <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:6,lineHeight:1.4}}>Clique ou<br/>arraste foto</div>
           </div>
       }
       <input ref={ref} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handle(e.target.files[0])}/>
@@ -66,8 +66,8 @@ function FotoUpload({ fotoUrl, onChange }) {
 function Campo({ label, children, required }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:4}}>
-      <label style={{fontSize:9,fontWeight:700,color:"#64748B",fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase"}}>
-        {label}{required && <span style={{color:"#DC2626"}}> *</span>}
+      <label style={{fontSize:11.7,fontWeight:700,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+        {label}{required && <span style={{color:"#F87171"}}> *</span>}
       </label>
       {children}
     </div>
@@ -100,13 +100,13 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",
       display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
-      <div style={{background:"#FFFFFF",borderRadius:14,width:"100%",maxWidth:420,
+      <div style={{background:"#111827",borderRadius:14,width:"100%",maxWidth:420,
         boxShadow:"0 20px 60px rgba(0,0,0,0.25)",overflow:"hidden"}}>
         <div style={{padding:"16px 20px",background:"#0F172A",borderRadius:"14px 14px 0 0",
           display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
-            <div style={{fontSize:13,fontWeight:800,color:"#FFFFFF"}}>Exportar PDF</div>
-            <div style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#F1F5F9"}}>Exportar PDF</div>
+            <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
               Relatório de lideranças — CONFIDENCIAL
             </div>
           </div>
@@ -121,9 +121,9 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
                 <button key={t.id} onClick={()=>setTipo(t.id)} style={{
                   padding:"10px",borderRadius:8,cursor:"pointer",
                   border:`2px solid ${tipo===t.id?"#B45309":"#E2E8F0"}`,
-                  background:tipo===t.id?"#FFFBEB":"#F8FAFC",
+                  background:tipo===t.id?"#FFFBEB":"#0B1120",
                   color:tipo===t.id?"#B45309":"#475569",
-                  fontSize:11,fontWeight:tipo===t.id?800:500,fontFamily:MONO,transition:"all 0.15s",
+                  fontSize:14.3,fontWeight:tipo===t.id?800:500,fontFamily:MONO,transition:"all 0.15s",
                 }}>{t.label}</button>
               ))}
             </div>
@@ -135,20 +135,20 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
                 : <option value={competencia}>{fmtComp(competencia)}</option>}
             </select>
           </Campo>
-          <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",
-            borderRadius:8,fontSize:11,color:"#475569",fontFamily:MONO}}>
+          <div style={{padding:"10px 14px",background:"#0B1120",border:"1px solid rgba(255,255,255,0.07)",
+            borderRadius:8,fontSize:14.3,color:"#94A3B8",fontFamily:MONO}}>
             Relatório: {tipo==="geral"?"6 unidades":unidadeLabel} · Competência: <strong>{fmtComp(comp)}</strong>
           </div>
         </div>
-        <div style={{padding:"12px 20px",borderTop:"1px solid #E2E8F0",
-          display:"flex",justifyContent:"flex-end",gap:8,background:"#F8FAFC",borderRadius:"0 0 14px 14px"}}>
+        <div style={{padding:"12px 20px",borderTop:"1px solid rgba(255,255,255,0.07)",
+          display:"flex",justifyContent:"flex-end",gap:8,background:"#0B1120",borderRadius:"0 0 14px 14px"}}>
           <button onClick={onFechar} style={{padding:"8px 18px",borderRadius:7,
-            border:"1px solid #E2E8F0",background:"#FFFFFF",fontSize:12,fontWeight:600,
-            color:"#475569",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
+            border:"1px solid rgba(255,255,255,0.07)",background:"#111827",fontSize:15.6,fontWeight:600,
+            color:"#94A3B8",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
           <button onClick={baixar} disabled={baixando} style={{
             padding:"8px 20px",borderRadius:7,border:"none",
-            background:baixando?"#CBD5E1":"#DC2626",color:"#FFFFFF",
-            fontSize:12,fontWeight:800,cursor:baixando?"not-allowed":"pointer",
+            background:baixando?"#CBD5E1":"#DC2626",color:"#F1F5F9",
+            fontSize:15.6,fontWeight:800,cursor:baixando?"not-allowed":"pointer",
             fontFamily:MONO,letterSpacing:"0.04em",display:"flex",alignItems:"center",gap:6}}>
             {baixando
               ? <><svg style={{animation:"spin 1s linear infinite"}} width="12" height="12"
@@ -220,16 +220,16 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",
       display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
-      <div style={{background:"#FFFFFF",borderRadius:14,width:"100%",maxWidth:560,
+      <div style={{background:"#111827",borderRadius:14,width:"100%",maxWidth:560,
         boxShadow:"0 20px 60px rgba(0,0,0,0.25)",display:"flex",flexDirection:"column",
         maxHeight:"92vh",overflow:"hidden"}}>
         <div style={{padding:"16px 20px",background:"#0F172A",borderRadius:"14px 14px 0 0",
           display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
-            <div style={{fontSize:13,fontWeight:800,color:"#FFFFFF"}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#F1F5F9"}}>
               {isEdicao?"Editar Líder":"Cadastrar Líder"}
             </div>
-            <div style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
+            <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
               {isEdicao?`ID: ${lider.id.slice(0,8)}...`:"Novo registro de liderança"}
             </div>
           </div>
@@ -253,23 +253,23 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
             </div>
           </div>
           <div style={{height:1,background:"#E2E8F0"}}/>
-          <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FCD34D",
+          <div style={{padding:"10px 14px",background:"rgba(232,160,32,0.10)",border:"1px solid rgba(251,191,36,0.3)",
             borderRadius:8,display:"flex",alignItems:"center",gap:12}}>
             <div style={{flex:1}}>
-              <div style={{fontSize:9,fontWeight:700,color:"#92400E",fontFamily:MONO,
+              <div style={{fontSize:11.7,fontWeight:700,color:"#E8A020",fontFamily:MONO,
                 letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>
                 Competência (mês/ano de referência) *
               </div>
               <input type="month" value={form.competencia} onChange={e=>set("competencia",e.target.value)}
-                style={{...inputStyle,borderColor:"#FCD34D",background:"#FFFFFF",fontFamily:MONO,fontWeight:700,color:"#B45309"}}/>
+                style={{...inputStyle,borderColor:"#FCD34D",background:"#111827",fontFamily:MONO,fontWeight:700,color:"#E8A020"}}/>
             </div>
-            <div style={{fontSize:9,color:"#92400E",fontFamily:MONO,lineHeight:1.5,maxWidth:140}}>
+            <div style={{fontSize:11.7,color:"#E8A020",fontFamily:MONO,lineHeight:1.5,maxWidth:140}}>
               Define o período histórico deste registro
             </div>
           </div>
           <div style={{height:1,background:"#E2E8F0"}}/>
           <div>
-            <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
+            <div style={{fontSize:11.7,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
               letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Localização</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <Campo label="Unidade" required>
@@ -302,7 +302,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
           </div>
           <div style={{height:1,background:"#E2E8F0"}}/>
           <div>
-            <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
+            <div style={{fontSize:11.7,fontWeight:700,color:"#94A3B8",fontFamily:MONO,
               letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Função na facção</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <Campo label="Facção" required>
@@ -326,17 +326,17 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
               placeholder="Informações adicionais relevantes..." rows={3}
               style={{...inputStyle,resize:"vertical",lineHeight:1.5}}/>
           </Campo>
-          {erro && <div style={{padding:"8px 12px",background:"#FEF2F2",border:"1px solid #FECACA",
-            borderRadius:6,fontSize:11,color:"#DC2626",fontFamily:MONO}}>{erro}</div>}
+          {erro && <div style={{padding:"8px 12px",background:"rgba(239,68,68,0.10)",border:"1px solid rgba(239,68,68,0.3)",
+            borderRadius:6,fontSize:14.3,color:"#F87171",fontFamily:MONO}}>{erro}</div>}
         </div>
-        <div style={{padding:"12px 20px",borderTop:"1px solid #E2E8F0",
-          display:"flex",justifyContent:"flex-end",gap:8,background:"#F8FAFC",borderRadius:"0 0 14px 14px"}}>
+        <div style={{padding:"12px 20px",borderTop:"1px solid rgba(255,255,255,0.07)",
+          display:"flex",justifyContent:"flex-end",gap:8,background:"#0B1120",borderRadius:"0 0 14px 14px"}}>
           <button onClick={onFechar} style={{padding:"8px 18px",borderRadius:7,
-            border:"1px solid #E2E8F0",background:"#FFFFFF",fontSize:12,fontWeight:600,
-            color:"#475569",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
+            border:"1px solid rgba(255,255,255,0.07)",background:"#111827",fontSize:15.6,fontWeight:600,
+            color:"#94A3B8",cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
           <button onClick={salvar} disabled={salvando} style={{padding:"8px 20px",borderRadius:7,
-            border:"none",background:salvando?"#CBD5E1":"#B45309",color:"#FFFFFF",
-            fontSize:12,fontWeight:800,cursor:salvando?"not-allowed":"pointer",fontFamily:MONO,letterSpacing:"0.04em"}}>
+            border:"none",background:salvando?"#CBD5E1":"#B45309",color:"#F1F5F9",
+            fontSize:15.6,fontWeight:800,cursor:salvando?"not-allowed":"pointer",fontFamily:MONO,letterSpacing:"0.04em"}}>
             {salvando?"Salvando...":isEdicao?"Salvar alterações":"Cadastrar líder"}
           </button>
         </div>
@@ -353,7 +353,7 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
 
   return (
     <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",
-      background:"#FFFFFF",border:`1px solid ${cor.border}`,borderLeft:`4px solid ${cor.dot}`,
+      background:"#111827",border:`1px solid ${cor.border}`,borderLeft:`4px solid ${cor.dot}`,
       borderRadius:10,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
       {/* Foto — 72x90px, proporção 3x4 */}
       <div style={{width:72,height:90,borderRadius:8,overflow:"hidden",background:"#1E293B",
@@ -373,35 +373,35 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
           <span style={{fontSize:16,fontWeight:900,color:cor.dot,fontFamily:MONO}}>
             {lider.vulgo||"—"}
           </span>
-          <span style={{fontSize:9,fontWeight:800,color:cor.text,background:cor.bg,
+          <span style={{fontSize:11.7,fontWeight:800,color:cor.text,background:cor.bg,
             border:`1px solid ${cor.border}`,padding:"2px 7px",borderRadius:3,fontFamily:MONO}}>
             {lider.faccao}
           </span>
           {lider.competencia && (
-            <span style={{fontSize:9,color:"#92400E",background:"#FFFBEB",
-              border:"1px solid #FCD34D",padding:"2px 7px",borderRadius:3,fontFamily:MONO,fontWeight:700}}>
+            <span style={{fontSize:11.7,color:"#E8A020",background:"rgba(232,160,32,0.10)",
+              border:"1px solid rgba(251,191,36,0.3)",padding:"2px 7px",borderRadius:3,fontFamily:MONO,fontWeight:700}}>
               {fmtComp(lider.competencia)}
             </span>
           )}
         </div>
         {lider.nome && (
-          <div style={{fontSize:14,fontWeight:800,color:"#1E293B",
+          <div style={{fontSize:14,fontWeight:800,color:"#F1F5F9",
             fontFamily:MONO,letterSpacing:"0.01em",marginBottom:4}}>{lider.nome}</div>
         )}
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:10,fontWeight:700,color:"#334155",fontFamily:MONO}}>{lider.cargo}</span>
+          <span style={{fontSize:13,fontWeight:700,color:"#94A3B8",fontFamily:MONO}}>{lider.cargo}</span>
           {lider.cela && (
             <><span style={{color:"#CBD5E1",fontSize:9}}>·</span>
-            <span style={{fontSize:10,color:"#64748B",fontFamily:MONO,
-              background:"#F1F5F9",padding:"1px 7px",borderRadius:3}}>{lider.cela}</span></>
+            <span style={{fontSize:13,color:"#94A3B8",fontFamily:MONO,
+              background:"#1A2236",padding:"1px 7px",borderRadius:3}}>{lider.cela}</span></>
           )}
           {dataCadastro && (
             <><span style={{color:"#CBD5E1",fontSize:9}}>·</span>
-            <span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO}}>cadastrado {dataCadastro}</span></>
+            <span style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO}}>cadastrado {dataCadastro}</span></>
           )}
         </div>
         {lider.observacao && (
-          <div style={{fontSize:10,color:"#94A3B8",marginTop:4,fontStyle:"italic"}}>
+          <div style={{fontSize:13,color:"#94A3B8",marginTop:4,fontStyle:"italic"}}>
             {lider.observacao.length>80?lider.observacao.slice(0,80)+"...":lider.observacao}
           </div>
         )}
@@ -409,7 +409,7 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
       {/* Ações */}
       <div style={{display:"flex",gap:5,flexShrink:0}}>
         <button onClick={()=>onEditar(lider)} style={{width:30,height:30,borderRadius:6,
-          border:"1px solid #E2E8F0",background:"#F8FAFC",cursor:"pointer",
+          border:"1px solid rgba(255,255,255,0.07)",background:"#0B1120",cursor:"pointer",
           display:"flex",alignItems:"center",justifyContent:"center"}}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -419,9 +419,9 @@ function CardLiderAla({ lider, onEditar, onDeletar }) {
         {confirmando
           ? <button onClick={()=>onDeletar(lider.id)} style={{height:30,borderRadius:6,border:"none",
               padding:"0 10px",background:"#DC2626",cursor:"pointer",
-              fontSize:9,fontWeight:800,color:"#FFF",fontFamily:MONO}}>confirmar</button>
+              fontSize:11.7,fontWeight:800,color:"#FFF",fontFamily:MONO}}>confirmar</button>
           : <button onClick={()=>setConfirmando(true)} style={{width:30,height:30,borderRadius:6,
-              border:"1px solid #FECACA",background:"#FEF2F2",cursor:"pointer",
+              border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.10)",cursor:"pointer",
               display:"flex",alignItems:"center",justifyContent:"center"}}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
@@ -441,21 +441,21 @@ function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
   return (
     <div style={{marginBottom:8}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"7px 12px",background:temLider?cor.bg:"#F8FAFC",
+        padding:"7px 12px",background:temLider?cor.bg:"#0B1120",
         border:`1px solid ${temLider?cor.border:"#E2E8F0"}`,
         borderRadius:temLider?"8px 8px 0 0":8,borderBottom:temLider?"none":undefined}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:3,height:14,borderRadius:2,background:temLider?cor.dot:"#CBD5E1"}}/>
-          <span style={{fontSize:11,fontWeight:700,color:"#334155",fontFamily:MONO}}>{ala}</span>
-          <span style={{fontSize:9,color:temLider?cor.text:"#94A3B8",fontFamily:MONO,
-            background:temLider?"#FFFFFF":"#F1F5F9",
+          <span style={{fontSize:14.3,fontWeight:700,color:"#94A3B8",fontFamily:MONO}}>{ala}</span>
+          <span style={{fontSize:11.7,color:temLider?cor.text:"#94A3B8",fontFamily:MONO,
+            background:temLider?"#111827":"#1A2236",
             border:`1px solid ${temLider?cor.border:"#E2E8F0"}`,padding:"1px 6px",borderRadius:3}}>
             {temLider?`${lideres.length} líder`:"sem líder"}
           </span>
         </div>
         <button onClick={onNovo} style={{padding:"3px 10px",borderRadius:5,
           border:`1px solid ${temLider?cor.border:"#E2E8F0"}`,background:"transparent",
-          fontSize:9,color:temLider?cor.text:"#64748B",cursor:"pointer",fontFamily:MONO,fontWeight:600}}>
+          fontSize:11.7,color:temLider?cor.text:"#64748B",cursor:"pointer",fontFamily:MONO,fontWeight:600}}>
           {temLider?"+ Outro":"+ Líder"}
         </button>
       </div>
@@ -484,7 +484,7 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
     : null
   const cor = corF(faccaoDom)
   return (
-    <div style={{background:"#FFFFFF",borderRadius:10,border:"1px solid #E2E8F0",
+    <div style={{background:"#111827",borderRadius:10,border:"1px solid rgba(255,255,255,0.07)",
       overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
       <div onClick={()=>setAberto(v=>!v)} style={{padding:"11px 16px",cursor:"pointer",
         background:"linear-gradient(135deg,#0F172A 0%,#1E293B 100%)",
@@ -493,10 +493,10 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:10,height:10,borderRadius:"50%",background:faccaoDom?cor.dot:"#475569",
             boxShadow:faccaoDom?`0 0 7px ${cor.dot}`:"none"}}/>
-          <span style={{fontSize:13,fontWeight:800,color:"#FFFFFF",letterSpacing:"0.06em",fontFamily:MONO}}>
+          <span style={{fontSize:13,fontWeight:800,color:"#F1F5F9",letterSpacing:"0.06em",fontFamily:MONO}}>
             {pavilhao}
           </span>
-          {total>0&&<span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,
+          {total>0&&<span style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,
             background:"rgba(255,255,255,0.08)",padding:"2px 8px",borderRadius:4}}>
             {total} líder{total!==1?"es":""}
           </span>}
@@ -504,8 +504,8 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} style={{
             padding:"4px 12px",borderRadius:5,border:"none",background:"#B45309",
-            color:"#FFF",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:MONO}}>+ Líder</button>
-          <span style={{color:"#475569",fontSize:13,userSelect:"none"}}>{aberto?"▲":"▼"}</span>
+            color:"#FFF",fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:MONO}}>+ Líder</button>
+          <span style={{color:"#94A3B8",fontSize:13,userSelect:"none"}}>{aberto?"▲":"▼"}</span>
         </div>
       </div>
       {aberto&&(
@@ -606,31 +606,31 @@ export default function LiderancasUnidade({ onNavigate }) {
   const dadosFiltrados = filtrar(dados)
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#F8FAFC",fontFamily:SANS,overflow:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#0B1120",fontFamily:SANS,overflow:"hidden"}}>
 
       {/* Topbar */}
-      <div style={{height:56,background:"#FFFFFF",borderBottom:"1px solid #E2E8F0",
+      <div style={{height:56,background:"#111827",borderBottom:"1px solid rgba(255,255,255,0.07)",
         display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"0 20px",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <button onClick={()=>onNavigate?.("Controle de Grupos")} style={{
-            background:"transparent",border:"none",cursor:"pointer",fontSize:18,color:"#64748B",padding:0}}>←</button>
+            background:"transparent",border:"none",cursor:"pointer",fontSize:18,color:"#94A3B8",padding:0}}>←</button>
           <div>
-            <div style={{fontSize:13,fontWeight:800,color:"#0F172A"}}>Lideranças por Unidade</div>
-            <div style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,marginTop:1}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#F1F5F9"}}>Lideranças por Unidade</div>
+            <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:1}}>
               {unidadesLabel[unidade]} · {fmtComp(competencia)||"sem registros"} · {totalLideres} líderes
             </div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"#FFFBEB",
-            border:"1px solid #FCD34D",borderRadius:8,padding:"0 4px 0 10px"}}>
-            <span style={{fontSize:9,fontWeight:700,color:"#92400E",fontFamily:MONO,whiteSpace:"nowrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(232,160,32,0.10)",
+            border:"1px solid rgba(251,191,36,0.3)",borderRadius:8,padding:"0 4px 0 10px"}}>
+            <span style={{fontSize:11.7,fontWeight:700,color:"#E8A020",fontFamily:MONO,whiteSpace:"nowrap"}}>
               MES/ANO
             </span>
             <select value={competencia} onChange={e=>setCompetencia(e.target.value)}
-              style={{fontSize:11,fontFamily:MONO,fontWeight:800,border:"none",borderRadius:6,
-                padding:"8px 4px",background:"transparent",color:"#B45309",cursor:"pointer",outline:"none"}}>
+              style={{fontSize:14.3,fontFamily:MONO,fontWeight:800,border:"none",borderRadius:6,
+                padding:"8px 4px",background:"transparent",color:"#E8A020",cursor:"pointer",outline:"none"}}>
               {competencias.length>0
                 ? competencias.map(c=><option key={c} value={c}>{fmtComp(c)}</option>)
                 : <option value={compAtual}>{fmtComp(compAtual)||"Nenhum"}</option>}
@@ -642,11 +642,11 @@ export default function LiderancasUnidade({ onNavigate }) {
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar vulgo, nome..."
-              style={{...inputStyle,paddingLeft:28,width:180,border:"1px solid #E2E8F0",background:"#F8FAFC"}}/>
+              style={{...inputStyle,paddingLeft:28,width:180,border:"1px solid rgba(255,255,255,0.07)",background:"#0B1120"}}/>
           </div>
           <button onClick={()=>setModalPDF(true)} style={{padding:"8px 14px",borderRadius:7,
-            border:"1px solid #E2E8F0",background:"#FFFFFF",color:"#64748B",
-            fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:MONO,
+            border:"1px solid rgba(255,255,255,0.07)",background:"#111827",color:"#94A3B8",
+            fontSize:14.3,fontWeight:700,cursor:"pointer",fontFamily:MONO,
             display:"flex",alignItems:"center",gap:5}}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -657,7 +657,7 @@ export default function LiderancasUnidade({ onNavigate }) {
           </button>
           <button onClick={()=>setModal({pavilhao:"",ala:""})} style={{
             padding:"8px 16px",borderRadius:7,border:"none",background:"#B45309",color:"#FFF",
-            fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:MONO,
+            fontSize:14.3,fontWeight:800,cursor:"pointer",fontFamily:MONO,
             letterSpacing:"0.04em",display:"flex",alignItems:"center",gap:6}}>
             <span style={{fontSize:16,lineHeight:1}}>+</span> Novo líder
           </button>
@@ -665,15 +665,15 @@ export default function LiderancasUnidade({ onNavigate }) {
       </div>
 
       {/* Abas de unidade */}
-      <div style={{display:"flex",gap:4,padding:"10px 20px",background:"#FFFFFF",
-        borderBottom:"1px solid #E2E8F0",flexShrink:0,overflowX:"auto"}}>
+      <div style={{display:"flex",gap:4,padding:"10px 20px",background:"#111827",
+        borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0,overflowX:"auto"}}>
         {Object.entries(unidadesLabel).map(([key,label])=>(
           <button key={key} onClick={()=>setUnidade(key)} style={{
-            background:unidade===key?"#0F172A":"#F1F5F9",
-            border:unidade===key?"none":"1px solid #E2E8F0",
+            background:unidade===key?"#0F172A":"#1A2236",
+            border:unidade===key?"none":"1px solid rgba(255,255,255,0.07)",
             borderRadius:8,cursor:"pointer",padding:"8px 20px",
-            fontSize:12,fontWeight:unidade===key?800:600,
-            color:unidade===key?"#FFFFFF":"#475569",
+            fontSize:15.6,fontWeight:unidade===key?800:600,
+            color:unidade===key?"#111827":"#475569",
             fontFamily:MONO,letterSpacing:"0.05em",transition:"all 0.15s",whiteSpace:"nowrap",
             boxShadow:unidade===key?"0 2px 8px rgba(15,23,42,0.3)":"none"}}>
             {label}
@@ -689,7 +689,7 @@ export default function LiderancasUnidade({ onNavigate }) {
               viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
               <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
             </svg>
-            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Carregando...</span>
+            <span style={{fontSize:14.3,color:"#94A3B8",fontFamily:MONO}}>Carregando...</span>
           </div>
         ) : dadosFiltrados ? (
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -716,7 +716,7 @@ export default function LiderancasUnidade({ onNavigate }) {
 
       {toast && (
         <div style={{position:"fixed",bottom:24,right:24,padding:"10px 18px",borderRadius:8,
-          background:toast.tipo==="erro"?"#DC2626":"#0F172A",color:"#FFF",fontSize:12,fontWeight:700,
+          background:toast.tipo==="erro"?"#DC2626":"#0F172A",color:"#FFF",fontSize:15.6,fontWeight:700,
           fontFamily:MONO,boxShadow:"0 4px 20px rgba(0,0,0,0.3)",zIndex:2000,animation:"fadeUp 0.2s ease"}}>
           {toast.tipo==="erro"?"✗ ":"✓ "}{toast.msg}
         </div>

@@ -61,7 +61,7 @@ function KpiCard({ grupo, qtd, variacao, cor, index }) {
   const desceu = variacao < 0
   return (
     <div style={{
-      background: "#FFFFFF",
+      background: "#111827",
       border: `1px solid ${cor}30`,
       borderLeft: `4px solid ${cor}`,
       borderRadius: 8,
@@ -94,7 +94,7 @@ function KpiCard({ grupo, qtd, variacao, cor, index }) {
           <span>{Math.abs(variacao).toFixed(1)}% vs mês anterior</span>
           {Math.abs(variacao) >= 20 && (
             <span style={{
-              background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA",
+              background: "rgba(239,68,68,0.10)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)",
               padding: "0px 4px", borderRadius: 3, fontSize: 8, marginLeft: 2,
             }}>ALERTA</span>
           )}
@@ -125,7 +125,7 @@ function GraficoBarras({ series, mesSelecionado, grupos }) {
               {grupo}
             </div>
             <div style={{
-              flex: 1, height: 18, background: "#F1F5F9",
+              flex: 1, height: 18, background: "#1A2236",
               borderRadius: 4, overflow: "hidden", position: "relative",
             }}>
               <div style={{
@@ -137,7 +137,7 @@ function GraficoBarras({ series, mesSelecionado, grupos }) {
               }}/>
             </div>
             <div style={{
-              width: 24, fontSize: 10, fontWeight: 800,
+              width: 24, fontSize: 16.9, fontWeight: 800,
               color: cor, fontFamily: MONO, textAlign: "right",
             }}>
               {qtd}
@@ -157,8 +157,8 @@ function TabelaUnidades({ porUnidade }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {Object.entries(porUnidade).map(([unidade, pavilhoes]) => (
         <div key={unidade} style={{
-          background: "#FFFFFF",
-          border: "1px solid #E2E8F0",
+          background: "#111827",
+          border: "1px solid rgba(255,255,255,0.07)",
           borderRadius: 8,
           overflow: "hidden",
           boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
@@ -173,25 +173,25 @@ function TabelaUnidades({ porUnidade }) {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{
-                fontSize: 11, fontWeight: 800, color: "#0F172A",
+                fontSize: 14.3, fontWeight: 800, color: "#F1F5F9",
                 letterSpacing: "0.05em", fontFamily: MONO,
               }}>
                 {unidade}
               </span>
               <span style={{
                 fontSize: 9, color: "#64748B", fontFamily: MONO,
-                background: "#F1F5F9", padding: "1px 6px", borderRadius: 4,
+                background: "#1A2236", padding: "1px 6px", borderRadius: 4,
               }}>
                 {pavilhoes.length} pavilhões
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "#94A3B8" }}>
+            <span style={{ fontSize: 15.6, color: "#94A3B8" }}>
               {aberta === unidade ? "▲" : "▼"}
             </span>
           </button>
 
           {aberta === unidade && (
-            <div style={{ borderTop: "1px solid #F1F5F9", padding: "0 14px 12px" }}>
+            <div style={{ borderTop: "1px solid #1A2236", padding: "0 14px 12px" }}>
               <div style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
@@ -212,7 +212,7 @@ function TabelaUnidades({ porUnidade }) {
                         background: cor, flexShrink: 0,
                       }}/>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: "#0F172A", lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 16.9, fontWeight: 600, color: "#F1F5F9", lineHeight: 1.3 }}>
                           {pav.label}
                         </div>
                         <div style={{ fontSize: 9, color: cor, fontWeight: 700, fontFamily: MONO }}>
@@ -580,12 +580,12 @@ export default function InteligenciaGrupos({ onNavigate }) {
   return (
     <div style={{
       display: "flex", flexDirection: "column", height: "100vh",
-      background: "#F8FAFC", fontFamily: SANS, overflow: "hidden",
+      background: "#0B1120", fontFamily: SANS, overflow: "hidden",
     }}>
 
       {/* ── Topbar ── */}
       <div style={{
-        height: 52, background: "#FFFFFF", borderBottom: "1px solid #E2E8F0",
+        height: 52, background: "#111827", borderBottom: "1px solid rgba(255,255,255,0.07)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 20px", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
       }}>
@@ -598,7 +598,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
             }}
           >←</button>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#0F172A", letterSpacing: "0.02em" }}>
+            <div style={{ fontSize: 16.9, fontWeight: 800, color: "#F1F5F9", letterSpacing: "0.02em" }}>
               Inteligência de Grupos
             </div>
             <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginTop: 1 }}>
@@ -611,8 +611,8 @@ export default function InteligenciaGrupos({ onNavigate }) {
           {/* Navegação por mês */}
           <div style={{
             display: "flex", alignItems: "center", gap: 0,
-            background: "#F1F5F9", borderRadius: 8, overflow: "hidden",
-            border: "1px solid #E2E8F0",
+            background: "#1A2236", borderRadius: 8, overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.07)",
           }}>
             <button
               onClick={() => podePrev && setMesSelecionado(meses[idxMes + 1])}
@@ -623,8 +623,8 @@ export default function InteligenciaGrupos({ onNavigate }) {
               }}
             >‹</button>
             <div style={{
-              padding: "4px 12px", fontSize: 11, fontWeight: 700,
-              color: "#0F172A", fontFamily: MONO, minWidth: 80, textAlign: "center",
+              padding: "4px 12px", fontSize: 14.3, fontWeight: 700,
+              color: "#F1F5F9", fontFamily: MONO, minWidth: 80, textAlign: "center",
             }}>
               {formatarMes(mesSelecionado)}
             </div>
@@ -642,10 +642,10 @@ export default function InteligenciaGrupos({ onNavigate }) {
             onClick={exportarPDF}
             disabled={grupos.length === 0}
             style={{
-              background: grupos.length === 0 ? "#F1F5F9" : "#B45309",
-              color: grupos.length === 0 ? "#94A3B8" : "#FFFFFF",
+              background: grupos.length === 0 ? "#1A2236" : "#B45309",
+              color: grupos.length === 0 ? "#94A3B8" : "#111827",
               border: "none", borderRadius: 7, padding: "6px 14px",
-              fontSize: 10, fontWeight: 700,
+              fontSize: 16.9, fontWeight: 700,
               cursor: grupos.length === 0 ? "not-allowed" : "pointer",
               fontFamily: MONO, letterSpacing: "0.05em",
             }}
@@ -657,8 +657,8 @@ export default function InteligenciaGrupos({ onNavigate }) {
             onClick={forcarSnapshot}
             disabled={loading}
             style={{
-              background: "#0F172A", color: "#FFFFFF", border: "none",
-              borderRadius: 7, padding: "6px 14px", fontSize: 10,
+              background: "#0F172A", color: "#F1F5F9", border: "none",
+              borderRadius: 7, padding: "6px 14px", fontSize: 16.9,
               fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
               fontFamily: MONO, letterSpacing: "0.05em",
               opacity: loading ? 0.6 : 1,
@@ -673,8 +673,8 @@ export default function InteligenciaGrupos({ onNavigate }) {
       {erro && (
         <div style={{
           margin: "12px 20px 0", padding: "8px 14px",
-          background: "#FEF2F2", border: "1px solid #FECACA",
-          borderRadius: 7, fontSize: 11, color: "#DC2626",
+          background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.3)",
+          borderRadius: 7, fontSize: 14.3, color: "#F87171",
         }}>
           ⚠ {erro}
         </div>
@@ -690,7 +690,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
           { label: "Alertas de variação", valor: alertasAtivos, cor: alertasAtivos > 0 ? "#DC2626" : "#64748B" },
         ].map(({ label, valor, cor }) => (
           <div key={label} style={{
-            background: "#FFFFFF", border: `1px solid ${cor}25`,
+            background: "#111827", border: `1px solid ${cor}25`,
             borderRadius: 8, padding: "8px 16px",
             display: "flex", alignItems: "center", gap: 10,
             boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
@@ -707,14 +707,14 @@ export default function InteligenciaGrupos({ onNavigate }) {
         {/* Alertas de variação */}
         {kpis?.alertas?.length > 0 && (
           <div style={{
-            flex: 1, background: "#FEF2F2", border: "1px solid #FECACA",
+            flex: 1, background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.3)",
             borderRadius: 8, padding: "8px 14px",
             display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
           }}>
-            <span style={{ fontSize: 9, fontWeight: 800, color: "#DC2626", fontFamily: MONO }}>⚠ VARIAÇÕES</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#F87171", fontFamily: MONO }}>⚠ VARIAÇÕES</span>
             {kpis.alertas.map((a, i) => (
               <span key={i} style={{
-                fontSize: 9, fontFamily: MONO, color: "#7F1D1D",
+                fontSize: 9, fontFamily: MONO, color: "#FCA5A5",
                 background: "#FECACA", padding: "2px 7px", borderRadius: 4,
               }}>
                 {a.grupo} {a.variacao > 0 ? "▲" : "▼"}{Math.abs(a.variacao)}%
@@ -727,7 +727,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
       {/* ── Abas ── */}
       <div style={{
         display: "flex", gap: 0, padding: "12px 20px 0", flexShrink: 0,
-        borderBottom: "1px solid #E2E8F0", marginTop: 8,
+        borderBottom: "1px solid rgba(255,255,255,0.07)", marginTop: 8,
       }}>
         {[
           { id: "kpis", label: "KPIs por Grupo" },
@@ -739,7 +739,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
             onClick={() => setAbaAtiva(aba.id)}
             style={{
               background: "transparent", border: "none", cursor: "pointer",
-              padding: "8px 16px", fontSize: 11, fontWeight: abaAtiva === aba.id ? 700 : 500,
+              padding: "8px 16px", fontSize: 14.3, fontWeight: abaAtiva === aba.id ? 700 : 500,
               color: abaAtiva === aba.id ? "#0F172A" : "#64748B",
               borderBottom: abaAtiva === aba.id ? "2px solid #B45309" : "2px solid transparent",
               marginBottom: -1, transition: "all 0.15s",
@@ -756,11 +756,11 @@ export default function InteligenciaGrupos({ onNavigate }) {
         {/* ABA: KPIs por grupo */}
         {abaAtiva === "kpis" && (
           loading ? (
-            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 11, paddingTop: 40 }}>
+            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 14.3, paddingTop: 40 }}>
               Carregando dados...
             </div>
           ) : grupos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 11, paddingTop: 40 }}>
+            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 14.3, paddingTop: 40 }}>
               Nenhum dado disponível para {formatarMes(mesSelecionado)}
             </div>
           ) : (
@@ -786,11 +786,11 @@ export default function InteligenciaGrupos({ onNavigate }) {
         {/* ABA: Evolução histórica */}
         {abaAtiva === "evolucao" && (
           <div style={{
-            background: "#FFFFFF", border: "1px solid #E2E8F0",
+            background: "#111827", border: "1px solid rgba(255,255,255,0.07)",
             borderRadius: 10, padding: "20px",
             boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
           }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#0F172A", marginBottom: 4 }}>
+            <div style={{ fontSize: 14.3, fontWeight: 800, color: "#F1F5F9", marginBottom: 4 }}>
               Distribuição por grupo — {formatarMes(mesSelecionado)}
             </div>
             <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginBottom: 16 }}>
@@ -810,8 +810,8 @@ export default function InteligenciaGrupos({ onNavigate }) {
 
             {/* Mini linha do tempo */}
             {kpis?.meses?.length > 1 && (
-              <div style={{ marginTop: 24, borderTop: "1px solid #F1F5F9", paddingTop: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", marginBottom: 10 }}>
+              <div style={{ marginTop: 24, borderTop: "1px solid #1A2236", paddingTop: 16 }}>
+                <div style={{ fontSize: 16.9, fontWeight: 700, color: "#94A3B8", marginBottom: 10 }}>
                   Meses disponíveis no histórico
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -820,11 +820,11 @@ export default function InteligenciaGrupos({ onNavigate }) {
                       key={mes}
                       onClick={() => setMesSelecionado(mes)}
                       style={{
-                        padding: "4px 12px", borderRadius: 6, fontSize: 10,
+                        padding: "4px 12px", borderRadius: 6, fontSize: 16.9,
                         fontFamily: MONO, fontWeight: 700, cursor: "pointer",
                         border: "1px solid",
                         borderColor: mes === mesSelecionado ? "#B45309" : "#E2E8F0",
-                        background: mes === mesSelecionado ? "#FEF3C7" : "#F8FAFC",
+                        background: mes === mesSelecionado ? "#FEF3C7" : "#0B1120",
                         color: mes === mesSelecionado ? "#92400E" : "#64748B",
                       }}
                     >
@@ -840,7 +840,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
         {/* ABA: Detalhamento por unidade */}
         {abaAtiva === "unidades" && (
           Object.keys(porUnidade).length === 0 ? (
-            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 11, paddingTop: 40 }}>
+            <div style={{ textAlign: "center", color: "#94A3B8", fontFamily: MONO, fontSize: 14.3, paddingTop: 40 }}>
               Nenhum dado disponível para {formatarMes(mesSelecionado)}
             </div>
           ) : (
