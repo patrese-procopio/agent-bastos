@@ -86,7 +86,7 @@ const GLOBAL_CSS = `
   .chip-dot-pulse { animation: pulse-glow 2.5s ease-in-out infinite; }
 
   input, textarea { caret-color: ${C.gold}; }
-  input::placeholder { color: ${C.textDim} !important; font-weight: 500 !important; opacity:1 !important; }
+  input::placeholder { color: rgba(255,255,255,0.55) !important; font-weight: 500 !important; opacity:1 !important; }
 
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius:4px; }
@@ -517,7 +517,10 @@ export default function App() {
                 </button>
               </div>
               {/* hint: 10 → 13px (+30%) */}
-              <p style={S.chatHint}>Pressione Enter para enviar · Use /comandos para ações rápidas</p>
+              <p style={S.chatHint}>
+                <span style={{color:C.gold,fontWeight:700,letterSpacing:"0.04em"}}>↵ Pressione Enter</span>
+                <span style={{color:"rgba(255,255,255,0.45)"}}> para enviar</span>
+              </p>
             </div>
           </>
         )}
@@ -649,8 +652,8 @@ const S = {
   emptyState:{position:"absolute",inset:0,display:"flex",flexDirection:"column",
     alignItems:"center",justifyContent:"center",pointerEvents:"none",userSelect:"none"},
   /* +30% */
-  emptyText:{fontSize:15.6,color:"rgba(255,255,255,0.12)",fontWeight:600,marginTop:10,letterSpacing:"0.04em"},
-  emptySubtext:{fontSize:13,color:"rgba(255,255,255,0.06)",fontFamily:MONO,marginTop:4},
+  emptyText:{fontSize:15.6,color:"rgba(255,255,255,0.35)",fontWeight:600,marginTop:10,letterSpacing:"0.04em"},
+  emptySubtext:{fontSize:13,color:"rgba(255,255,255,0.18)",fontFamily:MONO,marginTop:4},
   chatFadeMask:{position:"absolute",top:0,left:0,right:0,height:28,
     background:`linear-gradient(to bottom,${C.bg},transparent)`,zIndex:2,pointerEvents:"none"},
   chatMessages:{padding:"14px 16px 10px",display:"flex",flexDirection:"column",gap:10,height:"100%",overflowY:"auto"},
