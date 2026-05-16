@@ -324,7 +324,12 @@ export default function ControleGrupos({ onNavigate }) {
   )
 
   return (
-    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0F172A",fontFamily:SANS}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0F172A",fontFamily:SANS,position:"relative"}}>
+      {/* Textura de ruído — dá substância ao backdrop-filter da sidebar */}
+      <div style={{position:"absolute",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,backgroundRepeat:"repeat",opacity:1}}/>
+      {/* Gradiente diagonal sutil — dá variação de tom ao fundo */}
+      <div style={{position:"absolute",inset:0,zIndex:0,pointerEvents:"none",background:"linear-gradient(135deg, rgba(30,58,138,0.08) 0%, transparent 50%, rgba(15,23,42,0.12) 100%)"}}/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden"}}>
       <div style={{height:56,borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#0F172A",flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -453,6 +458,7 @@ export default function ControleGrupos({ onNavigate }) {
             )
           })()}
         </div>
+      </div>
       </div>
     </div>
   )
