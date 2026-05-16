@@ -455,7 +455,7 @@ const S = {
   chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0F172A", minHeight: 0 },
   chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.15)" },
   headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#CBD5E1", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
-  messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, justifyContent: "flex-end" },
+  messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 },
   inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.15)" },
   input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 15, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", "--placeholder": "rgba(255,255,255,0.55)" },
   sendBtn: { width: 36, height: 36, background: "linear-gradient(135deg,#F59E0B,#B45309)", border: "none", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(180,83,9,0.3)", transition: "opacity 0.2s" },
