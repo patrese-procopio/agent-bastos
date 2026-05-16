@@ -26,7 +26,6 @@ function createSplash() {
     },
   });
 
-  // HTML da splash inline — sem arquivo externo para simplificar
   const splashHtml = `
     <!DOCTYPE html>
     <html>
@@ -128,7 +127,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     frame: false,
-    show: false,                    // começa oculta — só mostra após splash
+    show: false,
     backgroundColor: "#F8FAFC",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -145,10 +144,11 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
   }
 
-  // Quando a janela terminar de carregar, fecha a splash e exibe
+  // Quando pronto: fecha splash, mostra e já maximiza
   mainWindow.once("ready-to-show", () => {
     closeSplash();
     mainWindow.show();
+    mainWindow.maximize(); // ← abre em tela cheia toda vez
   });
 }
 
@@ -192,8 +192,8 @@ function waitForUrl(url, retries, intervalMs) {
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  createSplash();           // mostra splash imediatamente
-  startPythonBackend();     // inicia o FastAPI em paralelo
+  createSplash();
+  startPythonBackend();
 
   try {
     await Promise.all([
@@ -206,8 +206,7 @@ app.whenReady().then(async () => {
     console.error(`[Startup] ${err.message} — abrindo sem backend.`);
   }
 
-  createWindow();           // cria a janela principal (ainda oculta)
-                            // ela se mostra sozinha no evento ready-to-show
+  createWindow();
 });
 
 app.on("window-all-closed", () => {
