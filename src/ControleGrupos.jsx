@@ -11,11 +11,11 @@ const CORES = {
   "JACK/TDA":       { bg:"#F5F3FF", text:"#5B21B6", border:"#DDD6FE", dot:"#8B5CF6" },
   "AMARELINHOS":    { bg:"#FFFBEB", text:"#92400E", border:"#FDE68A", dot:"#F59E0B" },
   "RDA":            { bg:"#F0FDF4", text:"#166534", border:"#BBF7D0", dot:"#22C55E" },
-  "NEUTROS":        { bg:"#0B1120", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
+  "NEUTROS":        { bg:"#1E293B", text:"#94A3B8", border:"#334155", dot:"#64748B" },
   "LGBTQIAPN+":     { bg:"#FDF2F8", text:"#9D174D", border:"#FBCFE8", dot:"#EC4899" },
   "CRIMES SEXUAIS": { bg:"#FFF7ED", text:"#9A3412", border:"#FED7AA", dot:"#F97316" },
-  "ISOLAMENTO":     { bg:"#0B1120", text:"#374151", border:"#D1D5DB", dot:"#6B7280" },
-  "MED. SEGURANÇA": { bg:"#0B1120", text:"#475569", border:"#CBD5E1", dot:"#94A3B8" },
+  "ISOLAMENTO":     { bg:"#292524", text:"#A8A29E", border:"#57534E", dot:"#78716C" },
+  "MED. SEGURANÇA": { bg:"#1E3A5F", text:"#93C5FD", border:"#3B82F6", dot:"#60A5FA" },
 }
 const NOMES = { CDPM1:"CDPM I", CDPM2:"CDPM II", IPAT:"IPAT", UPP:"UPP", COMPAJ:"COMPAJ", CDF:"CDF" }
 const NOMES_FULL = {
@@ -344,11 +344,16 @@ export default function ControleGrupos({ onNavigate }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#1A2236",fontFamily:SANS}}>
-      <div style={{height:44,borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#111827",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9"}}>Controle de Grupos</span>
-          <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9",fontFamily:MONO}}>· {NOMES_FULL[unit]}</span>
+      <div style={{height:56,borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#111827",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <div style={{display:"flex",flexDirection:"column",gap:1}}>
+            <span style={{fontSize:11,fontWeight:600,color:"#64748B",letterSpacing:"0.10em",textTransform:"uppercase",fontFamily:MONO}}>Controle de Grupos</span>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:17,fontWeight:800,color:"#F8FAFC",letterSpacing:"0.01em"}}>{NOMES_FULL[unit]}</span>
+              <span style={{fontSize:10,fontWeight:700,color:"#B45309",background:"rgba(180,83,9,0.12)",border:"1px solid rgba(180,83,9,0.35)",borderRadius:4,padding:"2px 7px",fontFamily:MONO,letterSpacing:"0.06em",textTransform:"uppercase"}}>{NOMES[unit]}</span>
+            </div>
+          </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {erroApi && <span style={{fontSize:11.7,color:"#F87171",fontFamily:MONO,background:"rgba(239,68,68,0.10)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>offline — dados locais</span>}
@@ -377,8 +382,8 @@ export default function ControleGrupos({ onNavigate }) {
           const gs  = [...new Set(Object.values(dados.unidades[k]?.pavs||{}).map(p=>p.g))]
           const cor = gs.some(g=>g.includes("CV")) ? "#DC2626" : gs.some(g=>g.includes("PCC")) ? "#3B82F6" : "#94A3B8"
           return (
-            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"6px 16px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:14.3,fontWeight:600,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#1A2236":"transparent",color:isA?"#0F172A":"#64748B",borderColor:isA?"#E2E8F0":"transparent"}}>
-              <span style={{width:7,height:7,borderRadius:"50%",background:cor,display:"inline-block",marginRight:6,verticalAlign:"middle"}}/>{n}
+            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"7px 18px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#1A2236":"rgba(255,255,255,0.06)",color:isA?"#FFFFFF":"#CBD5E1",borderColor:isA?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.08)",letterSpacing:"0.04em"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:cor,display:"inline-block",marginRight:7,verticalAlign:"middle",boxShadow:`0 0 5px ${cor}88`}}/>{n}
             </button>
           )
         })}
@@ -387,19 +392,19 @@ export default function ControleGrupos({ onNavigate }) {
         <div style={{width:268,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",background:"#111827",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
           <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #1A2236",background:"#0B1120",flexShrink:0}}>
             <div style={{fontSize:13,fontWeight:800,color:"#94A3B8",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:14.3,padding:"4px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO,fontWeight:700}}>{g}</span> })}
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"flex-start"}}>
+              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:12,padding:"5px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1.5px solid ${c.border}`,fontFamily:MONO,fontWeight:700,flex:"1 1 calc(50% - 5px)",textAlign:"center",minWidth:80,boxSizing:"border-box"}}>{g}</span> })}
             </div>
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
             {Object.entries(pavs).map(([id,p]) => {
               const c=CORES[p.g]||CORES["NEUTROS"]; const isA=pav===id
               return (
-                <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"#FFFBEB":"transparent",borderBottom:"1px solid rgba(255,255,255,0.07)",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
-                  <div style={{width:12,height:12,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 6px ${c.dot}`:"none"}}/>
+                <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"13px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"rgba(180,83,9,0.12)":"transparent",borderBottom:"1px solid rgba(255,255,255,0.07)",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
+                  <div style={{width:14,height:14,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 8px ${c.dot}`:`0 0 4px ${c.dot}88`}}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:isA?700:500,color:isA?"#0F172A":"#334155",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
-                    <div style={{fontSize:14.3,color:c.text,fontFamily:MONO,marginTop:2,fontWeight:700}}>{p.g}</div>
+                    <div style={{fontSize:14,fontWeight:isA?700:600,color:isA?"#F8FAFC":"#CBD5E1",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
+                    <div style={{fontSize:12,color:c.text,fontFamily:MONO,marginTop:3,fontWeight:700}}>{p.g}</div>
                   </div>
                   {isA && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>}
                 </div>
@@ -411,8 +416,8 @@ export default function ControleGrupos({ onNavigate }) {
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px"}}>
-          <div style={{display:"flex",flexWrap:"wrap",gap:20,padding:"10px 16px",background:"#111827",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            {Object.keys(CORES).map(g => { const c=CORES[g]; const at=grups.includes(g); return <div key={g} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:9,height:9,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 4px ${c.dot}88`}}/><span style={{fontSize:14.3,color:"#F1F5F9",fontFamily:MONO,fontWeight:at?700:400,opacity:at?1:0.35}}>{g}</span></div> })}
+          <div style={{display:"flex",flexWrap:"wrap",gap:16,padding:"10px 16px",background:"#111827",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,marginBottom:12,flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+            {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <div key={g} style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 5px ${c.dot}99`}}/><span style={{fontSize:12,color:"#F1F5F9",fontFamily:MONO,fontWeight:700}}>{g}</span></div> })}
           </div>
           <div ref={wrapRef} style={{flex:1,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)",minHeight:0,background:"#1a1a1a",backgroundImage:`url(${imgSrc})`,backgroundSize:"cover",backgroundPosition:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
             {err[unit] ? (
