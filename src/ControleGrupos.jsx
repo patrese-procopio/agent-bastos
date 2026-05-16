@@ -96,8 +96,8 @@ const CSS = `
   .ppulse{animation:pulse 1.2s ease-in-out 3}
   .spin{animation:spin 1s linear infinite}
   ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
-  .pr:hover{background:#FFFBEB!important}
-  .ut:hover{background:#1A2236!important;color:#0F172A!important}
+  .pr:hover{background:rgba(255,255,255,0.06)!important}
+  .ut:hover{background:rgba(255,255,255,0.12)!important;color:#FFFFFF!important}
 `
 
 export default function ControleGrupos({ onNavigate }) {
@@ -392,8 +392,13 @@ export default function ControleGrupos({ onNavigate }) {
         <div style={{width:268,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",background:"#111827",overflow:"hidden",boxShadow:"2px 0 6px rgba(0,0,0,0.04)"}}>
           <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #1A2236",background:"#0B1120",flexShrink:0}}>
             <div style={{fontSize:13,fontWeight:800,color:"#94A3B8",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5,justifyContent:"flex-start"}}>
-              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return <span key={g} style={{fontSize:12,padding:"5px 10px",borderRadius:5,background:c.bg,color:c.text,border:`1.5px solid ${c.border}`,fontFamily:MONO,fontWeight:700,flex:"1 1 calc(50% - 5px)",textAlign:"center",minWidth:80,boxSizing:"border-box"}}>{g}</span> })}
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return (
+                <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid rgba(255,255,255,0.07)`,borderLeft:`3px solid ${c.dot}`}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 5px ${c.dot}99`}}/>
+                  <span style={{fontSize:11,color:c.text,fontFamily:MONO,fontWeight:700,letterSpacing:"0.06em"}}>{g}</span>
+                </div>
+              )})}
             </div>
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
@@ -403,8 +408,8 @@ export default function ControleGrupos({ onNavigate }) {
                 <div key={id} className="pr" onClick={()=>setPav(v=>v===id?null:id)} style={{display:"flex",alignItems:"center",gap:10,padding:"13px 12px",cursor:"pointer",transition:"all 0.12s",background:isA?"rgba(180,83,9,0.12)":"transparent",borderBottom:"1px solid rgba(255,255,255,0.07)",borderLeft:`3px solid ${isA?c.dot:"transparent"}`}}>
                   <div style={{width:14,height:14,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:isA?`0 0 8px ${c.dot}`:`0 0 4px ${c.dot}88`}}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:14,fontWeight:isA?700:600,color:isA?"#F8FAFC":"#CBD5E1",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
-                    <div style={{fontSize:12,color:c.text,fontFamily:MONO,marginTop:3,fontWeight:700}}>{p.g}</div>
+                    <div style={{fontSize:14,fontWeight:isA?700:600,color:"#F1F5F9",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.l}</div>
+                    <div style={{fontSize:12,color:c.dot,fontFamily:MONO,marginTop:3,fontWeight:700}}>{p.g}</div>
                   </div>
                   {isA && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>}
                 </div>
