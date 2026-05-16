@@ -382,7 +382,7 @@ export default function ControleGrupos({ onNavigate }) {
               {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return (
                 <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:"rgba(255,255,255,0.03)",border:`1px solid rgba(255,255,255,0.08)`,borderLeft:`3px solid ${c.dot}`}}>
                   <div style={{width:8,height:8,borderRadius:"50%",background:c.dot,flexShrink:0,boxShadow:`0 0 5px ${c.dot}99`}}/>
-                  <span style={{fontSize:11,color:c.text,fontFamily:MONO,fontWeight:700,letterSpacing:"0.06em"}}>{g}</span>
+                  <span style={{fontSize:11,color:c.dot,fontFamily:MONO,fontWeight:700,letterSpacing:"0.06em"}}>{g}</span>
                 </div>
               )})}
             </div>
