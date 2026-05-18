@@ -17,6 +17,7 @@ from modules.rag import conversar_com_bastos, conversar_com_fontes
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 from api_liderancas_router import liderancas_router
 from routers.alertas_router import router as alertas_router
+from routers.dashboard_router import router as dashboard_router
 from services.alertas_service import (
     ler_alertas    as _ler_alertas,
     salvar_alertas as _salvar_alertas,
@@ -241,6 +242,7 @@ app.add_middleware(
 )
 app.include_router(liderancas_router)
 app.include_router(alertas_router)
+app.include_router(dashboard_router)
 
 # â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -916,8 +918,7 @@ async def decifrar_missiva(
         tipo_documento=tipo_enum,
         contexto_extra=contexto_extra,
     )
-from modules.dashboard_routes import registrar_rotas_dashboard
-registrar_rotas_dashboard(app)
+# rotas dashboard migradas para routers/dashboard_router.py (Passo 4)
 
 # --- Lideranças por Unidade ---
 @app.get("/ocupacao")
