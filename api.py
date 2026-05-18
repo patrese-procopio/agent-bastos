@@ -994,6 +994,17 @@ from googleapiclient.http import MediaIoBaseDownload as _MediaIoBaseDownload
 from google.oauth2 import service_account as _sa
 import openpyxl as _openpyxl
 
+# ── Drive service (Passo 1 da refatoração) ────────────────────────────────────
+# As funções _gdrive_service, _upload_json_drive e _baixar_json_drive foram
+# movidas para services/drive_service.py. Os aliases abaixo mantêm compatibilidade
+# com todo o código existente sem alterar nenhuma chamada.
+from services.drive_service import (
+    get_service        as _gdrive_service_new,
+    upload_json        as _upload_json_drive,
+    download_json      as _baixar_json_drive,
+    download_bytes     as _download_bytes_drive,
+)
+
 
 def _mascarar_cpf(cpf: str) -> str:
     """753.164.392-87 â†’ 753.***.***-**"""
@@ -1006,17 +1017,8 @@ def _mascarar_cpf(cpf: str) -> str:
 
 
 def _baixar_xlsx_drive() -> bytes:
-    """Baixa .xlsx real do Google Drive via Service Account."""
-    creds   = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=_GDRIVE_SCOPES)
-    service = _gdrive_build("drive", "v3", credentials=creds)
-    request = service.files().get_media(fileId=_LISTA_NEGRA_FILE_ID)
-    buf     = io.BytesIO()
-    dl      = _MediaIoBaseDownload(buf, request)
-    done    = False
-    while not done:
-        _, done = dl.next_chunk()
-    buf.seek(0)
-    return buf.read()
+    """Alias de compatibilidade → services.drive_service.download_bytes()"""
+    return _download_bytes_drive(_LISTA_NEGRA_FILE_ID)
 
 
 def _ler_lista_negra() -> list:
@@ -1232,46 +1234,12 @@ def get_ocupacao():
 # --- Inteligência de Grupos — Snapshots e KPIs ---
 _HISTORICO_FOLDER_ID = "1-hQE2t9P7Kpk31V5oKCUoylM03nCNhT_"
 
+# ── _gdrive_service, _upload_json_drive, _baixar_json_drive ──────────────────
+# Movidas para services/drive_service.py (Passo 1 da refatoração).
+# Alias local mantém compatibilidade com todo o código abaixo sem alterar chamadas.
 def _gdrive_service():
-    creds = _sa.Credentials.from_service_account_file(_SA_KEY_PATH, scopes=["https://www.googleapis.com/auth/drive"])
-    return _gdrive_build("drive", "v3", credentials=creds)
-
-def _upload_json_drive(nome_arquivo: str, dados: dict, folder_id: str):
-    import io
-    from googleapiclient.http import MediaIoBaseUpload
-    service = _gdrive_service()
-    results = service.files().list(
-        q=f"name='{nome_arquivo}' and '{folder_id}' in parents and trashed=false",
-        fields="files(id)"
-    ).execute()
-    conteudo = json.dumps(dados, ensure_ascii=False, indent=2).encode("utf-8")
-    media = MediaIoBaseUpload(io.BytesIO(conteudo), mimetype="application/json")
-    if results["files"]:
-        service.files().update(fileId=results["files"][0]["id"], media_body=media).execute()
-    else:
-        service.files().create(
-            body={"name": nome_arquivo, "parents": [folder_id]},
-            media_body=media
-        ).execute()
-
-def _baixar_json_drive(nome_arquivo: str, folder_id: str) -> dict:
-    import io
-    from googleapiclient.http import MediaIoBaseDownload
-    service = _gdrive_service()
-    results = service.files().list(
-        q=f"name='{nome_arquivo}' and '{folder_id}' in parents and trashed=false",
-        fields="files(id)"
-    ).execute()
-    if not results["files"]:
-        return None
-    buffer = io.BytesIO()
-    request = service.files().get_media(fileId=results["files"][0]["id"])
-    downloader = MediaIoBaseDownload(buffer, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    buffer.seek(0)
-    return json.loads(buffer.read().decode("utf-8-sig"))
+    """Alias de compatibilidade → services.drive_service.get_service()"""
+    return _gdrive_service_new(readonly=False)
 
 def _salvar_snapshot_automatico():
     mes_atual = datetime.now().strftime("%Y-%m")
