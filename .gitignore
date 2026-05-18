@@ -57,3 +57,7 @@ inject_*.py
 !services/**
 !routers/
 !routers/**
+
+# ─── Mas __pycache__ dentro delas continua ignorado ──────────────────────────
+services/__pycache__/
+routers/__pycache__/
