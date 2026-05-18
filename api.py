@@ -18,6 +18,7 @@ from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 from api_liderancas_router import liderancas_router
 from routers.alertas_router import router as alertas_router
 from routers.dashboard_router import router as dashboard_router
+from routers.transcricao_router import router as transcricao_router
 from services.alertas_service import (
     ler_alertas    as _ler_alertas,
     salvar_alertas as _salvar_alertas,
@@ -243,6 +244,7 @@ app.add_middleware(
 app.include_router(liderancas_router)
 app.include_router(alertas_router)
 app.include_router(dashboard_router)
+app.include_router(transcricao_router)
 
 # â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -270,34 +272,6 @@ class RelatorioRequest(BaseModel):
 
 
 # â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-def _get_wav_duration(path: str) -> str:
-    try:
-        with wave.open(path, "r") as wf:
-            secs = int(wf.getnframes() / wf.getframerate())
-        return f"{secs // 60:02d}:{secs % 60:02d}:00"
-    except Exception:
-        return "00:00:00"
-
-
-def _parse_llm_json(text: str) -> dict:
-    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if match:
-        text = match.group(1).strip()
-    else:
-        start, end = text.find("{"), text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start : end + 1]
-    return json.loads(text)
-
-
-def _date_str_pt(dt: datetime) -> str:
-    return f"{dt.day} de {_MESES_PT[dt.month - 1]} de {dt.year}"
-
-
-# â”€â”€â”€ Endpoints principais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-# â”€â”€â”€ NotÃ­cias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/noticias")
 def noticias():
@@ -370,150 +344,6 @@ async def salvar_noticias(dados: dict):
 
 
 # â”€â”€â”€ TranscriÃ§Ã£o de Ã¡udio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@app.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...)):
-    filename = audio.filename or "audio.wav"
-    suffix   = os.path.splitext(filename)[1].lower()
-
-    if suffix not in _AUDIO_EXTS:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Formato nÃ£o suportado: '{suffix}'. Use: {', '.join(sorted(_AUDIO_EXTS))}",
-        )
-
-    audio_bytes = await audio.read()
-    if len(audio_bytes) > _MAX_AUDIO_BYTES:
-        raise HTTPException(status_code=413, detail="Arquivo excede o limite de 25 MB.")
-    if len(audio_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Arquivo de Ã¡udio vazio.")
-
-    now          = datetime.now()
-    laudo_number = now.strftime("%m%d/%Y")
-    date_str     = _date_str_pt(now)
-    raw_text     = ""
-    duration_str = "00:00:00"
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(audio_bytes)
-        tmp_path = tmp.name
-
-    try:
-        if suffix == ".wav":
-            duration_str = _get_wav_duration(tmp_path)
-
-        with open(tmp_path, "rb") as f:
-            transcription = _groq.audio.transcriptions.create(
-                file=(filename, f),
-                model="whisper-large-v3-turbo",
-                language="pt",
-                response_format="verbose_json",
-                prompt="Ãudio operacional SEAP/AM. Terminologia policial e penitenciÃ¡ria brasileira.",
-            )
-
-        raw_text         = transcription.text
-        whisper_segments = getattr(transcription, "segments", []) or []
-        whisper_duration = getattr(transcription, "duration", None)
-
-        if whisper_duration:
-            secs         = int(whisper_duration)
-            duration_str = f"{secs // 60:02d}:{secs % 60:02d}:00"
-
-        if whisper_segments:
-            lines = []
-            for seg in whisper_segments:
-                start = seg.get("start", 0) if isinstance(seg, dict) else getattr(seg, "start", 0)
-                text  = seg.get("text",  "") if isinstance(seg, dict) else getattr(seg, "text",  "")
-                ts    = f"{int(start) // 60:02d}:{int(start) % 60:02d}:{int((start % 1) * 100):02d}"
-                lines.append(f"[{ts}] {text.strip()}")
-            segments_text = "\n".join(lines)
-        else:
-            segments_text = raw_text
-
-        analysis_prompt = (
-            "VocÃª Ã© BASTOS-UNIT, analista de inteligÃªncia penitenciÃ¡ria da SEAP/AM.\n\n"
-            "Analise a transcriÃ§Ã£o abaixo e retorne SOMENTE o JSON (sem markdown):\n\n"
-            f"TRANSCRIÃ‡ÃƒO:\n{segments_text}\n\n"
-            "{\n"
-            f'  "laudo_number": "{laudo_number}",\n'
-            f'  "date": "{date_str}",\n'
-            f'  "filename": "{filename}",\n'
-            f'  "duration": "{duration_str}",\n'
-            '  "speakers": [{"id":"M1","label":"Voz masculina","role":"Interlocutor A"}],\n'
-            '  "segments": [{"ts":"00:00:00","speaker":"M1","text":"..."}],\n'
-            '  "risk_level": "ALTO",\n'
-            '  "classification": "...",\n'
-            '  "summary": "...",\n'
-            '  "red_flags": [{"id":1,"title":"...","text":"..."}]\n'
-            "}\n\n"
-            "Regras: speakers mÃ¡x 4 (M1,M2,F1,F2); risk_level=ALTO/MÃ‰DIO/BAIXO; "
-            "red_flags pode ser []; retorne APENAS o JSON."
-        )
-
-        completion = _groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": analysis_prompt}],
-            temperature=0.1,
-            max_tokens=3000,
-        )
-
-        return _parse_llm_json(completion.choices[0].message.content)
-
-    except json.JSONDecodeError:
-        return {
-            "laudo_number": laudo_number,
-            "date":         date_str,
-            "filename":     filename,
-            "duration":     duration_str,
-            "speakers":     [{"id": "M1", "label": "Voz detectada", "role": "Interlocutor"}],
-            "segments":     [{"ts": "00:00:00", "speaker": "M1", "text": raw_text}],
-            "risk_level":   "MÃ‰DIO",
-            "classification": "TranscriÃ§Ã£o de Ã¡udio operacional",
-            "summary":      raw_text[:300] if raw_text else "Sem conteÃºdo identificado.",
-            "red_flags":    [],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-
-
-# â”€â”€â”€ ExportaÃ§Ã£o de laudos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-# ── Export helpers (Passo 2 da refatoração) ──────────────────────────────────
-# _build_txt, _build_pdf, _build_docx movidas para services/export_service.py
-from services.export_service import build_txt as _build_txt, build_pdf as _build_pdf, build_docx as _build_docx
-
-# ── Alertas (Passo 3 da refatoração): imports movidos para o topo do arquivo ──
-
-
-@app.post("/export/{fmt}")
-async def export_transcript(fmt: str, body: dict):
-    if fmt not in _EXPORT_MIME:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Formato '{fmt}' nÃ£o suportado. Use: {', '.join(_EXPORT_MIME)}",
-        )
-    transcript   = body.get("transcript", {})
-    laudo_num    = transcript.get("laudo_number", "laudo").replace("/", "-")
-    out_filename = f"laudo_{laudo_num}.{fmt}"
-    try:
-        if fmt == "txt":
-            content = _build_txt(transcript)
-        elif fmt == "pdf":
-            content = _build_pdf(transcript)
-        else:
-            content = _build_docx(transcript)
-        return Response(
-            content=content,
-            media_type=_EXPORT_MIME[fmt],
-            headers={"Content-Disposition": f'attachment; filename="{out_filename}"'},
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Falha ao gerar {fmt.upper()}: {e}")
 
 
 # â”€â”€â”€ Agenda de MissÃ£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
