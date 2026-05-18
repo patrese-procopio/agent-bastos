@@ -22,6 +22,7 @@ from routers.transcricao_router import router as transcricao_router
 from routers.agenda_router import router as agenda_router
 from routers.referencias_router import router as referencias_router
 from routers.inteligencia_router import router as inteligencia_router
+from routers.sistema_router import router as sistema_router
 from services.alertas_service import (
     ler_alertas    as _ler_alertas,
     salvar_alertas as _salvar_alertas,
@@ -251,6 +252,7 @@ app.include_router(transcricao_router)
 app.include_router(agenda_router)
 app.include_router(referencias_router)
 app.include_router(inteligencia_router)
+app.include_router(sistema_router)
 
 # â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
