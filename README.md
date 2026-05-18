@@ -32,7 +32,7 @@
 
 <br/>
 
-[📖 Sobre o Projeto](#-sobre-o-projeto) • [🚀 Quick Start](#-quick-start-60-segundos) • [🏗️ Arquitetura](#️-arquitetura) • [📊 Resultados RAGAS](#-avaliação-de-qualidade--ragas) • [🗺️ Roadmap](#️-roadmap)
+[📖 Sobre o Projeto](#-sobre-o-projeto) • [🚀 Quick Start](#-quick-start-60-segundos) • [🏗️ Arquitetura](#️-arquitetura) • [📊 Resultados RAGAS](#-avaliação-de-qualidade--ragas) • [🗺️ Roadmap](#️-roadmap) • [📐 ADRs](./ARCHITECTURE.md)
 
 </div>
 
@@ -153,6 +153,8 @@ Sistema de alertas operacionais integrado a workflows **n8n** com gestão de alv
 ---
 
 ## 🏗️ Arquitetura
+
+> 📐 **[Ver decisões arquiteturais completas (ARCHITECTURE.md)](./ARCHITECTURE.md)** — 10 ADRs documentados com contexto, trade-offs e resultados mensuráveis. Inclui timeline de evolução do projeto e benchmarks comparativos.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
