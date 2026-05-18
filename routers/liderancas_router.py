@@ -25,7 +25,8 @@ from modules.liderancas import (
     _competencia_atual,
 )
 
-liderancas_router = APIRouter(prefix="/api/liderancas", tags=["liderancas"])
+router = APIRouter(prefix="/api/liderancas", tags=["liderancas"])
+liderancas_router = router  # alias — decoradores @liderancas_router.X continuam funcionando
 
 _MESES_PT = ["","Janeiro","Fevereiro","Março","Abril","Maio","Junho",
              "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]

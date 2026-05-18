@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ── Routers ──────────────────────────────────────────────────────────────────
-from api_liderancas_router import liderancas_router
+from routers.liderancas_router import router as liderancas_router
 from routers.alertas_router     import router as alertas_router
 from routers.agenda_router      import router as agenda_router
 from routers.dashboard_router   import router as dashboard_router
