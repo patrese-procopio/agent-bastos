@@ -16,6 +16,13 @@ from groq import Groq
 from modules.rag import conversar_com_bastos, conversar_com_fontes
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 from api_liderancas_router import liderancas_router
+from routers.alertas_router import router as alertas_router
+from services.alertas_service import (
+    ler_alertas    as _ler_alertas,
+    salvar_alertas as _salvar_alertas,
+    ALERTAS_PATH       as _ALERTAS_PATH,
+    ALERTAS_OSINT_PATH as _ALERTAS_OSINT_PATH,
+)
 from modules.liderancas import (
     ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, estrutura_com_celas,
     criar_lider, atualizar_lider, deletar_lider,
@@ -67,24 +74,6 @@ _INDICE_PATH          = os.path.join(BASE_DIR, "indice_documentos.json")
 _LISTA_NEGRA_FILE_ID = "1G6eFhb0jnD38iWU_SLDIFkGtOB0ngHjh"
 _GDRIVE_SCOPES       = ["https://www.googleapis.com/auth/drive.readonly"]
 
-
-def _ler_alertas(caminho: str) -> list:
-    if not os.path.exists(caminho):
-        return []
-    try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-
-def _salvar_alertas(caminho: str, alertas: list) -> None:
-    with _alertas_lock:
-        with open(caminho, "w", encoding="utf-8") as f:
-            json.dump(alertas, f, ensure_ascii=False, indent=2)
-
-
-# â”€â”€â”€ Seed inicial de alertas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _seed_alertas_iniciais() -> None:
     now = datetime.now()
@@ -251,6 +240,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 app.include_router(liderancas_router)
+app.include_router(alertas_router)
 
 # â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -495,6 +485,8 @@ async def transcribe(audio: UploadFile = File(...)):
 # _build_txt, _build_pdf, _build_docx movidas para services/export_service.py
 from services.export_service import build_txt as _build_txt, build_pdf as _build_pdf, build_docx as _build_docx
 
+# ── Alertas (Passo 3 da refatoração): imports movidos para o topo do arquivo ──
+
 
 @app.post("/export/{fmt}")
 async def export_transcript(fmt: str, body: dict):
@@ -635,107 +627,6 @@ def _serializar_alerta(doc) -> dict:
 
 
 # â”€â”€â”€ Alertas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@app.get("/alertas")
-def listar_alertas(limite: int = 50):
-    try:
-        db   = _get_firestore()
-        docs = (
-            db.collection("alertas")
-            .where("categoria", "==", "realtime")
-            .order_by("timestamp", direction="DESCENDING")
-            .limit(limite)
-            .stream()
-        )
-        return [_serializar_alerta(d) for d in docs]
-    except Exception:
-        return _ler_alertas(_ALERTAS_PATH)
-
-
-@app.get("/alertas/osint")
-def listar_alertas_osint(limite: int = 50):
-    try:
-        db   = _get_firestore()
-        docs = (
-            db.collection("alertas")
-            .where("categoria", "==", "osint")
-            .order_by("timestamp", direction="DESCENDING")
-            .limit(limite)
-            .stream()
-        )
-        return [_serializar_alerta(d) for d in docs]
-    except Exception:
-        return _ler_alertas(_ALERTAS_OSINT_PATH)
-
-
-@app.post("/alertas/salvar")
-async def salvar_alerta(alerta: dict):
-    alertas = _ler_alertas(_ALERTAS_PATH)
-    ids = {a.get("id") for a in alertas}
-    if alerta.get("id") not in ids:
-        alertas.insert(0, alerta)
-    _salvar_alertas(_ALERTAS_PATH, alertas)
-    return {"status": "salvo", "total": len(alertas)}
-
-
-@app.post("/alertas/osint/salvar")
-async def salvar_alerta_osint(alerta: dict):
-    alertas = _ler_alertas(_ALERTAS_OSINT_PATH)
-    ids = {a.get("id") for a in alertas}
-    if alerta.get("id") not in ids:
-        alertas.insert(0, alerta)
-    _salvar_alertas(_ALERTAS_OSINT_PATH, alertas)
-    return {"status": "salvo", "total": len(alertas)}
-
-
-@app.patch("/alertas/{alerta_id}/lido")
-def marcar_alerta_lido(alerta_id: str):
-    try:
-        db = _get_firestore()
-        db.collection("alertas").document(alerta_id).update({"lido": True})
-        return {"ok": True}
-    except Exception:
-        for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
-            alertas = _ler_alertas(caminho)
-            for a in alertas:
-                if a.get("id") == alerta_id:
-                    a["lido"] = True
-            _salvar_alertas(caminho, alertas)
-        return {"ok": True, "id": alerta_id}
-
-
-@app.patch("/alertas/marcar-todos-lidos")
-def marcar_todos_lidos():
-    try:
-        db       = _get_firestore()
-        nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
-        batch    = db.batch()
-        for doc in nao_lidos:
-            batch.update(doc.reference, {"lido": True})
-        batch.commit()
-        return {"ok": True}
-    except Exception:
-        for caminho in (_ALERTAS_PATH, _ALERTAS_OSINT_PATH):
-            alertas = _ler_alertas(caminho)
-            for a in alertas:
-                a["lido"] = True
-            _salvar_alertas(caminho, alertas)
-        return {"ok": True}
-
-
-@app.post("/alertas/varrer")
-def varrer_alertas_realtime():
-    from modules.monitor import varrer_realtime
-    return varrer_realtime()
-
-
-@app.post("/alertas/osint/varrer")
-def varrer_alertas_osint():
-    from modules.monitor import varrer_osint
-    return varrer_osint()
-
-
-# â”€â”€â”€ Dashboard stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/dashboard/stats")
 def get_dashboard_stats():
