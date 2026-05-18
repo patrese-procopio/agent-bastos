@@ -1,206 +1,53 @@
-﻿import uvicorn
+"""
+api.py — Agent Bastos API
+─────────────────────────────────────────────────────────────────────────────
+Orquestrador principal. Responsabilidades:
+  1. Criar a instância FastAPI com CORS
+  2. Registrar todos os routers (include_router)
+  3. Executar seeds de inicialização (idempotentes)
+  4. Entry point para uvicorn
+
+Regra de ouro: NENHUMA lógica de negócio ou rota aqui.
+Tudo vai em routers/ (transporte HTTP) ou services/ (lógica).
+"""
+
 import os
-import glob
-import json
-import io
-import wave
-import tempfile
-import re
-import threading
-from datetime import datetime, timedelta
-from fastapi import Form, FastAPI, UploadFile, File, HTTPException
+import uvicorn
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
-from pydantic import BaseModel, field_validator
-from groq import Groq
-from modules.rag import conversar_com_bastos, conversar_com_fontes
-from modules.decifrar import transcrever_documento_bytes, TipoDocumento
+
+# ── Routers ──────────────────────────────────────────────────────────────────
 from api_liderancas_router import liderancas_router
-from routers.alertas_router import router as alertas_router
-from routers.dashboard_router import router as dashboard_router
+from routers.alertas_router     import router as alertas_router
+from routers.agenda_router      import router as agenda_router
+from routers.dashboard_router   import router as dashboard_router
 from routers.transcricao_router import router as transcricao_router
-from routers.agenda_router import router as agenda_router
 from routers.referencias_router import router as referencias_router
 from routers.inteligencia_router import router as inteligencia_router
-from routers.sistema_router import router as sistema_router
-from services.alertas_service import (
-    ler_alertas    as _ler_alertas,
-    salvar_alertas as _salvar_alertas,
-    ALERTAS_PATH       as _ALERTAS_PATH,
-    ALERTAS_OSINT_PATH as _ALERTAS_OSINT_PATH,
-)
-from modules.liderancas import (
-    ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, estrutura_com_celas,
-    criar_lider, atualizar_lider, deletar_lider,
-    buscar_lider, listar_por_unidade,
-    salvar_foto, carregar_foto,
-)
+from routers.sistema_router     import router as sistema_router
 
+# ── Seeds ─────────────────────────────────────────────────────────────────────
+from services.alertas_service import seed_alertas_iniciais
 
-# â”€â”€â”€ ConfiguraÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+# ── Configuração ──────────────────────────────────────────────────────────────
 BASE_DIR         = os.path.dirname(os.path.abspath(__file__))
-PASTA_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
 _SA_KEY_PATH     = os.path.join(BASE_DIR, "serviceAccountKey.json")
+PASTA_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
 
-# Cria diretÃ³rios necessÃ¡rios uma Ãºnica vez na inicializaÃ§Ã£o
 os.makedirs(PASTA_RELATORIOS, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "data", "audios"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "data", "snapshots"), exist_ok=True)
 
-# Singleton Groq â€” uma Ãºnica conexÃ£o reutilizada em todas as requests
-_GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if not _GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY nÃ£o encontrada. Configure o arquivo .env.")
-_groq = Groq(api_key=_GROQ_API_KEY)
+# ── Seed de produção legado (JSON) — mantido até migrar para SQLite ───────────
 
-# Limites de seguranÃ§a
-_MAX_PERGUNTA    = 4_000
-_MAX_AUDIO_BYTES = 25 * 1024 * 1024
-_AUDIO_EXTS = {".wav", ".mp3", ".mp4", ".ogg", ".webm", ".flac", ".m4a", ".mpga", ".mpeg"}
-
-# Lock para escrita de arquivos de alertas (requests simultÃ¢neas)
-_alertas_lock = threading.Lock()
-
-_MESES_PT = [
-    "Janeiro", "Fevereiro", "MarÃ§o", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-]
-_EXPORT_MIME = {
-    "txt":  "text/plain",
-    "pdf":  "application/pdf",
-    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-}
-
-_ALERTAS_PATH         = os.path.join(PASTA_RELATORIOS, "alertas.json")
-_ALERTAS_OSINT_PATH   = os.path.join(PASTA_RELATORIOS, "alertas_osint.json")
 _DASHBOARD_STATS_PATH = os.path.join(PASTA_RELATORIOS, "producao.json")
-_INDICE_PATH          = os.path.join(BASE_DIR, "indice_documentos.json")
-
-# â”€â”€â”€ Lista Negra â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-_LISTA_NEGRA_FILE_ID = "1G6eFhb0jnD38iWU_SLDIFkGtOB0ngHjh"
-_GDRIVE_SCOPES       = ["https://www.googleapis.com/auth/drive.readonly"]
-
-
-def _seed_alertas_iniciais() -> None:
-    now = datetime.now()
-
-    if not os.path.exists(_ALERTAS_PATH):
-        alertas = [
-            {
-                "id": "a1", "tipo": "telegram", "fonte": "@manausnoticias",
-                "link": "https://t.me/manausnoticias",
-                "titulo": "MenÃ§Ã£o via #CVAM",
-                "resumo": "MovimentaÃ§Ã£o no bairro Compensa. Fonte relata presenÃ§a de elemento "
-                          "conhecido como 'CarnaÃºba' coordenando distribuiÃ§Ã£o de entorpecentes. #CVAM #Manaus",
-                "risco": "ALTO",
-                "timestamp": (now - timedelta(minutes=18)).isoformat(),
-                "lido": False,
-                "alvo_id": 1, "alvo_nome": "Gelson de Lima CarnaÃºba", "alvo_vulgos": ["CarnaÃºba"],
-                "termo_encontrado": "carnaÃºba", "hashtag": "#CVAM",
-                "analise_ia": "Elemento identificado em Ã¡rea de distribuiÃ§Ã£o ativa â€” risco operacional "
-                              "imediato. VerificaÃ§Ã£o de campo recomendada nas prÃ³ximas 2h.",
-            },
-            {
-                "id": "b2", "tipo": "noticia", "fonte": "G1 Amazonas",
-                "link": "https://g1.globo.com/am/",
-                "titulo": "PolÃ­cia prende suspeito de trÃ¡fico no Jorge Teixeira",
-                "resumo": '"John Wick" foi detido com 3 kg de entorpecentes durante operaÃ§Ã£o da DENARC nesta manhÃ£.',
-                "risco": "ALTO",
-                "timestamp": (now - timedelta(minutes=45)).isoformat(),
-                "lido": False,
-                "alvo_id": 14, "alvo_nome": "Leandro Costa de Oliveira",
-                "alvo_vulgos": ["John Wick", "GaviÃ£o", "Leandrinho"],
-                "termo_encontrado": "john wick",
-                "analise_ia": "ConfirmaÃ§Ã£o de prisÃ£o â€” atualizar status do alvo. Verificar mandados pendentes.",
-            },
-            {
-                "id": "c3", "tipo": "telegram", "fonte": "@policiaamazonas",
-                "link": "https://t.me/policiaamazonas",
-                "titulo": 'MenÃ§Ã£o: "El Diablo" em @policiaamazonas',
-                "resumo": 'Alerta de fronteira: indivÃ­duo colombiano "El Diablo" teria cruzado pelo municÃ­pio de Tabatinga.',
-                "risco": "ALTO",
-                "timestamp": (now - timedelta(hours=1, minutes=30)).isoformat(),
-                "lido": True,
-                "alvo_id": 30, "alvo_nome": "Nelson Gaviria Florez",
-                "alvo_vulgos": ["El Diablo", "Diablo"],
-                "termo_encontrado": "el diablo",
-                "analise_ia": None,
-            },
-            {
-                "id": "d4", "tipo": "noticia", "fonte": "AcrÃ­tica AM",
-                "link": "https://www.acritica.com/",
-                "titulo": "OperaÃ§Ã£o desmantela ponto de venda no Morro da Liberdade",
-                "resumo": '"Professor" foi preso com quatro pessoas durante operaÃ§Ã£o no bairro.',
-                "risco": "MÃ‰DIO",
-                "timestamp": (now - timedelta(hours=3)).isoformat(),
-                "lido": False,
-                "alvo_id": 6, "alvo_nome": "Adalberto SalomÃ£o Guedes da Silva",
-                "alvo_vulgos": ["Professor", "SalomÃ£o"],
-                "termo_encontrado": "professor",
-                "analise_ia": None,
-            },
-        ]
-        _salvar_alertas(_ALERTAS_PATH, alertas)
-
-    if not os.path.exists(_ALERTAS_OSINT_PATH):
-        osint = [
-            {
-                "id": "o1", "tipo": "sherlock", "fonte": "Sherlock â€” TikTok",
-                "link": "https://www.tiktok.com/",
-                "titulo": "Perfil encontrado: @carnauba_am no TikTok",
-                "resumo": "Username 'carnauba' identificado em conta ativa. Bio: 'Compensa ðŸ”´âš«'. "
-                          "Ãšltimo post hÃ¡ 3 dias. PossÃ­vel perfil operacional do alvo.",
-                "risco": "ALTO",
-                "timestamp": (now - timedelta(hours=2)).isoformat(),
-                "lido": False,
-                "alvo_id": 1, "alvo_nome": "Gelson de Lima CarnaÃºba", "alvo_vulgos": ["CarnaÃºba"],
-                "termo_encontrado": "carnauba", "plataforma": "TikTok",
-                "analise_ia": "Perfil ativo com simbologia de facÃ§Ã£o na bio. "
-                              "Recomenda-se monitoramento contÃ­nuo e extraÃ§Ã£o de contatos/seguidores.",
-            },
-            {
-                "id": "o2", "tipo": "google_dork", "fonte": "Google Dork â€” Pastebin",
-                "link": "https://pastebin.com/",
-                "titulo": '"MÃ£o Branca" indexado no Pastebin',
-                "resumo": 'Documento indexado contÃ©m o termo "MÃ£o Branca" associado a coordenadas e '
-                          "horÃ¡rios de entrega. PossÃ­vel lista operacional vazada.",
-                "risco": "ALTO",
-                "timestamp": (now - timedelta(hours=4)).isoformat(),
-                "lido": False,
-                "alvo_id": 23, "alvo_nome": "Josias da Cruz Barroso",
-                "alvo_vulgos": ["MÃ£o Branca", "MB"],
-                "termo_encontrado": "mÃ£o branca",
-                "dork": 'site:pastebin.com "MÃ£o Branca"',
-                "analise_ia": "PossÃ­vel vazamento de dados operacionais. "
-                              "Prioridade mÃ¡xima â€” acionar equipe de anÃ¡lise digital.",
-            },
-            {
-                "id": "o3", "tipo": "sherlock", "fonte": "Sherlock â€” Instagram",
-                "link": "https://www.instagram.com/",
-                "titulo": "Perfil encontrado: @rdk_manaus no Instagram",
-                "resumo": "Username 'RDK' identificado em perfil privado. Foto de capa com referÃªncias "
-                          "Ã  zona norte de Manaus. 847 seguidores.",
-                "risco": "MÃ‰DIO",
-                "timestamp": (now - timedelta(hours=6)).isoformat(),
-                "lido": False,
-                "alvo_id": 28, "alvo_nome": "Gilson Mattos Rodrigues",
-                "alvo_vulgos": ["RDK", "Rei do Skunk"],
-                "termo_encontrado": "rdk", "plataforma": "Instagram",
-                "analise_ia": None,
-            },
-        ]
-        _salvar_alertas(_ALERTAS_OSINT_PATH, osint)
-
-
-_seed_alertas_iniciais()
-
-
-# â”€â”€â”€ Seed inicial de produÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _seed_dashboard_inicial() -> None:
+    """Popula producao.json com dados fictícios se ainda não existir."""
     if os.path.exists(_DASHBOARD_STATS_PATH):
         return
-    import random as _r
+    import json, random as _r
     _r.seed(42)
     nucleos_docs = {
         "NI":            ["RELINT", "REPEN", "PEDIDO DE BUSCA", "MINUTA DE OFICIO", "PROJETO"],
@@ -227,11 +74,11 @@ def _seed_dashboard_inicial() -> None:
         json.dump(dados, f, ensure_ascii=False, indent=2)
 
 
+# ── Executa seeds ─────────────────────────────────────────────────────────────
+seed_alertas_iniciais()
 _seed_dashboard_inicial()
 
-
-# â”€â”€â”€ App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+# ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Agent Bastos API", version="1.0.0")
 
 app.add_middleware(
@@ -245,130 +92,17 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS", "PATCH", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+# ── Registro de routers ───────────────────────────────────────────────────────
 app.include_router(liderancas_router)
 app.include_router(alertas_router)
+app.include_router(agenda_router)
 app.include_router(dashboard_router)
 app.include_router(transcricao_router)
-app.include_router(agenda_router)
 app.include_router(referencias_router)
 app.include_router(inteligencia_router)
 app.include_router(sistema_router)
 
-# â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@app.get("/liderancas-estrutura")
-def get_estrutura():
-    """Estrutura física completa com celas + facções + cargos por facção."""
-    return {
-        "estrutura":         estrutura_com_celas(),
-        "faccoes":           FACCOES,
-        "cargos_por_faccao": CARGOS_POR_FACCAO,
-    }
-
-
-@app.get("/liderancas/{unidade}")
-def get_liderancas_unidade(unidade: str):
-    """Líderes de uma unidade agrupados por pavilhão → ala → cela."""
-    if unidade not in ESTRUTURA:
-        raise HTTPException(status_code=404, detail=f"Unidade '{unidade}' não encontrada.")
-    return {
-        "unidade":  unidade,
-        "label":    ESTRUTURA[unidade]["label"],
-        "pavilhoes": listar_por_unidade(unidade),
-    }
-
-
-@app.post("/liderancas")
-async def post_lider(
-    unidade:    str = Form(...),
-    pavilhao:   str = Form(...),
-    ala:        str = Form(...),
-    cela:       str = Form(""),
-    faccao:     str = Form(...),
-    cargo:      str = Form(...),
-    nome:       str = Form(""),
-    vulgo:      str = Form(""),
-    observacao: str = Form(""),
-    foto: UploadFile = File(None),
-):
-    """Cria um novo líder. Foto é opcional."""
-    dados = {
-        "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
-        "faccao": faccao,   "cargo": cargo,
-        "nome": nome or None, "vulgo": vulgo or None,
-        "observacao": observacao or None,
-        "foto_ext": None,
-    }
-    lider = criar_lider(dados)
-
-    if foto and foto.filename:
-        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
-        conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
-        ext_salva = salvar_foto(lider["id"], conteudo, ext)
-        lider     = atualizar_lider(lider["id"], {"foto_ext": ext_salva})
-
-    return lider
-
-
-@app.put("/liderancas/{lider_id}")
-async def put_lider(
-    lider_id:   str,
-    unidade:    str = Form(...),
-    pavilhao:   str = Form(...),
-    ala:        str = Form(...),
-    cela:       str = Form(""),
-    faccao:     str = Form(...),
-    cargo:      str = Form(...),
-    nome:       str = Form(""),
-    vulgo:      str = Form(""),
-    observacao: str = Form(""),
-    foto: UploadFile = File(None),
-):
-    """Atualiza líder. Nova foto substitui a anterior."""
-    if not buscar_lider(lider_id):
-        raise HTTPException(status_code=404, detail="Líder não encontrado.")
-
-    dados = {
-        "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
-        "faccao": faccao,   "cargo": cargo,
-        "nome": nome or None, "vulgo": vulgo or None,
-        "observacao": observacao or None,
-    }
-
-    if foto and foto.filename:
-        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
-        conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
-        ext_salva      = salvar_foto(lider_id, conteudo, ext)
-        dados["foto_ext"] = ext_salva
-
-    return atualizar_lider(lider_id, dados)
-
-
-@app.delete("/liderancas/{lider_id}")
-def delete_lider(lider_id: str):
-    """Remove líder e sua foto do disco."""
-    if not deletar_lider(lider_id):
-        raise HTTPException(status_code=404, detail="Líder não encontrado.")
-    return {"ok": True}
-
-
-@app.get("/liderancas-foto/{lider_id}")
-def get_foto_lider(lider_id: str):
-    """Serve a foto binária do líder com mime type correto."""
-    lider = buscar_lider(lider_id)
-    if not lider or not lider.get("foto_ext"):
-        raise HTTPException(status_code=404, detail="Foto não encontrada.")
-    conteudo = carregar_foto(lider_id, lider["foto_ext"])
-    if not conteudo:
-        raise HTTPException(status_code=404, detail="Arquivo de foto ausente no disco.")
-    ext  = lider["foto_ext"].lstrip(".")
-    mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
-            "png": "image/png",  "webp": "image/webp"}.get(ext, "image/jpeg")
-    return Response(content=conteudo, media_type=mime)
-
+# ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=False)
