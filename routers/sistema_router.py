@@ -4,7 +4,7 @@ routers/sistema_router.py
 Rotas de sistema, saúde, notícias, dashboard stats legado e análise grafoscópica.
 
 Rotas registradas:
-  GET  /health                → liveness check
+  GET  /health                → liveness check (pública — usada pelo Docker healthcheck)
   GET  /status                → versão + modelo ativo
   GET  /status/firebase       → testa conectividade com Firestore
   GET  /noticias              → lista notícias de crimes (JSON ou TXT local)
@@ -18,8 +18,9 @@ import glob
 import json
 import os
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["sistema"])
 
@@ -42,16 +43,17 @@ _IMG_MIME_MAP         = {
 
 @router.get("/health")
 async def health():
+    # Pública — Docker healthcheck e monitoramento externo precisam bater aqui
     return {"status": "ok", "version": "1.0.0"}
 
 
 @router.get("/status")
-def status():
+def status(user: dict = Depends(get_current_user)):
     return {"status": "online", "version": "1.0.0", "model": "llama-3.3-70b-versatile"}
 
 
 @router.get("/status/firebase")
-def status_firebase():
+def status_firebase(user: dict = Depends(get_current_user)):
     try:
         import firebase_admin
         from firebase_admin import credentials, firestore as _fs
@@ -67,7 +69,7 @@ def status_firebase():
 
 
 @router.get("/noticias")
-def noticias():
+def noticias(user: dict = Depends(get_current_user)):
     json_path = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
     if os.path.exists(json_path):
         try:
@@ -129,7 +131,7 @@ def noticias():
 
 
 @router.post("/noticias/salvar")
-async def salvar_noticias(dados: dict):
+async def salvar_noticias(dados: dict, user: dict = Depends(require_module("noticias"))):
     caminho = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=2)
@@ -137,8 +139,7 @@ async def salvar_noticias(dados: dict):
 
 
 @router.get("/dashboard/stats")
-def get_dashboard_stats():
-    """Stats legado em JSON — mantido para compatibilidade com o frontend."""
+def get_dashboard_stats(user: dict = Depends(get_current_user)):
     if not os.path.exists(_DASHBOARD_STATS_PATH):
         return {}
     try:
@@ -149,7 +150,7 @@ def get_dashboard_stats():
 
 
 @router.post("/dashboard/stats")
-async def salvar_dashboard_stats(dados: dict):
+async def salvar_dashboard_stats(dados: dict, user: dict = Depends(require_module("dashboard"))):
     os.makedirs(os.path.dirname(_DASHBOARD_STATS_PATH), exist_ok=True)
     with open(_DASHBOARD_STATS_PATH, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=2)
@@ -161,6 +162,7 @@ async def decifrar_missiva(
     imagem:         UploadFile = File(...),
     tipo_documento: str        = Form("desconhecido"),
     contexto_extra: str        = Form(""),
+    user: dict = Depends(require_module("grafoscopia")),
 ):
     """Análise grafoscópica — transcreve e analisa documentos manuscritos/impressos."""
     if imagem.content_type not in _IMG_MIME_MAP:

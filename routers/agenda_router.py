@@ -17,8 +17,9 @@ Nota de segurança:
 
 import hashlib
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["agenda"])
 
@@ -37,7 +38,7 @@ class MissaoRequest(BaseModel):
 
 
 class CienciaRequest(BaseModel):
-    nucleo: str  # núcleo que está acusando ciência
+    nucleo: str
 
 
 # ─── Rotas ───────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ def agenda_login(req: AgendaLoginRequest):
 
 
 @router.post("/agenda/publicar")
-def agenda_publicar(req: MissaoRequest):
+def agenda_publicar(req: MissaoRequest, user: dict = Depends(require_module("agenda"))):
     try:
         from modules.agenda import publicar_missao
         ok = publicar_missao(req.nucleo, req.mensagem)
@@ -59,7 +60,7 @@ def agenda_publicar(req: MissaoRequest):
 
 
 @router.get("/agenda/missoes")
-def agenda_missoes(nucleo: str = None, limite: int = 30):
+def agenda_missoes(nucleo: str = None, limite: int = 30, user: dict = Depends(get_current_user)):
     try:
         from modules.agenda import buscar_missoes_recentes
         missoes   = buscar_missoes_recentes(nucleo=nucleo, limite=limite)
@@ -76,11 +77,7 @@ def agenda_missoes(nucleo: str = None, limite: int = 30):
 
 
 @router.patch("/agenda/missoes/{missao_id}/ciencia")
-def agenda_acusar_ciencia(missao_id: str, req: CienciaRequest):
-    """
-    Núcleo acusa ciência de uma missão.
-    Atualiza status para 'ciencia' no Firestore.
-    """
+def agenda_acusar_ciencia(missao_id: str, req: CienciaRequest, user: dict = Depends(require_module("agenda"))):
     try:
         from modules.agenda import acusar_ciencia
         ok = acusar_ciencia(missao_id, req.nucleo)

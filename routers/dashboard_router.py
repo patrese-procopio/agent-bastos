@@ -29,8 +29,9 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["dashboard"])
 
@@ -41,12 +42,7 @@ DB_PATH = Path(__file__).parent.parent / "dashboard_bastos.db"
 # ─── Helper de conexão ────────────────────────────────────────────────────────
 
 def _db():
-    """
-    Abre conexão SQLite com row_factory=sqlite3.Row.
-    Row permite acessar colunas por nome (row["total"]) além de índice.
-    Usado como context manager: fecha automaticamente ao sair do bloco with.
-    """
-    conn = conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -67,7 +63,7 @@ class DocLancamento(BaseModel):
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.post("/dashboard/lancar")
-def lancar(doc: DocLancamento):
+def lancar(doc: DocLancamento, user: dict = Depends(require_module("dashboard"))):
     with _db() as conn:
         tipo = conn.execute(
             "SELECT id FROM tipos_documento WHERE codigo = ?", (doc.tipo_codigo,)
@@ -98,7 +94,7 @@ def lancar(doc: DocLancamento):
 
 
 @router.delete("/dashboard/lancar/{doc_id}")
-def deletar(doc_id: int):
+def deletar(doc_id: int, user: dict = Depends(require_module("dashboard"))):
     with _db() as conn:
         conn.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
         conn.commit()
@@ -106,7 +102,7 @@ def deletar(doc_id: int):
 
 
 @router.get("/dashboard/kpi")
-def kpi(ano: int = 2026, mes: int = None):
+def kpi(ano: int = 2026, mes: int = None, user: dict = Depends(get_current_user)):
     if mes is None:
         mes = datetime.now().month
     mes_ant = mes - 1 if mes > 1 else 12
@@ -141,7 +137,7 @@ def kpi(ano: int = 2026, mes: int = None):
 
 
 @router.get("/dashboard/producao")
-def producao(ano: int = 2026):
+def producao(ano: int = 2026, user: dict = Depends(get_current_user)):
     m  = datetime.now().month
     ma = m - 1 if m > 1 else 12
     with _db() as conn:
@@ -169,7 +165,7 @@ def producao(ano: int = 2026):
 
 
 @router.get("/dashboard/lancamentos")
-def lancamentos(ano: int = 2026, mes: int = None):
+def lancamentos(ano: int = 2026, mes: int = None, user: dict = Depends(get_current_user)):
     with _db() as conn:
         q = (
             "SELECT d.id,d.nome_arquivo,d.mes,d.ano,d.observacao,d.created_at,"
@@ -189,7 +185,7 @@ def lancamentos(ano: int = 2026, mes: int = None):
 
 
 @router.get("/dashboard/catalogos")
-def catalogos():
+def catalogos(user: dict = Depends(get_current_user)):
     with _db() as conn:
         return {
             "tipos":    [dict(r) for r in conn.execute(

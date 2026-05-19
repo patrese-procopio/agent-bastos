@@ -18,13 +18,14 @@ import os
 import traceback
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from services.drive_service import (
     upload_json   as _upload_json_drive,
     download_json as _baixar_json_drive,
     get_service   as _gdrive_service,
 )
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["inteligencia"])
 
@@ -39,11 +40,6 @@ os.makedirs(_SNAPSHOTS_DIR, exist_ok=True)
 # ─── Helper: dados de ocupação ────────────────────────────────────────────────
 
 def _baixar_ocupacao_drive():
-    """
-    Wrapper seguro para a funcao de ocupacao.
-    A funcao real esta no api.py durante a transicao — sera extraida
-    para services/ocupacao_service.py em passo futuro.
-    """
     try:
         import importlib
         api_mod = importlib.import_module("api")
@@ -58,10 +54,6 @@ def _baixar_ocupacao_drive():
 # ─── Helper: série de KPIs ────────────────────────────────────────────────────
 
 def _computar_series_kpis(meses_snaps: list) -> dict:
-    """
-    Recebe lista de {'mes': str, 'dados': dict} e retorna series + alertas.
-    Alerta disparado quando variação entre meses consecutivos for >= 20%.
-    """
     series = {}
     for item in meses_snaps:
         mes      = item["mes"]
@@ -95,7 +87,7 @@ def _computar_series_kpis(meses_snaps: list) -> dict:
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.get("/ocupacao")
-def get_ocupacao():
+def get_ocupacao(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         return _baixar_ocupacao_drive()
     except Exception as e:
@@ -103,7 +95,7 @@ def get_ocupacao():
 
 
 @router.get("/historico/indice")
-def get_indice():
+def get_indice(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         indice = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID)
         return indice or {"meses": []}
@@ -112,7 +104,7 @@ def get_indice():
 
 
 @router.get("/historico/{mes}")
-def get_historico_mes(mes: str):
+def get_historico_mes(mes: str, user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         snap = _baixar_json_drive(f"snapshot_{mes}.json", _HISTORICO_FOLDER_ID)
         if not snap:
@@ -125,7 +117,7 @@ def get_historico_mes(mes: str):
 
 
 @router.get("/kpis")
-def get_kpis():
+def get_kpis(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         indice    = _baixar_json_drive("indice.json", _HISTORICO_FOLDER_ID) or {"meses": []}
         meses     = sorted(indice.get("meses", []))
@@ -140,7 +132,7 @@ def get_kpis():
 
 
 @router.post("/snapshot/forcar")
-def forcar_snapshot():
+def forcar_snapshot(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         mes_atual = datetime.now().strftime("%Y-%m")
         ocupacao  = _baixar_ocupacao_drive()
@@ -157,7 +149,7 @@ def forcar_snapshot():
 
 
 @router.get("/debug/drive")
-def debug_drive():
+def debug_drive(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         service = _gdrive_service()
         results = service.files().list(
@@ -170,7 +162,7 @@ def debug_drive():
 
 
 @router.get("/debug/snapshot-erro")
-def debug_snapshot_erro():
+def debug_snapshot_erro(user: dict = Depends(require_module("inteligencia_grupos"))):
     try:
         mes_atual = datetime.now().strftime("%Y-%m")
         ocupacao  = _baixar_ocupacao_drive()

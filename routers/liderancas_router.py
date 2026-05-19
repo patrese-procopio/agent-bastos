@@ -13,7 +13,7 @@ import io
 import os
 import base64
 from datetime import datetime
-from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query
+from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query, Depends
 from fastapi.responses import Response
 
 from modules.liderancas import (
@@ -24,9 +24,10 @@ from modules.liderancas import (
     salvar_foto, carregar_foto, FOTOS_DIR,
     _competencia_atual,
 )
+from dependencies import get_current_user, require_module
 
 router = APIRouter(prefix="/api/liderancas", tags=["liderancas"])
-liderancas_router = router  # alias — decoradores @liderancas_router.X continuam funcionando
+liderancas_router = router
 
 _MESES_PT = ["","Janeiro","Fevereiro","Março","Abril","Maio","Junho",
              "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
@@ -39,13 +40,11 @@ def _fmt_competencia(comp: str) -> str:
         return comp
 
 def _fmt_data(iso: str) -> str:
-    """'2026-05-15T...' → '15/05/2026'"""
     try:
         return iso[:10].split("-")[::-1].__str__().strip("[]").replace("', '", "/").replace("'","")
     except Exception:
         return iso[:10] if iso else ""
 
-# Paleta de cores por facção para o PDF
 _FACCAO_PDF_COR = {
     "CV/AM":          {"bg": (0.99, 0.95, 0.95), "text": (0.60, 0.10, 0.10), "dot": (0.86, 0.15, 0.15)},
     "PCC":            {"bg": (0.94, 0.97, 1.00), "text": (0.12, 0.25, 0.69), "dot": (0.23, 0.51, 0.96)},
@@ -67,7 +66,7 @@ def _cor_faccao(faccao: str):
 # ── Estrutura e metadados ─────────────────────────────────────────────────────
 
 @liderancas_router.get("/estrutura")
-def get_estrutura():
+def get_estrutura(user: dict = Depends(get_current_user)):
     return {
         "estrutura":          estrutura_com_celas(),
         "faccoes":            FACCOES,
@@ -76,18 +75,22 @@ def get_estrutura():
     }
 
 @liderancas_router.get("/competencias")
-def get_competencias_todas():
+def get_competencias_todas(user: dict = Depends(get_current_user)):
     return {"competencias": listar_competencias()}
 
 @liderancas_router.get("/competencias/{unidade}")
-def get_competencias_unidade(unidade: str):
+def get_competencias_unidade(unidade: str, user: dict = Depends(get_current_user)):
     return {"competencias": listar_competencias_unidade(unidade)}
 
 
 # ── Listagem ──────────────────────────────────────────────────────────────────
 
 @liderancas_router.get("/{unidade}")
-def get_liderancas_unidade(unidade: str, competencia: str = Query(default=None)):
+def get_liderancas_unidade(
+    unidade: str,
+    competencia: str = Query(default=None),
+    user: dict = Depends(require_module("alertas")),
+):
     if unidade not in ESTRUTURA:
         raise HTTPException(status_code=404, detail=f"Unidade '{unidade}' não encontrada.")
     comps     = listar_competencias_unidade(unidade)
@@ -111,6 +114,7 @@ async def post_lider(
     nome:        str = Form(""),  vulgo:       str = Form(""),
     observacao:  str = Form(""),  competencia: str = Form(""),
     foto: UploadFile = File(None),
+    user: dict = Depends(require_module("alertas")),
 ):
     dados = {
         "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
@@ -139,6 +143,7 @@ async def put_lider(
     nome:        str = Form(""),  vulgo:       str = Form(""),
     observacao:  str = Form(""),  competencia: str = Form(""),
     foto: UploadFile = File(None),
+    user: dict = Depends(require_module("alertas")),
 ):
     if not buscar_lider(lider_id):
         raise HTTPException(status_code=404, detail="Líder não encontrado.")
@@ -159,14 +164,14 @@ async def put_lider(
 
 
 @liderancas_router.delete("/{lider_id}")
-def delete_lider(lider_id: str):
+def delete_lider(lider_id: str, user: dict = Depends(require_module("alertas"))):
     if not deletar_lider(lider_id):
         raise HTTPException(status_code=404, detail="Líder não encontrado.")
     return {"ok": True}
 
 
 @liderancas_router.get("/foto/{lider_id}")
-def get_foto_lider(lider_id: str):
+def get_foto_lider(lider_id: str, user: dict = Depends(get_current_user)):
     lider = buscar_lider(lider_id)
     if not lider or not lider.get("foto_ext"):
         raise HTTPException(status_code=404, detail="Foto não encontrada.")
@@ -223,7 +228,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
 
     elements = []
 
-    # ── Cabeçalho ──
     cab = Table([[Paragraph("AGENT BASTOS", S["titulo"])]], colWidths=[17*cm])
     cab.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), AZUL),
@@ -248,10 +252,7 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E2E8F0")))
     elements.append(Spacer(1, 8))
 
-    # ── Pavilhões ──
     for pavilhao, alas in pavilhoes.items():
-
-        # Verifica se o pavilhão tem algum líder — se não tiver, pula inteiro
         total_pav = sum(len(l) for celas in alas.values() for l in celas.values())
         if total_pav == 0:
             continue
@@ -267,12 +268,9 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
 
         for ala, celas in alas.items():
             lideres = [l for lids in celas.values() for l in lids]
-
-            # ── AJUSTE 1: Pula alas vazias ──
             if not lideres:
                 continue
 
-            # Sub-header da ala
             ala_row = Table([[
                 Paragraph(ala, S["ala"]),
                 Paragraph(f"{len(lideres)} líder{'es' if len(lideres)!=1 else ''}", S["cnt"]),
@@ -293,7 +291,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                 cor_txt = colors.Color(*cor["text"])
                 cor_dot = colors.Color(*cor["dot"])
 
-                # ── AJUSTE 3: Data formatada ──
                 criado_iso = lider.get("criado_em", "")
                 try:
                     partes = criado_iso[:10].split("-")
@@ -301,7 +298,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                 except Exception:
                     data_fmt = criado_iso[:10]
 
-                # Foto
                 foto_cell = Paragraph("S/FOTO", S["sfoto"])
                 if lider.get("foto_ext"):
                     try:
@@ -311,7 +307,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                     except Exception:
                         pass
 
-                # ── AJUSTE 2: Badge colorido da facção ──
                 badge_faccao = Table(
                     [[Paragraph(faccao, ParagraphStyle(
                         "bf", fontSize=7, fontName="Helvetica-Bold", textColor=cor_txt))]],
@@ -327,7 +322,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                     ("ROUNDEDCORNERS", [3,3,3,3]),
                 ]))
 
-                # Linha de cargo + cela
                 cargo_cela = cargo
                 if lider.get("cela"):
                     cargo_cela += f"  ·  Custódia: {lider['cela']}"
@@ -367,7 +361,6 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
 
         elements.append(Spacer(1, 10))
 
-    # ── Rodapé ──
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E2E8F0")))
     elements.append(Spacer(1, 4))
     elements.append(Paragraph(
@@ -382,7 +375,11 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
 # ── Endpoints de exportação ───────────────────────────────────────────────────
 
 @liderancas_router.get("/pdf/{unidade}")
-def exportar_pdf_unidade(unidade: str, competencia: str = Query(default=None)):
+def exportar_pdf_unidade(
+    unidade: str,
+    competencia: str = Query(default=None),
+    user: dict = Depends(require_module("alertas")),
+):
     if unidade not in ESTRUTURA:
         raise HTTPException(status_code=404, detail="Unidade não encontrada.")
     comp = competencia or (listar_competencias_unidade(unidade) or [_competencia_atual()])[0]
@@ -397,7 +394,10 @@ def exportar_pdf_unidade(unidade: str, competencia: str = Query(default=None)):
 
 
 @liderancas_router.get("/pdf-geral/todas")
-def exportar_pdf_geral(competencia: str = Query(default=None)):
+def exportar_pdf_geral(
+    competencia: str = Query(default=None),
+    user: dict = Depends(require_module("alertas")),
+):
     comp = competencia or (listar_competencias() or [_competencia_atual()])[0]
     try:
         try:

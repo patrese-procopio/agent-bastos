@@ -26,10 +26,11 @@ import tempfile
 import wave
 from datetime import datetime
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from fastapi.responses import Response
 
 from services.export_service import build_txt, build_pdf, build_docx
+from dependencies import get_current_user, require_module
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
@@ -47,7 +48,6 @@ _MESES_PT = [
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ]
 
-# Singleton Groq — inicializado uma única vez, reutilizado em todas as requests
 def _get_groq():
     from groq import Groq
     api_key = os.getenv("GROQ_API_KEY")
@@ -59,7 +59,6 @@ def _get_groq():
 # ─── Helpers privados ─────────────────────────────────────────────────────────
 
 def _get_wav_duration(path: str) -> str:
-    """Lê duração de arquivo WAV sem dependências externas."""
     try:
         with wave.open(path, "r") as wf:
             secs = int(wf.getnframes() / wf.getframerate())
@@ -69,11 +68,6 @@ def _get_wav_duration(path: str) -> str:
 
 
 def _parse_llm_json(text: str) -> dict:
-    """
-    Extrai JSON de uma resposta do LLM.
-    O modelo às vezes envolve o JSON em ```json ... ``` — remove o wrapper.
-    Se não encontrar bloco markdown, tenta extrair entre { e }.
-    """
     match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if match:
         text = match.group(1).strip()
@@ -85,24 +79,19 @@ def _parse_llm_json(text: str) -> dict:
 
 
 def _date_str_pt(dt: datetime) -> str:
-    """Formata data em português: '18 de Maio de 2026'."""
     return f"{dt.day} de {_MESES_PT[dt.month - 1]} de {dt.year}"
 
 
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...)):
+async def transcribe(
+    audio: UploadFile = File(...),
+    user: dict = Depends(require_module("transcricao")),
+):
     """
     Recebe arquivo de áudio, transcreve via Whisper (Groq) e analisa via LLaMA.
     Retorna JSON estruturado com laudo fonográfico completo.
-
-    Fluxo:
-      1. Valida extensão e tamanho
-      2. Salva em arquivo temporário (Whisper precisa de path)
-      3. Transcreve com Whisper — retorna texto + segmentos com timestamps
-      4. Manda segmentos para LLaMA 70b → JSON do laudo
-      5. Fallback: se LLaMA retornar JSON malformado, retorna laudo mínimo
     """
     groq     = _get_groq()
     filename = audio.filename or "audio.wav"
@@ -214,7 +203,11 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 @router.post("/export/{fmt}")
-async def export_transcript(fmt: str, body: dict):
+async def export_transcript(
+    fmt: str,
+    body: dict,
+    user: dict = Depends(require_module("transcricao")),
+):
     """
     Gera laudo em TXT, PDF ou DOCX a partir do JSON retornado pelo /transcribe.
     Delega a geração para services/export_service.py.

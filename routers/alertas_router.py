@@ -21,24 +21,21 @@ Rotas registradas:
   POST   /alertas/osint/varrer
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from services.alertas_service import (
     ler_alertas,
     salvar_alertas,
     ALERTAS_PATH,
     ALERTAS_OSINT_PATH,
 )
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["alertas"])
 
 
-# ─── Helpers Firestore (importados do api.py até extrairmos firestore_service) ─
+# ─── Helpers Firestore ────────────────────────────────────────────────────────
 
 def _get_firestore_safe():
-    """
-    Tenta conectar ao Firestore. Retorna None em caso de falha.
-    O fallback para JSON local é feito em cada rota individualmente.
-    """
     try:
         import firebase_admin
         from firebase_admin import credentials, firestore as _fs
@@ -56,9 +53,9 @@ def _get_firestore_safe():
 
 
 def _serializar(doc) -> dict:
-    d      = doc.to_dict()
+    d       = doc.to_dict()
     d["id"] = doc.id
-    ts     = d.get("timestamp")
+    ts      = d.get("timestamp")
     if ts and hasattr(ts, "isoformat"):
         d["timestamp"] = ts.isoformat()
     elif ts:
@@ -69,7 +66,7 @@ def _serializar(doc) -> dict:
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.get("/alertas")
-def listar_alertas(limite: int = 50):
+def listar_alertas(limite: int = 50, user: dict = Depends(get_current_user)):
     try:
         db   = _get_firestore_safe()
         docs = (
@@ -85,7 +82,7 @@ def listar_alertas(limite: int = 50):
 
 
 @router.get("/alertas/osint")
-def listar_alertas_osint(limite: int = 50):
+def listar_alertas_osint(limite: int = 50, user: dict = Depends(get_current_user)):
     try:
         db   = _get_firestore_safe()
         docs = (
@@ -101,7 +98,7 @@ def listar_alertas_osint(limite: int = 50):
 
 
 @router.post("/alertas/salvar")
-async def salvar_alerta(alerta: dict):
+async def salvar_alerta(alerta: dict, user: dict = Depends(require_module("alertas"))):
     alertas = ler_alertas(ALERTAS_PATH)
     ids     = {a.get("id") for a in alertas}
     if alerta.get("id") not in ids:
@@ -111,7 +108,7 @@ async def salvar_alerta(alerta: dict):
 
 
 @router.post("/alertas/osint/salvar")
-async def salvar_alerta_osint(alerta: dict):
+async def salvar_alerta_osint(alerta: dict, user: dict = Depends(require_module("alertas"))):
     alertas = ler_alertas(ALERTAS_OSINT_PATH)
     ids     = {a.get("id") for a in alertas}
     if alerta.get("id") not in ids:
@@ -121,7 +118,7 @@ async def salvar_alerta_osint(alerta: dict):
 
 
 @router.patch("/alertas/{alerta_id}/lido")
-def marcar_alerta_lido(alerta_id: str):
+def marcar_alerta_lido(alerta_id: str, user: dict = Depends(get_current_user)):
     try:
         db = _get_firestore_safe()
         db.collection("alertas").document(alerta_id).update({"lido": True})
@@ -137,7 +134,7 @@ def marcar_alerta_lido(alerta_id: str):
 
 
 @router.patch("/alertas/marcar-todos-lidos")
-def marcar_todos_lidos():
+def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
     try:
         db        = _get_firestore_safe()
         nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
@@ -156,12 +153,12 @@ def marcar_todos_lidos():
 
 
 @router.post("/alertas/varrer")
-def varrer_alertas_realtime():
+def varrer_alertas_realtime(user: dict = Depends(require_module("alertas"))):
     from modules.monitor import varrer_realtime
     return varrer_realtime()
 
 
 @router.post("/alertas/osint/varrer")
-def varrer_alertas_osint():
+def varrer_alertas_osint(user: dict = Depends(require_module("osint"))):
     from modules.monitor import varrer_osint
     return varrer_osint()

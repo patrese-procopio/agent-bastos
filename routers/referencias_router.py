@@ -18,10 +18,11 @@ import json
 import os
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from services.drive_service import download_bytes, get_service
+from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["referencias"])
 
@@ -121,7 +122,12 @@ def _ler_lista_negra() -> list:
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.get("/referencias")
-def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
+def buscar_referencias(
+    q: str = "",
+    ano: str = "",
+    tipo: str = "",
+    user: dict = Depends(get_current_user),
+):
     if not os.path.exists(_INDICE_PATH):
         return {"documentos": [], "anos": [], "total": 0, "total_indexados": 0}
     try:
@@ -155,7 +161,7 @@ def buscar_referencias(q: str = "", ano: str = "", tipo: str = ""):
 
 
 @router.get("/lista-negra")
-def lista_negra():
+def lista_negra(user: dict = Depends(require_module("lista_negra"))):
     """CPF mascarado — LGPD compliant."""
     try:
         registros = _ler_lista_negra()
@@ -165,7 +171,10 @@ def lista_negra():
 
 
 @router.get("/referencias/download/docx/{file_id}")
-def download_referencia_docx(file_id: str):
+def download_referencia_docx(
+    file_id: str,
+    user: dict = Depends(require_module("referencias")),
+):
     try:
         buf = io.BytesIO(download_bytes(file_id))
         nome = file_id
@@ -188,7 +197,10 @@ def download_referencia_docx(file_id: str):
 
 
 @router.get("/referencias/download/pdf/{file_id}")
-def download_referencia_pdf(file_id: str):
+def download_referencia_pdf(
+    file_id: str,
+    user: dict = Depends(require_module("referencias")),
+):
     """Converte DOCX → PDF via Google Drive API (upload temporário + export)."""
     try:
         from googleapiclient.http import MediaIoBaseUpload
