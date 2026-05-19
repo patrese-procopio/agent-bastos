@@ -1,5 +1,13 @@
 <div align="center">
 
+[![CI](https://github.com/patrese-procopio/agent-bastos/actions/workflows/ci.yml/badge.svg)](https://github.com/patrese-procopio/agent-bastos/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+
+
 ```
   █████╗  ██████╗ ███████╗███╗   ██╗████████╗    ██████╗  █████╗ ███████╗████████╗ ██████╗ ███████╗
  ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝    ██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔════╝
@@ -394,8 +402,8 @@ Armazenamento controlado      ChromaDB e SQLite locais — sem cloud obrigatóri
 
 - [ ] Autenticação individual por usuário (JWT + refresh token)
 - [ ] Context Recall ≥ 0.850 via otimização de chunking
-- [ ] Testes automatizados (pytest + coverage report)
-- [ ] Dockerização completa (docker-compose)
+- [x] Testes automatizados (pytest — 44 testes, CI verde)
+- [x] Dockerização completa (Dockerfile multi-stage + docker-compose)
 
 ### 🔮 v3.0 — Roadmap Futuro
 
