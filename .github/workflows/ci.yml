@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent Bastos — CI Pipeline
+#
+# O QUE FAZ:
+#   A cada push ou pull_request no branch main, o GitHub executa esse workflow
+#   numa máquina virtual Linux limpa, instala as dependências e roda os 44 testes.
+#
+# POR QUE ISSO IMPORTA NO PORTFÓLIO:
+#   Qualquer recrutador técnico que abrir o repositório vai ver o badge verde
+#   no README e entender que o projeto tem qualidade verificada automaticamente.
+#   É o padrão de qualquer time de engenharia sério.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+# ── Gatilhos ──────────────────────────────────────────────────────────────────
+# push: roda quando você faz git push para o main
+# pull_request: roda quando alguém abre um PR contra o main (útil no futuro
+#               quando o projeto tiver colaboradores)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+jobs:
+  test:
+    name: Testes Unitários
+    runs-on: ubuntu-latest   # máquina virtual Linux gratuita do GitHub
+
+    steps:
+      # 1. Faz checkout do código no commit que disparou o workflow
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # 2. Configura Python 3.11 (mesma versão do Dockerfile)
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Cache do pip — se o requirements.txt não mudou, reutiliza os pacotes
+      #    já baixados de runs anteriores. Economiza ~5 minutos por execução.
+      - name: Cache de dependências pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Instala apenas as dependências necessárias para os testes
+      #    NÃO instala torch/transformers/chromadb — os testes usam mocks,
+      #    então não precisamos das libs pesadas no CI. Isso mantém o
+      #    workflow rápido (< 2 minutos vs > 10 minutos com tudo instalado).
+      - name: Instalar dependências de teste
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-mock python-docx reportlab pypdf python-dotenv
+
+      # 5. Roda os testes com as mesmas flags do pytest.ini
+      #    --tb=short → mostra só o trecho relevante do traceback em caso de falha
+      #    -v         → verbose, mostra cada teste individualmente
+      - name: Rodar testes
+        run: pytest tests/ -v --tb=short
+
+      # 6. (Opcional) Exibe um resumo no painel do GitHub Actions
+      - name: Resumo dos testes
+        if: always()   # roda mesmo se os testes falharem
+        run: |
+          echo "## Resultado dos Testes" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
