@@ -166,7 +166,7 @@ Sistema de alertas operacionais integrado a workflows **n8n** com gestão de alv
 
 ```mermaid
 graph TB
-    subgraph FRONTEND["Frontend — React 18 + Vite"]
+    subgraph FRONTEND["Frontend - React 18 + Vite"]
         F1[Chat RAG]
         F2[Grafoscopia]
         F3[Transcricao]
@@ -175,27 +175,27 @@ graph TB
         F6[Alertas]
     end
 
-    subgraph BACKEND["Backend — FastAPI + Python 3.11"]
-        B1["rag.py\nChromaDB + e5-small"]
-        B2["decifrar.py\nVision + OCR"]
-        B3["transcricao.py\nWhisper + RI"]
-        B4["dashboard.py\nSQLite + KPIs"]
-        B5["agenda.py\nFirestore sync"]
-        B6["monitor.py\nalertas + n8n"]
+    subgraph BACKEND["Backend - FastAPI + Python 3.11"]
+        B1["rag.py - ChromaDB + e5-small"]
+        B2["decifrar.py - Vision + OCR"]
+        B3["transcricao.py - Whisper + RI"]
+        B4["dashboard.py - SQLite + KPIs"]
+        B5["agenda.py - Firestore sync"]
+        B6["monitor.py - alertas + n8n"]
     end
 
     subgraph EXTERNO["Servicos Externos"]
-        E1["Groq API\nLLaMA 3.3 70B + Whisper"]
-        E2["Gemini 2.5 Flash\nVisao Computacional"]
-        E3["Firebase Firestore\nTempo Real"]
-        E4["Google Drive API\nOAuth2 - Acervo"]
-        E5["n8n Workflows\nAutomacao + Feeds"]
+        E1["Groq API - LLaMA 3.3 70B + Whisper"]
+        E2["Gemini 2.5 Flash - Visao Computacional"]
+        E3["Firebase Firestore - Tempo Real"]
+        E4["Google Drive API - OAuth2 Acervo"]
+        E5["n8n Workflows - Automacao + Feeds"]
     end
 
-    subgraph DATA["Data Layer — Local"]
-        D1[("ChromaDB\n963 chunks")]
-        D2[("SQLite\nDashboard")]
-        D3["secrets\n.env — nunca versionado"]
+    subgraph DATA["Data Layer - Local"]
+        D1[("ChromaDB - 963 chunks")]
+        D2[("SQLite - Dashboard")]
+        D3["secrets - .env nunca versionado"]
     end
 
     F1 --> B1
