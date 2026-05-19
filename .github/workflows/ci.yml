@@ -57,7 +57,7 @@ jobs:
       - name: Instalar dependências de teste
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-mock python-docx reportlab pypdf python-dotenv
+          pip install pytest pytest-mock python-docx reportlab pypdf python-dotenv google-auth google-api-python-client
 
       # 5. Roda os testes com as mesmas flags do pytest.ini
       #    --tb=short → mostra só o trecho relevante do traceback em caso de falha
