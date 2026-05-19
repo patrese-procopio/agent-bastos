@@ -160,56 +160,42 @@ Sistema de alertas operacionais integrado a workflows **n8n** com gestão de alv
 
 ---
 
-## 🏗️ Arquitetura
+## Arquitetura
 
-> 📐 **[Ver decisões arquiteturais completas (ARCHITECTURE.md)](./ARCHITECTURE.md)** — 10 ADRs documentados com contexto, trade-offs e resultados mensuráveis.
+> Ver decisoes arquiteturais completas em [ARCHITECTURE.md](./ARCHITECTURE.md) - 10 ADRs com contexto, trade-offs e resultados mensuraveis.
 
 ```mermaid
 graph TB
-    subgraph FRONTEND["🖥️ Frontend — React 18 + Vite"]
-        F1[💬 Chat RAG]
-        F2[🔬 Grafoscopia]
-        F3[🎙️ Transcrição]
-        F4[📊 Dashboard]
-        F5[🗓️ Agenda]
-        F6[🚨 Alertas]
+    subgraph FRONTEND["Frontend — React 18 + Vite"]
+        F1[Chat RAG]
+        F2[Grafoscopia]
+        F3[Transcricao]
+        F4[Dashboard]
+        F5[Agenda]
+        F6[Alertas]
     end
 
-    subgraph BACKEND["⚙️ Backend — FastAPI + Python 3.11"]
-        B1[rag.py
-ChromaDB + e5-small]
-        B2[decifrar.py
-Vision + OCR]
-        B3[transcricao.py
-Whisper + RI]
-        B4[dashboard.py
-SQLite + KPIs]
-        B5[agenda.py
-Firestore sync]
-        B6[monitor.py
-alertas + n8n]
+    subgraph BACKEND["Backend — FastAPI + Python 3.11"]
+        B1["rag.py\nChromaDB + e5-small"]
+        B2["decifrar.py\nVision + OCR"]
+        B3["transcricao.py\nWhisper + RI"]
+        B4["dashboard.py\nSQLite + KPIs"]
+        B5["agenda.py\nFirestore sync"]
+        B6["monitor.py\nalertas + n8n"]
     end
 
-    subgraph EXTERNO["☁️ Serviços Externos"]
-        E1[🤖 Groq API
-LLaMA 3.3 70B + Whisper]
-        E2[👁️ Gemini 2.5 Flash
-Visão Computacional]
-        E3[🔥 Firebase Firestore
-Tempo Real]
-        E4[📁 Google Drive API
-OAuth2 — Acervo]
-        E5[🔄 n8n Workflows
-Automação + Feeds]
+    subgraph EXTERNO["Servicos Externos"]
+        E1["Groq API\nLLaMA 3.3 70B + Whisper"]
+        E2["Gemini 2.5 Flash\nVisao Computacional"]
+        E3["Firebase Firestore\nTempo Real"]
+        E4["Google Drive API\nOAuth2 - Acervo"]
+        E5["n8n Workflows\nAutomacao + Feeds"]
     end
 
-    subgraph DATA["🗄️ Data Layer — Local"]
-        D1[(ChromaDB
-963 chunks)]
-        D2[(SQLite
-Dashboard)]
-        D3[🔒 .env
-nunca versionado]
+    subgraph DATA["Data Layer — Local"]
+        D1[("ChromaDB\n963 chunks")]
+        D2[("SQLite\nDashboard")]
+        D3["secrets\n.env — nunca versionado"]
     end
 
     F1 --> B1
@@ -228,10 +214,10 @@ nunca versionado]
     B5 --> E4
     B6 --> E5
 
-    style FRONTEND fill:#1e3a5f,color:#fff
-    style BACKEND fill:#1a3a2a,color:#fff
-    style EXTERNO fill:#3a1a2a,color:#fff
-    style DATA fill:#2a2a1a,color:#fff
+    style FRONTEND fill:#1e3a5f,color:#fff,stroke:#4a7abf
+    style BACKEND  fill:#1a3a2a,color:#fff,stroke:#4abf7a
+    style EXTERNO  fill:#3a1a2a,color:#fff,stroke:#bf4a7a
+    style DATA     fill:#2a2a1a,color:#fff,stroke:#bfbf4a
 ```
 
 ### Estrutura do Repositório
