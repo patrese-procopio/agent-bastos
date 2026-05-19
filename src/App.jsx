@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from "react"
-import ChatRAG    from "./ChatRAG"
-import Dashboard  from "./Dashboard"
+import ChatRAG from "./ChatRAG"
+import Dashboard from "./Dashboard"
 import Transcricao from "./Transcricao"
-import Alertas    from "./Alertas"
-import Noticias   from "./Noticias"
+import Alertas from "./Alertas"
+import Noticias from "./Noticias"
 import Referencias from "./Referencias"
 import Configuracoes from "./Configuracoes"
-import Agenda        from "./Agenda"
-import ListaNegra    from "./ListaNegra"
+import Agenda from "./Agenda"
+import ListaNegra from "./ListaNegra"
 import Grafoscopia from "./Grafoscopia"
 import ControleGrupos from "./ControleGrupos"
 import InteligenciaGrupos from "./InteligenciaGrupos"
 import LiderancasUnidade from "./LiderancasUnidade"
+import Login from "./Login"
+import api from "./api"
 
 const NAV_GROUPS = [
   { title: "PRINCIPAL", items: [
@@ -28,10 +30,10 @@ const NAV_GROUPS = [
     { label: "Agenda de Missão", color: "#F59E0B", badge: "2" },
   ]},
   { title: "FERRAMENTAS", items: [
-    { label: "Dashboard",            color: "#34D399" },
-    { label: "Transcrição",          color: "#818CF8" },
+    { label: "Dashboard", color: "#34D399" },
+    { label: "Transcrição", color: "#818CF8" },
     { label: "Análise Grafoscópica", color: "#FBBF24" },
-    { label: "Notícias",             color: "#FB923C" },
+    { label: "Notícias", color: "#FB923C" },
   ]},
 ]
 
@@ -44,36 +46,33 @@ const NEWS = [
 
 const REFS = [
   { label: "Relatórios operacionais", color: "#A78BFA" },
-  { label: "Documentos históricos",   color: "#A78BFA" },
-  { label: "Arquivos de inteligência",color: "#60A5FA" },
-  { label: "Busca por período",        color: "#60A5FA" },
-  { label: "Drive institucional",      color: "#34D399" },
+  { label: "Documentos históricos", color: "#A78BFA" },
+  { label: "Arquivos de inteligência", color: "#60A5FA" },
+  { label: "Busca por período", color: "#60A5FA" },
+  { label: "Drive institucional", color: "#34D399" },
 ]
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
-/* grade de pontos adaptada ao fundo escuro */
 const DOT_GRID = `url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.9' fill='%23FFFFFF' fill-opacity='0.04'/%3E%3C/svg%3E")`
 
-/* ─── tokens de cor do design system dark ─── */
 const C = {
-  bg:        "#0B1120",   /* slate escuro — fundo principal  */
-  surface:   "#111827",   /* cards / topbar                  */
-  surfaceUp: "#1A2236",   /* cards elevados (hover, destaque) */
+  bg:        "#0B1120",
+  surface:   "#111827",
+  surfaceUp: "#1A2236",
   border:    "rgba(255,255,255,0.07)",
   borderUp:  "rgba(255,255,255,0.13)",
-  gold:      "#E8A020",   /* dourado âmbar — fio condutor     */
+  gold:      "#E8A020",
   goldSoft:  "rgba(232,160,32,0.15)",
-  text:      "#F1F5F9",   /* texto principal                  */
-  textMid:   "#94A3B8",   /* texto secundário                 */
-  textDim:   "rgba(255,255,255,0.35)", /* rótulos, placeholders */
+  text:      "#F1F5F9",
+  textMid:   "#94A3B8",
+  textDim:   "rgba(255,255,255,0.35)",
 }
 
 const GLOBAL_CSS = `
   * { box-sizing: border-box; }
   body { background: ${C.bg}; }
-
   @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 5px 1px rgba(22,163,74,0.5); }
     50%       { box-shadow: 0 0 12px 3px rgba(22,163,74,0.85); }
@@ -82,86 +81,32 @@ const GLOBAL_CSS = `
     0%, 100% { box-shadow: 0 0 0 0 rgba(232,160,32,0); }
     50%       { box-shadow: 0 0 0 4px rgba(232,160,32,0.15); }
   }
-
   .chip-dot-pulse { animation: pulse-glow 2.5s ease-in-out infinite; }
-
   input, textarea { caret-color: ${C.gold}; }
   input::placeholder { color: rgba(255,255,255,0.55) !important; font-weight: 500 !important; opacity:1 !important; }
-
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius:4px; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius:4px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-  /* ── NAV ITEMS ── */
   .nav-item { position: relative; }
-  .nav-item::after {
-    content: '›';
-    position: absolute; right: 12px; top: 50%;
-    transform: translateY(-50%);
-    font-size: 15px; line-height:1;
-    color: transparent;
-    transition: color 0.15s ease, right 0.15s ease;
-    pointer-events: none;
-  }
-  .nav-item:hover {
-    background: rgba(232,160,32,0.1) !important;
-    border-left-color: rgba(232,160,32,0.6) !important;
-  }
+  .nav-item::after { content: '›'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; line-height:1; color: transparent; transition: color 0.15s ease, right 0.15s ease; pointer-events: none; }
+  .nav-item:hover { background: rgba(232,160,32,0.1) !important; border-left-color: rgba(232,160,32,0.6) !important; }
   .nav-item:hover::after { color: rgba(232,160,32,0.7); right:10px; }
   .nav-item:active { transform: scale(0.983); transition: transform 0.08s ease; }
-
-  /* ── CARDS DE NOTÍCIA ── */
-  .news-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px; overflow:hidden; cursor:pointer;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(8px);
-  }
-  .news-card:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(232,160,32,0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-  }
-
-  /* ── BOTÕES DE REFERÊNCIA ── */
-  .ref-btn {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    transition: all 0.15s ease;
-  }
-  .ref-btn:hover {
-    background: ${C.goldSoft} !important;
-    border-color: rgba(232,160,32,0.4) !important;
-    transform: translateY(-1px);
-  }
-
-  /* ── CONFIG BTN ── */
+  .news-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow:hidden; cursor:pointer; transition: all 0.2s ease; backdrop-filter: blur(8px); }
+  .news-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(232,160,32,0.3); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+  .ref-btn { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; transition: all 0.15s ease; }
+  .ref-btn:hover { background: ${C.goldSoft} !important; border-color: rgba(232,160,32,0.4) !important; transform: translateY(-1px); }
   .config-btn:hover { background: rgba(255,255,255,0.06) !important; }
 `
 
-/* ── watermark adaptada ao dark ── */
 const OwlBlueprint = () => (
   <svg width="520" height="180" viewBox="0 0 520 180" fill="none" xmlns="http://www.w3.org/2000/svg" style={{opacity:0.07}}>
-    <text x="260" y="44" textAnchor="middle" fontFamily={SANS}
-      fontSize="40" fontWeight="800" letterSpacing="5" fill="#FFFFFF">
-      AGENTE AUTÔNOMO
-    </text>
+    <text x="260" y="44" textAnchor="middle" fontFamily={SANS} fontSize="40" fontWeight="800" letterSpacing="5" fill="#FFFFFF">AGENTE AUTÔNOMO</text>
     <line x1="80" y1="58" x2="440" y2="58" stroke="#FFFFFF" strokeWidth="0.6" strokeDasharray="4 6"/>
-    <text x="260" y="95" textAnchor="middle" fontFamily={SANS}
-      fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">
-      Sistema de Inteligência
-    </text>
-    <text x="260" y="126" textAnchor="middle" fontFamily={SANS}
-      fontSize="18" fontWeight="700" letterSpacing="2" fill="#E8A020">
-      &amp;
-    </text>
-    <text x="260" y="158" textAnchor="middle" fontFamily={SANS}
-      fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">
-      Segurança Corporativa
-    </text>
+    <text x="260" y="95" textAnchor="middle" fontFamily={SANS} fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">Sistema de Inteligência</text>
+    <text x="260" y="126" textAnchor="middle" fontFamily={SANS} fontSize="18" fontWeight="700" letterSpacing="2" fill="#E8A020">&amp;</text>
+    <text x="260" y="158" textAnchor="middle" fontFamily={SANS} fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">Segurança Corporativa</text>
   </svg>
 )
 
@@ -171,19 +116,21 @@ const GearIcon = () => (
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 )
-
 function tempoH(ts) { const d = Math.floor((Date.now()/1000 - ts)/3600); return d + "h" }
-
 export default function App() {
-  const [active, setActive]           = useState("Painel")
-  const [message, setMessage]         = useState("")
-  const [focused, setFocused]         = useState(false)
-  const [chatHistory, setChatHistory] = useState([])
-  const [loading, setLoading]         = useState(false)
-  const [liveNews, setLiveNews]       = useState([])
+  const [active, setActive]             = useState("Painel")
+  const [user, setUser]                 = useState(() => {
+    const u = localStorage.getItem("ab_user")
+    return u ? JSON.parse(u) : null
+  })
+  const [message, setMessage]           = useState("")
+  const [focused, setFocused]           = useState(false)
+  const [chatHistory, setChatHistory]   = useState([])
+  const [loading, setLoading]           = useState(false)
+  const [liveNews, setLiveNews]         = useState([])
   const [showPolicies, setShowPolicies] = useState(false)
-  const [tema, setTema] = useState(() => localStorage.getItem("ab_tema") || "dark")
-  const chatEndRef = useRef(null)
+  const [tema, setTema]                 = useState(() => localStorage.getItem("ab_tema") || "dark")
+  const chatEndRef                      = useRef(null)
 
   useEffect(() => {
     document.body.classList.remove("dark-mode","theme-tactico","theme-claro")
@@ -204,11 +151,22 @@ export default function App() {
   }, [chatHistory, loading])
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/noticias")
-      .then(r=>r.json())
-      .then(d=>{ if(d.noticias?.length>0) setLiveNews(d.noticias) })
-      .catch(()=>{})
+    api.get("/noticias")
+      .then(r => r?.json())
+      .then(d => { if (d?.noticias?.length > 0) setLiveNews(d.noticias) })
+      .catch(() => {})
   }, [])
+
+  function handleLogin(data) {
+    setUser({ username: data.username, level: data.level, modules: data.modules })
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("ab_access_token")
+    localStorage.removeItem("ab_refresh_token")
+    localStorage.removeItem("ab_user")
+    setUser(null)
+  }
 
   async function enviarPergunta() {
     const pergunta = message.trim()
@@ -217,11 +175,7 @@ export default function App() {
     setChatHistory(prev=>[...prev,{role:"user",text:pergunta}])
     setLoading(true)
     try {
-      const res  = await fetch("http://127.0.0.1:8000/chat",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({pergunta}),
-      })
+      const res  = await api.post("/chat", { pergunta })
       const data = await res.json()
       setChatHistory(prev=>[...prev,{role:"bastos",text:data.resposta}])
     } catch {
@@ -233,9 +187,11 @@ export default function App() {
     if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); enviarPergunta() }
   }
 
+  // ← AQUI — depois de todos os hooks e funções
+  if (!user) return <Login onLogin={handleLogin} />
+
   const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
 
-  /* notícias: live ou mock */
   const newsToShow = liveNews.length > 0
     ? liveNews.slice(0,4).map((n,i)=>({
         title: n.titulo, source:"n8n", time: tempoH(n.atualizado),
@@ -248,9 +204,7 @@ export default function App() {
     <div style={S.app}>
       <div style={S.dotGrid}/>
 
-      {/* ══════════════════════════════ SIDEBAR ══════════════════════════════ */}
       <aside style={S.sidebar}>
-
         <div style={S.logoArea}>
           <div style={S.logoRing}>
             <img src="./src/assets/logo.png" alt="AB" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
@@ -312,9 +266,7 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ══════════════════════════════ MAIN ══════════════════════════════ */}
       <main style={S.main}>
-
         {active==="Chat RAG"               && <ChatRAG      onNavigate={setActive}/>}
         {active==="Dashboard"              && <Dashboard    onNavigate={setActive}/>}
         {active==="Transcrição"            && <Transcricao  onNavigate={setActive}/>}
@@ -329,10 +281,8 @@ export default function App() {
         {active==="Agenda de Missão"       && <Agenda       onNavigate={setActive}/>}
         {active==="Lista Negra"            && <ListaNegra   onNavigate={setActive}/>}
 
-        {/* ── PAINEL PRINCIPAL ── */}
         {active==="Painel" && (
           <>
-            {/* topbar */}
             <header style={S.topbar}>
               <div style={{display:"flex",alignItems:"center"}}>
                 <div style={S.wc}>
@@ -341,9 +291,7 @@ export default function App() {
                   <button style={{...S.wb,background:"#28C840"}} onClick={()=>window.electronAPI?.maximize()}/>
                 </div>
                 <div>
-                  {/* título: 13 → 17px (+30%) */}
                   <div style={S.ttitle}>Painel Principal</div>
-                  {/* sub: 10 → 13px (+30%) */}
                   <div style={S.tsub}>
                     <span style={{color:C.gold,fontWeight:700}}>◈</span> {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})} · Manaus, AM
                   </div>
@@ -356,22 +304,17 @@ export default function App() {
             </header>
 
             <div style={S.body}>
-
-              {/* alerta */}
               <div style={S.alert}>
                 <div style={{display:"flex",alignItems:"center",gap:12,flex:1,minWidth:0}}>
                   <span style={S.alertBadge}>⚠ ALERTA</span>
-                  {/* texto: 12 → 15.6px (+30%) */}
                   <p style={S.alertText}>Movimentação detectada na região de fronteira norte — verificar imediatamente</p>
                 </div>
                 <span style={S.alertTime}>há 12 min</span>
               </div>
 
-              {/* notícias */}
               <section>
                 <div style={S.secHeader}>
                   <span style={S.secBar}/>
-                  {/* secLabel: 9 → 11.7px (+30%) */}
                   <h2 style={S.secLabel}>Notícias em Destaque</h2>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
@@ -389,7 +332,6 @@ export default function App() {
                         </span>
                       </div>
                       <div style={{padding:"10px 12px 12px"}}>
-                        {/* newsTitle: 10.5 → 13.7px (+30%) */}
                         <p style={{fontSize:13.7,color:C.text,lineHeight:1.5,fontWeight:500,marginBottom:6}}>
                           {n.title}
                         </p>
@@ -405,13 +347,11 @@ export default function App() {
                 </div>
               </section>
 
-              {/* barra de referências */}
               <div style={S.refsBar}>
                 <div style={S.refsBarLeft}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                   </svg>
-                  {/* refs label: 9 → 11.7px (+30%) */}
                   <span style={{fontSize:11.7,fontWeight:800,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
                     Consulta de Referências
                   </span>
@@ -424,7 +364,6 @@ export default function App() {
                       cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
                     }}>
                       <span style={{width:6,height:6,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                      {/* ref label: 10 → 13px (+30%) */}
                       <span style={{fontSize:13,color:r.color,fontWeight:600}}>{r.label}</span>
                     </button>
                   ))}
@@ -432,7 +371,6 @@ export default function App() {
                 <span style={{fontSize:14,color:C.textMid,flexShrink:0}}>›</span>
               </div>
 
-              {/* área de chat */}
               <div style={S.chatArea}>
                 {chatHistory.length===0 && (
                   <div style={S.emptyState}>
@@ -452,9 +390,7 @@ export default function App() {
                               ? "linear-gradient(135deg,#1E3A5F,#0F2840)"
                               : "rgba(255,255,255,0.05)",
                             borderRadius:8,
-                            borderLeft: m.role==="bastos"?"3px solid #E8A020":"none",
                             padding:"12px 16px",
-                            /* fontSize: 13 → 16.9px (+30%) */
                             fontSize:16.9,
                             color: m.role==="user"?"#FFFFFF":C.text,
                             lineHeight:1.65,
@@ -463,12 +399,12 @@ export default function App() {
                               :"0 2px 12px rgba(0,0,0,0.2)",
                             backdropFilter:"blur(8px)",
                             border: m.role==="bastos"
-                              ?"1px solid rgba(232,160,32,0.2) ; border-left:3px solid #E8A020"
+                              ?"1px solid rgba(232,160,32,0.2)"
                               :"none",
+                            borderLeft: m.role==="bastos"?"3px solid #E8A020":"none",
                           }}>
                             {m.role==="bastos"&&(
                               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                                {/* chat label: 9 → 11.7px (+30%) */}
                                 <span style={{fontSize:11.7,color:C.gold,fontWeight:700,letterSpacing:"0.12em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
                                 <span style={{fontSize:11,color:C.textMid,fontFamily:MONO}}>· {now}</span>
                               </div>
@@ -492,7 +428,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* barra de chat */}
             <div style={{...S.chatBar,...(focused?S.chatBarFocused:{})}}>
               <div style={S.chatRow}>
                 <div style={S.chatIconWrap}>
@@ -516,7 +451,6 @@ export default function App() {
                   </svg>
                 </button>
               </div>
-              {/* hint: 10 → 13px (+30%) */}
               <p style={S.chatHint}>
                 <span style={{color:C.gold,fontWeight:700,letterSpacing:"0.04em"}}>↵ Pressione Enter</span>
                 <span style={{color:"rgba(255,255,255,0.45)"}}> para enviar</span>
@@ -539,18 +473,9 @@ export default function App() {
     </div>
   )
 }
-
-/* ════════════════════════════════════════════════════════════════════════════
-   DESIGN SYSTEM — ESTILOS
-   Regra de escala +30%:
-     9px  → 11.7   |  10px → 13   |  10.5 → 13.7
-     11px → 14.3   |  12px → 15.6 |  13px → 16.9
-════════════════════════════════════════════════════════════════════════════ */
 const S = {
   app:{display:"flex",height:"100vh",background:C.bg,overflow:"hidden",fontFamily:SANS,position:"relative",color:C.text},
   dotGrid:{position:"fixed",inset:0,backgroundImage:DOT_GRID,backgroundSize:"28px 28px",pointerEvents:"none",zIndex:0},
-
-  /* ── SIDEBAR (intocado) ── */
   sidebar:{width:240,background:"linear-gradient(180deg,#0C3B6E 0%,#0A3260 40%,#082848 100%)",
     borderRight:"1px solid rgba(255,255,255,0.08)",display:"flex",flexDirection:"column",
     flexShrink:0,height:"100vh",position:"relative",zIndex:10,boxShadow:"4px 0 24px rgba(0,0,0,0.25)",
@@ -581,115 +506,56 @@ const S = {
     background:"transparent",border:"none",cursor:"pointer",padding:"4px 0",fontWeight:600,
     letterSpacing:"0.04em",opacity:0.85},
   copyright:{fontSize:10,color:"#FFFFFF",textAlign:"center",padding:"5px 0 0",lineHeight:1.5,fontWeight:500,opacity:0.75},
-
-  /* ── MAIN ── */
   main:{flex:1,display:"flex",flexDirection:"column",minWidth:0,height:"100vh",position:"relative",zIndex:10,background:C.bg},
-
-  /* topbar: surface escuro, borda dourada sutil */
-  topbar:{
-    height:52,
-    borderBottom:`1px solid ${C.border}`,
-    display:"flex",alignItems:"center",justifyContent:"space-between",
-    padding:"0 22px",
-    background:C.surface,
-    flexShrink:0,
-    boxShadow:"0 1px 0 rgba(232,160,32,0.08)",
-  },
+  topbar:{height:52,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",
+    justifyContent:"space-between",padding:"0 22px",background:C.surface,flexShrink:0,
+    boxShadow:"0 1px 0 rgba(232,160,32,0.08)"},
   wc:{display:"flex",gap:6,alignItems:"center",marginRight:14},
   wb:{width:12,height:12,borderRadius:"50%",border:"none",cursor:"pointer",flexShrink:0},
-  /* +30% */
   ttitle:{fontSize:17,fontWeight:700,color:C.text,letterSpacing:"-0.01em"},
   tsub:{fontSize:13,color:C.textMid,marginTop:2,fontFamily:MONO},
   chip:{display:"flex",alignItems:"center",gap:6,padding:"5px 14px",
     background:"rgba(22,163,74,0.1)",borderRadius:20,border:"1px solid rgba(22,163,74,0.3)"},
   chipDot:{width:7,height:7,borderRadius:"50%",background:"#16A34A",flexShrink:0},
-  /* +30% */
   chipText:{fontSize:13,color:"#4ADE80",fontWeight:600},
-
   body:{flex:1,overflow:"hidden",padding:"14px 22px",display:"flex",flexDirection:"column",gap:10},
-
-  /* alerta com glass */
-  alert:{
-    background:"rgba(220,38,38,0.08)",
-    borderRadius:10,padding:"10px 16px",
+  alert:{background:"rgba(220,38,38,0.08)",borderRadius:10,padding:"10px 16px",
     display:"flex",alignItems:"center",justifyContent:"space-between",
-    border:"1px solid rgba(220,38,38,0.25)",
-    boxShadow:"0 2px 12px rgba(220,38,38,0.1)",
-    flexShrink:0,
-    backdropFilter:"blur(8px)",
-  },
+    border:"1px solid rgba(220,38,38,0.25)",boxShadow:"0 2px 12px rgba(220,38,38,0.1)",
+    flexShrink:0,backdropFilter:"blur(8px)"},
   alertBadge:{fontSize:11,fontWeight:700,padding:"3px 10px",background:"#DC2626",color:"#FFFFFF",
     borderRadius:5,letterSpacing:"0.06em",whiteSpace:"nowrap",flexShrink:0,fontFamily:MONO},
-  /* +30% */
   alertText:{fontSize:15.6,color:"#FCA5A5",lineHeight:1.4,marginLeft:12,fontWeight:600},
   alertTime:{fontSize:13,color:"rgba(252,165,165,0.6)",whiteSpace:"nowrap",marginLeft:12,flexShrink:0,fontFamily:MONO},
-
-  /* cabeçalho de seção com dourado */
   secHeader:{display:"flex",alignItems:"center",gap:8,marginBottom:8},
   secBar:{display:"inline-block",width:3,height:16,background:C.gold,borderRadius:2,flexShrink:0,boxShadow:`0 0 8px ${C.gold}88`},
-  /* +30% */
   secLabel:{fontSize:11.7,fontWeight:800,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",margin:0},
-
-  /* barra de referências */
-  refsBar:{display:"flex",alignItems:"center",gap:12,
-    background:"rgba(255,255,255,0.03)",
-    border:`1px solid ${C.border}`,
-    borderRadius:10,padding:"9px 14px",
-    flexShrink:0,overflow:"hidden",
-    backdropFilter:"blur(8px)",
-  },
-  refsBarLeft:{display:"flex",alignItems:"center",gap:8,paddingRight:12,
-    borderRight:`1px solid ${C.border}`,flexShrink:0},
-
-  /* área de chat */
-  chatArea:{flex:1,
-    background:"rgba(255,255,255,0.02)",
-    border:`1px solid ${C.border}`,
-    borderRadius:10,
-    position:"relative",overflow:"hidden",minHeight:60,
-    backdropFilter:"blur(8px)",
-  },
+  refsBar:{display:"flex",alignItems:"center",gap:12,background:"rgba(255,255,255,0.03)",
+    border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",flexShrink:0,overflow:"hidden",backdropFilter:"blur(8px)"},
+  refsBarLeft:{display:"flex",alignItems:"center",gap:8,paddingRight:12,borderRight:`1px solid ${C.border}`,flexShrink:0},
+  chatArea:{flex:1,background:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`,
+    borderRadius:10,position:"relative",overflow:"hidden",minHeight:60,backdropFilter:"blur(8px)"},
   emptyState:{position:"absolute",inset:0,display:"flex",flexDirection:"column",
     alignItems:"center",justifyContent:"center",pointerEvents:"none",userSelect:"none"},
-  /* +30% */
   emptyText:{fontSize:15.6,color:"rgba(255,255,255,0.35)",fontWeight:600,marginTop:10,letterSpacing:"0.04em"},
   emptySubtext:{fontSize:13,color:"rgba(255,255,255,0.18)",fontFamily:MONO,marginTop:4},
   chatFadeMask:{position:"absolute",top:0,left:0,right:0,height:28,
     background:`linear-gradient(to bottom,${C.bg},transparent)`,zIndex:2,pointerEvents:"none"},
   chatMessages:{padding:"14px 16px 10px",display:"flex",flexDirection:"column",gap:10,height:"100%",overflowY:"auto"},
-
-  /* barra de input */
-  chatBar:{
-    borderTop:`1px solid ${C.border}`,
-    background:C.surface,
-    padding:"10px 22px 12px",
-    flexShrink:0,
-  },
+  chatBar:{borderTop:`1px solid ${C.border}`,background:C.surface,padding:"10px 22px 12px",flexShrink:0},
   chatBarFocused:{background:C.surfaceUp},
   chatRow:{display:"flex",gap:10,alignItems:"center"},
-  chatIconWrap:{width:38,height:38,borderRadius:8,
-    background:`${C.goldSoft}`,border:`1px solid rgba(232,160,32,0.25)`,
-    display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
-  chatIn:{
-    flex:1,
-    background:"rgba(255,255,255,0.05)",
-    border:`1px solid ${C.border}`,
-    borderRadius:8,padding:"11px 16px",
-    /* +30% */
-    fontSize:16.9,
-    color:C.text,outline:"none",fontFamily:SANS,
-    transition:"border-color 0.2s,box-shadow 0.2s",
-  },
+  chatIconWrap:{width:38,height:38,borderRadius:8,background:`${C.goldSoft}`,
+    border:`1px solid rgba(232,160,32,0.25)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
+  chatIn:{flex:1,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,
+    borderRadius:8,padding:"11px 16px",fontSize:16.9,color:C.text,outline:"none",fontFamily:SANS,
+    transition:"border-color 0.2s,box-shadow 0.2s"},
   sendBtn:{width:40,height:40,background:`linear-gradient(135deg,#F59E0B,#B45309)`,
     border:"none",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",
     cursor:"pointer",flexShrink:0,boxShadow:"0 4px 14px rgba(180,83,9,0.4)",transition:"opacity 0.2s"},
-  /* +30% */
   chatHint:{fontSize:13,color:C.textDim,textAlign:"center",marginTop:7,letterSpacing:"0.03em",fontWeight:500,fontFamily:MONO},
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MODAL — POLÍTICAS DE USO
-// ════════════════════════════════════════════════════════════════════════════
 const POLICY_DEFAULT = {
   empresa:"Viga — Soluções em Tecnologia e Segurança",
   versao:"1.0.0",data:"Abril de 2026",
@@ -724,7 +590,6 @@ function PoliciesModal({onClose}) {
       <div style={{background:"#111827",borderRadius:14,width:"min(780px,92vw)",maxHeight:"88vh",
         display:"flex",flexDirection:"column",boxShadow:"0 32px 80px rgba(0,0,0,0.6)",
         overflow:"hidden",border:"1px solid rgba(255,255,255,0.08)"}}>
-
         <div style={{padding:"22px 30px 18px",borderBottom:"1px solid rgba(255,255,255,0.08)",
           background:"#0F172A",display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexShrink:0}}>
           <div>
@@ -768,7 +633,6 @@ function PoliciesModal({onClose}) {
             border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.05)",cursor:"pointer",
             display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:C.textMid,flexShrink:0}}>×</button>
         </div>
-
         <div style={{overflowY:"auto",padding:"22px 30px",display:"flex",flexDirection:"column",gap:14}}>
           {data.clausulas.map((c,i)=>(
             <div key={i} style={{padding:"16px 18px",borderRadius:10,
@@ -791,7 +655,6 @@ function PoliciesModal({onClose}) {
             <span style={{fontSize:11,color:C.textDim,fontFamily:MONO_P}}>© 2026 {data.empresa}</span>
           </div>
         </div>
-
         <div style={{padding:"14px 30px",borderTop:`1px solid ${C.border}`,background:"#0F172A",
           display:"flex",justifyContent:"flex-end",flexShrink:0}}>
           <button onClick={onClose} style={{padding:"10px 28px",background:C.gold,color:"#F1F5F9",

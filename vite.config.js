@@ -8,6 +8,14 @@ export default defineConfig({
     outDir: "dist",
   },
   server: {
-    port: 5174, strictPort: true,
+    port: 5174,
+    strictPort: true,
+    proxy: {
+      "/api-proxy": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-proxy/, ""),
+      },
+    },
   },
 });
