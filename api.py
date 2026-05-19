@@ -1,4 +1,4 @@
-"""
+﻿"""
 api.py — Agent Bastos API
 ─────────────────────────────────────────────────────────────────────────────
 Orquestrador principal. Responsabilidades:
@@ -26,6 +26,7 @@ from routers.transcricao_router import router as transcricao_router
 from routers.referencias_router import router as referencias_router
 from routers.inteligencia_router import router as inteligencia_router
 from routers.sistema_router     import router as sistema_router
+from routers.auth_router import router as auth_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -94,6 +95,7 @@ app.add_middleware(
 )
 
 # ── Registro de routers ───────────────────────────────────────────────────────
+app.include_router(auth_router)
 app.include_router(liderancas_router)
 app.include_router(alertas_router)
 app.include_router(agenda_router)
