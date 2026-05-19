@@ -1,0 +1,68 @@
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AGENT BASTOS — Docker Compose
+#
+# Serviços:
+#   backend  → FastAPI + ChromaDB embedded + todos os módulos
+#
+# Volumes:
+#   chroma_data  → persiste o banco vetorial entre reinicializações
+#   credentials  → monta arquivos sensíveis sem copiá-los para a imagem
+#
+# Uso:
+#   Subir:    docker-compose up --build
+#   Parar:    docker-compose down
+#   Logs:     docker-compose logs -f backend
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime         # usa o stage final do multi-stage build
+
+    container_name: agent-bastos-backend
+
+    ports:
+      - "8000:8000"           # host:container — acessa em http://localhost:8000
+
+    # Variáveis de ambiente carregadas do .env local (nunca vai pro Git)
+    env_file:
+      - .env
+
+    volumes:
+      # ChromaDB: persiste o banco vetorial no host
+      # Mesmo que o container seja destruído, os 963 chunks continuam aqui
+      - chroma_data:/app/data/chroma_db
+
+      # Credenciais OAuth e Firebase — montados como read-only por segurança
+      # O container lê, mas não pode sobrescrever
+      - ./credentials.json:/app/credentials.json:ro
+      - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - ./token.json:/app/token.json:rw   # token OAuth precisa ser reescrito
+
+      # Hot-reload em dev: monta o código ao vivo
+      # Remover em produção (imagem já tem o código copiado)
+      - .:/app
+
+    # Reinicia automaticamente se o processo morrer (exceto parada manual)
+    restart: unless-stopped
+
+    # Healthcheck: Docker monitora se a API está respondendo
+    # Se /health retornar 200, o container está "healthy"
+    # Útil para orquestradores (Kubernetes, ECS) e para o CI saber quando testar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s       # dá 60s para o modelo de embeddings carregar
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Volumes nomeados — gerenciados pelo Docker, não pelo sistema de arquivos
+# Vantagem: portável entre Windows/Linux/Mac sem ajustar caminhos
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  chroma_data:
+    driver: local
