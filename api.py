@@ -13,9 +13,10 @@ Tudo vai em routers/ (transporte HTTP) ou services/ (lógica).
 
 import os
 import uvicorn
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+load_dotenv()
 
 # ── Routers ──────────────────────────────────────────────────────────────────
 from routers.liderancas_router import router as liderancas_router
@@ -82,17 +83,27 @@ _seed_dashboard_inicial()
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Agent Bastos API", version="1.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ],
-    allow_methods=["POST", "GET", "OPTIONS", "PATCH", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
-)
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class ForceCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            from starlette.responses import Response
+            response = Response()
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+app.add_middleware(ForceCORSMiddleware)
+
 
 # ── Registro de routers ───────────────────────────────────────────────────────
 app.include_router(auth_router)
@@ -107,4 +118,4 @@ app.include_router(sistema_router)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)

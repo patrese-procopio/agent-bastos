@@ -16,6 +16,8 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from dotenv import load_dotenv
+load_dotenv()
 
 # ── Configuração ──────────────────────────────────────────────────────────────
 SECRET_KEY  = os.getenv("JWT_SECRET_KEY")
