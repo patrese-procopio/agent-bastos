@@ -4,7 +4,6 @@ const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
 const MES_ATUAL = new Date().getMonth()
 const ANO_ATUAL = new Date().getFullYear()
-
 const NUCLEOS = {
   NI:            { label: "Nucleo de Inteligencia",        short: "NI",     color: "#60A5FA", docs: ["RELINT","REPEN","PEDIDO DE BUSCA","MINUTA DE OFICIO","PROJETO"] },
   NCI:           { label: "Nucleo de Contrainteligencia",  short: "NCI",    color: "#A78BFA", docs: ["RELINT","PEDIDO DE BUSCA","RELTEC","MINUTA DE OFICIO","PROJETO"] },
@@ -165,11 +164,12 @@ export default function Dashboard({ onNavigate }) {
   const [salvando, setSalvando] = useState(false)
   const [msgLanc, setMsgLanc] = useState("")
   useEffect(() => {
-    api.get("/dashboard/stats")
-      .then(r => r?.json())
-      .then(d => { if (d && Object.keys(d).length > 0) { DADOS = d; setDadosReais(true) } })
-      .catch(() => {})
-
+     api.get("/dashboard/stats")
+       .then(r => r?.json())
+       .then(d => { if (d && Object.keys(d).length > 0) { DADOS = d; setDadosReais(true) } })
+       .catch(() => {})
+  }, [])
+      
   const totalMesAtual = totalAgenciaMes(mesSel)
   const totalMesAnterior = totalAgenciaMes(mesSel > 0 ? mesSel - 1 : 11)
   const variacaoMes = totalMesAnterior > 0 ? Math.round(((totalMesAtual - totalMesAnterior) / totalMesAnterior) * 100) : 0
