@@ -87,7 +87,7 @@ def _computar_series_kpis(meses_snaps: list) -> dict:
 # ─── Rotas ───────────────────────────────────────────────────────────────────
 
 @router.get("/ocupacao")
-def get_ocupacao(user: dict = Depends(require_module("inteligencia_grupos"))):
+def get_ocupacao(user: dict = Depends(get_current_user)):
     try:
         return _baixar_ocupacao_drive()
     except Exception as e:
