@@ -151,11 +151,12 @@ export default function App() {
   }, [chatHistory, loading])
 
   useEffect(() => {
+    if (!user) return
     api.get("/noticias")
       .then(r => r?.json())
       .then(d => { if (d?.noticias?.length > 0) setLiveNews(d.noticias) })
       .catch(() => {})
-  }, [])
+  }, [user])
 
   function handleLogin(data) {
     setUser({ username: data.username, level: data.level, modules: data.modules })
