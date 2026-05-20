@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react"
+import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -91,11 +92,7 @@ export default function ChatRAG({ onNavigate }) {
     setMessages(prev => [...prev, { role: "user", text: pergunta }])
     setLoading(true)
     try {
-      const res = await fetch("http://127.0.0.1:8000/chat-rag", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pergunta })
-      })
+      const res = await api.post("/chat", { pergunta })
       const data = await res.json()
       setMessages(prev => [...prev, {
         role: "bastos",

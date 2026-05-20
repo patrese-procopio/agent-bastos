@@ -153,7 +153,7 @@ export default function ControleGrupos({ onNavigate }) {
 
   const ud     = dados.unidades[unit]
   const pavs   = ud?.pavs || {}
-  const imgSrc = `./src/assets/unidades/${ud?.img}`
+  const imgSrc = `/unidades/${ud?.img}`
   const grups  = [...new Set(Object.values(pavs).map(p => p.g))]
 
   // ── Exportação PDF ─────────────────────────────────────────────────────────
