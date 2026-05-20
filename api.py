@@ -28,6 +28,7 @@ from routers.referencias_router import router as referencias_router
 from routers.inteligencia_router import router as inteligencia_router
 from routers.sistema_router     import router as sistema_router
 from routers.auth_router import router as auth_router
+from routers.chat_router import router as chat_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -115,6 +116,7 @@ app.include_router(transcricao_router)
 app.include_router(referencias_router)
 app.include_router(inteligencia_router)
 app.include_router(sistema_router)
+app.include_router(chat_router)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
