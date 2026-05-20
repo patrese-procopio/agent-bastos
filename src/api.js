@@ -13,6 +13,23 @@ function headers(extra = {}) {
   }
 }
 
+async function tryRefresh() {
+  const refresh = localStorage.getItem("ab_refresh_token")
+  if (!refresh) return false
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    localStorage.setItem("ab_access_token", data.access_token)
+    if (data.refresh_token) localStorage.setItem("ab_refresh_token", data.refresh_token)
+    return true
+  } catch { return false }
+}
+
 async function request(method, path, body = null) {
   const opts = { method, headers: headers() }
 
@@ -25,13 +42,26 @@ async function request(method, path, body = null) {
     opts.body = body
   }
 
-  const res = await fetch(`${BASE}${path}`, opts)
+  let res = await fetch(`${BASE}${path}`, opts)
 
   if (res.status === 401) {
-    localStorage.removeItem("ab_access_token")
-    localStorage.removeItem("ab_refresh_token")
-    localStorage.removeItem("ab_user")
-    return res
+    const refreshed = await tryRefresh()
+    if (refreshed) {
+      // Retry com novo token
+      const retryOpts = { method, headers: headers() }
+      if (body && !(body instanceof FormData)) retryOpts.body = JSON.stringify(body)
+      if (body instanceof FormData) {
+        retryOpts.headers = { Authorization: `Bearer ${getToken()}` }
+        retryOpts.body = body
+      }
+      res = await fetch(`${BASE}${path}`, retryOpts)
+    }
+    if (res.status === 401) {
+      localStorage.removeItem("ab_access_token")
+      localStorage.removeItem("ab_refresh_token")
+      localStorage.removeItem("ab_user")
+      return res
+    }
   }
 
   return res

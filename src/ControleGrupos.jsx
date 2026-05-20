@@ -129,7 +129,7 @@ export default function ControleGrupos({ onNavigate }) {
      .finally(() => setCarregando(false))
   }, [])
 
-  useEffect(() => { setPav(null); setImgRect(null) }, [unit])
+  useEffect(() => { setPav(null); setImgRect(null); setErr({}) }, [unit])
 
   const calcRect = useCallback(() => {
     if (!imgRef.current || !wrapRef.current) return
@@ -153,7 +153,7 @@ export default function ControleGrupos({ onNavigate }) {
 
   const ud     = dados.unidades[unit]
   const pavs   = ud?.pavs || {}
-  const imgSrc = `/unidades/${ud?.img}`
+  const imgSrc = ud?.img ? `/unidades/${ud.img}` : null
   const grups  = [...new Set(Object.values(pavs).map(p => p.g))]
 
   // ── Exportação PDF ─────────────────────────────────────────────────────────
@@ -420,7 +420,7 @@ export default function ControleGrupos({ onNavigate }) {
             ) : (
               <>
                 <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(0,0,0,0.35)",zIndex:0}}/>
-                <img ref={imgRef} src={imgSrc} alt={unit} onLoad={calcRect} onError={()=>setErr(e=>({...e,[unit]:true}))} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}/>
+                <img ref={imgRef} src={imgSrc} alt={unit} onLoad={calcRect} onError={()=>{console.log("ERRO IMG:", imgSrc); setErr(e=>({...e,[unit]:true}))}} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}/>
               </>
             )}
             {!err[unit] && imgRect && Object.entries(pavs).map(([id,p]) => {
