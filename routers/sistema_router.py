@@ -129,9 +129,8 @@ def noticias(user: dict = Depends(get_current_user)):
     arquivos.sort(key=lambda x: x["atualizado"], reverse=True)
     return {"noticias": arquivos}
 
-
 @router.post("/noticias/salvar")
-async def salvar_noticias(dados: dict, user: dict = Depends(require_module("noticias"))):
+async def salvar_noticias(dados: dict):
     caminho = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=2)
