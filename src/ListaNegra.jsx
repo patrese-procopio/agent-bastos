@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -28,17 +28,17 @@ export default function ListaNegra({ onNavigate }) {
   const [letraAtiva, setLetraAtiva] = useState("TODOS")
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/lista-negra")
-      .then(r => r.json())
+    api.get("/lista-negra")
+      .then(r => r?.json())
       .then(d => {
         setRegistros(d.registros || [])
         setFiltrados(d.registros || [])
         setLoading(false)
-      })
+     })
       .catch(() => {
         setErro("Falha ao conectar com o backend.")
         setLoading(false)
-      })
+     })
   }, [])
 
   useEffect(() => {

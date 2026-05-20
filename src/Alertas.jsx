@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -271,8 +271,8 @@ export default function Alertas({ onNavigate }) {
     setLoading(true)
     try {
       const [rt, os] = await Promise.all([
-        fetch("http://127.0.0.1:8000/alertas").then(r=>r.json()),
-        fetch("http://127.0.0.1:8000/alertas/osint").then(r=>r.json()),
+        api.get("/alertas").then(r=>r?.json()),
+        api.get("/alertas/osint").then(r=>r?.json()),
       ])
       setRealtimeAlertas(rt)
       setOsintAlertas(os)
@@ -285,7 +285,7 @@ export default function Alertas({ onNavigate }) {
   async function varrerRealtime() {
     setVarrendo(true)
     try {
-      await fetch("http://127.0.0.1:8000/alertas/varrer", { method:"POST", signal: AbortSignal.timeout(300000) })
+      await api.post("/alertas/varrer")
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,1500)) }
     finally { setVarrendo(false) }
@@ -294,7 +294,7 @@ export default function Alertas({ onNavigate }) {
   async function varrerOSINT() {
     setVarrendoOSINT(true)
     try {
-      await fetch("http://127.0.0.1:8000/alertas/osint/varrer", { method:"POST", signal: AbortSignal.timeout(300000) })
+      await api.post("/alertas/osint/varrer")
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,2000)) }
     finally { setVarrendoOSINT(false) }
@@ -303,13 +303,13 @@ export default function Alertas({ onNavigate }) {
   function marcarLido(id) {
     setRealtimeAlertas(prev => prev.map(a => a.id===id ? {...a,lido:true} : a))
     setOsintAlertas(prev    => prev.map(a => a.id===id ? {...a,lido:true} : a))
-    try { fetch(`http://127.0.0.1:8000/alertas/${id}/lido`, {method:"PATCH"}) } catch{}
+    try { api.patch(`/alertas/${id}/lido`) } catch{}
   }
 
   function marcarTodosLidos() {
     setRealtimeAlertas(prev => prev.map(a=>({...a,lido:true})))
     setOsintAlertas(prev    => prev.map(a=>({...a,lido:true})))
-    try { fetch("http://127.0.0.1:8000/alertas/marcar-todos-lidos",{method:"PATCH"}) } catch{}
+    try { api.patch("/alertas/marcar-todos-lidos") } catch{}
   }
 
   const todos = [...realtimeAlertas, ...osintAlertas].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))

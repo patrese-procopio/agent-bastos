@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -188,8 +188,8 @@ export default function Transcricao({ onNavigate }) {
     try {
       const form = new FormData()
       form.append("audio", file)
-      const res = await fetch("http://127.0.0.1:8000/transcribe", { method: "POST", body: form })
-      if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`)
+      const res = await api.upload("/transcribe", form)
+      if (!res || !res.ok) throw new Error(`Erro ${res?.status}: ${res?.statusText}`)
       const data = await res.json()
       setResult(data)
       setStage("done")
@@ -204,11 +204,7 @@ export default function Transcricao({ onNavigate }) {
     if (!result) return
     setExportStatus(s => ({ ...s, [fmt]: "loading" }))
     try {
-      const res = await fetch(`http://127.0.0.1:8000/export/${fmt}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: result, filename: audioFile?.name }),
-      })
+      const res = await api.post(`/export/${fmt}`, { transcript: result, filename: audioFile?.name })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)

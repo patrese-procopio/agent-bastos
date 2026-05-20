@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+﻿import { useState, useEffect, useRef, useCallback } from "react"
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const CORES = {
@@ -121,11 +122,11 @@ export default function ControleGrupos({ onNavigate }) {
 
   useEffect(() => {
     setCarregando(true)
-    fetch("http://127.0.0.1:8000/ocupacao")
-      .then(r => r.json())
-      .then(d => { setDados(normalizar(d)); setErroApi(false) })
-      .catch(() => { setDados(FALLBACK); setErroApi(true) })
-      .finally(() => setCarregando(false))
+    api.get("/ocupacao")
+     .then(r => r?.json())
+     .then(d => { setDados(normalizar(d)); setErroApi(false) })
+     .catch(() => { setDados(FALLBACK); setErroApi(true) })
+     .finally(() => setCarregando(false))
   }, [])
 
   useEffect(() => { setPav(null); setImgRect(null) }, [unit])

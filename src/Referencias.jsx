@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 
 export default function Referencias({ onNavigate }) {
@@ -13,15 +13,15 @@ export default function Referencias({ onNavigate }) {
   const [tipo, setTipo]     = useState("")
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/referencias")
-      .then(r => r.json())
-      .then(d => {
-        setTodos(d.documentos || [])
-        setAnos(d.anos || [])
-        setTotal(d.total_indexados || 0)
-        setLoading(false)
-      })
-      .catch(() => { setErro(true); setLoading(false) })
+    api.get("/referencias")
+  .then(r => r?.json())
+  .then(d => {
+    setTodos(d.documentos || [])
+    setAnos(d.anos || [])
+    setTotal(d.total_indexados || 0)
+    setLoading(false)
+  })
+  .catch(() => { setErro(true); setLoading(false) })
   }, [])
 
   const resultados = useMemo(() => {

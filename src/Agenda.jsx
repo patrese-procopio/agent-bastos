@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -86,8 +86,8 @@ function ModalLancarMissao({ onFechar, onPublicar }) {
     if (!senha.trim()) { setErroSenha("Digite a senha do Chefe AIPEN."); return }
     const cfg = JSON.parse(localStorage.getItem("ab_config") || "{}")
     const BACKEND = cfg.backendUrl || "http://127.0.0.1:8000"
-    fetch(`${BACKEND}/agenda/login`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ senha }) })
-      .then(r => r.json())
+    api.post("/agenda/login", { senha })
+      .then(r => r?.json())
       .then(d => {
         if (d.ok) { setErroSenha(""); setEtapa("missao") }
         else { setErroSenha("Senha incorreta. Tente novamente."); setSenha(""); senhaRef.current?.focus() }
@@ -103,7 +103,7 @@ function ModalLancarMissao({ onFechar, onPublicar }) {
     setPublicando(true)
     const cfg = JSON.parse(localStorage.getItem("ab_config") || "{}")
     const BACKEND = cfg.backendUrl || "http://127.0.0.1:8000"
-    try { await fetch(`${BACKEND}/agenda/publicar`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ nucleo:nucleoSel, mensagem:mensagem.trim() }) }) } catch {}
+    try { await api.post("/agenda/publicar", { nucleo:nucleoSel, mensagem:mensagem.trim() }) } catch {}
     setSucesso(true); setPublicando(false)
     onPublicar({ nucleo:nucleoSel, mensagem:mensagem.trim(), timestamp:new Date().toISOString(), status:"pendente" })
     setTimeout(onFechar, 1600)
@@ -306,8 +306,8 @@ export default function Agenda({ onNavigate }) {
 
   const carregarMissoes = useCallback(async () => {
     try {
-      const r = await fetch(`${BACKEND}/agenda/missoes?limite=30`)
-      const d = await r.json(); const lista = d.missoes || []; setMissoes(lista); return lista
+      const r = await api.get("/agenda/missoes?limite=30")
+      const d = await r?.json(); const lista = d.missoes || []; setMissoes(lista); return lista
     } catch {
       const hoje=new Date(),ontem=new Date(hoje),anteontem=new Date(hoje)
       ontem.setDate(hoje.getDate()-1); anteontem.setDate(hoje.getDate()-3)
@@ -334,7 +334,7 @@ export default function Agenda({ onNavigate }) {
   }, [BACKEND, carregarMissoes])
 
   async function acusarCiencia(missao) {
-    try { await fetch(`${BACKEND}/agenda/missoes/${missao.id}/ciencia`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nucleo:missao.nucleo})}) } catch {}
+    try { await api.patch(`/agenda/missoes/${missao.id}/ciencia`, {nucleo:missao.nucleo}) } catch {}
     setMissoes(prev => prev.map(m => m.id===missao.id?{...m,status:"ciencia"}:m)); setToast(null)
   }
 

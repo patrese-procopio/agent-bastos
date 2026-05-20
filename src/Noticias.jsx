@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -243,8 +243,8 @@ export default function Noticias({ onNavigate }) {
     setLoading(true)
     setErro(null)
     try {
-      const res = await fetch("http://127.0.0.1:8000/noticias")
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const res = await api.get("/noticias")
+      if (!res || !res.ok) throw new Error(`HTTP ${res?.status}`)
       const data = await res.json()
       setNoticias(data.noticias || [])
       setUltimaAtt(new Date())

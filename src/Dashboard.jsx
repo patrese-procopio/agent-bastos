@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-
+import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
 const MES_ATUAL = new Date().getMonth()
@@ -165,11 +165,10 @@ export default function Dashboard({ onNavigate }) {
   const [salvando, setSalvando] = useState(false)
   const [msgLanc, setMsgLanc] = useState("")
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/dashboard/stats")
-      .then(r => r.json())
+    api.get("/dashboard/stats")
+      .then(r => r?.json())
       .then(d => { if (d && Object.keys(d).length > 0) { DADOS = d; setDadosReais(true) } })
       .catch(() => {})
-  }, [])
 
   const totalMesAtual = totalAgenciaMes(mesSel)
   const totalMesAnterior = totalAgenciaMes(mesSel > 0 ? mesSel - 1 : 11)
@@ -198,11 +197,7 @@ export default function Dashboard({ onNavigate }) {
       }))
     }
     try {
-      const res = await fetch("http://127.0.0.1:8000/relatorio-dashboard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mes: MESES[mesSel], ano: ANO_ATUAL, dados: dadosPayload })
-      })
+      const res = await api.post("/relatorio-dashboard", { mes: MESES[mesSel], ano: ANO_ATUAL, dados: dadosPayload })
       const data = await res.json()
       setModalRelatorio(data.analise)
     } catch {
@@ -604,7 +599,7 @@ export default function Dashboard({ onNavigate }) {
                   try {
                     const meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
                     const nome = formDoc.nome_arquivo || (formDoc.tipo_codigo+"_"+formDoc.nucleo_sigla+"_"+meses[formDoc.mes-1]+"_"+formDoc.ano+".pdf")
-                    const res = await fetch("http://127.0.0.1:8000/dashboard/lancar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...formDoc,nome_arquivo:nome})})
+                    const res = await api.post("/dashboard/lancar", {...formDoc, nome_arquivo: nome})
                     if(!res.ok) throw new Error(await res.text())
                     setMsgLanc("OK - Documento registrado!")
                     setFormDoc(p=>({...p,nome_arquivo:"",observacao:""}))

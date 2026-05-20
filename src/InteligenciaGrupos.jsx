@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { jsPDF } from "jspdf"
+import api from "./api"
 
-const API = "http://127.0.0.1:8000"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -243,7 +243,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
 
   // 1. Carrega índice de meses disponíveis
   useEffect(() => {
-    fetch(`${API}/historico/indice`)
+    api.get("/historico/indice")
       .then(r => r.json())
       .then(data => {
         const lista = (data.meses || []).sort().reverse() // mais recente primeiro
@@ -258,7 +258,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
     if (!mesSelecionado) return
     if (snapshots[mesSelecionado]) return // já está em cache
 
-    fetch(`${API}/historico/${mesSelecionado}`)
+    api.get(`/historico/${mesSelecionado}`)
       .then(r => r.json())
       .then(data => {
         setSnapshots(prev => ({ ...prev, [mesSelecionado]: data }))
@@ -268,7 +268,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
 
   // 3. Carrega KPIs (séries históricas + alertas)
   useEffect(() => {
-    fetch(`${API}/kpis`)
+    api.get("/kpis")
       .then(r => r.json())
       .then(setKpis)
       .catch(() => {})
@@ -557,16 +557,16 @@ export default function InteligenciaGrupos({ onNavigate }) {
   async function forcarSnapshot() {
     setLoading(true)
     try {
-      const r = await fetch(`${API}/snapshot/forcar`, { method: "POST" })
+      const r = await api.post("/snapshot/forcar")
       const data = await r.json()
       if (data.ok) {
         // Recarrega índice e snapshot
-        const indice = await fetch(`${API}/historico/indice`).then(r => r.json())
+        const indice = await api.get("/historico/indice").then(r => r?.json())
         const lista = (indice.meses || []).sort().reverse()
         setMeses(lista)
         setMesSelecionado(lista[0])
         setSnapshots({}) // limpa cache para forçar reload
-        const kpisData = await fetch(`${API}/kpis`).then(r => r.json())
+        const kpisData = await api.get("/kpis").then(r => r?.json())
         setKpis(kpisData)
       }
     } catch {}
