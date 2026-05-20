@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import jsPDF from "jspdf"
+import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -59,14 +60,13 @@ export default function Grafoscopia({ onNavigate }) {
       form.append("imagem",         arquivo)
       form.append("tipo_documento", tipoDoc)
       form.append("contexto_extra", contexto)
-      const res = await fetch("http://localhost:8000/decifrar", {
-        method: "POST",
-        body: form,
-      })
-      if (!res.ok) {
-        const detalhe = await res.json().catch(() => ({}))
-        throw new Error(detalhe.detail || `Erro ${res.status}`)
-      }
+const res = await api.upload("/decifrar", form)
+if (!res || !res.ok) {
+  const detalhe = await res?.json().catch(() => ({}))
+  throw new Error(detalhe?.detail || `Erro ${res?.status}`)
+}
+      
+      
       const raw = await res.json()
       const texto = raw.texto_transcrito || (typeof raw.transcricao === 'string' ? raw.transcricao : '') || ''
       setResultado({ ...raw, transcricao: texto })
