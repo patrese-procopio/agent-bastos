@@ -73,7 +73,8 @@ const api = {
   patch:  (path, body)     => request("PATCH",  path, body),
   put:    (path, body)     => request("PUT",    path, body),
   delete: (path)           => request("DELETE", path),
-  upload: (path, formData) => request("POST",   path, formData),
+  upload:    (path, formData) => request("POST",   path, formData),
+  uploadPut: (path, formData) => request("PUT",    path, formData),
 
   login: async (username, password) => {
     const form = new URLSearchParams()

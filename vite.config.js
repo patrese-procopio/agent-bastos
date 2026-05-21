@@ -12,7 +12,7 @@ export default defineConfig({
       "/api-proxy": {
         target: "http://localhost:8000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api-proxy/, ""),
+        rewrite: (path) => path.replace(/^\/api-proxy/, "/api"),
       },
     },
   },

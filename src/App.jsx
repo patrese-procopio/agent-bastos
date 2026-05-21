@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import logoImg from "./assets/logo.png"
 import ChatRAG from "./ChatRAG"
 import Dashboard from "./Dashboard"
 import Transcricao from "./Transcricao"
@@ -208,7 +209,7 @@ export default function App() {
       <aside style={S.sidebar}>
         <div style={S.logoArea}>
           <div style={S.logoRing}>
-            <img src="./src/assets/logo.png" alt="AB" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            <img src={logoImg} alt="AB" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           </div>
           <div style={S.logoText}>
             <div style={S.logoName}>Agent Bastos</div>

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react"
-import jsPDF from "jspdf"
+import { jsPDF } from "jspdf"
 import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"

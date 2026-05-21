@@ -76,7 +76,7 @@ const FALLBACK = { atualizado:"2026-05", unidades:{
 }}
 
 function normalizar(d) {
-  if (!d?.unidades) return FALLBACK
+  if (!d?.unidades || Object.keys(d.unidades).length === 0) return FALLBACK
   const out = { atualizado: d.atualizado || "-", unidades: {} }
   for (const [k, u] of Object.entries(d.unidades)) {
     const img = u.imagem || u.img || k + ".jpg"
@@ -124,7 +124,7 @@ export default function ControleGrupos({ onNavigate }) {
     setCarregando(true)
     api.get("/ocupacao")
      .then(r => r?.json())
-     .then(d => { setDados(normalizar(d)); setErroApi(false) })
+     .then(d => { setDados(normalizar(d)); setErroApi(false); setErr({}) })
      .catch(() => { setDados(FALLBACK); setErroApi(true) })
      .finally(() => setCarregando(false))
   }, [])
