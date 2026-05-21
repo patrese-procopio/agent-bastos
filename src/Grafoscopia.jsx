@@ -5,6 +5,27 @@ import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
+const C = {
+  bg:          "#070D1A",
+  surface:     "#0D1526",
+  surfaceUp:   "#111E33",
+  border:      "rgba(255,255,255,0.07)",
+  borderHover: "rgba(255,255,255,0.14)",
+  accent:      "#C26A1A",
+  accentHover: "#D97C20",
+  accentDim:   "rgba(194,106,26,0.12)",
+  accentBorder:"rgba(194,106,26,0.35)",
+  text:        "#E8EDF5",
+  textDim:     "#6B7A99",
+  textMid:     "#94A3B8",
+  success:     "#10B981",
+  warning:     "#F59E0B",
+  danger:      "#EF4444",
+  blue:        "#3B82F6",
+  green:       "#10B981",
+  headerBg:    "#050C18",
+}
+
 const TIPO_DOC_OPTIONS = [
   { value: "desconhecido", label: "Desconhecido" },
   { value: "bilhete",      label: "Bilhete" },
@@ -13,152 +34,153 @@ const TIPO_DOC_OPTIONS = [
   { value: "codigo",       label: "Mensagem Codificada" },
 ]
 
-const CONFIANCA_COR = {
-  alto:    { bg: "#DCFCE7", text: "#15803D", border: "#86EFAC" },
-  medio:   { bg: "#FEF9C3", text: "#A16207", border: "#FDE047" },
-  baixo:   { bg: "#FEE2E2", text: "#B91C1C", border: "#FCA5A5" },
-  critico: { bg: "#FEE2E2", text: "#7F1D1D", border: "#F87171" },
+const CONFIANCA_MAP = {
+  alto:    { label: "ALTO",    color: "#10B981", bg: "rgba(16,185,129,0.1)",  border: "rgba(16,185,129,0.3)"  },
+  medio:   { label: "MÉDIO",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.3)"  },
+  baixo:   { label: "BAIXO",   color: "#EF4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)"   },
+  critico: { label: "CRÍTICO", color: "#DC2626", bg: "rgba(220,38,38,0.1)",   border: "rgba(220,38,38,0.3)"   },
 }
 
-// Criticidade → cor da borda esquerda do card
-const CRITICIDADE_COR = {
-  "ALTA":  { border: "#EF4444", bullet: "#EF4444", bg: "rgba(239,68,68,0.07)"  },
-  "MÉDIA": { border: "#EAB308", bullet: "#EAB308", bg: "rgba(234,179,8,0.07)"  },
-  "BAIXA": { border: "#3B82F6", bullet: "#3B82F6", bg: "rgba(59,130,246,0.07)" },
+const CRITICIDADE_MAP = {
+  "ALTA":  { color: "#EF4444", bg: "rgba(239,68,68,0.08)",  border: "#EF4444" },
+  "MÉDIA": { color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "#F59E0B" },
+  "BAIXA": { color: "#3B82F6", bg: "rgba(59,130,246,0.08)", border: "#3B82F6" },
 }
 
-const TIPO_EVENTO_ICONE = {
-  "ORDEM":              "⚡",
-  "MOVIMENTAÇÃO":       "🔄",
-  "REUNIÃO":            "🤝",
-  "ALERTA_DE_VISTORIA": "🚨",
-  "PAGAMENTO":          "💰",
-  "OUTRO":              "📌",
+const TIPO_ICONE = {
+  "ORDEM":              "⚡", "MOVIMENTAÇÃO": "↗",
+  "REUNIÃO":            "◎", "ALERTA_DE_VISTORIA": "⚠",
+  "PAGAMENTO":          "₿", "OUTRO": "◆",
 }
 
-// ── Componente Timeline ────────────────────────────────────────────────────────
+function Badge({ children, color, bg, border }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      background: bg, color, border: `1px solid ${border}`,
+      fontFamily: MONO, fontSize: 10, fontWeight: 700,
+      padding: "3px 10px", borderRadius: 3,
+      letterSpacing: "0.1em", whiteSpace: "nowrap",
+    }}>{children}</span>
+  )
+}
+
+function SectionLabel({ children, accent }) {
+  return (
+    <div style={{
+      fontFamily: MONO, fontSize: 10, fontWeight: 700,
+      color: accent ? C.accent : C.textDim,
+      letterSpacing: "0.18em", marginBottom: 10,
+      display: "flex", alignItems: "center", gap: 8,
+    }}>
+      <span style={{
+        display: "inline-block", width: 3, height: 12,
+        background: accent ? C.accent : C.textDim, borderRadius: 1,
+      }}/>
+      {children}
+    </div>
+  )
+}
+
 function Timeline({ eventos }) {
   if (!eventos?.length) return (
     <div style={{
-      display: "flex", alignItems: "center", justifyContent: "center",
-      height: 120, color: "#64748B", fontFamily: MONO, fontSize: 13,
-      border: "1px dashed rgba(255,255,255,0.07)", borderRadius: 8,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      height: 160, gap: 12,
     }}>
-      Nenhum evento cronológico extraído
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%",
+        border: `1px solid ${C.border}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: C.textDim, fontSize: 18,
+      }}>◷</div>
+      <span style={{ fontFamily: MONO, fontSize: 11, color: C.textDim, letterSpacing: "0.1em" }}>
+        NENHUM EVENTO EXTRAÍDO
+      </span>
     </div>
   )
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       {eventos.map((ev, i) => {
-        const cor = CRITICIDADE_COR[ev.criticidade] || CRITICIDADE_COR["BAIXA"]
-        const icone = TIPO_EVENTO_ICONE[ev.tipo_evento] || "📌"
+        const crit = CRITICIDADE_MAP[ev.criticidade] || CRITICIDADE_MAP["BAIXA"]
+        const icone = TIPO_ICONE[ev.tipo_evento] || "◆"
         const isLast = i === eventos.length - 1
 
         return (
-          <div key={i} style={{ display: "flex", gap: 12 }}>
-
-            {/* Linha vertical + bullet */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 24 }}>
+          <div key={i} style={{ display: "flex", gap: 14, position: "relative" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, flexShrink: 0 }}>
               <div style={{
-                width: 14, height: 14, borderRadius: "50%",
-                background: cor.bullet, flexShrink: 0, marginTop: 4,
-                boxShadow: `0 0 6px ${cor.bullet}88`,
-              }} />
-              {!isLast && (
-                <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.07)", minHeight: 20 }} />
-              )}
+                width: 10, height: 10, borderRadius: "50%",
+                background: crit.color, marginTop: 6, flexShrink: 0,
+                boxShadow: `0 0 8px ${crit.color}66`,
+              }}/>
+              {!isLast && <div style={{ width: 1, flex: 1, background: C.border, minHeight: 24, marginTop: 4 }}/>}
             </div>
 
-            {/* Card do evento */}
             <div style={{
-              flex: 1, marginBottom: isLast ? 0 : 12,
-              background: cor.bg,
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderLeft: `3px solid ${cor.border}`,
-              borderRadius: 8, padding: "12px 14px",
+              flex: 1, marginBottom: isLast ? 0 : 14,
+              background: crit.bg,
+              border: `1px solid ${C.border}`,
+              borderLeft: `2px solid ${crit.border}`,
+              borderRadius: 6, padding: "12px 14px",
             }}>
-              {/* Header do card */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6,
+              }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14 }}>{icone}</span>
-                  <span style={{
-                    fontFamily: MONO, fontSize: 11, color: "#94A3B8",
-                    letterSpacing: "0.08em",
-                  }}>
+                  <span style={{ color: crit.color, fontSize: 13, fontWeight: 700 }}>{icone}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.12em" }}>
                     {ev.tipo_evento}
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {/* Badge criticidade */}
-                  <span style={{
-                    background: cor.bg, color: cor.border,
-                    border: `1px solid ${cor.border}`,
-                    fontFamily: MONO, fontSize: 10, fontWeight: 700,
-                    padding: "2px 8px", borderRadius: 20, letterSpacing: "0.08em",
-                  }}>
+                  <Badge color={crit.color} bg={crit.bg} border={`${crit.color}44`}>
                     {ev.criticidade}
-                  </span>
-                  {/* Data */}
-                  <span style={{
-                    fontFamily: MONO, fontSize: 11, color: "#64748B",
-                  }}>
-                    {ev.data_isolada !== "DATA_INCERTA" ? ev.data_isolada : "⚠ DATA INCERTA"}
+                  </Badge>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim }}>
+                    {ev.data_isolada !== "DATA_INCERTA" ? ev.data_isolada : "⚠ INCERTA"}
                   </span>
                 </div>
               </div>
 
-              {/* Descrição */}
-              <p style={{
-                fontFamily: SANS, fontSize: 13, color: "#E2E8F0",
-                margin: "0 0 8px 0", lineHeight: 1.6,
-              }}>
+              <p style={{ fontFamily: SANS, fontSize: 13, color: C.text, margin: "0 0 8px 0", lineHeight: 1.65 }}>
                 {ev.descricao_analitica}
               </p>
 
-              {/* Data original */}
               {ev.data_texto_original && (
-                <p style={{
-                  fontFamily: MONO, fontSize: 11, color: "#475569",
-                  margin: "0 0 8px 0", fontStyle: "italic",
-                }}>
+                <p style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, margin: "0 0 10px 0", fontStyle: "italic" }}>
                   "{ev.data_texto_original}"
                 </p>
               )}
 
-              {/* Badges de entidades */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {ev.entidades?.atores?.map((ator, j) => (
-                  <span key={`a${j}`} style={{
-                    background: "rgba(239,68,68,0.15)", color: "#FCA5A5",
-                    border: "1px solid rgba(239,68,68,0.3)",
-                    fontFamily: MONO, fontSize: 10,
-                    padding: "2px 8px", borderRadius: 20,
-                  }}>
-                    👤 {ator}
-                  </span>
-                ))}
-                {ev.entidades?.locais?.map((local, j) => (
-                  <span key={`l${j}`} style={{
-                    background: "rgba(59,130,246,0.15)", color: "#93C5FD",
-                    border: "1px solid rgba(59,130,246,0.3)",
-                    fontFamily: MONO, fontSize: 10,
-                    padding: "2px 8px", borderRadius: 20,
-                  }}>
-                    📍 {local}
-                  </span>
-                ))}
-                {ev.entidades?.organizacoes?.map((org, j) => (
-                  <span key={`o${j}`} style={{
-                    background: "rgba(16,185,129,0.15)", color: "#6EE7B7",
-                    border: "1px solid rgba(16,185,129,0.3)",
-                    fontFamily: MONO, fontSize: 10,
-                    padding: "2px 8px", borderRadius: 20,
-                  }}>
-                    🏴 {org}
-                  </span>
-                ))}
-              </div>
+              {(ev.entidades?.atores?.length > 0 || ev.entidades?.locais?.length > 0 || ev.entidades?.organizacoes?.length > 0) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {ev.entidades?.atores?.map((a, j) => (
+                    <span key={`a${j}`} style={{
+                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      background: "rgba(239,68,68,0.1)", color: "#FCA5A5",
+                      border: "1px solid rgba(239,68,68,0.25)",
+                    }}>● {a}</span>
+                  ))}
+                  {ev.entidades?.locais?.map((l, j) => (
+                    <span key={`l${j}`} style={{
+                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      background: "rgba(59,130,246,0.1)", color: "#93C5FD",
+                      border: "1px solid rgba(59,130,246,0.25)",
+                    }}>◎ {l}</span>
+                  ))}
+                  {ev.entidades?.organizacoes?.map((o, j) => (
+                    <span key={`o${j}`} style={{
+                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      background: "rgba(16,185,129,0.1)", color: "#6EE7B7",
+                      border: "1px solid rgba(16,185,129,0.25)",
+                    }}>▲ {o}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -167,8 +189,6 @@ function Timeline({ eventos }) {
   )
 }
 
-
-// ── Componente principal ───────────────────────────────────────────────────────
 export default function Grafoscopia({ onNavigate }) {
   const [arquivo,    setArquivo]    = useState(null)
   const [preview,    setPreview]    = useState(null)
@@ -177,101 +197,74 @@ export default function Grafoscopia({ onNavigate }) {
   const [resultado,  setResultado]  = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [erro,       setErro]       = useState(null)
+  const [dragOver,   setDragOver]   = useState(false)
   const inputRef = useRef(null)
 
   function aoSelecionarArquivo(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    setArquivo(file)
-    setResultado(null)
-    setErro(null)
+    setArquivo(file); setResultado(null); setErro(null)
     setPreview(URL.createObjectURL(file))
   }
 
   function aoSoltar(e) {
-    e.preventDefault()
+    e.preventDefault(); setDragOver(false)
     const file = e.dataTransfer.files?.[0]
     if (file && file.type.startsWith("image/")) {
-      setArquivo(file)
-      setResultado(null)
-      setErro(null)
+      setArquivo(file); setResultado(null); setErro(null)
       setPreview(URL.createObjectURL(file))
     }
   }
 
   async function aoDecifrar() {
     if (!arquivo) return
-    setCarregando(true)
-    setErro(null)
-    setResultado(null)
+    setCarregando(true); setErro(null); setResultado(null)
     try {
       const form = new FormData()
-      form.append("imagem",         arquivo)
+      form.append("imagem", arquivo)
       form.append("tipo_documento", tipoDoc)
       form.append("contexto_extra", contexto)
       const res = await api.upload("/decifrar", form)
       if (!res || !res.ok) {
-        const detalhe = await res?.json().catch(() => ({}))
-        throw new Error(detalhe?.detail || `Erro ${res?.status}`)
+        const d = await res?.json().catch(() => ({}))
+        throw new Error(d?.detail || `Erro ${res?.status}`)
       }
       const raw = await res.json()
       const texto = raw.texto_transcrito || (typeof raw.transcricao === "string" ? raw.transcricao : "") || ""
       setResultado({ ...raw, transcricao: texto })
-    } catch (e) {
-      setErro(e.message)
-    } finally {
-      setCarregando(false)
-    }
+    } catch (e) { setErro(e.message) }
+    finally { setCarregando(false) }
   }
 
   function aoLimpar() {
-    setArquivo(null)
-    setPreview(null)
-    setResultado(null)
-    setErro(null)
-    setContexto("")
-    setTipoDoc("desconhecido")
+    setArquivo(null); setPreview(null); setResultado(null)
+    setErro(null); setContexto(""); setTipoDoc("desconhecido")
     if (inputRef.current) inputRef.current.value = ""
   }
 
   function exportarTxt() {
     if (!resultado) return
     const linhas = [
-      "LAUDO DE ANÁLISE GRAFOSCÓPICA",
-      "Agent Bastos — Sistema de Inteligência",
-      "─".repeat(52),
-      `Gerado em:   ${new Date().toLocaleString("pt-BR")}`,
-      `Arquivo:     ${resultado.metadados?.arquivo || "—"}`,
-      `Tipo doc.:   ${resultado.metadados?.tipo_documento || "—"}`,
-      `Modelo IA:   ${resultado.metadados?.modelo || "—"}`,
-      `Confiança:   ${resultado.confianca?.toUpperCase() || "—"}`,
-      `Revisão:     ${resultado.requer_revisao_humana ? "NECESSÁRIA" : "Não necessária"}`,
-      `Idioma:      ${resultado.idioma_detectado || "—"}`,
-      "",
-      "── TRANSCRIÇÃO FORENSE " + "─".repeat(29),
+      "LAUDO DE ANÁLISE GRAFOSCÓPICA — AGENT BASTOS",
+      "=".repeat(56),
+      `Gerado em:  ${new Date().toLocaleString("pt-BR")}`,
+      `Arquivo:    ${resultado.metadados?.arquivo || "—"}`,
+      `Tipo:       ${resultado.metadados?.tipo_documento || "—"}`,
+      `Confiança:  ${resultado.confianca?.toUpperCase() || "—"}`,
+      `Revisão:    ${resultado.requer_revisao_humana ? "NECESSÁRIA" : "Não necessária"}`,
+      "", "TRANSCRIÇÃO FORENSE", "-".repeat(56),
       resultado.transcricao || "",
-      "",
-      "── PARECER GRAFOSCÓPICO " + "─".repeat(28),
+      "", "PARECER GRAFOSCÓPICO", "-".repeat(56),
       resultado.parecer_grafoscopico || "Não disponível.",
-      "",
-      "── OBSERVAÇÕES FORENSES " + "─".repeat(28),
-      resultado.observacoes || "Nenhuma.",
-      "",
-      "── TRECHOS DUVIDOSOS " + "─".repeat(31),
-      ...(resultado.trechos_duvidosos?.length
-        ? resultado.trechos_duvidosos.map((t, i) => `  ${i + 1}. ${t}`)
-        : ["  Nenhum."]),
-      "",
-      "── LINHA DO TEMPO ANALÍTICA " + "─".repeat(24),
+      "", "LINHA DO TEMPO", "-".repeat(56),
       ...(resultado.linha_do_tempo?.length
         ? resultado.linha_do_tempo.map((ev, i) =>
-            `  [${ev.criticidade}] ${ev.data_isolada} — ${ev.tipo_evento}\n  ${ev.descricao_analitica}\n`
-          )
-        : ["  Nenhum evento extraído."]),
+            `[${ev.criticidade}] ${ev.data_isolada} — ${ev.tipo_evento}\n${ev.descricao_analitica}\n`)
+        : ["Nenhum evento extraído."]),
     ]
     const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
     a.href = url; a.download = `grafoscopia_${Date.now()}.txt`; a.click()
     URL.revokeObjectURL(url)
   }
@@ -281,53 +274,38 @@ export default function Grafoscopia({ onNavigate }) {
     const doc = new jsPDF({ unit: "mm", format: "a4" })
     const PW = 210, ML = 18, MR = 18, TW = PW - ML - MR
     let y = 20
-
     doc.setFont("courier", "bold"); doc.setFontSize(13)
     doc.text("LAUDO DE ANÁLISE GRAFOSCÓPICA", ML, y); y += 6
     doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(100)
-    doc.text("Agent Bastos — Sistema de Inteligência de Segurança", ML, y); y += 4
+    doc.text("Agent Bastos — Sistema de Inteligência", ML, y); y += 4
     doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, ML, y); y += 2
     doc.setDrawColor(180); doc.line(ML, y + 2, PW - MR, y + 2); y += 7
-
     doc.setTextColor(0); doc.setFontSize(8)
     const meta = [
-      ["Arquivo",   resultado.metadados?.arquivo || "—"],
-      ["Tipo",      resultado.metadados?.tipo_documento || "—"],
-      ["Modelo IA", resultado.metadados?.modelo || "—"],
+      ["Arquivo", resultado.metadados?.arquivo || "—"],
+      ["Tipo", resultado.metadados?.tipo_documento || "—"],
       ["Confiança", resultado.confianca?.toUpperCase() || "—"],
-      ["Revisão",   resultado.requer_revisao_humana ? "NECESSÁRIA" : "Não necessária"],
-      ["Idioma",    resultado.idioma_detectado || "—"],
+      ["Revisão", resultado.requer_revisao_humana ? "NECESSÁRIA" : "Não necessária"],
     ]
     meta.forEach(([k, v]) => {
       doc.setFont("courier", "bold"); doc.text(`${k}:`, ML, y)
-      doc.setFont("courier", "normal"); doc.text(v, ML + 28, y); y += 5
-    }); y += 2
-
-    const secao = (titulo, cor = [180, 83, 9]) => {
+      doc.setFont("courier", "normal"); doc.text(v, ML + 24, y); y += 5
+    }); y += 4
+    const secao = (titulo) => {
       if (y > 265) { doc.addPage(); y = 20 }
       doc.setFont("courier", "bold"); doc.setFontSize(9); doc.setTextColor(100)
       doc.text(titulo, ML, y); y += 1
-      doc.setDrawColor(...cor); doc.setLineWidth(0.5)
+      doc.setDrawColor(180, 83, 9); doc.setLineWidth(0.5)
       doc.line(ML, y + 1, PW - MR, y + 1); y += 5
       doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(20)
     }
-
     secao("TRANSCRIÇÃO FORENSE")
     doc.splitTextToSize(resultado.transcricao || "", TW).forEach(l => {
       if (y > 275) { doc.addPage(); y = 20 }
       doc.text(l, ML, y); y += 5
     }); y += 4
-
-    if (resultado.parecer_grafoscopico) {
-      secao("PARECER GRAFOSCÓPICO", [100, 100, 180])
-      doc.splitTextToSize(resultado.parecer_grafoscopico, TW).forEach(l => {
-        if (y > 275) { doc.addPage(); y = 20 }
-        doc.text(l, ML, y); y += 5
-      }); y += 4
-    }
-
     if (resultado.linha_do_tempo?.length) {
-      secao("LINHA DO TEMPO ANALÍTICA", [200, 0, 0])
+      secao("LINHA DO TEMPO ANALÍTICA")
       resultado.linha_do_tempo.forEach((ev, i) => {
         if (y > 265) { doc.addPage(); y = 20 }
         doc.setFont("courier", "bold")
@@ -339,355 +317,406 @@ export default function Grafoscopia({ onNavigate }) {
         }); y += 2
       })
     }
-
-    const totalPaginas = doc.getNumberOfPages()
-    for (let p = 1; p <= totalPaginas; p++) {
+    const total = doc.getNumberOfPages()
+    for (let p = 1; p <= total; p++) {
       doc.setPage(p); doc.setFont("courier", "normal")
       doc.setFontSize(7); doc.setTextColor(160)
-      doc.text(`Agent Bastos — Análise Grafoscópica — Página ${p}/${totalPaginas} — CONFIDENCIAL`,
-        PW / 2, 290, { align: "center" })
+      doc.text(`Agent Bastos — Análise Grafoscópica — Pág. ${p}/${total} — CONFIDENCIAL`, PW / 2, 290, { align: "center" })
     }
     doc.save(`grafoscopia_${Date.now()}.pdf`)
   }
 
-  const conf = resultado ? (CONFIANCA_COR[resultado.confianca] || CONFIANCA_COR.baixo) : null
+  const conf = resultado ? (CONFIANCA_MAP[resultado.confianca] || CONFIANCA_MAP.baixo) : null
   const temTimeline = resultado?.linha_do_tempo?.length > 0
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0B1120", fontFamily: SANS }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: SANS, color: C.text }}>
 
       {/* Header */}
       <div style={{
-        background: "#FFF", borderBottom: "1px solid rgba(255,255,255,0.07)",
-        padding: "18px 32px", display: "flex",
-        alignItems: "center", justifyContent: "space-between",
+        background: C.headerBg, borderBottom: `1px solid ${C.border}`,
+        padding: "0 32px", display: "flex", alignItems: "stretch",
+        justifyContent: "space-between", height: 56,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 8, background: "#78350F",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-          }}>🔬</div>
+            width: 56, height: "100%", background: C.accent,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginRight: 20, flexShrink: 0,
+            clipPath: "polygon(0 0, 100% 0, 88% 100%, 0% 100%)",
+          }}>
+            <span style={{ fontSize: 20 }}>🔬</span>
+          </div>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em" }}>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.2em" }}>
               AGENT BASTOS / FERRAMENTAS
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", letterSpacing: "-0.02em" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
               Análise Grafoscópica
             </div>
           </div>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8" }}>
-          Gemini 2.5 Flash · Transcrição Forense + Cronologia
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.success }}/>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.1em" }}>
+              GEMINI 2.5 FLASH
+            </span>
+          </div>
+          <div style={{ height: 28, width: 1, background: C.border }}/>
+          <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.1em" }}>
+            TRANSCRIÇÃO FORENSE + CRONOLOGIA
+          </span>
         </div>
       </div>
 
       {/* Body */}
       <div style={{
-        maxWidth: 1200, margin: "0 auto", padding: "32px 24px",
-        display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap",
+        maxWidth: 1280, margin: "0 auto", padding: "24px 28px",
+        display: "flex", gap: 24, alignItems: "flex-start",
       }}>
 
-        {/* Coluna esquerda — controles (inalterada) */}
-        <div style={{ flex: "0 0 300px", display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Painel de controle */}
+        <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Drop zone */}
           <div
-            onDragOver={e => e.preventDefault()} onDrop={aoSoltar}
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={aoSoltar}
             onClick={() => inputRef.current?.click()}
             style={{
-              border: `2px dashed ${preview ? "#B45309" : "#CBD5E1"}`,
-              borderRadius: 10, background: preview ? "#FFFBEB" : "#FFF",
-              minHeight: 220, display: "flex", flexDirection: "column",
+              border: `1px solid ${dragOver ? C.accent : preview ? C.accentBorder : C.border}`,
+              borderRadius: 6,
+              background: dragOver ? C.accentDim : preview ? "transparent" : C.surface,
+              minHeight: 200, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",
-              cursor: "pointer", overflow: "hidden", transition: "border-color .2s",
+              cursor: "pointer", overflow: "hidden", transition: "all .2s", position: "relative",
             }}
           >
             {preview ? (
-              <img src={preview} alt="preview" style={{ width: "100%", maxHeight: 280, objectFit: "contain" }} />
-            ) : (
               <>
-                <span style={{ fontSize: 36 }}>📄</span>
-                <span style={{ fontFamily: MONO, fontSize: 12, color: "#64748B", marginTop: 10, textAlign: "center", padding: "0 20px" }}>
-                  Arraste o documento ou clique para selecionar
-                </span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
-                  JPEG · PNG · WEBP · GIF
-                </span>
+                <img src={preview} alt="preview" style={{ width: "100%", maxHeight: 260, objectFit: "contain" }} />
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
+                  padding: "20px 12px 10px",
+                  fontFamily: MONO, fontSize: 10, color: C.textMid,
+                }}>
+                  {arquivo?.name}
+                </div>
               </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "0 24px" }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 8, border: `1px solid ${C.border}`,
+                  background: C.surfaceUp, display: "flex", alignItems: "center",
+                  justifyContent: "center", margin: "0 auto 12px", fontSize: 20,
+                }}>📄</div>
+                <div style={{ fontFamily: MONO, fontSize: 11, color: C.textMid, lineHeight: 1.6 }}>
+                  Arraste o documento<br/>ou clique para selecionar
+                </div>
+                <div style={{ marginTop: 10, fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.15em" }}>
+                  JPEG · PNG · WEBP · GIF
+                </div>
+              </div>
             )}
             <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
               style={{ display: "none" }} onChange={aoSelecionarArquivo} />
           </div>
 
+          {/* Tipo */}
           <div>
-            <label style={{ fontFamily: MONO, fontSize: 11, color: "#64748B", letterSpacing: "0.1em" }}>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
               TIPO DE DOCUMENTO
-            </label>
+            </div>
             <select value={tipoDoc} onChange={e => setTipoDoc(e.target.value)} style={{
-              width: "100%", marginTop: 6, padding: "9px 12px",
-              fontFamily: MONO, fontSize: 12, color: "#F1F5F9",
-              background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 6, cursor: "pointer", outline: "none",
+              width: "100%", padding: "9px 12px", fontFamily: MONO, fontSize: 11, color: C.text,
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 4, cursor: "pointer", outline: "none", appearance: "none",
             }}>
-              {TIPO_DOC_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+              {TIPO_DOC_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
 
+          {/* Contexto */}
           <div>
-            <label style={{ fontFamily: MONO, fontSize: 11, color: "#64748B", letterSpacing: "0.1em" }}>
-              CONTEXTO OPERACIONAL <span style={{ color: "#CBD5E1" }}>/ OPCIONAL</span>
-            </label>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
+              CONTEXTO OPERACIONAL
+              <span style={{ color: C.textDim, marginLeft: 6, fontWeight: 400 }}>/ OPCIONAL</span>
+            </div>
             <textarea value={contexto} onChange={e => setContexto(e.target.value)}
               placeholder="Ex: Apreendido em abordagem, zona norte, 09/05/2026"
               maxLength={500} rows={3} style={{
-                width: "100%", marginTop: 6, padding: "9px 12px",
-                fontFamily: MONO, fontSize: 12, color: "#F1F5F9",
-                background: "#0B1120", border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 6, resize: "vertical", boxSizing: "border-box", outline: "none",
+                width: "100%", padding: "9px 12px", fontFamily: MONO, fontSize: 11, color: C.text,
+                background: C.surface, border: `1px solid ${C.border}`,
+                borderRadius: 4, resize: "vertical", boxSizing: "border-box", outline: "none", lineHeight: 1.6,
               }} />
           </div>
 
+          {/* Botão */}
           <button onClick={aoDecifrar} disabled={!arquivo || carregando} style={{
-            padding: "13px 0",
-            background: !arquivo || carregando ? "#1E293B" : "#78350F",
-            color: !arquivo || carregando ? "#475569" : "#FFF",
-            border: "none", borderRadius: 8,
-            fontFamily: MONO, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-            cursor: !arquivo || carregando ? "not-allowed" : "pointer",
-            transition: "background .2s",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            padding: "11px 0",
+            background: !arquivo || carregando ? C.surface : `linear-gradient(135deg, ${C.accent} 0%, ${C.accentHover} 100%)`,
+            color: !arquivo || carregando ? C.textDim : "#fff",
+            border: `1px solid ${!arquivo || carregando ? C.border : C.accent}`,
+            borderRadius: 4, fontFamily: MONO, fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.15em", cursor: !arquivo || carregando ? "not-allowed" : "pointer",
+            transition: "all .2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}>
             {carregando ? (
               <>
                 <span style={{
-                  width: 13, height: 13, border: "2px solid #475569",
-                  borderTopColor: "#94A3B8", borderRadius: "50%",
-                  animation: "spin 1s linear infinite", display: "inline-block",
-                }} />
-                ANALISANDO...
+                  width: 12, height: 12, border: `2px solid ${C.textDim}`,
+                  borderTopColor: C.accent, borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite", display: "inline-block",
+                }}/>
+                PROCESSANDO...
               </>
-            ) : "INICIAR ANÁLISE"}
+            ) : "▶  INICIAR ANÁLISE"}
           </button>
 
           {arquivo && (
             <button onClick={aoLimpar} style={{
-              padding: "9px 0", background: "transparent",
-              border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8,
-              fontFamily: MONO, fontSize: 12, color: "#64748B", cursor: "pointer",
-            }}>LIMPAR</button>
+              padding: "9px 0", background: "transparent", border: `1px solid ${C.border}`,
+              borderRadius: 4, fontFamily: MONO, fontSize: 10, color: C.textDim,
+              cursor: "pointer", letterSpacing: "0.12em", transition: "border-color .2s",
+            }}
+              onMouseOver={e => e.currentTarget.style.borderColor = C.borderHover}
+              onMouseOut={e => e.currentTarget.style.borderColor = C.border}
+            >LIMPAR</button>
           )}
 
+          {/* Info box */}
           <div style={{
-            background: "rgba(232,160,32,0.10)", border: "1px solid #FDE68A",
-            borderRadius: 8, padding: "12px 14px",
+            background: C.accentDim, border: `1px solid ${C.accentBorder}`,
+            borderLeft: `3px solid ${C.accent}`, borderRadius: 4, padding: "12px 14px", marginTop: 4,
           }}>
-            <div style={{ fontFamily: MONO, fontSize: 11, color: "#E8A020", letterSpacing: "0.08em", marginBottom: 6 }}>
-              SOBRE ESTE MÓDULO
+            <div style={{ fontFamily: MONO, fontSize: 9, color: C.accent, letterSpacing: "0.18em", marginBottom: 8 }}>
+              CAPACIDADES DO MÓDULO
             </div>
-            <p style={{ fontFamily: MONO, fontSize: 11, color: "#F1F5F9", margin: 0, lineHeight: 1.7 }}>
-              Transcrição forense + cronologia analítica de manuscritos.
-              Extrai eventos, datas, atores e criticidade operacional.
-            </p>
+            {[
+              "Transcrição forense fiel ao original",
+              "Extração de cronologia e eventos",
+              "Mapeamento de atores e locais",
+              "Classificação de criticidade operacional",
+            ].map((item, i) => (
+              <div key={i} style={{
+                fontFamily: MONO, fontSize: 10, color: C.textMid,
+                padding: "4px 0", lineHeight: 1.5,
+                borderBottom: i < 3 ? `1px solid ${C.border}` : "none",
+                display: "flex", gap: 8, alignItems: "flex-start",
+              }}>
+                <span style={{ color: C.accent, flexShrink: 0 }}>›</span>{item}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Coluna direita — resultado */}
-        <div style={{ flex: 1, minWidth: 300 }}>
+        {/* Área de resultado */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {erro && (
-            <div style={{
-              background: "#FEE2E2", border: "1px solid #FCA5A5",
-              borderRadius: 8, padding: "14px 18px",
-              fontFamily: MONO, fontSize: 12, color: "#B91C1C",
-            }}>⚠ {erro}</div>
-          )}
-
+          {/* Estado vazio */}
           {!resultado && !erro && !carregando && (
             <div style={{
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              height: 360, color: "#CBD5E1",
-              border: "1px dashed rgba(255,255,255,0.07)", borderRadius: 10,
+              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", minHeight: 420, gap: 16,
             }}>
-              <span style={{ fontSize: 48 }}>🔍</span>
-              <span style={{ fontFamily: MONO, fontSize: 12, marginTop: 16, color: "#475569" }}>
-                Selecione um documento para iniciar a análise forense
-              </span>
+              <div style={{
+                width: 60, height: 60, border: `1px solid ${C.border}`, borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: C.surfaceUp, fontSize: 28,
+              }}>🔍</div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: MONO, fontSize: 11, color: C.textMid, letterSpacing: "0.1em", marginBottom: 6 }}>
+                  AGUARDANDO DOCUMENTO
+                </div>
+                <div style={{ fontFamily: MONO, fontSize: 10, color: C.textDim }}>
+                  Selecione uma imagem para iniciar a análise forense
+                </div>
+              </div>
             </div>
           )}
 
-          {resultado && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, animation: "fadeIn .22s ease" }}>
+          {/* Erro */}
+          {erro && (
+            <div style={{
+              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+              borderLeft: "3px solid #EF4444", borderRadius: 4, padding: "14px 18px",
+              fontFamily: MONO, fontSize: 11, color: "#FCA5A5",
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 16 }}>⚠</span> {erro}
+            </div>
+          )}
 
-              {/* Header resultado */}
+          {/* Resultado */}
+          {resultado && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, animation: "fadeIn .25s ease" }}>
+
+              {/* Barra de status */}
               <div style={{
+                background: C.surface, border: `1px solid ${C.border}`,
+                borderRadius: 4, padding: "10px 16px",
                 display: "flex", alignItems: "center",
                 justifyContent: "space-between", flexWrap: "wrap", gap: 10,
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{
-                    background: conf.bg, color: conf.text, border: `1px solid ${conf.border}`,
-                    fontFamily: MONO, fontSize: 11, fontWeight: 700,
-                    padding: "4px 12px", borderRadius: 20, letterSpacing: "0.1em",
-                  }}>
-                    CONFIANÇA {resultado.confianca?.toUpperCase()}
-                  </span>
+                  {conf && (
+                    <Badge color={conf.color} bg={conf.bg} border={conf.border}>
+                      CONFIANÇA {conf.label}
+                    </Badge>
+                  )}
                   {temTimeline && (
-                    <span style={{
-                      background: "rgba(59,130,246,0.15)", color: "#93C5FD",
-                      border: "1px solid rgba(59,130,246,0.3)",
-                      fontFamily: MONO, fontSize: 11, fontWeight: 600,
-                      padding: "4px 12px", borderRadius: 20,
-                    }}>
-                      📅 {resultado.linha_do_tempo.length} EVENTO{resultado.linha_do_tempo.length > 1 ? "S" : ""} EXTRAÍDO{resultado.linha_do_tempo.length > 1 ? "S" : ""}
-                    </span>
+                    <Badge color="#6EE7B7" bg="rgba(16,185,129,0.1)" border="rgba(16,185,129,0.3)">
+                      {resultado.linha_do_tempo.length} EVENTO{resultado.linha_do_tempo.length > 1 ? "S" : ""} EXTRAÍDO{resultado.linha_do_tempo.length > 1 ? "S" : ""}
+                    </Badge>
                   )}
                   {resultado.requer_revisao_humana && (
-                    <span style={{
-                      background: "#FEF9C3", color: "#E8A020", border: "1px solid #FDE047",
-                      fontFamily: MONO, fontSize: 11, fontWeight: 600,
-                      padding: "4px 12px", borderRadius: 20,
-                    }}>⚠ REVISÃO NECESSÁRIA</span>
+                    <Badge color="#F59E0B" bg="rgba(245,158,11,0.1)" border="rgba(245,158,11,0.3)">
+                      ⚠ REVISÃO NECESSÁRIA
+                    </Badge>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={exportarTxt} style={{
-                    background: "#475569", color: "#FFF", border: "none",
-                    borderRadius: 6, padding: "7px 14px",
-                    fontFamily: MONO, fontSize: 11, cursor: "pointer", letterSpacing: "0.08em",
-                  }}>EXPORTAR .TXT</button>
+                    padding: "6px 14px", background: C.surface, border: `1px solid ${C.border}`,
+                    borderRadius: 4, fontFamily: MONO, fontSize: 10, color: C.textMid,
+                    cursor: "pointer", letterSpacing: "0.1em", transition: "all .2s",
+                  }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = C.borderHover; e.currentTarget.style.color = C.text }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMid }}
+                  >EXPORTAR .TXT</button>
                   <button onClick={exportarPdf} style={{
-                    background: "#B45309", color: "#FFF", border: "none",
-                    borderRadius: 6, padding: "7px 14px",
-                    fontFamily: MONO, fontSize: 11, cursor: "pointer", letterSpacing: "0.08em",
-                  }}>EXPORTAR .PDF</button>
+                    padding: "6px 14px",
+                    background: `linear-gradient(135deg, ${C.accent}, ${C.accentHover})`,
+                    border: `1px solid ${C.accent}`, borderRadius: 4,
+                    fontFamily: MONO, fontSize: 10, color: "#fff",
+                    cursor: "pointer", letterSpacing: "0.1em", transition: "opacity .2s",
+                  }}
+                    onMouseOver={e => e.currentTarget.style.opacity = ".85"}
+                    onMouseOut={e => e.currentTarget.style.opacity = "1"}
+                  >EXPORTAR .PDF</button>
                 </div>
               </div>
 
-              {/* Split-screen quando tem timeline */}
+              {/* Split-screen */}
               <div style={{
-                display: "flex", gap: 16, alignItems: "flex-start",
-                flexWrap: temTimeline ? "nowrap" : "wrap",
+                display: "grid",
+                gridTemplateColumns: temTimeline ? "1fr 1fr" : "1fr",
+                gap: 14, alignItems: "start",
               }}>
 
-                {/* Coluna esquerda do resultado — transcrição */}
-                <div style={{
-                  flex: temTimeline ? "0 0 50%" : "1",
-                  display: "flex", flexDirection: "column", gap: 12,
-                }}>
+                {/* Coluna esquerda */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
                   {/* Transcrição */}
                   <div style={{
-                    background: "#111827", border: "1px solid rgba(255,255,255,0.07)",
-                    borderLeft: "3px solid #B45309", borderRadius: 8, padding: "16px 18px",
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    borderTop: `2px solid ${C.accent}`, borderRadius: 4, padding: "14px 16px",
                   }}>
-                    <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 10 }}>
-                      TRANSCRIÇÃO FORENSE
-                    </div>
+                    <SectionLabel accent>TRANSCRIÇÃO FORENSE</SectionLabel>
                     <pre style={{
-                      fontFamily: MONO, fontSize: 12, color: "#E2E8F0",
-                      whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.8,
-                      maxHeight: 320, overflowY: "auto", paddingRight: 8,
+                      fontFamily: MONO, fontSize: 13, color: C.text,
+                      whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.9,
+                      maxHeight: 280, overflowY: "auto", paddingRight: 6,
                     }}>
                       {resultado.transcricao}
                     </pre>
                   </div>
 
-                  {/* Parecer grafoscópico — campo novo */}
+                  {/* Parecer */}
                   {resultado.parecer_grafoscopico && (
                     <div style={{
-                      background: "#111827", border: "1px solid rgba(255,255,255,0.07)",
-                      borderLeft: "3px solid #6366F1", borderRadius: 8, padding: "16px 18px",
+                      background: C.surface, border: `1px solid ${C.border}`,
+                      borderTop: `2px solid #6366F1`, borderRadius: 4, padding: "14px 16px",
                     }}>
-                      <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 8 }}>
-                        PARECER GRAFOSCÓPICO
-                      </div>
-                      <p style={{ fontFamily: SANS, fontSize: 13, color: "#CBD5E1", margin: 0, lineHeight: 1.7 }}>
+                      <SectionLabel>PARECER GRAFOSCÓPICO</SectionLabel>
+                      <p style={{ fontFamily: SANS, fontSize: 13.5, color: C.text, margin: 0, lineHeight: 1.7 }}>
                         {resultado.parecer_grafoscopico}
                       </p>
                     </div>
                   )}
-
-                  {/* Observações */}
-                  {resultado.observacoes && (
-                    <div style={{
-                      background: "#111827", border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 8, padding: "14px 18px",
-                    }}>
-                      <div style={{ fontFamily: MONO, fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", marginBottom: 8 }}>
-                        OBSERVAÇÕES FORENSES
-                      </div>
-                      <p style={{ fontFamily: SANS, fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.7 }}>
-                        {resultado.observacoes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Trechos duvidosos */}
-                  {resultado.trechos_duvidosos?.length > 0 && (
-                    <div style={{
-                      background: "rgba(232,160,32,0.08)", border: "1px solid rgba(253,230,138,0.3)",
-                      borderRadius: 8, padding: "14px 18px",
-                    }}>
-                      <div style={{ fontFamily: MONO, fontSize: 11, color: "#E8A020", letterSpacing: "0.1em", marginBottom: 10 }}>
-                        TRECHOS DUVIDOSOS ({resultado.trechos_duvidosos.length})
-                      </div>
-                      {resultado.trechos_duvidosos.map((t, i) => (
-                        <div key={i} style={{
-                          fontFamily: MONO, fontSize: 12, color: "#F1F5F9", padding: "5px 0",
-                          borderBottom: i < resultado.trechos_duvidosos.length - 1 ? "1px solid rgba(253,230,138,0.2)" : "none",
-                        }}>
-                          {i + 1}. {t}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* Coluna direita do resultado — timeline */}
+                {/* Coluna direita — timeline + trechos duvidosos + observações */}
                 {temTimeline && (
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      background: "#111827", border: "1px solid rgba(255,255,255,0.07)",
-                      borderLeft: "3px solid #6EE7B7", borderRadius: 8, padding: "16px 18px",
-                    }}>
-                      <div style={{
-                        fontFamily: MONO, fontSize: 11, color: "#94A3B8",
-                        letterSpacing: "0.1em", marginBottom: 16,
-                        display: "flex", alignItems: "center", gap: 8,
+                  <div style={{
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    borderTop: `2px solid #10B981`, borderRadius: 4, padding: "14px 16px",
+                    display: "flex", flexDirection: "column", gap: 12,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <SectionLabel>LINHA DO TEMPO ANALÍTICA</SectionLabel>
+                      <span style={{
+                        fontFamily: MONO, fontSize: 9, color: "#10B981",
+                        background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
+                        padding: "3px 10px", borderRadius: 3, letterSpacing: "0.1em",
                       }}>
-                        📅 LINHA DO TEMPO ANALÍTICA
-                        <span style={{
-                          background: "rgba(110,231,183,0.15)", color: "#6EE7B7",
-                          border: "1px solid rgba(110,231,183,0.3)",
-                          fontFamily: MONO, fontSize: 10,
-                          padding: "2px 8px", borderRadius: 20,
-                        }}>
-                          {resultado.linha_do_tempo.length} evento{resultado.linha_do_tempo.length > 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      <div style={{ maxHeight: 520, overflowY: "auto", paddingRight: 4 }}>
-                        <Timeline eventos={resultado.linha_do_tempo} />
-                      </div>
+                        {resultado.linha_do_tempo.length} EVENTO{resultado.linha_do_tempo.length > 1 ? "S" : ""}
+                      </span>
                     </div>
+                    <div style={{ overflowY: "auto", paddingRight: 4 }}>
+                      <Timeline eventos={resultado.linha_do_tempo} />
+                    </div>
+
+                    {/* Trechos duvidosos — abaixo da timeline */}
+                    {resultado.trechos_duvidosos?.length > 0 && (
+                      <div style={{
+                        background: "rgba(245,158,11,0.05)",
+                        border: `1px solid rgba(245,158,11,0.2)`,
+                        borderLeft: `2px solid #F59E0B`,
+                        borderRadius: 4, padding: "14px 16px",
+                      }}>
+                        <SectionLabel>TRECHOS DUVIDOSOS ({resultado.trechos_duvidosos.length})</SectionLabel>
+                        {resultado.trechos_duvidosos.map((t, i) => (
+                          <div key={i} style={{
+                            fontFamily: MONO, fontSize: 12, color: C.text,
+                            padding: "5px 0",
+                            borderBottom: i < resultado.trechos_duvidosos.length - 1 ? `1px solid ${C.border}` : "none",
+                            display: "flex", gap: 8,
+                          }}>
+                            <span style={{ color: "#F59E0B", flexShrink: 0 }}>{i + 1}.</span> {t}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Observações — abaixo dos trechos */}
+                    {resultado.observacoes && (
+                      <div style={{
+                        background: C.surfaceUp, border: `1px solid ${C.border}`,
+                        borderRadius: 4, padding: "14px 16px",
+                      }}>
+                        <SectionLabel>OBSERVAÇÕES FORENSES</SectionLabel>
+                        <p style={{ fontFamily: SANS, fontSize: 13.5, color: C.text, margin: 0, lineHeight: 1.7 }}>
+                          {resultado.observacoes}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Metadados */}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {/* Metadados rodapé */}
+              <div style={{
+                display: "flex", gap: 6, flexWrap: "wrap",
+                padding: "10px 0", borderTop: `1px solid ${C.border}`,
+              }}>
                 {[
-                  ["ARQUIVO",  resultado.metadados?.arquivo],
-                  ["TIPO",     resultado.metadados?.tipo_documento],
-                  ["IDIOMA",   resultado.idioma_detectado],
-                  ["MODELO",   resultado.metadados?.modelo],
-                  ["ANÁLISE",  resultado.metadados?.timestamp?.slice(0, 19).replace("T", " ")],
+                  ["ARQ",    resultado.metadados?.arquivo],
+                  ["TIPO",   resultado.metadados?.tipo_documento],
+                  ["IDIOMA", resultado.idioma_detectado],
+                  ["MODEL",  resultado.metadados?.modelo],
+                  ["TS",     resultado.metadados?.timestamp?.slice(0, 19).replace("T", " ")],
                 ].map(([k, v]) => v && (
                   <span key={k} style={{
-                    background: "#1A2236", borderRadius: 6,
-                    padding: "4px 10px", fontFamily: MONO, fontSize: 11, color: "#475569",
+                    background: C.surfaceUp, borderRadius: 3,
+                    padding: "3px 10px", fontFamily: MONO, fontSize: 9,
+                    color: C.textDim, border: `1px solid ${C.border}`,
                   }}>
-                    <span style={{ color: "#94A3B8" }}>{k}: </span>{v}
+                    <span style={{ color: C.textMid, marginRight: 4 }}>{k}:</span>{v}
                   </span>
                 ))}
               </div>
@@ -698,11 +727,13 @@ export default function Grafoscopia({ onNavigate }) {
       </div>
 
       <style>{`
-        @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        pre::-webkit-scrollbar { width: 4px; }
-        pre::-webkit-scrollbar-track { background: transparent; }
-        pre::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        *::-webkit-scrollbar { width: 4px; height: 4px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background: #1E2D4A; border-radius: 2px; }
+        select option { background: #0D1526; }
+        textarea::placeholder { color: #3A4A6B; }
       `}</style>
     </div>
   )
