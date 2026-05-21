@@ -1,21 +1,7 @@
 """
 routers/transcricao_router.py
 ─────────────────────────────────────────────────────────────────────────────
-Rotas HTTP de transcrição de áudio e exportação de laudos.
-
-Responsabilidades deste módulo:
-  POST /transcribe  → recebe áudio, transcreve via Whisper (Groq) e analisa
-                      via LLaMA 70b, retorna JSON estruturado do laudo.
-  POST /export/{fmt} → recebe JSON do laudo, gera TXT/PDF/DOCX via
-                       services/export_service.py e devolve bytes para download.
-
-Dependências externas:
-  - Groq SDK (Whisper + LLaMA) — lido do .env via GROQ_API_KEY
-  - services/export_service.py — geração dos formatos de saída
-
-Por que os helpers _get_wav_duration, _parse_llm_json e _date_str_pt vivem aqui?
-  São utilitários puros de transcrição — não têm valor fora deste domínio.
-  Se outro módulo precisar deles no futuro, extraímos para services/audio_utils.py.
+Rotas HTTP de transcrição de áudio, exportação de laudos e grafoscopia.
 """
 
 import io
@@ -26,11 +12,12 @@ import tempfile
 import wave
 from datetime import datetime
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from fastapi.responses import Response
 
 from services.export_service import build_txt, build_pdf, build_docx
 from dependencies import get_current_user, require_module
+from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
@@ -82,17 +69,13 @@ def _date_str_pt(dt: datetime) -> str:
     return f"{dt.day} de {_MESES_PT[dt.month - 1]} de {dt.year}"
 
 
-# ─── Rotas ───────────────────────────────────────────────────────────────────
+# ─── Rota: Transcrição de Áudio ───────────────────────────────────────────────
 
 @router.post("/transcribe")
 async def transcribe(
     audio: UploadFile = File(...),
     user: dict = Depends(require_module("transcricao")),
 ):
-    """
-    Recebe arquivo de áudio, transcreve via Whisper (Groq) e analisa via LLaMA.
-    Retorna JSON estruturado com laudo fonográfico completo.
-    """
     groq     = _get_groq()
     filename = audio.filename or "audio.wav"
     suffix   = os.path.splitext(filename)[1].lower()
@@ -202,16 +185,14 @@ async def transcribe(
             pass
 
 
+# ─── Rota: Exportação de Laudos ───────────────────────────────────────────────
+
 @router.post("/export/{fmt}")
 async def export_transcript(
     fmt: str,
     body: dict,
     user: dict = Depends(require_module("transcricao")),
 ):
-    """
-    Gera laudo em TXT, PDF ou DOCX a partir do JSON retornado pelo /transcribe.
-    Delega a geração para services/export_service.py.
-    """
     if fmt not in _EXPORT_MIME:
         raise HTTPException(
             status_code=400,
@@ -234,3 +215,40 @@ async def export_transcript(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falha ao gerar {fmt.upper()}: {e}")
+
+
+# ─── Rota: Grafoscopia ────────────────────────────────────────────────────────
+
+@router.post("/decifrar")
+async def decifrar(
+    imagem: UploadFile = File(...),
+    tipo_documento: str = Form("desconhecido"),
+    contexto_extra: str = Form(""),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Recebe imagem de manuscrito, analisa via Gemini 2.5 Flash.
+    Retorna transcrição forense + cronologia analítica estruturada.
+    """
+    dados = await imagem.read()
+    if len(dados) == 0:
+        raise HTTPException(status_code=400, detail="Imagem vazia.")
+
+    media_type = imagem.content_type or "image/jpeg"
+
+    try:
+        tipo = TipoDocumento(tipo_documento)
+    except ValueError:
+        tipo = TipoDocumento.DESCONHECIDO
+
+    try:
+        resultado = transcrever_documento_bytes(
+            dados=dados,
+            media_type=media_type,
+            nome_arquivo=imagem.filename or "documento",
+            tipo_documento=tipo,
+            contexto_extra=contexto_extra,
+        )
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
