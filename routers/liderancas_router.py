@@ -24,7 +24,7 @@ from modules.liderancas import (
     salvar_foto, carregar_foto, FOTOS_DIR,
     _competencia_atual,
 )
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, get_current_user_media, require_module
 
 router = APIRouter(prefix="/api/liderancas", tags=["liderancas"])
 liderancas_router = router
@@ -171,7 +171,7 @@ def delete_lider(lider_id: str, user: dict = Depends(require_module("alertas")))
 
 
 @liderancas_router.get("/foto/{lider_id}")
-def get_foto_lider(lider_id: str, user: dict = Depends(get_current_user)):
+def get_foto_lider(lider_id: str, user: dict = Depends(get_current_user_media)):
     lider = buscar_lider(lider_id)
     if not lider or not lider.get("foto_ext"):
         raise HTTPException(status_code=404, detail="Foto não encontrada.")

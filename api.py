@@ -107,16 +107,16 @@ app.add_middleware(ForceCORSMiddleware)
 
 
 # ── Registro de routers ───────────────────────────────────────────────────────
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
 app.include_router(liderancas_router)
-app.include_router(alertas_router)
-app.include_router(agenda_router)
-app.include_router(dashboard_router)
-app.include_router(transcricao_router)
-app.include_router(referencias_router)
-app.include_router(inteligencia_router)
-app.include_router(sistema_router)
-app.include_router(chat_router)
+app.include_router(alertas_router,     prefix="/api")
+app.include_router(agenda_router,      prefix="/api")
+app.include_router(dashboard_router,   prefix="/api")
+app.include_router(transcricao_router, prefix="/api")
+app.include_router(referencias_router, prefix="/api")
+app.include_router(inteligencia_router,prefix="/api")
+app.include_router(sistema_router,     prefix="/api")
+app.include_router(chat_router, prefix="/api")
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
