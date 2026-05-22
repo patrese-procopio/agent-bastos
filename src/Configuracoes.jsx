@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from "react"
+import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -87,15 +88,56 @@ function Section({ title, icon, children }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ABA — GERAL
 // ═══════════════════════════════════════════════════════════════════════════════
+const CHAVE_LABELS = {
+  GROQ_API_KEY:      "Groq API Key",
+  GEMINI_API_KEY:    "Gemini API Key",
+  ANTHROPIC_API_KEY: "Anthropic API Key",
+  TELEGRAM_API_ID:   "Telegram API ID",
+  TELEGRAM_API_HASH: "Telegram API Hash",
+}
+
 function AbaGeral({ tema, setTema }) {
   const stored = JSON.parse(localStorage.getItem("ab_config") || "{}")
   const [agencia,    setAgencia]    = useState(stored.agencia    || "AIPEN — Assessoria de Inteligência Penitenciária")
   const [estado,     setEstado]     = useState(stored.estado     || "AM")
   const [backendUrl, setBackendUrl] = useState(stored.backendUrl || "http://127.0.0.1:8000")
   const [n8nUrl,     setN8nUrl]     = useState(stored.n8nUrl     || "http://localhost:5678")
+  const [chavesStatus, setChavesStatus] = useState({})   // { KEY: { configurada, preview } }
+  const [chavesInput,  setChavesInput]  = useState({})   // { KEY: "valor digitado" }
   const [salvo,      setSalvo]      = useState(false)
+  const [erro,       setErro]       = useState("")
 
-  function salvar() {
+  // Carrega config do servidor (fallback: mantém o que veio do localStorage)
+  useEffect(() => {
+    let vivo = true
+    api.get("/config").then(r => r?.json()).then(d => {
+      if (!vivo || !d || !d.gerais) return
+      setAgencia(d.gerais.agencia)
+      setEstado(d.gerais.estado)
+      setBackendUrl(d.gerais.backendUrl)
+      setN8nUrl(d.gerais.n8nUrl)
+      if (d.gerais.tema && setTema) setTema(d.gerais.tema)
+      setChavesStatus(d.chaves || {})
+    }).catch(() => {})
+    return () => { vivo = false }
+  }, [])
+
+  async function salvar() {
+    setErro("")
+    // só envia chaves que o usuário realmente digitou
+    const chaves = {}
+    Object.entries(chavesInput).forEach(([k, v]) => { if (v && v.trim()) chaves[k] = v.trim() })
+    const body = { gerais: { agencia, estado, backendUrl, n8nUrl, tema }, chaves }
+    try {
+      const r = await api.post("/config", body)
+      const d = await r?.json()
+      if (!d || !d.ok) throw new Error("resposta inválida")
+      setChavesStatus(d.chaves || {})
+      setChavesInput({})   // limpa os campos de chave após salvar
+    } catch {
+      setErro("Não foi possível salvar no servidor (salvo localmente).")
+    }
+    // espelha no localStorage p/ a aba Conexões e carregamento rápido
     localStorage.setItem("ab_config", JSON.stringify({ agencia, estado, backendUrl, n8nUrl }))
     setSalvo(true)
     setTimeout(() => setSalvo(false), 2500)
@@ -169,6 +211,37 @@ function AbaGeral({ tema, setTema }) {
           })}
         </div>
       </Section>
+
+      <Section title="Chaves de API" icon={
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      }>
+        <div style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO, lineHeight:1.6, marginBottom:2 }}>
+          Persistidas no servidor (.env). Por segurança, só os últimos dígitos aparecem — deixe em branco para manter a chave atual.
+        </div>
+        {Object.keys(CHAVE_LABELS).map(k => {
+          const st = chavesStatus[k] || {}
+          return (
+            <Field
+              key={k}
+              label={CHAVE_LABELS[k]}
+              type="password"
+              value={chavesInput[k] || ""}
+              onChange={v => setChavesInput(s => ({ ...s, [k]: v }))}
+              placeholder={st.configurada ? `Configurada (${st.preview}) — digite para trocar` : "Não configurada"}
+              hint={st.configurada ? "✓ Configurada no servidor" : "Vazia — cole a chave para definir"}
+            />
+          )
+        })}
+      </Section>
+
+      {erro && (
+        <div style={{ padding:"9px 14px", background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:7 }}>
+          <span style={{ fontSize:13, color:"#F87171", fontFamily:MONO }}>{erro}</span>
+        </div>
+      )}
 
       <div style={{ display:"flex", justifyContent:"flex-end" }}>
         <button onClick={salvar} style={{
