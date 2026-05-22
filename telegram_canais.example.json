@@ -1,0 +1,18 @@
+{
+  "_setup": "Copie este arquivo para data/telegram_canais.json e ajuste a lista 'canais'. O data/ é gitignored (LGPD), então a lista real de canais monitorados fica só na máquina — este example é só o template versionado.",
+  "_ajuda": "Lista de canais/grupos PÚBLICOS do Telegram a monitorar. Use o @username sem @ (ex.: 'manausmilgrau') ou a URL t.me/nome. A varredura busca o nome+vulgos de cada alvo + os 'termos_globais' (facção/crime org.) nas mensagens recentes desses canais. 'descobrir_automatico' faz uma busca pública pelo nome dos alvos e adiciona canais encontrados (desligado por padrão: para nomes completos rende pouco e gasta chamadas).",
+  "_ajuda_termos_globais": "Palavras-chave de facção/crime organizado buscadas em TODOS os canais, independentemente dos alvos nominados. Geram alertas de contexto (alvo_nome = 'CV-AM / Crime Organizado'). Evite termos curtos/ambíguos (ex.: 'CV' sozinho casa muito ruído).",
+  "descobrir_automatico": false,
+  "termos_globais": [
+    "Comando Vermelho",
+    "facção",
+    "FDN",
+    "Família do Norte",
+    "PCC",
+    "tráfico de drogas",
+    "guerra de facções"
+  ],
+  "canais": [
+    "manausmilgrau"
+  ]
+}
