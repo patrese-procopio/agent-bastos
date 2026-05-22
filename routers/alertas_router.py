@@ -19,6 +19,9 @@ Rotas registradas:
   PATCH  /alertas/marcar-todos-lidos
   POST   /alertas/varrer
   POST   /alertas/osint/varrer
+  POST   /alertas/analisar-pendentes
+  POST   /alertas/telegram/varrer
+  GET    /alertas/telegram/status
 """
 
 from fastapi import APIRouter, Depends
@@ -169,3 +172,17 @@ def analisar_alertas_pendentes(limite: int = 20, user: dict = Depends(require_mo
     """Aplica análise por IA em alertas existentes sem analise_ia."""
     from modules.monitor import analisar_pendentes
     return analisar_pendentes(limite)
+
+
+@router.post("/alertas/telegram/varrer")
+def varrer_alertas_telegram(user: dict = Depends(require_module("osint"))):
+    """Varre canais públicos do Telegram em busca de menções aos alvos (salva como OSINT)."""
+    from modules.telegram_monitor import varrer_telegram
+    return varrer_telegram()
+
+
+@router.get("/alertas/telegram/status")
+def status_alertas_telegram(user: dict = Depends(require_module("osint"))):
+    """Verifica se as credenciais/sessão do Telegram estão válidas (sem varrer)."""
+    from modules.telegram_monitor import status_telegram
+    return status_telegram()

@@ -79,6 +79,24 @@
       },
       {
         "parameters": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8000/api/alertas/telegram/varrer",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "Authorization", "value": "=Bearer {{ $node[\"Login Bastos\"].json[\"access_token\"] }}" }
+            ]
+          },
+          "options": { "timeout": 420000 }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [220, 480],
+        "id": "f3a9c2e1-5b6d-4e88-9a01-7c2d3e4f5a6b",
+        "name": "POST /alertas/telegram/varrer"
+      },
+      {
+        "parameters": {
           "jsCode": "const rt    = $input.first().json;\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Manaus' });\n\nconst linhas = [\n  `[${agora}] — Varredura Agent Bastos concluída`,\n  `RT   : ${rt.ok ? 'OK' : 'ERRO'} | Novos: ${rt.novos ?? 0} | Alvos: ${rt.alvos_varridos ?? 0}`,\n  '---'\n].join('\\n');\n\nreturn [{\n  json: { resumo: linhas, rt, timestamp: agora },\n  binary: {\n    data: {\n      data: Buffer.from(linhas, 'utf8').toString('base64'),\n      mimeType: 'text/plain',\n      fileName: `varredura_${new Date().toISOString().slice(0,10)}.log`\n    }\n  }\n}];"
         },
         "type": "n8n-nodes-base.code",
@@ -110,7 +128,8 @@
         "main": [
           [
             { "node": "POST /alertas/varrer", "type": "main", "index": 0 },
-            { "node": "POST /alertas/osint/varrer", "type": "main", "index": 0 }
+            { "node": "POST /alertas/osint/varrer", "type": "main", "index": 0 },
+            { "node": "POST /alertas/telegram/varrer", "type": "main", "index": 0 }
           ]
         ]
       },
