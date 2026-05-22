@@ -31,7 +31,7 @@ function timeAgo(iso) {
 }
 
 const TIPO_CONFIG = {
-  telegram:     { label:"✈ Telegram",    color:"#818CF8", bg:"rgba(129,140,248,0.12)", border:"rgba(129,140,248,0.3)", categoria:"realtime" },
+  telegram:     { label:"✈ Telegram",    color:"#818CF8", bg:"rgba(129,140,248,0.12)", border:"rgba(129,140,248,0.3)", categoria:"osint"    },
   noticia:      { label:"📰 Notícia",    color:"#34D399", bg:"rgba(52,211,153,0.12)",  border:"rgba(52,211,153,0.3)",  categoria:"realtime" },
   youtube:      { label:"▶ YouTube",     color:"#F87171", bg:"rgba(239,68,68,0.12)",   border:"rgba(239,68,68,0.3)",   categoria:"realtime" },
   sherlock:     { label:"🔍 Sherlock",   color:"#60A5FA", bg:"rgba(96,165,250,0.12)",  border:"rgba(96,165,250,0.3)",  categoria:"osint"    },
@@ -207,6 +207,7 @@ export default function Alertas({ onNavigate }) {
   const [selecionado, setSelecionado] = useState(null)
   const [varrendo, setVarrendo]       = useState(false)
   const [varrendoOSINT, setVarrendoOSINT] = useState(false)
+  const [varrendoTelegram, setVarrendoTelegram] = useState(false)
 
   useEffect(() => {
     const style = document.createElement("style")
@@ -250,6 +251,15 @@ export default function Alertas({ onNavigate }) {
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,2000)) }
     finally { setVarrendoOSINT(false) }
+  }
+
+  async function varrerTelegram() {
+    setVarrendoTelegram(true)
+    try {
+      await api.post("/alertas/telegram/varrer")
+      await carregarAlertas()
+    } catch { await new Promise(r=>setTimeout(r,2000)) }
+    finally { setVarrendoTelegram(false) }
   }
 
   function marcarLido(id) {
@@ -397,6 +407,11 @@ export default function Alertas({ onNavigate }) {
               {varrendoOSINT
                 ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Sherlock rodando...</>
                 : <><span>🔵</span>Varrer OSINT</>}
+            </button>
+            <button onClick={varrerTelegram} disabled={varrendoTelegram} style={{...S.actionBtn,color:"#818CF8",border:"1px solid rgba(129,140,248,0.3)"}}>
+              {varrendoTelegram
+                ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Varrendo Telegram...</>
+                : <><span>✈</span>Varrer Telegram</>}
             </button>
             {naoLidos > 0 && (
               <button onClick={marcarTodosLidos} style={{...S.actionBtn,color:"#4ADE80",border:"1px solid rgba(74,222,128,0.3)"}}>
