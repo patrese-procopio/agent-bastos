@@ -47,24 +47,60 @@ _TG_PAUSA_SEG        = 0.4  # respiro entre buscas
 # Rótulo do "alvo" sintético usado nos alertas de contexto (busca por termo de facção)
 _TEMA_FACCAO = "CV-AM / Crime Organizado"
 
+# ─── Defaults FIXOS (versionados) ─────────────────────────────────────────────
+# Funcionam mesmo sem data/telegram_canais.json. Para mudar de forma permanente,
+# edite AQUI. O arquivo local (gitignored) é opcional e só serve pra customizar.
+_TERMOS_FACCAO = [
+    "Comando Vermelho",
+    "facção",
+    "FDN",
+    "Família do Norte",
+    "PCC",
+    "tráfico de drogas",
+    "guerra de facções",
+]
+_CANAIS_PADRAO = [
+    "manausmilgrau",
+    "portaltucuxi",
+    "manausalerta",
+    "ocorrenciaspoliciaisdoamazonas",
+    "policiapenalaam",
+    "manausnoticias",
+    "noticiaamazonas",
+]
+
 
 # ─── Config de canais ─────────────────────────────────────────────────────────
 
 def _carregar_config_canais() -> dict:
-    """Lê a lista curada de canais públicos a monitorar. Estrutura tolerante a faltas."""
-    if not os.path.exists(CANAIS_PATH):
-        return {"canais": [], "descobrir_automatico": False, "termos_globais": []}
-    try:
-        with open(CANAIS_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, list):           # aceita também um array simples de canais
-            return {"canais": data, "descobrir_automatico": False, "termos_globais": []}
-        data.setdefault("canais", [])
-        data.setdefault("descobrir_automatico", False)
-        data.setdefault("termos_globais", [])
-        return data
-    except Exception:
-        return {"canais": [], "descobrir_automatico": False, "termos_globais": []}
+    """
+    Config da varredura, com defaults FIXOS no código:
+      - termos_globais: SEMPRE inclui os _TERMOS_FACCAO (fixos); o arquivo local
+        pode ADICIONAR extras, mas nunca remove os fixos.
+      - canais: usa os do arquivo local se houver; senão cai em _CANAIS_PADRAO.
+    O arquivo data/telegram_canais.json é OPCIONAL (gitignored) — só pra customizar.
+    """
+    local = {}
+    if os.path.exists(CANAIS_PATH):
+        try:
+            with open(CANAIS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            local = {"canais": data} if isinstance(data, list) else (data or {})
+        except Exception:
+            local = {}
+
+    canais = [c for c in (local.get("canais") or []) if c] or list(_CANAIS_PADRAO)
+
+    termos = list(_TERMOS_FACCAO)
+    for t in (local.get("termos_globais") or []):
+        if t and t not in termos:
+            termos.append(t)
+
+    return {
+        "canais": canais,
+        "descobrir_automatico": bool(local.get("descobrir_automatico", False)),
+        "termos_globais": termos,
+    }
 
 
 def _creds() -> tuple | None:
