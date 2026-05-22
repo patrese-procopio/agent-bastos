@@ -80,7 +80,9 @@ def _seed_dashboard_inicial() -> None:
 
 # ── Executa seeds ─────────────────────────────────────────────────────────────
 seed_alertas_iniciais()
-_seed_dashboard_inicial()
+# Dashboard agora lê dados REAIS do SQLite (dashboard_bastos.db) via dashboard_router.
+# O seed fictício de producao.json foi descontinuado (não chamar — gerava números falsos).
+# _seed_dashboard_inicial()  # DESATIVADO
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Agent Bastos API", version="1.0.0")

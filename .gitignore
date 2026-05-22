@@ -51,6 +51,8 @@ inject_*.py
 *.pdf
 *.wav
 *.db
+*.db-shm
+*.db-wal
 
 # ─── Pastas de código NUNCA ignorar ──────────────────────────────────────────
 !services/
