@@ -1,0 +1,138 @@
+[
+  {
+    "id": "PaBjJETxhMhJVHdn",
+    "name": "Monitor_Alertas_Bastos",
+    "active": true,
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 8
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [-240, 128],
+        "id": "87e9c274-0cd1-40df-8a08-9732309e141f",
+        "name": "Cron — A cada 8h"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8000/api/auth/login",
+          "sendBody": true,
+          "contentType": "form-urlencoded",
+          "bodyParameters": {
+            "parameters": [
+              { "name": "username", "value": "admin" },
+              { "name": "password", "value": "admin123" }
+            ]
+          },
+          "options": { "timeout": 20000 }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [-20, 128],
+        "id": "c0ffee00-1111-4000-8000-000000000010",
+        "name": "Login Bastos"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8000/api/alertas/varrer",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "Authorization", "value": "=Bearer {{ $node[\"Login Bastos\"].json[\"access_token\"] }}" }
+            ]
+          },
+          "options": { "timeout": 300000 }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [220, 0],
+        "id": "15085800-055b-44ab-a520-ff57af7a8f94",
+        "name": "POST /alertas/varrer"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8000/api/alertas/osint/varrer",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "Authorization", "value": "=Bearer {{ $node[\"Login Bastos\"].json[\"access_token\"] }}" }
+            ]
+          },
+          "options": { "timeout": 300000 }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [220, 240],
+        "id": "14f1fc92-7f84-4a7a-bdd6-e4c62581caae",
+        "name": "POST /alertas/osint/varrer"
+      },
+      {
+        "parameters": {
+          "jsCode": "const rt    = $input.first().json;\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Manaus' });\n\nconst linhas = [\n  `[${agora}] — Varredura Agent Bastos concluída`,\n  `RT   : ${rt.ok ? 'OK' : 'ERRO'} | Novos: ${rt.novos ?? 0} | Alvos: ${rt.alvos_varridos ?? 0}`,\n  '---'\n].join('\\n');\n\nreturn [{\n  json: { resumo: linhas, rt, timestamp: agora },\n  binary: {\n    data: {\n      data: Buffer.from(linhas, 'utf8').toString('base64'),\n      mimeType: 'text/plain',\n      fileName: `varredura_${new Date().toISOString().slice(0,10)}.log`\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [460, 128],
+        "id": "8eefc950-2809-46f4-a0f1-45ccb022858b",
+        "name": "Consolidar Resultado"
+      },
+      {
+        "parameters": {
+          "operation": "append"
+        },
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [700, 128],
+        "id": "02079d61-ea35-4ac4-8efa-38ddb797fc42",
+        "name": "Salvar Log"
+      }
+    ],
+    "connections": {
+      "Cron — A cada 8h": {
+        "main": [
+          [
+            { "node": "Login Bastos", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Login Bastos": {
+        "main": [
+          [
+            { "node": "POST /alertas/varrer", "type": "main", "index": 0 },
+            { "node": "POST /alertas/osint/varrer", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "POST /alertas/varrer": {
+        "main": [
+          [
+            { "node": "Consolidar Resultado", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Consolidar Resultado": {
+        "main": [
+          [
+            { "node": "Salvar Log", "type": "main", "index": 0 }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    },
+    "pinData": {}
+  }
+]

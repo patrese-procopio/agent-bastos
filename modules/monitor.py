@@ -179,7 +179,7 @@ def varrer_realtime() -> dict:
                     "categoria":       "realtime",
                     "alvo_id":         alvo["id"],
                     "alvo_nome":       alvo["nome"],
-                    "alvo_vulgos":     alvo["vulgos"],
+                    "alvo_vulgos":     alvo.get("vulgos", []),
                     "termo_encontrado": termo,
                     "analise_ia":      None,
                 }
@@ -218,7 +218,7 @@ def varrer_osint() -> dict:
     novos           = []
 
     for alvo in alvos:
-        termos = alvo.get("vulgos", [])[:3]  # Máx 3 vulgos por alvo para não sobrecarregar
+        termos = [t for t in ([alvo.get("nome", "")] + alvo.get("vulgos", [])) if t][:3]  # nome + até 2 vulgos
 
         for termo in termos:
             for site in _DORK_SITES[:3]:  # Máx 3 sites por termo
@@ -273,7 +273,7 @@ def varrer_osint() -> dict:
                         "categoria":       "osint",
                         "alvo_id":         alvo["id"],
                         "alvo_nome":       alvo["nome"],
-                        "alvo_vulgos":     alvo["vulgos"],
+                        "alvo_vulgos":     alvo.get("vulgos", []),
                         "termo_encontrado": termo,
                         "dork":            dork,
                         "plataforma":      plataforma,

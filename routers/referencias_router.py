@@ -17,6 +17,8 @@ import io
 import json
 import os
 import re
+import subprocess
+import sys
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -228,3 +230,37 @@ def download_referencia_pdf(
             headers={"Content-Disposition": f"attachment; filename={file_id}.pdf"})
     except Exception as e:
         return {"erro": str(e)}
+
+
+@router.post("/referencias/reindexar")
+def reindexar_drive(user: dict = Depends(require_module("referencias"))):
+    """
+    Re-indexa o Google Drive: regenera indice_documentos.json.
+    Roda o indexer como subprocesso com -X utf8 (evita crash de encoding no
+    Windows). Pensado para ser chamado por um agendador externo (n8n).
+    """
+    py = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
+    if not os.path.exists(py):
+        py = sys.executable
+    try:
+        proc = subprocess.run(
+            [py, "-X", "utf8", "-m", "drive_indexer.indexer"],
+            cwd=BASE_DIR,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=1800,
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Indexação excedeu o tempo limite (30 min)")
+
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=f"Falha na indexação: {(proc.stderr or '')[-500:]}")
+
+    total = None
+    try:
+        with open(_INDICE_PATH, encoding="utf-8") as f:
+            total = json.load(f).get("total_documentos")
+    except Exception:
+        pass
+    return {"ok": True, "total_documentos": total}
