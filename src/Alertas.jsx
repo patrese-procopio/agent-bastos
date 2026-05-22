@@ -14,57 +14,6 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
 `
 
-// ── Mocks ────────────────────────────────────────────────────────────────────
-const MOCK_REALTIME = [
-  { id:"a1", tipo:"telegram", fonte:"@manausnoticias", link:"https://t.me/manausnoticias/1284",
-    titulo:"Menção via #CVAM", resumo:'Movimentação no bairro Compensa. Fonte relata presença de elemento conhecido como "Carnaúba" coordenando distribuição de entorpecentes. #CVAM #Manaus',
-    risco:"ALTO", timestamp:new Date(Date.now()-1000*60*18).toISOString(), lido:false,
-    alvo_id:1, alvo_nome:"Gelson de Lima Carnaúba", alvo_vulgos:["Carnaúba"], termo_encontrado:"carnaúba", hashtag:"#CVAM",
-    analise_ia:"Elemento identificado em área de distribuição ativa — risco operacional imediato. Verificação de campo recomendada nas próximas 2h." },
-  { id:"b2", tipo:"noticia", fonte:"G1 Amazonas", link:"https://g1.globo.com/am/",
-    titulo:"Polícia prende suspeito de tráfico no Jorge Teixeira",
-    resumo:'"John Wick" foi detido com 3kg de entorpecentes durante operação da DENARC nesta manhã.',
-    risco:"ALTO", timestamp:new Date(Date.now()-1000*60*45).toISOString(), lido:false,
-    alvo_id:14, alvo_nome:"Leandro Costa de Oliveira", alvo_vulgos:["John Wick","Gavião","Leandrinho"], termo_encontrado:"john wick", analise_ia:"Confirmação de prisão — atualizar status do alvo. Verificar mandados pendentes." },
-  { id:"c3", tipo:"telegram", fonte:"@policiaamazonas", link:"https://t.me/policiaamazonas/887",
-    titulo:'Menção: "El Diablo" em @policiaamazonas',
-    resumo:'Alerta de fronteira: indivíduo colombiano "El Diablo" teria cruzado pelo município de Tabatinga.',
-    risco:"ALTO", timestamp:new Date(Date.now()-1000*60*90).toISOString(), lido:true,
-    alvo_id:30, alvo_nome:"Nelson Gaviria Florez", alvo_vulgos:["El Diablo","Diablo"], termo_encontrado:"el diablo", analise_ia:null },
-  { id:"d4", tipo:"noticia", fonte:"Acrítica AM", link:"https://www.acritica.com/",
-    titulo:"Operação desmantela ponto de venda no Morro da Liberdade",
-    resumo:'"Professor" foi preso com quatro pessoas durante operação no bairro.',
-    risco:"MÉDIO", timestamp:new Date(Date.now()-1000*60*60*3).toISOString(), lido:false,
-    alvo_id:6, alvo_nome:"Adalberto Salomão Guedes da Silva", alvo_vulgos:["Professor","Salomão"], termo_encontrado:"professor", analise_ia:null },
-]
-
-const MOCK_OSINT = [
-  { id:"o1", tipo:"sherlock", fonte:"Sherlock — TikTok", link:"https://www.tiktok.com/@carnauba_am",
-    titulo:"Perfil encontrado: @carnauba_am no TikTok",
-    resumo:"Username 'carnauba' identificado em conta ativa. Bio: 'Compensa 🔴⚫'. Último post há 3 dias. Possível perfil operacional do alvo.",
-    risco:"ALTO", timestamp:new Date(Date.now()-1000*60*60*2).toISOString(), lido:false,
-    alvo_id:1, alvo_nome:"Gelson de Lima Carnaúba", alvo_vulgos:["Carnaúba"], termo_encontrado:"carnauba",
-    plataforma:"TikTok", analise_ia:"Perfil ativo com simbologia de facção na bio. Recomenda-se monitoramento contínuo e extração de contatos/seguidores." },
-  { id:"o2", tipo:"google_dork", fonte:"Google Dork — Pastebin", link:"https://pastebin.com/xYz123",
-    titulo:'"Mão Branca" indexado no Pastebin',
-    resumo:'Documento indexado contém o termo "Mão Branca" associado a coordenadas e horários de entrega. Possível lista operacional vazada.',
-    risco:"ALTO", timestamp:new Date(Date.now()-1000*60*60*4).toISOString(), lido:false,
-    alvo_id:23, alvo_nome:"Josias da Cruz Barroso", alvo_vulgos:["Mão Branca","MB"], termo_encontrado:"mão branca",
-    dork:'site:pastebin.com "Mão Branca"', analise_ia:"Possível vazamento de dados operacionais. Prioridade máxima — acionar equipe de análise digital." },
-  { id:"o3", tipo:"sherlock", fonte:"Sherlock — Instagram", link:"https://www.instagram.com/rdk_manaus",
-    titulo:"Perfil encontrado: @rdk_manaus no Instagram",
-    resumo:"Username 'RDK' identificado em perfil privado. Foto de capa com referências à zona norte de Manaus. 847 seguidores.",
-    risco:"MÉDIO", timestamp:new Date(Date.now()-1000*60*60*6).toISOString(), lido:false,
-    alvo_id:28, alvo_nome:"Gilson Mattos Rodrigues", alvo_vulgos:["RDK","Rei do Skunk"], termo_encontrado:"rdk",
-    plataforma:"Instagram", analise_ia:null },
-  { id:"o4", tipo:"google_dork", fonte:"Google Dork — Facebook", link:"https://facebook.com/john.wick.manaus",
-    titulo:'"John Wick" encontrado via Google Dork no Facebook',
-    resumo:'Perfil público indexado: "John Wick Manaus". Check-ins recentes no bairro Jorge Teixeira. Fotos com veículos de luxo.',
-    risco:"MÉDIO", timestamp:new Date(Date.now()-1000*60*60*8).toISOString(), lido:true,
-    alvo_id:14, alvo_nome:"Leandro Costa de Oliveira", alvo_vulgos:["John Wick","Gavião"], termo_encontrado:"john wick",
-    dork:'site:facebook.com "John Wick" Manaus', analise_ia:null },
-]
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RISK = {
   ALTO:  { color:"#F87171", bg:"rgba(239,68,68,0.12)",  border:"rgba(239,68,68,0.3)",  dot:"#EF4444" },
@@ -250,6 +199,7 @@ export default function Alertas({ onNavigate }) {
   const [realtimeAlertas, setRealtimeAlertas] = useState([])
   const [osintAlertas, setOsintAlertas]       = useState([])
   const [loading, setLoading]       = useState(true)
+  const [erro, setErro]             = useState(false)
   const [filtroRisco, setFiltroRisco] = useState("TODOS")
   const [filtroTipo, setFiltroTipo]   = useState("TODOS")
   const [filtroLido, setFiltroLido]   = useState("TODOS")
@@ -274,11 +224,13 @@ export default function Alertas({ onNavigate }) {
         api.get("/alertas").then(r=>r?.json()),
         api.get("/alertas/osint").then(r=>r?.json()),
       ])
-      setRealtimeAlertas(rt)
-      setOsintAlertas(os)
+      setRealtimeAlertas(Array.isArray(rt) ? rt : [])
+      setOsintAlertas(Array.isArray(os) ? os : [])
+      setErro(false)
     } catch {
-      setRealtimeAlertas(MOCK_REALTIME)
-      setOsintAlertas(MOCK_OSINT)
+      setRealtimeAlertas([])
+      setOsintAlertas([])
+      setErro(true)
     } finally { setLoading(false) }
   }
 
@@ -458,7 +410,7 @@ export default function Alertas({ onNavigate }) {
         <div style={{padding:"12px 14px",borderTop:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
             <div className={altoRisco>0?"alert-pulse":""} style={{width:6,height:6,borderRadius:"50%",background:altoRisco>0?"#EF4444":"#4ADE80"}}/>
-            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Monitor OSINT · a cada 2h</span>
+            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Monitor OSINT · a cada 8h</span>
           </div>
           <span style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:MONO}}>
             Telegram · News · Sherlock · Google Dork
@@ -501,7 +453,22 @@ export default function Alertas({ onNavigate }) {
               <span style={{fontSize:15.6,color:"#94A3B8",fontFamily:MONO}}>Carregando alertas...</span>
             </div>
           )}
-          {!loading && filtrados.length === 0 && (
+          {!loading && erro && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:14,padding:40,height:"100%"}}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:15,fontWeight:700,color:"#F1F5F9",marginBottom:5}}>Backend indisponível</div>
+                <p style={{fontSize:13,color:"#94A3B8",fontFamily:MONO,margin:0}}>Não foi possível carregar os alertas. Verifique se o servidor está online.</p>
+              </div>
+              <button onClick={carregarAlertas} style={{...S.actionBtn,width:"auto",padding:"9px 20px",color:"#E8A020",border:"1px solid rgba(232,160,32,0.4)"}}>
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          {!loading && !erro && filtrados.length === 0 && (
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12,padding:40,height:"100%"}}>
               <EmptyState texto="OSINT Monitor · Telegram · Google News" />
               <p style={{fontSize:13,color:"rgba(255,255,255,0.2)",fontFamily:MONO,margin:0}}>
@@ -509,7 +476,7 @@ export default function Alertas({ onNavigate }) {
               </p>
             </div>
           )}
-          {!loading && filtrados.length > 0 && (
+          {!loading && !erro && filtrados.length > 0 && (
             <div style={{display:"flex",flexDirection:"column"}}>
               {filtrados.map(alerta => (
                 <AlertCard

@@ -463,7 +463,7 @@ export default function App() {
 
         {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
-           "Inteligência de Grupos","Lideranças por Unidade"].includes(active) && (
+           "Inteligência de Grupos","Lideranças por Unidade","Análise Grafoscópica"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
             <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>
