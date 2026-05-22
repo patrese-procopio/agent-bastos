@@ -162,3 +162,10 @@ def varrer_alertas_realtime(user: dict = Depends(require_module("alertas"))):
 def varrer_alertas_osint(user: dict = Depends(require_module("osint"))):
     from modules.monitor import varrer_osint
     return varrer_osint()
+
+
+@router.post("/alertas/analisar-pendentes")
+def analisar_alertas_pendentes(limite: int = 20, user: dict = Depends(require_module("alertas"))):
+    """Aplica análise por IA em alertas existentes sem analise_ia."""
+    from modules.monitor import analisar_pendentes
+    return analisar_pendentes(limite)

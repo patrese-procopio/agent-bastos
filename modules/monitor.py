@@ -79,6 +79,57 @@ def _classificar_risco(titulo: str, resumo: str) -> str:
     return "BAIXO"
 
 
+_IA_MAX_POR_VARREDURA = 20  # teto de análises via LLM por varredura (controla custo/tempo)
+
+_IA_SYS = (
+    "Você é um analista de inteligência policial da AIPEN/SEAP-AM. "
+    "Recebe uma menção (notícia ou perfil online) ligada a um alvo monitorado "
+    "e produz uma avaliação tática objetiva, sem floreio. "
+    "Responda SOMENTE em JSON com as chaves: "
+    '"risco" (um de: ALTO, MÉDIO, BAIXO) e '
+    '"analise" (1 a 2 frases, foco operacional: o que significa e a ação sugerida). '
+    "Se a menção for irrelevante ou homônimo provável, risco BAIXO e diga isso."
+)
+
+
+def _analisar_ia(titulo: str, resumo: str, alvo_nome: str) -> dict | None:
+    """
+    Analisa um alerta via LLM (Groq). Retorna {"risco", "analise"} ou None se falhar.
+    Nunca lança exceção — IA é complemento, não pode quebrar a varredura.
+    """
+    try:
+        from groq import Groq
+        from config.settings import GROQ_API_KEY
+        if not GROQ_API_KEY:
+            return None
+        client = Groq(api_key=GROQ_API_KEY)
+        user = (
+            f"Alvo monitorado: {alvo_nome}\n"
+            f"Título: {titulo}\n"
+            f"Resumo: {resumo}"
+        )
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": _IA_SYS},
+                {"role": "user", "content": user},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,
+            max_tokens=300,
+        )
+        data    = json.loads(resp.choices[0].message.content)
+        risco   = str(data.get("risco", "")).strip().upper()
+        if risco not in ("ALTO", "MÉDIO", "BAIXO"):
+            risco = None
+        analise = (data.get("analise") or "").strip() or None
+        if not analise:
+            return None
+        return {"risco": risco, "analise": analise}
+    except Exception:
+        return None
+
+
 def _salvar_firestore(alerta: dict, colecao: str = "alertas") -> bool:
     """Tenta salvar no Firestore. Retorna False se falhar (sem Firebase)."""
     try:
@@ -152,6 +203,7 @@ def varrer_realtime() -> dict:
     alertas_atuais = _ler_alertas(ALERTAS_RT)
     ids_existentes = {a.get("id") for a in alertas_atuais}
     novos          = []
+    ia_orcamento   = _IA_MAX_POR_VARREDURA
 
     for alvo in alvos:
         termos = [alvo["nome"]] + alvo.get("vulgos", [])
@@ -183,6 +235,14 @@ def varrer_realtime() -> dict:
                     "termo_encontrado": termo,
                     "analise_ia":      None,
                 }
+
+                if ia_orcamento > 0:
+                    ia = _analisar_ia(n["titulo"], n["resumo"], alvo["nome"])
+                    if ia:
+                        if ia["risco"]:
+                            alerta["risco"] = ia["risco"]
+                        alerta["analise_ia"] = ia["analise"]
+                        ia_orcamento -= 1
 
                 _salvar_firestore(alerta)
                 novos.append(alerta)
@@ -216,6 +276,7 @@ def varrer_osint() -> dict:
     alertas_atuais  = _ler_alertas(ALERTAS_OST)
     ids_existentes  = {a.get("id") for a in alertas_atuais}
     novos           = []
+    ia_orcamento    = _IA_MAX_POR_VARREDURA
 
     for alvo in alvos:
         termos = [t for t in ([alvo.get("nome", "")] + alvo.get("vulgos", [])) if t][:3]  # nome + até 2 vulgos
@@ -280,6 +341,14 @@ def varrer_osint() -> dict:
                         "analise_ia":      None,
                     }
 
+                    if ia_orcamento > 0:
+                        ia = _analisar_ia(titulo, resumo, alvo["nome"])
+                        if ia:
+                            if ia["risco"]:
+                                alerta["risco"] = ia["risco"]
+                            alerta["analise_ia"] = ia["analise"]
+                            ia_orcamento -= 1
+
                     _salvar_firestore(alerta)
                     novos.append(alerta)
                     ids_existentes.add(id_alerta)
@@ -289,6 +358,62 @@ def varrer_osint() -> dict:
         _salvar_alertas(ALERTAS_OST, alertas_atualizados[:200])
 
     return {"ok": True, "novos": len(novos), "alvos_varridos": len(alvos)}
+
+
+# ─── Backfill de análise por IA ───────────────────────────────────────────────
+
+def _get_db():
+    """Cliente Firestore ou None se indisponível."""
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        SA_PATH = os.path.join(BASE_DIR, "serviceAccountKey.json")
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(SA_PATH)
+            firebase_admin.initialize_app(cred)
+        return firestore.client()
+    except Exception:
+        return None
+
+
+def analisar_pendentes(limite: int = 20) -> dict:
+    """
+    Aplica análise por IA em alertas que ainda não têm `analise_ia`.
+    Atualiza os JSON locais (fonte servida pela UI) e espelha no Firestore.
+    """
+    analisados = 0
+    db = _get_db()
+
+    for caminho in (ALERTAS_RT, ALERTAS_OST):
+        if analisados >= limite:
+            break
+        alertas = _ler_alertas(caminho)
+        mudou   = False
+        for a in alertas:
+            if analisados >= limite:
+                break
+            if a.get("analise_ia"):
+                continue
+            ia = _analisar_ia(a.get("titulo", ""), a.get("resumo", ""), a.get("alvo_nome", ""))
+            if not ia:
+                continue
+            if ia["risco"]:
+                a["risco"] = ia["risco"]
+            a["analise_ia"] = ia["analise"]
+            analisados += 1
+            mudou = True
+            if db is not None and a.get("id"):
+                try:
+                    upd = {"analise_ia": ia["analise"]}
+                    if ia["risco"]:
+                        upd["risco"] = ia["risco"]
+                    db.collection("alertas").document(a["id"]).update(upd)
+                except Exception:
+                    pass
+        if mudou:
+            _salvar_alertas(caminho, alertas)
+
+    return {"ok": True, "analisados": analisados}
 
 
 # ─── Execução direta (teste) ──────────────────────────────────────────────────
