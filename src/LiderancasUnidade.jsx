@@ -7,11 +7,11 @@ const tkn     = () => localStorage.getItem("ab_access_token") || ""
 const MONO    = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS    = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
-// ── Paleta enterprise ─────────────────────────────────────────────────────────
+// ── Paleta enterprise (alinhada às demais telas) ──────────────────────────────
 const C = {
-  bg:        "#070D1A", surface:  "#0D1526", surfaceUp: "#111E33",
-  border:    "rgba(255,255,255,0.08)", text: "#E8EDF5", textMid: "#94A3B8",
-  textDim:   "#6B7A99", accent: "#C26A1A", accentHover: "#D97C20",
+  bg:        "#0B1120", surface:  "#111827", surfaceUp: "#1A2236",
+  border:    "rgba(255,255,255,0.07)", text: "#F1F5F9", textMid: "#94A3B8",
+  textDim:   "#64748B", accent: "#E8A020", accentHover: "#B45309",
 }
 
 const FACCAO_COR = {
@@ -383,9 +383,10 @@ function CardLider({ lider, onEditar, onDeletar }) {
   const dt = lider.criado_em ? lider.criado_em.slice(0,10).split("-").reverse().join("/") : ""
 
   return (
-    <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
-      background:C.surface,border:`1px solid ${cor.border}`,borderLeft:`3px solid ${cor.dot}`,
-      borderRadius:6}}>
+    <div className="lu-card" style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
+      background:C.surface,borderTop:`1px solid ${cor.border}`,borderRight:`1px solid ${cor.border}`,
+      borderBottom:`1px solid ${cor.border}`,borderLeft:`3px solid ${cor.dot}`,
+      borderRadius:6,transition:"all .15s"}}>
       {/* Foto */}
       <div style={{width:64,height:80,borderRadius:4,overflow:"hidden",
         background:C.surfaceUp,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -458,8 +459,11 @@ function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
     <div style={{marginBottom:8}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"7px 12px",background:tem?cor.bg:C.surfaceUp,
-        border:`1px solid ${tem?cor.border:C.border}`,
-        borderRadius:tem?"4px 4px 0 0":4,borderBottom:tem?"none":undefined}}>
+        borderTop:`1px solid ${tem?cor.border:C.border}`,
+        borderRight:`1px solid ${tem?cor.border:C.border}`,
+        borderLeft:`1px solid ${tem?cor.border:C.border}`,
+        borderBottom:tem?"none":`1px solid ${C.border}`,
+        borderRadius:tem?"4px 4px 0 0":4}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:2,height:14,borderRadius:1,background:tem?cor.dot:C.textDim}}/>
           <span style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:MONO}}>{ala}</span>
@@ -476,7 +480,8 @@ function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
         </button>
       </div>
       {tem && (
-        <div style={{border:`1px solid ${cor.border}`,borderTop:"none",borderRadius:"0 0 4px 4px",
+        <div style={{borderRight:`1px solid ${cor.border}`,borderBottom:`1px solid ${cor.border}`,
+          borderLeft:`1px solid ${cor.border}`,borderRadius:"0 0 4px 4px",
           display:"flex",flexDirection:"column",overflow:"hidden",gap:1,padding:1,background:C.bg}}>
           {lideres.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
         </div>
@@ -601,6 +606,13 @@ export default function LiderancasUnidade({ onNavigate }) {
     ? Object.values(dados).reduce((s,alas)=>s+Object.values(alas).reduce((s2,celas)=>
         s2+Object.values(celas).reduce((s3,l)=>s3+l.length,0),0),0) : 0
 
+  // Distribuição por facção (resumo/KPI da unidade no mês)
+  const faccaoCount = {}
+  if (dados) for (const alas of Object.values(dados)) for (const celas of Object.values(alas))
+    for (const lids of Object.values(celas)) for (const l of lids)
+      faccaoCount[l.faccao] = (faccaoCount[l.faccao] || 0) + 1
+  const faccaoRank = Object.entries(faccaoCount).sort((a,b)=>b[1]-a[1])
+
   function filtrar(d) {
     if(!busca||!d) return d
     const b=busca.toLowerCase(), r={}
@@ -624,14 +636,15 @@ export default function LiderancasUnidade({ onNavigate }) {
       <div style={{height:56,background:C.surfaceUp,borderBottom:`1px solid ${C.border}`,
         display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <button onClick={()=>onNavigate?.("Controle de Grupos")} style={{
-            background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,
+          <button onClick={()=>onNavigate?.("Controle de Grupos")} className="lu-btn" style={{
+            background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,
             cursor:"pointer",fontSize:16,color:C.textMid,width:30,height:30,
             display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+          <div style={{width:4,height:30,background:C.accent,borderRadius:3,flexShrink:0}}/>
           <div>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>LIDERANÇAS POR UNIDADE</div>
-            <div style={{fontSize:11,color:C.textMid,fontFamily:MONO,marginTop:1}}>
-              {unidadesLabel[unidade]||unidade} · {fmtComp(competencia)||"sem registros"} · {totalLideres} líderes
+            <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:"0.01em"}}>Lideranças por Unidade</div>
+            <div style={{fontSize:12.5,color:C.textMid,fontFamily:MONO,marginTop:2}}>
+              {unidadesLabel[unidade]||unidade} · {fmtComp(competencia)||"sem registros"} · <b style={{color:C.accent}}>{totalLideres}</b> líderes
             </div>
           </div>
         </div>
@@ -674,20 +687,37 @@ export default function LiderancasUnidade({ onNavigate }) {
       <div style={{display:"flex",gap:4,padding:"10px 20px",background:C.surfaceUp,
         borderBottom:`1px solid ${C.border}`,flexShrink:0,overflowX:"auto"}}>
         {Object.entries(unidadesLabel).map(([key,label])=>(
-          <button key={key} onClick={()=>setUnidade(key)} style={{
+          <button key={key} onClick={()=>setUnidade(key)} className="lu-tab" style={{
             background:unidade===key?C.accent:"transparent",
             border:`1px solid ${unidade===key?C.accent:C.border}`,
-            borderRadius:4,cursor:"pointer",padding:"7px 18px",
-            fontSize:12,fontWeight:700,
-            color:unidade===key?"#FFF":C.textMid,
+            borderRadius:6,cursor:"pointer",padding:"7px 18px",
+            fontSize:12.5,fontWeight:700,
+            color:unidade===key?"#0B1120":C.textMid,
             fontFamily:MONO,transition:"all .15s",whiteSpace:"nowrap"}}>
             {label}
           </button>
         ))}
       </div>
 
+      {/* Resumo por facção (KPI) */}
+      {faccaoRank.length > 0 && (
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 20px",background:C.surface,
+          borderBottom:`1px solid ${C.border}`,flexShrink:0,overflowX:"auto"}}>
+          <span style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",
+            textTransform:"uppercase",flexShrink:0}}>Distribuição</span>
+          {faccaoRank.map(([f,n])=>{ const c=corF(f); return (
+            <div key={f} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,
+              background:c.bg,border:`1px solid ${c.border}`,flexShrink:0}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/>
+              <span style={{fontSize:12,fontWeight:700,color:c.text,fontFamily:MONO}}>{f}</span>
+              <span style={{fontSize:12.5,fontWeight:800,color:c.dot,fontFamily:MONO}}>{n}</span>
+            </div>
+          )})}
+        </div>
+      )}
+
       {/* Corpo */}
-      <div style={{flex:1,overflow:"auto",padding:"16px 20px"}}>
+      <div className="lu-scroll" style={{flex:1,overflow:"auto",padding:"16px 20px"}}>
         {loading ? (
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,gap:10}}>
             <span style={{animation:"spin 1s linear infinite",display:"inline-block",fontSize:20}}>⟳</span>
@@ -731,8 +761,14 @@ export default function LiderancasUnidade({ onNavigate }) {
       <style>{`
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        select option { background: #0D1526; }
-        textarea::placeholder, input::placeholder { color: #3A4A6B; }
+        select option { background: #111827; color:#F1F5F9; }
+        textarea::placeholder, input::placeholder { color: #64748B; }
+        .lu-card:hover { border-color: rgba(232,160,32,0.30) !important; background:#16203a !important; }
+        .lu-btn:hover  { border-color: rgba(232,160,32,0.4) !important; color:#E8A020 !important; }
+        .lu-tab:hover  { border-color: rgba(232,160,32,0.4) !important; }
+        .lu-scroll::-webkit-scrollbar{width:8px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
+        .lu-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:6px}
+        .lu-scroll::-webkit-scrollbar-thumb:hover{background:rgba(232,160,32,0.4)}
       `}</style>
     </div>
   )
