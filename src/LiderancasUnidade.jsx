@@ -53,7 +53,7 @@ function FotoLider({ liderId, alt, atualizado }) {
   }, [liderId, atualizado])
   return src
     ? <img src={src} alt={alt||""} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}/>
-    : <span style={{fontSize:22}}>👤</span>
+    : null
 }
 
 // ── FotoUpload ────────────────────────────────────────────────────────────────
@@ -376,116 +376,109 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
   )
 }
 
-// ── Card líder ────────────────────────────────────────────────────────────────
+// ── Monograma (inicial do vulgo) quando não há foto ───────────────────────────
+function Monograma({ letra, cor }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%",background:cor.bg}}>
+      <span style={{fontSize:46,fontWeight:800,color:cor.dot,opacity:0.9,fontFamily:SANS,lineHeight:1}}>{letra}</span>
+    </div>
+  )
+}
+
+const CARD_BG = "#141C2E"
+const btnAcao = {
+  width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(11,17,32,0.72)",
+  cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,
+}
+
+// ── Card-dossiê do líder (dark premium, horizontal) ───────────────────────────
 function CardLider({ lider, onEditar, onDeletar }) {
   const cor = corF(lider.faccao)
   const [conf, setConf] = useState(false)
-  const dt = lider.criado_em ? lider.criado_em.slice(0,10).split("-").reverse().join("/") : ""
+  const inicial = (lider.vulgo || lider.nome || "?").trim()[0]?.toUpperCase() || "?"
 
   return (
-    <div className="lu-card" style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
-      background:C.surface,borderTop:`1px solid ${cor.border}`,borderRight:`1px solid ${cor.border}`,
-      borderBottom:`1px solid ${cor.border}`,borderLeft:`3px solid ${cor.dot}`,
-      borderRadius:6,transition:"all .15s"}}>
-      {/* Foto */}
-      <div style={{width:64,height:80,borderRadius:4,overflow:"hidden",
-        background:C.surfaceUp,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-        <FotoLider liderId={lider.foto_ext?lider.id:null} alt={lider.vulgo} atualizado={lider.atualizado_em}/>
+    <div className="lu-card" style={{position:"relative",display:"flex",gap:16,padding:16,
+      background:CARD_BG,borderRadius:14,
+      borderTop:`1px solid ${C.border}`,borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,
+      borderLeft:`3px solid ${cor.dot}`,boxShadow:"0 4px 18px rgba(0,0,0,0.28)",
+      transition:"transform .18s, box-shadow .18s"}}>
+
+      {/* Foto / monograma */}
+      <div style={{width:104,height:132,borderRadius:11,overflow:"hidden",flexShrink:0,position:"relative",
+        background:cor.bg,border:`1px solid ${C.border}`}}>
+        <Monograma letra={inicial} cor={cor}/>
+        {lider.foto_ext && (
+          <div style={{position:"absolute",inset:0}}>
+            <FotoLider liderId={lider.id} alt={lider.vulgo} atualizado={lider.atualizado_em}/>
+          </div>
+        )}
       </div>
+
       {/* Dados */}
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-          <span style={{fontSize:15,fontWeight:800,color:cor.dot,fontFamily:MONO}}>
-            {lider.vulgo||"—"}
-          </span>
-          <span style={{fontSize:11,fontWeight:700,color:cor.text,background:cor.bg,
-            border:`1px solid ${cor.border}`,padding:"2px 8px",borderRadius:3,fontFamily:MONO}}>
-            {lider.faccao}
-          </span>
-          {lider.competencia && (
-            <span style={{fontSize:11,color:"#F59E0B",background:"rgba(245,158,11,0.1)",
-              border:"1px solid rgba(245,158,11,0.25)",padding:"2px 8px",borderRadius:3,fontFamily:MONO}}>
-              {fmtComp(lider.competencia)}
-            </span>
-          )}
+      <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:6}}>
+        <div style={{fontSize:19,fontWeight:800,color:C.text,lineHeight:1.15,letterSpacing:"-0.01em",
+          paddingRight:62,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          {lider.vulgo||"—"}
         </div>
         {lider.nome && (
-          <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:MONO,marginBottom:3}}>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
             {lider.nome}
           </div>
         )}
-        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:12,color:C.textMid,fontFamily:MONO}}>{lider.cargo}</span>
-          {lider.cela && (
-            <span style={{fontSize:11,color:C.textMid,fontFamily:MONO,
-              background:C.surfaceUp,padding:"1px 7px",borderRadius:3,border:`1px solid ${C.border}`}}>
-              Cela {lider.cela}
-            </span>
-          )}
-          {dt && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>{dt}</span>}
+        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap",marginTop:2}}>
+          <span style={{fontSize:11,fontWeight:800,color:cor.text,background:cor.bg,
+            border:`1px solid ${cor.border}`,padding:"3px 10px",borderRadius:20,fontFamily:MONO,letterSpacing:"0.02em"}}>
+            {lider.faccao}
+          </span>
+          <span style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:cor.dot,flexShrink:0}}/>
+            <span style={{fontSize:14.5,fontWeight:600,color:"#CBD5E1"}}>{lider.cargo}</span>
+          </span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap",marginTop:1,
+          fontSize:11.5,color:C.textDim,fontFamily:MONO}}>
+          {lider.cela && <span style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,padding:"1px 9px",borderRadius:20}}>Cela {lider.cela}</span>}
+          {lider.competencia && <span style={{color:C.accent,fontWeight:700}}>{fmtComp(lider.competencia)}</span>}
         </div>
         {lider.observacao && (
-          <div style={{fontSize:12,color:C.textMid,marginTop:4,fontStyle:"italic"}}>
-            {lider.observacao.length>90?lider.observacao.slice(0,90)+"...":lider.observacao}
+          <div style={{fontSize:12,color:C.textMid,marginTop:6,paddingTop:8,lineHeight:1.5,
+            borderTop:`1px solid ${C.border}`,fontStyle:"italic"}}>
+            {lider.observacao.length>110?lider.observacao.slice(0,110)+"…":lider.observacao}
           </div>
         )}
       </div>
-      {/* Ações */}
-      <div style={{display:"flex",gap:4,flexShrink:0}}>
-        <button onClick={()=>onEditar(lider)} style={{width:28,height:28,borderRadius:4,
-          border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",
-          display:"flex",alignItems:"center",justifyContent:"center",color:C.textMid,fontSize:14}}>
-          ✎
-        </button>
+
+      {/* Ações (hover) */}
+      <div className="lu-acoes" style={{position:"absolute",top:12,right:12,display:"flex",gap:6}}>
+        <button onClick={()=>onEditar(lider)} title="Editar" style={{...btnAcao,color:C.textMid}}>✎</button>
         {conf
-          ? <button onClick={()=>onDeletar(lider.id)} style={{height:28,borderRadius:4,border:"none",
-              padding:"0 10px",background:"#DC2626",cursor:"pointer",fontSize:11,fontWeight:700,
-              color:"#FFF",fontFamily:MONO}}>confirmar</button>
-          : <button onClick={()=>setConf(true)} style={{width:28,height:28,borderRadius:4,
-              border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.08)",cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",color:"#EF4444",fontSize:14}}>
-              ✕
-            </button>}
+          ? <button onClick={()=>onDeletar(lider.id)} style={{height:30,borderRadius:8,border:"none",padding:"0 11px",
+              background:"#DC2626",cursor:"pointer",fontSize:11,fontWeight:800,color:"#FFF",fontFamily:MONO}}>excluir?</button>
+          : <button onClick={()=>setConf(true)} title="Excluir" style={{...btnAcao,color:"#F87171"}}>✕</button>}
       </div>
     </div>
   )
 }
 
-// ── Seção Ala ─────────────────────────────────────────────────────────────────
+// ── Seção Ala (grade de cards — 2 por linha; 1 se ala única) ──────────────────
 function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
-  const tem  = lideres.length>0
-  const cor  = tem ? corF(lideres[0].faccao) : null
+  const umPorLinha = /[úu]nica/i.test(ala)
+  const cor = lideres.length ? corF(lideres[0].faccao) : null
   return (
-    <div style={{marginBottom:8}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"7px 12px",background:tem?cor.bg:C.surfaceUp,
-        borderTop:`1px solid ${tem?cor.border:C.border}`,
-        borderRight:`1px solid ${tem?cor.border:C.border}`,
-        borderLeft:`1px solid ${tem?cor.border:C.border}`,
-        borderBottom:tem?"none":`1px solid ${C.border}`,
-        borderRadius:tem?"4px 4px 0 0":4}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:2,height:14,borderRadius:1,background:tem?cor.dot:C.textDim}}/>
-          <span style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:MONO}}>{ala}</span>
-          <span style={{fontSize:11,color:tem?cor.text:C.textDim,fontFamily:MONO,
-            background:tem?cor.bg:C.surface,border:`1px solid ${tem?cor.border:C.border}`,
-            padding:"1px 7px",borderRadius:3}}>
-            {tem?`${lideres.length} líder`:"sem líder"}
-          </span>
-        </div>
-        <button onClick={onNovo} style={{padding:"3px 10px",borderRadius:3,cursor:"pointer",
-          border:`1px solid ${tem?cor.border:C.border}`,background:"transparent",
-          fontSize:11,color:tem?cor.text:C.textMid,fontFamily:MONO}}>
-          {tem?"+ Outro":"+ Líder"}
-        </button>
+    <div style={{marginBottom:20}}>
+      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:11}}>
+        <div style={{width:3,height:15,borderRadius:2,background:cor?cor.dot:C.textDim}}/>
+        <span style={{fontSize:12,fontWeight:800,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",textTransform:"uppercase"}}>{ala}</span>
+        <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {lideres.length} líder{lideres.length!==1?"es":""}</span>
+        <div style={{flex:1,height:1,background:C.border}}/>
+        <button onClick={onNovo} className="lu-btn" style={{padding:"4px 11px",borderRadius:7,
+          border:`1px solid ${C.border}`,background:"transparent",fontSize:11,fontWeight:700,
+          color:C.textMid,fontFamily:MONO,cursor:"pointer",transition:"all .15s"}}>+ Líder</button>
       </div>
-      {tem && (
-        <div style={{borderRight:`1px solid ${cor.border}`,borderBottom:`1px solid ${cor.border}`,
-          borderLeft:`1px solid ${cor.border}`,borderRadius:"0 0 4px 4px",
-          display:"flex",flexDirection:"column",overflow:"hidden",gap:1,padding:1,background:C.bg}}>
-          {lideres.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
-        </div>
-      )}
+      <div style={{display:"grid",gridTemplateColumns:umPorLinha?"1fr":"repeat(2, minmax(0,1fr))",gap:14}}>
+        {lideres.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
+      </div>
     </div>
   )
 }
@@ -493,7 +486,10 @@ function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
 // ── Seção Pavilhão ────────────────────────────────────────────────────────────
 function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
   const [aberto, setAberto] = useState(true)
-  const todos      = Object.values(alas).flat()
+  const entradas   = Object.entries(alas).map(([ala,celas])=>[ala, Object.values(celas).flat()])
+  const comLideres = entradas.filter(([,l])=>l.length>0)
+  const vazias     = entradas.filter(([,l])=>l.length===0).map(([a])=>a)
+  const todos      = comLideres.flatMap(([,l])=>l)
   const total      = todos.length
   const faccDom    = total>0
     ? todos.map(l=>l.faccao).sort((a,b)=>todos.filter(l=>l.faccao===b).length-todos.filter(l=>l.faccao===a).length)[0]
@@ -501,38 +497,51 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
   const cor = corF(faccDom)
 
   return (
-    <div style={{background:C.surface,borderRadius:6,border:`1px solid ${C.border}`,overflow:"hidden"}}>
-      <div onClick={()=>setAberto(v=>!v)} style={{padding:"11px 16px",cursor:"pointer",
-        background:C.surfaceUp,borderBottom:aberto?`2px solid ${cor.dot||C.border}`:`1px solid ${C.border}`,
-        display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:8,height:8,borderRadius:"50%",background:faccDom?cor.dot:C.textDim,
-            boxShadow:faccDom?`0 0 6px ${cor.dot}66`:"none"}}/>
-          <span style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>{pavilhao}</span>
+    <div style={{marginBottom:12}}>
+      {/* Cabeçalho do pavilhão */}
+      <div onClick={()=>setAberto(v=>!v)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"10px 4px 12px",cursor:"pointer",borderBottom:`2px solid ${faccDom?cor.dot+"55":C.border}`,marginBottom:18}}>
+        <div style={{display:"flex",alignItems:"center",gap:11}}>
+          <span style={{color:C.textMid,fontSize:13,width:12,display:"inline-block"}}>{aberto?"▾":"▸"}</span>
+          <div style={{width:9,height:9,borderRadius:"50%",background:faccDom?cor.dot:C.textDim,
+            boxShadow:faccDom?`0 0 8px ${cor.dot}66`:"none"}}/>
+          <span style={{fontSize:16.5,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>{pavilhao}</span>
           {total>0 && (
-            <span style={{fontSize:11,color:C.textMid,fontFamily:MONO,
-              background:C.surface,border:`1px solid ${C.border}`,padding:"2px 8px",borderRadius:3}}>
+            <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO,
+              background:C.surface,border:`1px solid ${C.border}`,padding:"2px 10px",borderRadius:20}}>
               {total} líder{total!==1?"es":""}
             </span>
           )}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} style={{
-            padding:"4px 12px",borderRadius:3,border:"none",
-            background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
-            color:"#FFF",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>
-            + Líder
-          </button>
-          <span style={{color:C.textMid,fontSize:12}}>{aberto?"▲":"▼"}</span>
-        </div>
+        <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} className="lu-add" style={{padding:"7px 15px",
+          borderRadius:9,border:"none",background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+          color:"#0B1120",fontSize:12.5,fontWeight:800,cursor:"pointer",fontFamily:MONO,
+          boxShadow:"0 2px 10px rgba(232,160,32,0.25)"}}>+ Líder</button>
       </div>
+
       {aberto && (
-        <div style={{padding:"12px 16px"}}>
-          {Object.entries(alas).map(([ala,lideres])=>(
-            <SecaoAla key={ala} ala={ala} lideres={Object.values(lideres).flat()}
+        <>
+          {comLideres.map(([ala,lideres])=>(
+            <SecaoAla key={ala} ala={ala} lideres={lideres}
               onNovo={()=>onNovo(pavilhao,ala)} onEditar={onEditar} onDeletar={onDeletar}/>
           ))}
-        </div>
+          {total===0 && (
+            <div style={{padding:"22px",textAlign:"center",color:C.textDim,fontFamily:MONO,fontSize:13,
+              background:"rgba(255,255,255,0.015)",border:`1px dashed ${C.border}`,borderRadius:12,marginBottom:8}}>
+              Nenhuma liderança registrada neste pavilhão.
+            </div>
+          )}
+          {vazias.length>0 && (
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8,
+              fontSize:11.5,color:C.textDim,fontFamily:MONO}}>
+              <span style={{fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Sem liderança:</span>
+              {vazias.map(a=>(
+                <span key={a} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,
+                  padding:"2px 9px",borderRadius:20}}>{a}</span>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -763,7 +772,10 @@ export default function LiderancasUnidade({ onNavigate }) {
         @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         select option { background: #111827; color:#F1F5F9; }
         textarea::placeholder, input::placeholder { color: #64748B; }
-        .lu-card:hover { border-color: rgba(232,160,32,0.30) !important; background:#16203a !important; }
+        .lu-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.45) !important; }
+        .lu-acoes { opacity: 0; transition: opacity .15s; }
+        .lu-card:hover .lu-acoes { opacity: 1; }
+        .lu-add:hover  { filter: brightness(1.08); }
         .lu-btn:hover  { border-color: rgba(232,160,32,0.4) !important; color:#E8A020 !important; }
         .lu-tab:hover  { border-color: rgba(232,160,32,0.4) !important; }
         .lu-scroll::-webkit-scrollbar{width:8px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
