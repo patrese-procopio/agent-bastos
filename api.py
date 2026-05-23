@@ -30,6 +30,7 @@ from routers.sistema_router     import router as sistema_router
 from routers.auth_router import router as auth_router
 from routers.chat_router import router as chat_router
 from routers.config_router import router as config_router
+from routers.grupos_router import router as grupos_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -121,6 +122,7 @@ app.include_router(inteligencia_router,prefix="/api")
 app.include_router(sistema_router,     prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(config_router, prefix="/api")
+app.include_router(grupos_router, prefix="/api")
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
