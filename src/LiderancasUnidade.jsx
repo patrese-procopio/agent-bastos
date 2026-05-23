@@ -7,11 +7,11 @@ const tkn     = () => localStorage.getItem("ab_access_token") || ""
 const MONO    = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS    = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
-// ── Paleta CLEAN/CLARA (exclusiva desta tela — galeria de dossiês) ─────────────
+// ── Paleta enterprise (alinhada às demais telas) ──────────────────────────────
 const C = {
-  bg:        "#F4F5F7", surface:  "#FFFFFF", surfaceUp: "#F8FAFC",
-  border:    "#E6E9EF", text: "#0F172A", textMid: "#64748B",
-  textDim:   "#94A3B8", accent: "#B45309", accentHover: "#92400E",
+  bg:        "#0B1120", surface:  "#111827", surfaceUp: "#1A2236",
+  border:    "rgba(255,255,255,0.07)", text: "#F1F5F9", textMid: "#94A3B8",
+  textDim:   "#64748B", accent: "#E8A020", accentHover: "#B45309",
 }
 
 const FACCAO_COR = {
@@ -29,33 +29,6 @@ const FACCAO_COR = {
   "LGBTQIAPN+":     { dot:"#EC4899", bg:"rgba(236,72,153,0.08)",  border:"rgba(236,72,153,0.2)",  text:"#F9A8D4" },
 }
 const corF = f => FACCAO_COR[f] || { dot:"#94A3B8", bg:"rgba(148,163,184,0.08)", border:"rgba(148,163,184,0.2)", text:"#CBD5E1" }
-
-// ── Tons SUAVES de facção p/ fundo claro (elegante, sem neon) ─────────────────
-const FACCAO_LIGHT = {
-  "CV/AM":          { solid:"#E11D48", soft:"#FFF1F3", pillBg:"#FFE4E9", pillText:"#9F1239" },
-  "LIDERANÇAS CV":  { solid:"#DB2777", soft:"#FDF2F8", pillBg:"#FCE7F3", pillText:"#9D174D" },
-  "PCC":            { solid:"#2563EB", soft:"#EFF4FF", pillBg:"#DBE7FE", pillText:"#1E40AF" },
-  "LIDERANÇAS PCC": { solid:"#4F46E5", soft:"#EEF0FF", pillBg:"#E0E4FF", pillText:"#3730A3" },
-  "RDA":            { solid:"#059669", soft:"#ECFDF5", pillBg:"#D1FAE5", pillText:"#065F46" },
-  "AMARELINHOS":    { solid:"#D97706", soft:"#FFFBEB", pillBg:"#FEF1C7", pillText:"#92400E" },
-  "JACK/TDA":       { solid:"#7C3AED", soft:"#F6F3FF", pillBg:"#EDE7FE", pillText:"#5B21B6" },
-  "CRIMES SEXUAIS": { solid:"#EA580C", soft:"#FFF6ED", pillBg:"#FFE6D2", pillText:"#9A3412" },
-  "NEUTROS":        { solid:"#64748B", soft:"#F8FAFC", pillBg:"#EEF2F7", pillText:"#475569" },
-  "ISOLAMENTO":     { solid:"#6B7280", soft:"#F9FAFB", pillBg:"#F0F1F3", pillText:"#374151" },
-  "MED. SEGURANÇA": { solid:"#0891B2", soft:"#ECFDFF", pillBg:"#CFF6FB", pillText:"#155E75" },
-  "LGBTQIAPN+":     { solid:"#C026D3", soft:"#FCF4FF", pillBg:"#F6E1FE", pillText:"#86198F" },
-}
-const corFL = f => FACCAO_LIGHT[f] || { solid:"#64748B", soft:"#F8FAFC", pillBg:"#EEF2F7", pillText:"#475569" }
-
-// Monograma elegante (inicial do vulgo) p/ quando não há foto
-function Monograma({ letra, cor }) {
-  return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%",
-      background:`linear-gradient(150deg, ${cor.soft} 0%, #FFFFFF 100%)`}}>
-      <span style={{fontSize:72,fontWeight:800,color:cor.solid,opacity:0.5,fontFamily:SANS,lineHeight:1}}>{letra}</span>
-    </div>
-  )
-}
 
 const MESES = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
 const fmtComp = c => { try { const [a,m]=c.split("-"); return `${MESES[+m]} ${a}` } catch { return c||"" } }
@@ -80,7 +53,7 @@ function FotoLider({ liderId, alt, atualizado }) {
   }, [liderId, atualizado])
   return src
     ? <img src={src} alt={alt||""} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}/>
-    : null
+    : <span style={{fontSize:22}}>👤</span>
 }
 
 // ── FotoUpload ────────────────────────────────────────────────────────────────
@@ -230,7 +203,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
   const alas      = Object.keys(est[form.unidade]?.pavilhoes?.[form.pavilhao]||{})
   const celas     = est[form.unidade]?.pavilhoes?.[form.pavilhao]?.[form.ala]||[]
   const cargos    = cargosPorFaccao[form.faccao]||[]
-  const cor       = corFL(form.faccao)
+  const cor       = corF(form.faccao)
 
   function set(k,v) {
     setForm(prev=>{
@@ -289,7 +262,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
               <Campo label="Vulgo / Apelido">
                 <input value={form.vulgo} onChange={e=>set("vulgo",e.target.value)}
                   placeholder="ex: Carnaúba"
-                  style={{...iStyle,fontSize:15,fontWeight:700,color:cor.solid,borderColor:cor.solid+"55"}}/>
+                  style={{...iStyle,fontSize:15,fontWeight:700,color:cor.dot,borderColor:cor.border}}/>
               </Campo>
               <Campo label="Nome completo">
                 <input value={form.nome} onChange={e=>set("nome",e.target.value)}
@@ -356,7 +329,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <Campo label="Facção" required>
                 <select value={form.faccao} onChange={e=>set("faccao",e.target.value)}
-                  style={{...iStyle,color:cor.pillText,borderColor:cor.solid+"55"}}>
+                  style={{...iStyle,color:cor.text,borderColor:cor.border}}>
                   <option value="">Selecione...</option>
                   {faccoes.map(f=><option key={f} value={f}>{f}</option>)}
                 </select>
@@ -403,75 +376,76 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
   )
 }
 
-// ── Card-dossiê do líder (galeria) ────────────────────────────────────────────
-const btnFoto = {
-  width:32,height:32,borderRadius:"50%",border:`1px solid ${C.border}`,
-  background:"rgba(255,255,255,0.96)",cursor:"pointer",display:"flex",alignItems:"center",
-  justifyContent:"center",fontSize:14,boxShadow:"0 1px 5px rgba(15,23,42,0.18)",
-}
+// ── Card líder ────────────────────────────────────────────────────────────────
 function CardLider({ lider, onEditar, onDeletar }) {
-  const cor = corFL(lider.faccao)
+  const cor = corF(lider.faccao)
   const [conf, setConf] = useState(false)
-  const inicial = (lider.vulgo || lider.nome || "?").trim()[0]?.toUpperCase() || "?"
+  const dt = lider.criado_em ? lider.criado_em.slice(0,10).split("-").reverse().join("/") : ""
 
   return (
-    <div className="lu-dossie" style={{background:C.surface,borderRadius:16,overflow:"hidden",
-      border:`1px solid ${C.border}`,boxShadow:"0 1px 3px rgba(15,23,42,0.06)",
-      display:"flex",flexDirection:"column",transition:"transform .2s, box-shadow .2s"}}>
-
-      {/* Faixa de facção */}
-      <div style={{height:5,background:cor.solid}}/>
-
-      {/* Foto / monograma */}
-      <div style={{height:218,position:"relative",overflow:"hidden",background:cor.soft}}>
-        <Monograma letra={inicial} cor={cor}/>
-        {lider.foto_ext && (
-          <div style={{position:"absolute",inset:0}}>
-            <FotoLider liderId={lider.id} alt={lider.vulgo} atualizado={lider.atualizado_em}/>
-          </div>
-        )}
-        {/* Pill de facção */}
-        <div style={{position:"absolute",left:12,bottom:12,display:"flex",alignItems:"center",gap:6,
-          background:"rgba(255,255,255,0.95)",borderRadius:20,padding:"5px 11px",
-          boxShadow:"0 2px 8px rgba(15,23,42,0.15)"}}>
-          <span style={{width:8,height:8,borderRadius:"50%",background:cor.solid}}/>
-          <span style={{fontSize:11.5,fontWeight:800,color:cor.pillText,fontFamily:MONO,letterSpacing:"0.02em"}}>
+    <div className="lu-card" style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
+      background:C.surface,borderTop:`1px solid ${cor.border}`,borderRight:`1px solid ${cor.border}`,
+      borderBottom:`1px solid ${cor.border}`,borderLeft:`3px solid ${cor.dot}`,
+      borderRadius:6,transition:"all .15s"}}>
+      {/* Foto */}
+      <div style={{width:64,height:80,borderRadius:4,overflow:"hidden",
+        background:C.surfaceUp,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <FotoLider liderId={lider.foto_ext?lider.id:null} alt={lider.vulgo} atualizado={lider.atualizado_em}/>
+      </div>
+      {/* Dados */}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+          <span style={{fontSize:15,fontWeight:800,color:cor.dot,fontFamily:MONO}}>
+            {lider.vulgo||"—"}
+          </span>
+          <span style={{fontSize:11,fontWeight:700,color:cor.text,background:cor.bg,
+            border:`1px solid ${cor.border}`,padding:"2px 8px",borderRadius:3,fontFamily:MONO}}>
             {lider.faccao}
           </span>
+          {lider.competencia && (
+            <span style={{fontSize:11,color:"#F59E0B",background:"rgba(245,158,11,0.1)",
+              border:"1px solid rgba(245,158,11,0.25)",padding:"2px 8px",borderRadius:3,fontFamily:MONO}}>
+              {fmtComp(lider.competencia)}
+            </span>
+          )}
         </div>
-        {/* Ações (aparecem no hover) */}
-        <div className="lu-acoes" style={{position:"absolute",top:10,right:10,display:"flex",gap:6}}>
-          <button onClick={()=>onEditar(lider)} title="Editar" style={{...btnFoto,color:C.textMid}}>✎</button>
-          {conf
-            ? <button onClick={()=>onDeletar(lider.id)} style={{height:32,borderRadius:16,border:"none",
-                padding:"0 12px",background:"#DC2626",cursor:"pointer",fontSize:11,fontWeight:800,color:"#FFF",
-                fontFamily:MONO,boxShadow:"0 1px 5px rgba(220,38,38,0.4)"}}>excluir?</button>
-            : <button onClick={()=>setConf(true)} title="Excluir" style={{...btnFoto,color:"#DC2626"}}>✕</button>}
-        </div>
-      </div>
-
-      {/* Informações */}
-      <div style={{padding:"14px 16px 16px",display:"flex",flexDirection:"column",gap:5,flex:1}}>
-        <div style={{fontSize:21,fontWeight:800,color:C.text,lineHeight:1.12,letterSpacing:"-0.01em"}}>
-          {lider.vulgo||"—"}
-        </div>
-        {lider.nome && <div style={{fontSize:13.5,color:C.textMid,lineHeight:1.3}}>{lider.nome}</div>}
-        <div style={{display:"flex",alignItems:"center",gap:7,marginTop:3}}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:cor.solid,flexShrink:0}}/>
-          <span style={{fontSize:14.5,fontWeight:600,color:"#334155"}}>{lider.cargo}</span>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginTop:5,
-          fontSize:12,color:C.textDim,fontFamily:MONO}}>
-          {lider.ala && <span>{lider.ala}</span>}
-          {lider.cela && <><span>·</span><span>Cela {lider.cela}</span></>}
-          {lider.competencia && <><span>·</span><span style={{color:C.accent,fontWeight:700}}>{fmtComp(lider.competencia)}</span></>}
-        </div>
-        {lider.observacao && (
-          <div style={{fontSize:12.5,color:C.textMid,marginTop:8,paddingTop:9,lineHeight:1.55,
-            borderTop:`1px solid ${C.border}`,fontStyle:"italic"}}>
-            {lider.observacao.length>120?lider.observacao.slice(0,120)+"…":lider.observacao}
+        {lider.nome && (
+          <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:MONO,marginBottom:3}}>
+            {lider.nome}
           </div>
         )}
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,color:C.textMid,fontFamily:MONO}}>{lider.cargo}</span>
+          {lider.cela && (
+            <span style={{fontSize:11,color:C.textMid,fontFamily:MONO,
+              background:C.surfaceUp,padding:"1px 7px",borderRadius:3,border:`1px solid ${C.border}`}}>
+              Cela {lider.cela}
+            </span>
+          )}
+          {dt && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>{dt}</span>}
+        </div>
+        {lider.observacao && (
+          <div style={{fontSize:12,color:C.textMid,marginTop:4,fontStyle:"italic"}}>
+            {lider.observacao.length>90?lider.observacao.slice(0,90)+"...":lider.observacao}
+          </div>
+        )}
+      </div>
+      {/* Ações */}
+      <div style={{display:"flex",gap:4,flexShrink:0}}>
+        <button onClick={()=>onEditar(lider)} style={{width:28,height:28,borderRadius:4,
+          border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"center",color:C.textMid,fontSize:14}}>
+          ✎
+        </button>
+        {conf
+          ? <button onClick={()=>onDeletar(lider.id)} style={{height:28,borderRadius:4,border:"none",
+              padding:"0 10px",background:"#DC2626",cursor:"pointer",fontSize:11,fontWeight:700,
+              color:"#FFF",fontFamily:MONO}}>confirmar</button>
+          : <button onClick={()=>setConf(true)} style={{width:28,height:28,borderRadius:4,
+              border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.08)",cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",color:"#EF4444",fontSize:14}}>
+              ✕
+            </button>}
       </div>
     </div>
   )
@@ -516,48 +490,49 @@ function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
   )
 }
 
-// ── Seção Pavilhão (galeria de dossiês) ───────────────────────────────────────
+// ── Seção Pavilhão ────────────────────────────────────────────────────────────
 function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
   const [aberto, setAberto] = useState(true)
-  const todos = Object.values(alas).flatMap(celas => Object.values(celas).flat())
-  const total = todos.length
-  const faccDom = total>0
+  const todos      = Object.values(alas).flat()
+  const total      = todos.length
+  const faccDom    = total>0
     ? todos.map(l=>l.faccao).sort((a,b)=>todos.filter(l=>l.faccao===b).length-todos.filter(l=>l.faccao===a).length)[0]
     : null
-  const cor = corFL(faccDom)
+  const cor = corF(faccDom)
 
   return (
-    <div style={{marginBottom:6}}>
-      {/* Cabeçalho do pavilhão */}
-      <div onClick={()=>setAberto(v=>!v)} style={{display:"flex",alignItems:"center",
-        justifyContent:"space-between",padding:"8px 2px 12px",cursor:"pointer",
-        borderBottom:`2px solid ${C.border}`,marginBottom:18}}>
-        <div style={{display:"flex",alignItems:"center",gap:11}}>
-          <span style={{color:C.textMid,fontSize:13,width:12,display:"inline-block"}}>{aberto?"▾":"▸"}</span>
-          <div style={{width:10,height:10,borderRadius:"50%",background:faccDom?cor.solid:C.textDim}}/>
-          <span style={{fontSize:16.5,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>{pavilhao}</span>
+    <div style={{background:C.surface,borderRadius:6,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+      <div onClick={()=>setAberto(v=>!v)} style={{padding:"11px 16px",cursor:"pointer",
+        background:C.surfaceUp,borderBottom:aberto?`2px solid ${cor.dot||C.border}`:`1px solid ${C.border}`,
+        display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:faccDom?cor.dot:C.textDim,
+            boxShadow:faccDom?`0 0 6px ${cor.dot}66`:"none"}}/>
+          <span style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>{pavilhao}</span>
           {total>0 && (
-            <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO,
-              background:C.surface,border:`1px solid ${C.border}`,padding:"2px 10px",borderRadius:20}}>
+            <span style={{fontSize:11,color:C.textMid,fontFamily:MONO,
+              background:C.surface,border:`1px solid ${C.border}`,padding:"2px 8px",borderRadius:3}}>
               {total} líder{total!==1?"es":""}
             </span>
           )}
         </div>
-        <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} className="lu-add" style={{
-          padding:"7px 15px",borderRadius:9,border:"none",
-          background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
-          color:"#FFF",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:MONO,
-          boxShadow:"0 2px 8px rgba(180,83,9,0.28)"}}>+ Líder</button>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} style={{
+            padding:"4px 12px",borderRadius:3,border:"none",
+            background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+            color:"#FFF",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>
+            + Líder
+          </button>
+          <span style={{color:C.textMid,fontSize:12}}>{aberto?"▲":"▼"}</span>
+        </div>
       </div>
-      {/* Galeria */}
-      {aberto && (total>0
-        ? <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:18,paddingBottom:6}}>
-            {todos.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
-          </div>
-        : <div style={{padding:"22px",textAlign:"center",color:C.textDim,fontFamily:MONO,fontSize:13,
-            background:C.surface,border:`1px dashed ${C.border}`,borderRadius:14,marginBottom:6}}>
-            Nenhuma liderança registrada neste pavilhão.
-          </div>
+      {aberto && (
+        <div style={{padding:"12px 16px"}}>
+          {Object.entries(alas).map(([ala,lideres])=>(
+            <SecaoAla key={ala} ala={ala} lideres={Object.values(lideres).flat()}
+              onNovo={()=>onNovo(pavilhao,ala)} onEditar={onEditar} onDeletar={onDeletar}/>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -715,9 +690,9 @@ export default function LiderancasUnidade({ onNavigate }) {
           <button key={key} onClick={()=>setUnidade(key)} className="lu-tab" style={{
             background:unidade===key?C.accent:"transparent",
             border:`1px solid ${unidade===key?C.accent:C.border}`,
-            borderRadius:8,cursor:"pointer",padding:"7px 18px",
+            borderRadius:6,cursor:"pointer",padding:"7px 18px",
             fontSize:12.5,fontWeight:700,
-            color:unidade===key?"#FFF":C.textMid,
+            color:unidade===key?"#0B1120":C.textMid,
             fontFamily:MONO,transition:"all .15s",whiteSpace:"nowrap"}}>
             {label}
           </button>
@@ -730,12 +705,12 @@ export default function LiderancasUnidade({ onNavigate }) {
           borderBottom:`1px solid ${C.border}`,flexShrink:0,overflowX:"auto"}}>
           <span style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",
             textTransform:"uppercase",flexShrink:0}}>Distribuição</span>
-          {faccaoRank.map(([f,n])=>{ const c=corFL(f); return (
-            <div key={f} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:20,
-              background:c.pillBg,border:`1px solid ${c.solid}33`,flexShrink:0}}>
-              <span style={{width:8,height:8,borderRadius:"50%",background:c.solid}}/>
-              <span style={{fontSize:12,fontWeight:700,color:c.pillText,fontFamily:MONO}}>{f}</span>
-              <span style={{fontSize:12.5,fontWeight:800,color:c.solid,fontFamily:MONO}}>{n}</span>
+          {faccaoRank.map(([f,n])=>{ const c=corF(f); return (
+            <div key={f} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,
+              background:c.bg,border:`1px solid ${c.border}`,flexShrink:0}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/>
+              <span style={{fontSize:12,fontWeight:700,color:c.text,fontFamily:MONO}}>{f}</span>
+              <span style={{fontSize:12.5,fontWeight:800,color:c.dot,fontFamily:MONO}}>{n}</span>
             </div>
           )})}
         </div>
@@ -786,17 +761,14 @@ export default function LiderancasUnidade({ onNavigate }) {
       <style>{`
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        select option { background: #FFFFFF; color:#0F172A; }
-        textarea::placeholder, input::placeholder { color: #94A3B8; }
-        .lu-dossie:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,23,42,0.13) !important; }
-        .lu-acoes { opacity: 0; transition: opacity .15s; }
-        .lu-dossie:hover .lu-acoes { opacity: 1; }
-        .lu-add:hover { filter: brightness(1.06); }
-        .lu-btn:hover  { border-color: ${C.accent} !important; color: ${C.accent} !important; }
-        .lu-tab:hover  { border-color: ${C.accent} !important; }
-        .lu-scroll::-webkit-scrollbar{width:9px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
-        .lu-scroll::-webkit-scrollbar-thumb{background:#D5DAE3;border-radius:6px}
-        .lu-scroll::-webkit-scrollbar-thumb:hover{background:#B45309}
+        select option { background: #111827; color:#F1F5F9; }
+        textarea::placeholder, input::placeholder { color: #64748B; }
+        .lu-card:hover { border-color: rgba(232,160,32,0.30) !important; background:#16203a !important; }
+        .lu-btn:hover  { border-color: rgba(232,160,32,0.4) !important; color:#E8A020 !important; }
+        .lu-tab:hover  { border-color: rgba(232,160,32,0.4) !important; }
+        .lu-scroll::-webkit-scrollbar{width:8px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
+        .lu-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:6px}
+        .lu-scroll::-webkit-scrollbar-thumb:hover{background:rgba(232,160,32,0.4)}
       `}</style>
     </div>
   )
