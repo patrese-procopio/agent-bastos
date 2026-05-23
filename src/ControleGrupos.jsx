@@ -110,6 +110,9 @@ export default function ControleGrupos({ onNavigate }) {
   const [carregando, setCarregando] = useState(true)
   const [erroApi, setErroApi]       = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [mes, setMes]               = useState(new Date().toISOString().slice(0, 7))
+  const [grupos, setGrupos]         = useState(Object.keys(CORES))
+  const [salvando, setSalvando]     = useState(false)
   const imgRef  = useRef(null)
   const wrapRef = useRef(null)
 
@@ -122,12 +125,30 @@ export default function ControleGrupos({ onNavigate }) {
 
   useEffect(() => {
     setCarregando(true)
-    api.get("/ocupacao")
+    api.get("/grupos/ocupacao?ano_mes=" + mes)
      .then(r => r?.json())
      .then(d => { setDados(normalizar(d)); setErroApi(false); setErr({}) })
      .catch(() => { setDados(FALLBACK); setErroApi(true) })
      .finally(() => setCarregando(false))
+  }, [mes])
+
+  useEffect(() => {
+    api.get("/grupos/catalogo").then(r => r?.json()).then(d => { if (d?.grupos?.length) setGrupos(d.grupos) }).catch(() => {})
   }, [])
+
+  // Salva o grupo de um pavilhão no mês atual (otimista + persiste no SQLite)
+  async function salvarGrupo(unidade, pavId, grupo) {
+    setSalvando(true)
+    setDados(prev => {
+      const next = JSON.parse(JSON.stringify(prev))
+      if (next.unidades[unidade]?.pavs?.[pavId]) next.unidades[unidade].pavs[pavId].g = grupo
+      return next
+    })
+    try {
+      await api.post("/grupos/ocupacao", { ano_mes: mes, unidade, pavilhao_id: pavId, grupo })
+    } catch {}
+    finally { setSalvando(false) }
+  }
 
   useEffect(() => { setPav(null); setImgRect(null); setErr({}) }, [unit])
 
@@ -344,6 +365,12 @@ export default function ControleGrupos({ onNavigate }) {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {erroApi && <span style={{fontSize:11.7,color:"#F87171",fontFamily:MONO,background:"rgba(239,68,68,0.10)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>offline — dados locais</span>}
+          {salvando && <span style={{fontSize:11.7,color:"#4ADE80",fontFamily:MONO}}>salvando…</span>}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase"}}>Mês</span>
+            <input type="month" value={mes} onChange={e=>e.target.value && setMes(e.target.value)} title="Competência (mês) — meses novos copiam o anterior"
+              style={{background:"#0B1120",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"5px 9px",fontSize:13,color:"#F1F5F9",fontFamily:MONO,outline:"none",colorScheme:"dark"}}/>
+          </div>
           <button
             onClick={exportarPDF}
             disabled={exportando}
@@ -369,7 +396,7 @@ export default function ControleGrupos({ onNavigate }) {
           const gs  = [...new Set(Object.values(dados.unidades[k]?.pavs||{}).map(p=>p.g))]
           const cor = gs.some(g=>g.includes("CV")) ? "#DC2626" : gs.some(g=>g.includes("PCC")) ? "#3B82F6" : "#94A3B8"
           return (
-            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"7px 18px",borderRadius:"6px 6px 0 0",border:"1px solid",borderBottom:"none",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#131C2E":"rgba(255,255,255,0.05)",color:isA?"#FFFFFF":"#CBD5E1",borderColor:isA?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.08)",letterSpacing:"0.04em"}}>
+            <button key={k} className="ut" onClick={()=>setUnit(k)} style={{padding:"7px 18px",borderRadius:"6px 6px 0 0",borderStyle:"solid",borderWidth:"1px 1px 0 1px",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",fontFamily:MONO,background:isA?"#131C2E":"rgba(255,255,255,0.05)",color:isA?"#FFFFFF":"#CBD5E1",borderColor:isA?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.08)",letterSpacing:"0.04em"}}>
               <span style={{width:8,height:8,borderRadius:"50%",background:cor,display:"inline-block",marginRight:7,verticalAlign:"middle",boxShadow:`0 0 5px ${cor}88`}}/>{n}
             </button>
           )
@@ -440,7 +467,7 @@ export default function ControleGrupos({ onNavigate }) {
                         <div style={{width:8,height:8,borderRadius:"50%",background:c.dot}}/>
                         <span style={{fontSize:14.3,color:c.dot,fontWeight:700}}>{p.g}</span>
                       </div>
-                      <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#0D1526",border:`2px solid ${c.dot}`,borderTop:"none",borderLeft:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
+                      <div style={{position:"absolute",bottom:-6,left:"50%",width:10,height:10,background:"#0D1526",borderRight:`2px solid ${c.dot}`,borderBottom:`2px solid ${c.dot}`,transform:"translateX(-50%) rotate(45deg)"}}/>
                     </div>
                   )}
                 </div>
@@ -450,11 +477,15 @@ export default function ControleGrupos({ onNavigate }) {
           {pav && pavs[pav] && (() => {
             const c = CORES[pavs[pav].g] || CORES["NEUTROS"]
             return (
-              <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#0D1526",border:`1px solid ${c.border}`,borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
-                <div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0}}/>
-                <span style={{fontSize:13,fontWeight:700,color:"#F1F5F9"}}>{pavs[pav].l}</span>
-                <span style={{fontSize:14.3,fontWeight:700,padding:"3px 10px",borderRadius:4,background:c.bg,color:c.text,border:`1px solid ${c.border}`,fontFamily:MONO}}>{pavs[pav].g}</span>
-                <button onClick={()=>setPav(null)} style={{marginLeft:"auto",background:"transparent",border:"none",color:"#475569",cursor:"pointer",fontSize:18}}>×</button>
+              <div className="cg-enter" style={{marginTop:10,padding:"10px 16px",flexShrink:0,background:"#0D1526",borderTop:"1px solid rgba(255,255,255,0.08)",borderRight:"1px solid rgba(255,255,255,0.08)",borderBottom:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${c.dot}`,borderRadius:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:c.dot,flexShrink:0,transition:"background 0.2s"}}/>
+                <span style={{fontSize:14,fontWeight:700,color:"#F1F5F9"}}>{pavs[pav].l}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.06em",textTransform:"uppercase",marginLeft:4}}>Grupo:</span>
+                <select value={pavs[pav].g} onChange={e=>salvarGrupo(unit, pav, e.target.value)} title="Trocar o grupo deste pavilhão (salva automaticamente)"
+                  style={{background:"#0B1120",border:`1px solid ${c.dot}66`,borderRadius:6,padding:"5px 10px",fontSize:13.5,fontWeight:700,color:c.dot,fontFamily:MONO,outline:"none",cursor:"pointer",colorScheme:"dark"}}>
+                  {grupos.map(g => <option key={g} value={g} style={{color:"#F1F5F9",background:"#0B1120"}}>{g}</option>)}
+                </select>
+                <button onClick={()=>setPav(null)} style={{marginLeft:"auto",background:"transparent",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:20}}>×</button>
               </div>
             )
           })()}

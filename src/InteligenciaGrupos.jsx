@@ -263,27 +263,30 @@ export default function InteligenciaGrupos({ onNavigate }) {
   }, [])
 
   useEffect(() => {
-    api.get("/historico/indice")
+    const atual = new Date().toISOString().slice(0, 7)
+    api.get("/grupos/meses")
       .then(r => r.json())
       .then(data => {
-        const lista = (data.meses || []).sort().reverse()
+        let lista = data.meses || []
+        if (!lista.includes(atual)) lista = [atual, ...lista]
+        lista = [...new Set(lista)].sort().reverse()
         setMeses(lista)
-        if (lista.length > 0) setMesSelecionado(lista[0])
+        setMesSelecionado(lista[0])
       })
-      .catch(() => setErro("Não foi possível carregar o índice de meses."))
+      .catch(() => { setMeses([atual]); setMesSelecionado(atual); setErro("Não foi possível carregar os meses.") })
   }, [])
 
   useEffect(() => {
     if (!mesSelecionado) return
     if (snapshots[mesSelecionado]) return
-    api.get(`/historico/${mesSelecionado}`)
+    api.get(`/grupos/ocupacao?ano_mes=${mesSelecionado}`)
       .then(r => r.json())
       .then(data => setSnapshots(prev => ({ ...prev, [mesSelecionado]: data })))
-      .catch(() => setErro(`Erro ao carregar snapshot de ${mesSelecionado}`))
+      .catch(() => setErro(`Erro ao carregar ${mesSelecionado}`))
   }, [mesSelecionado])
 
   useEffect(() => {
-    api.get("/kpis")
+    api.get("/grupos/kpis")
       .then(r => r.json())
       .then(setKpis)
       .catch(() => {})
@@ -291,7 +294,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
   }, [])
 
   const snap = snapshots[mesSelecionado]
-  const dadosAtual = snap?.dados || null
+  const dadosAtual = snap?.unidades ? snap : (snap?.dados || null)
   const contagemAtual = dadosAtual ? extrairContagem(dadosAtual) : {}
   const porUnidade = dadosAtual ? extrairPorUnidade(dadosAtual) : {}
   const grupos = Object.keys(contagemAtual).sort((a, b) => contagemAtual[b] - contagemAtual[a])
@@ -325,17 +328,15 @@ export default function InteligenciaGrupos({ onNavigate }) {
   async function forcarSnapshot() {
     setLoading(true)
     try {
-      const r = await api.post("/snapshot/forcar")
-      const data = await r.json()
-      if (data.ok) {
-        const indice = await api.get("/historico/indice").then(r => r?.json())
-        const lista = (indice.meses || []).sort().reverse()
-        setMeses(lista)
-        setMesSelecionado(lista[0])
-        setSnapshots({})
-        const kpisData = await api.get("/kpis").then(r => r?.json())
-        setKpis(kpisData)
-      }
+      const atual = new Date().toISOString().slice(0, 7)
+      const mesesData = await api.get("/grupos/meses").then(r => r?.json())
+      let lista = mesesData?.meses || []
+      if (!lista.includes(atual)) lista = [atual, ...lista]
+      lista = [...new Set(lista)].sort().reverse()
+      setMeses(lista)
+      setSnapshots({})
+      const kpisData = await api.get("/grupos/kpis").then(r => r?.json())
+      setKpis(kpisData)
     } catch {}
     finally { setLoading(false) }
   }
