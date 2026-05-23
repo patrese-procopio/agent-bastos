@@ -385,28 +385,31 @@ function Monograma({ letra, cor }) {
   )
 }
 
-const CARD_BG = "#141C2E"
+const CARD_BG = "#18223A"
 const btnAcao = {
   width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(11,17,32,0.72)",
   cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,
 }
+const lblMini  = { fontSize:9,fontWeight:700,color:"#7C8AA6",fontFamily:MONO,letterSpacing:"0.14em",marginBottom:2 }
+const chipMeta = { background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,padding:"1px 9px",borderRadius:20 }
 
-// ── Card-dossiê do líder (dark premium, horizontal) ───────────────────────────
+// ── Card-figurinha do líder (dark premium, moldura dourada) ───────────────────
 function CardLider({ lider, onEditar, onDeletar }) {
   const cor = corF(lider.faccao)
   const [conf, setConf] = useState(false)
   const inicial = (lider.vulgo || lider.nome || "?").trim()[0]?.toUpperCase() || "?"
 
   return (
-    <div className="lu-card" style={{position:"relative",display:"flex",gap:16,padding:16,
-      background:CARD_BG,borderRadius:14,
-      borderTop:`1px solid ${C.border}`,borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,
-      borderLeft:`3px solid ${cor.dot}`,boxShadow:"0 4px 18px rgba(0,0,0,0.28)",
-      transition:"transform .18s, box-shadow .18s"}}>
+    <div className="lu-card" style={{position:"relative",display:"flex",gap:15,padding:"17px 16px 15px",
+      background:CARD_BG,borderRadius:14,border:"1px solid rgba(232,160,32,0.22)",
+      boxShadow:"0 6px 20px rgba(0,0,0,0.30)",transition:"transform .18s, box-shadow .18s",overflow:"hidden"}}>
 
-      {/* Foto / monograma */}
-      <div style={{width:104,height:132,borderRadius:11,overflow:"hidden",flexShrink:0,position:"relative",
-        background:cor.bg,border:`1px solid ${C.border}`}}>
+      {/* Moldura dourada (topo) — toque de figurinha */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:"linear-gradient(90deg,#E8A020,#B45309)"}}/>
+
+      {/* Foto emoldurada */}
+      <div style={{width:114,height:144,borderRadius:10,overflow:"hidden",flexShrink:0,position:"relative",
+        background:cor.bg,border:"2px solid rgba(232,160,32,0.5)",boxShadow:"0 2px 10px rgba(0,0,0,0.45)"}}>
         <Monograma letra={inicial} cor={cor}/>
         {lider.foto_ext && (
           <div style={{position:"absolute",inset:0}}>
@@ -415,36 +418,44 @@ function CardLider({ lider, onEditar, onDeletar }) {
         )}
       </div>
 
-      {/* Dados */}
-      <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:6}}>
-        <div style={{fontSize:19,fontWeight:800,color:C.text,lineHeight:1.15,letterSpacing:"-0.01em",
-          paddingRight:62,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-          {lider.vulgo||"—"}
-        </div>
-        {lider.nome && (
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {lider.nome}
+      {/* Info */}
+      <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:9,paddingTop:2}}>
+        {/* Vulgo + Nome — MESMA hierarquia */}
+        <div style={{display:"flex",gap:18,flexWrap:"wrap"}}>
+          <div style={{minWidth:0,flex:"1 1 120px"}}>
+            <div style={lblMini}>VULGO</div>
+            <div style={{fontSize:16.5,fontWeight:800,color:"#E8A020",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lider.vulgo||"—"}</div>
           </div>
-        )}
-        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap",marginTop:2}}>
-          <span style={{fontSize:11,fontWeight:800,color:cor.text,background:cor.bg,
-            border:`1px solid ${cor.border}`,padding:"3px 10px",borderRadius:20,fontFamily:MONO,letterSpacing:"0.02em"}}>
-            {lider.faccao}
+          <div style={{minWidth:0,flex:"1 1 120px"}}>
+            <div style={lblMini}>NOME</div>
+            <div style={{fontSize:16.5,fontWeight:800,color:"#F1F5F9",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lider.nome||"—"}</div>
+          </div>
+        </div>
+
+        <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
+
+        {/* Cargo (destaque dourado) + facção (selo discreto) */}
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{display:"flex",alignItems:"center",gap:7}}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",flexShrink:0}}/>
+            <span style={{fontSize:14.5,fontWeight:700,color:"#F8FAFC"}}>{lider.cargo}</span>
           </span>
-          <span style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:cor.dot,flexShrink:0}}/>
-            <span style={{fontSize:14.5,fontWeight:600,color:"#CBD5E1"}}>{lider.cargo}</span>
+          <span style={{fontSize:10.5,fontWeight:800,color:cor.text,background:cor.bg,border:`1px solid ${cor.border}`,
+            padding:"3px 9px",borderRadius:20,fontFamily:MONO,display:"inline-flex",alignItems:"center",gap:5}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:cor.dot}}/>{lider.faccao}
           </span>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap",marginTop:1,
-          fontSize:11.5,color:C.textDim,fontFamily:MONO}}>
-          {lider.cela && <span style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,padding:"1px 9px",borderRadius:20}}>Cela {lider.cela}</span>}
-          {lider.competencia && <span style={{color:C.accent,fontWeight:700}}>{fmtComp(lider.competencia)}</span>}
+
+        {/* Stats: ala / cela / competência */}
+        <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",fontSize:11.5,color:"#94A3B8",fontFamily:MONO}}>
+          {lider.ala && <span style={chipMeta}>{lider.ala}</span>}
+          {lider.cela && <span style={chipMeta}>Cela {lider.cela}</span>}
+          {lider.competencia && <span style={{color:"#E8A020",fontWeight:700}}>{fmtComp(lider.competencia)}</span>}
         </div>
+
         {lider.observacao && (
-          <div style={{fontSize:12,color:C.textMid,marginTop:6,paddingTop:8,lineHeight:1.5,
-            borderTop:`1px solid ${C.border}`,fontStyle:"italic"}}>
-            {lider.observacao.length>110?lider.observacao.slice(0,110)+"…":lider.observacao}
+          <div style={{fontSize:12,color:"#94A3B8",lineHeight:1.5,fontStyle:"italic"}}>
+            {lider.observacao.length>96?lider.observacao.slice(0,96)+"…":lider.observacao}
           </div>
         )}
       </div>
@@ -461,80 +472,50 @@ function CardLider({ lider, onEditar, onDeletar }) {
   )
 }
 
-// ── Seção Ala (grade de cards — 2 por linha; 1 se ala única) ──────────────────
-function SecaoAla({ ala, lideres, onNovo, onEditar, onDeletar }) {
-  const umPorLinha = /[úu]nica/i.test(ala)
-  const cor = lideres.length ? corF(lideres[0].faccao) : null
-  return (
-    <div style={{marginBottom:20}}>
-      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:11}}>
-        <div style={{width:3,height:15,borderRadius:2,background:cor?cor.dot:C.textDim}}/>
-        <span style={{fontSize:12,fontWeight:800,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",textTransform:"uppercase"}}>{ala}</span>
-        <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {lideres.length} líder{lideres.length!==1?"es":""}</span>
-        <div style={{flex:1,height:1,background:C.border}}/>
-        <button onClick={onNovo} className="lu-btn" style={{padding:"4px 11px",borderRadius:7,
-          border:`1px solid ${C.border}`,background:"transparent",fontSize:11,fontWeight:700,
-          color:C.textMid,fontFamily:MONO,cursor:"pointer",transition:"all .15s"}}>+ Líder</button>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:umPorLinha?"1fr":"repeat(2, minmax(0,1fr))",gap:14}}>
-        {lideres.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
-      </div>
-    </div>
-  )
-}
-
-// ── Seção Pavilhão ────────────────────────────────────────────────────────────
+// ── Seção Pavilhão (cards do pavilhão na MESMA linha; 1 líder por ala) ─────────
 function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
   const [aberto, setAberto] = useState(true)
-  const entradas   = Object.entries(alas).map(([ala,celas])=>[ala, Object.values(celas).flat()])
-  const comLideres = entradas.filter(([,l])=>l.length>0)
-  const vazias     = entradas.filter(([,l])=>l.length===0).map(([a])=>a)
-  const todos      = comLideres.flatMap(([,l])=>l)
-  const total      = todos.length
-  const faccDom    = total>0
-    ? todos.map(l=>l.faccao).sort((a,b)=>todos.filter(l=>l.faccao===b).length-todos.filter(l=>l.faccao===a).length)[0]
-    : null
-  const cor = corF(faccDom)
+  const entradas = Object.entries(alas).map(([ala,celas])=>[ala, Object.values(celas).flat()])
+  const todos    = entradas.flatMap(([,l])=>l)
+  const vazias   = entradas.filter(([,l])=>l.length===0).map(([a])=>a)
+  const total    = todos.length
+  const umCard   = total <= 1   // ala única / 1 líder → 1 card por linha
 
   return (
-    <div style={{marginBottom:12}}>
+    <div style={{marginBottom:18}}>
       {/* Cabeçalho do pavilhão */}
       <div onClick={()=>setAberto(v=>!v)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"10px 4px 12px",cursor:"pointer",borderBottom:`2px solid ${faccDom?cor.dot+"55":C.border}`,marginBottom:18}}>
+        padding:"10px 4px 12px",cursor:"pointer",borderBottom:"2px solid rgba(232,160,32,0.30)",marginBottom:18}}>
         <div style={{display:"flex",alignItems:"center",gap:11}}>
-          <span style={{color:C.textMid,fontSize:13,width:12,display:"inline-block"}}>{aberto?"▾":"▸"}</span>
-          <div style={{width:9,height:9,borderRadius:"50%",background:faccDom?cor.dot:C.textDim,
-            boxShadow:faccDom?`0 0 8px ${cor.dot}66`:"none"}}/>
-          <span style={{fontSize:16.5,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>{pavilhao}</span>
+          <span style={{color:"#E8A020",fontSize:13,width:12,display:"inline-block"}}>{aberto?"▾":"▸"}</span>
+          <span style={{fontSize:16.5,fontWeight:800,color:"#F1F5F9",letterSpacing:"-0.01em"}}>{pavilhao}</span>
           {total>0 && (
-            <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO,
-              background:C.surface,border:`1px solid ${C.border}`,padding:"2px 10px",borderRadius:20}}>
+            <span style={{fontSize:12,fontWeight:700,color:"#E8A020",fontFamily:MONO,
+              background:"rgba(232,160,32,0.1)",border:"1px solid rgba(232,160,32,0.3)",padding:"2px 10px",borderRadius:20}}>
               {total} líder{total!==1?"es":""}
             </span>
           )}
         </div>
         <button onClick={e=>{e.stopPropagation();onNovo(pavilhao)}} className="lu-add" style={{padding:"7px 15px",
-          borderRadius:9,border:"none",background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+          borderRadius:9,border:"none",background:"linear-gradient(135deg,#E8A020,#B45309)",
           color:"#0B1120",fontSize:12.5,fontWeight:800,cursor:"pointer",fontFamily:MONO,
           boxShadow:"0 2px 10px rgba(232,160,32,0.25)"}}>+ Líder</button>
       </div>
 
       {aberto && (
         <>
-          {comLideres.map(([ala,lideres])=>(
-            <SecaoAla key={ala} ala={ala} lideres={lideres}
-              onNovo={()=>onNovo(pavilhao,ala)} onEditar={onEditar} onDeletar={onDeletar}/>
-          ))}
-          {total===0 && (
-            <div style={{padding:"22px",textAlign:"center",color:C.textDim,fontFamily:MONO,fontSize:13,
-              background:"rgba(255,255,255,0.015)",border:`1px dashed ${C.border}`,borderRadius:12,marginBottom:8}}>
-              Nenhuma liderança registrada neste pavilhão.
-            </div>
-          )}
-          {vazias.length>0 && (
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8,
+          {total>0
+            ? <div style={{display:"grid",gridTemplateColumns:umCard?"minmax(0,560px)":"repeat(2, minmax(0,1fr))",gap:16}}>
+                {todos.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
+              </div>
+            : <div style={{padding:"22px",textAlign:"center",color:C.textDim,fontFamily:MONO,fontSize:13,
+                background:"rgba(255,255,255,0.015)",border:`1px dashed ${C.border}`,borderRadius:12}}>
+                Nenhuma liderança registrada neste pavilhão.
+              </div>}
+          {vazias.length>0 && total>0 && (
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:13,
               fontSize:11.5,color:C.textDim,fontFamily:MONO}}>
-              <span style={{fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Sem liderança:</span>
+              <span style={{fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Alas sem líder:</span>
               {vazias.map(a=>(
                 <span key={a} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,
                   padding:"2px 9px",borderRadius:20}}>{a}</span>
