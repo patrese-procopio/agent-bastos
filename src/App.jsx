@@ -219,10 +219,10 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{flex:1,display:"flex",flexDirection:"column",padding:"6px 0",overflow:"hidden"}}>
+        <div style={{flex:1,display:"flex",flexDirection:"column",padding:"2px 0",overflowY:"auto",overflowX:"hidden"}}>
           <nav style={S.nav}>
             {NAV_GROUPS.map(group=>(
-              <div key={group.title} style={{marginBottom:16}}>
+              <div key={group.title} style={{marginBottom:12}}>
                 <div style={S.groupLabel}>
                   <span style={S.groupLabelBar}/>
                   {group.title}
@@ -485,22 +485,22 @@ const S = {
     borderRight:"1px solid rgba(255,255,255,0.08)",display:"flex",flexDirection:"column",
     flexShrink:0,height:"100vh",position:"relative",zIndex:10,boxShadow:"4px 0 24px rgba(0,0,0,0.25)",
     backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)"},
-  logoArea:{padding:"18px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)",
+  logoArea:{padding:"12px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.1)",
     display:"flex",flexDirection:"column",alignItems:"center",gap:10,flexShrink:0},
-  logoRing:{width:56,height:56,borderRadius:"50%",border:"2px solid rgba(245,158,11,0.85)",
+  logoRing:{width:48,height:48,borderRadius:"50%",border:"2px solid rgba(245,158,11,0.85)",
     overflow:"hidden",flexShrink:0,background:"rgba(245,158,11,0.15)",
     boxShadow:"0 0 16px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,0.3)"},
   logoText:{display:"flex",flexDirection:"column",alignItems:"center",gap:2},
   logoName:{fontSize:14,fontWeight:800,color:"#FFFFFF",letterSpacing:"0.01em",textAlign:"center"},
   logoTagline:{fontSize:10,color:"#F59E0B",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,textAlign:"center"},
-  nav:{padding:"6px 8px 0",flexShrink:0},
+  nav:{padding:"3px 8px 0",flexShrink:0},
   groupLabel:{display:"flex",alignItems:"center",gap:7,fontSize:14.3,fontWeight:900,color:"#E8A020",
-    letterSpacing:"0.03em",padding:"0 10px 4px",marginBottom:2,textTransform:"uppercase",
+    letterSpacing:"0.03em",padding:"0 10px 2px",marginBottom:2,textTransform:"uppercase",
     textShadow:"0 1px 4px rgba(0,0,0,0.7),0 -1px 0 rgba(255,200,50,0.2)"},
   groupLabelBar:{display:"inline-block",width:3,height:13,background:"#E8A020",borderRadius:2,
     flexShrink:0,boxShadow:"0 0 6px rgba(232,160,32,0.5)"},
   ni:{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",paddingRight:28,
-    borderRadius:7,cursor:"pointer",marginBottom:1,border:"none",background:"transparent",
+    borderRadius:7,cursor:"pointer",marginBottom:3,border:"none",background:"transparent",
     width:"100%",textAlign:"left",transition:"all 0.12s ease"},
   sidebarFooter:{padding:"0 12px 12px",flexShrink:0},
   footerDivider:{height:1,background:"linear-gradient(90deg,transparent,rgba(245,158,11,0.4),transparent)",marginBottom:10},
