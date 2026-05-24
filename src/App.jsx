@@ -13,6 +13,7 @@ import Grafoscopia from "./Grafoscopia"
 import ControleGrupos from "./ControleGrupos"
 import InteligenciaGrupos from "./InteligenciaGrupos"
 import LiderancasUnidade from "./LiderancasUnidade"
+import GrafoVinculos from "./GrafoVinculos"
 import Login from "./Login"
 import api from "./api"
 
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
     { label: "Controle de Grupos", color: "#F87171" },
     { label: "Inteligência de Grupos", color: "#A78BFA" },
     { label: "Lideranças por Unidade", color: "#F87171" },
+    { label: "Análise de Vínculo", color: "#38BDF8" },
     { label: "Lista Negra", color: "#94A3B8" },
   ]},
   { title: "INTELIGÊNCIA", items: [
@@ -280,6 +282,7 @@ export default function App() {
         {active==="Controle de Grupos"     && <ControleGrupos onNavigate={setActive}/>}
         {active==="Inteligência de Grupos" && <InteligenciaGrupos onNavigate={setActive}/>}
         {active==="Lideranças por Unidade" && <LiderancasUnidade onNavigate={setActive}/>}
+        {active==="Análise de Vínculo"     && <GrafoVinculos onNavigate={setActive}/>}
         {active==="Agenda de Missão"       && <Agenda       onNavigate={setActive}/>}
         {active==="Lista Negra"            && <ListaNegra   onNavigate={setActive}/>}
 
@@ -463,7 +466,7 @@ export default function App() {
 
         {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
-           "Inteligência de Grupos","Lideranças por Unidade","Análise Grafoscópica"].includes(active) && (
+           "Inteligência de Grupos","Lideranças por Unidade","Análise de Vínculo","Análise Grafoscópica"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
             <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>
