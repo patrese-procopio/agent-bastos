@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+# override=True: o .env é a fonte de verdade das chaves/config — vence qualquer
+# variável de ambiente pré-existente (evita chave herdada/vazia mascarar a real).
+load_dotenv(override=True)
 
 # Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -15,6 +17,9 @@ FIREBASE_KEY_PATH = os.getenv("FIREBASE_KEY_PATH", "serviceAccountKey.json")
 
 # Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# DeepSeek (API OpenAI-compatible — https://platform.deepseek.com)
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # Telegram (OSINT — Telethon)
 # api_id/api_hash: gerados em https://my.telegram.org → API development tools

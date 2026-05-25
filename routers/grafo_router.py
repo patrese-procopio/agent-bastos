@@ -23,11 +23,12 @@ Automático:
 """
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from modules import grafo
-from dependencies import require_module
+from dependencies import require_module, get_current_user_media
 
 router = APIRouter(prefix="/api/grafo", tags=["grafo"])
 
@@ -120,6 +121,37 @@ def delete_no(no_id: str, user: dict = Depends(_GATE)):
     if not grafo.deletar_no(no_id):
         raise HTTPException(status_code=404, detail="Nó não encontrado.")
     return {"ok": True}
+
+
+# ── Foto de nó (upload individual por entidade) ──────────────────────────────
+
+@router.post("/no/{no_id}/foto")
+async def upload_foto_no(no_id: str, file: UploadFile = File(...),
+                         user: dict = Depends(_GATE)):
+    conteudo = await file.read()
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    ext = (file.filename or "foto.jpg").rsplit(".", 1)[-1]
+    no = grafo.set_foto_no(no_id, conteudo, ext)
+    if not no:
+        raise HTTPException(status_code=404, detail="Nó não encontrado.")
+    return no
+
+
+@router.delete("/no/{no_id}/foto")
+def delete_foto_no(no_id: str, user: dict = Depends(_GATE)):
+    no = grafo.remover_foto_no(no_id)
+    if not no:
+        raise HTTPException(status_code=404, detail="Nó não encontrado.")
+    return no
+
+
+@router.get("/no/{no_id}/foto")
+def get_foto_no(no_id: str, user: dict = Depends(get_current_user_media)):
+    caminho = grafo.foto_path_no(no_id)
+    if not caminho:
+        raise HTTPException(status_code=404, detail="Sem foto.")
+    return FileResponse(caminho)
 
 
 @router.post("/aresta")

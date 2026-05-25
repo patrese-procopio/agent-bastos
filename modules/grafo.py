@@ -39,8 +39,12 @@ DB_PATH  = os.path.join(BASE_DIR, "data", "grafo", "grafo_vinculos.db")
 LIDER_DB = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
 CHROMA_DIR    = os.path.join(BASE_DIR, "data", "chroma_db")
 INDICE_DOCS   = os.path.join(BASE_DIR, "indice_documentos.json")
+FOTOS_DIR     = os.path.join(BASE_DIR, "data", "grafo", "fotos")
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(FOTOS_DIR, exist_ok=True)
+
+_FOTO_EXTS = ("jpg", "jpeg", "png", "webp", "gif")
 
 # Categorias válidas de nó (espelhadas na galeria de ícones do frontend)
 TIPOS_NO = [
@@ -669,6 +673,322 @@ def varrer_citacoes(alvo_id: str) -> dict:
             if not ex:
                 criados += 1
     return {"ok": True, "criados": criados, "encontrados": len(achados), "termos": termos}
+
+
+# ── Ingestão a partir do Módulo Extrato ─────────────────────────────────────
+
+def _id_entidade(tipo: str, nome: str, vulgo: str, rotulo: str) -> str:
+    """
+    ID estável de uma entidade extraída de um extrato.
+    Pessoa usa o MESMO esquema das lideranças (md5 nome+vulgo) → mescla
+    automaticamente com a pessoa já existente no grafo. Demais tipos usam slug
+    estável por (tipo+rótulo) para que menções repetidas convirjam no mesmo nó.
+    """
+    if tipo == "pessoa":
+        return _id_pessoa(nome or rotulo or "", vulgo or "")
+    if tipo == "faccao":
+        return "faccao_" + _slug(rotulo or nome)
+    if tipo == "local":
+        return "local_" + _slug(rotulo or nome)
+    return f"ext_{tipo}_" + _slug(rotulo or nome or "x")
+
+
+def limpar_extrato(extrato_id: str) -> None:
+    """Remove os nós/arestas AUTO deste extrato (reprocessamento limpo).
+    Preserva pessoas (nós de identidade compartilhados) e tudo que for manual."""
+    origem = f"auto:extrato:{extrato_id}"
+    with _conn() as con:
+        con.execute("DELETE FROM arestas WHERE origem = ?", (origem,))
+        con.execute(
+            "DELETE FROM nos WHERE origem = ? AND tipo != 'pessoa'", (origem,)
+        )
+
+
+def ingerir_extrato(extrato_id: str, entidades: list[dict],
+                    conexoes: list[dict], rotulo_extrato: str = None) -> dict:
+    """
+    Materializa entidades e vínculos extraídos no grafo de vínculos, marcados
+    com origem 'auto:extrato:<id>'. Nós já existentes (ex.: pessoa de liderança)
+    são REUTILIZADOS sem sobrescrever seus detalhes.
+
+    Cria também um NÓ-HUB do próprio extrato e liga TODAS as entidades a ele
+    (relação CITADO_NO_EXTRATO), de modo que o grafo sempre mostre o extrato
+    conectado aos envolvidos — mesmo que nenhum nome bata com as lideranças
+    (nesse caso a pessoa entra como nó de ícone padrão, sem foto).
+
+    `entidades`: [{ref, tipo, nome, vulgo, rotulo, papel_no_contexto, evidencia}]
+    `conexoes` : [{source(ref), target(ref), relation, weight, evidencia}]
+
+    Retorna {ref_para_id, nos_criados, arestas_criadas, hub_id}.
+    """
+    limpar_extrato(extrato_id)
+    origem = f"auto:extrato:{extrato_id}"
+    ref_para_id: dict[str, str] = {}
+    nos_criados = 0
+    hub_id = "extrato_" + extrato_id
+
+    with _conn() as con:
+        # Nó-hub do extrato (sempre criado)
+        _upsert_no(con, hub_id, "documento",
+                   (rotulo_extrato or f"Extrato {extrato_id}")[:80],
+                   icone="📋",
+                   detalhes={"extrato_id": extrato_id, "tipo_no": "extrato"},
+                   origem=origem)
+        nos_criados += 1
+
+        for ent in entidades:
+            tipo = ent.get("tipo") or "generico"
+            if tipo not in TIPOS_NO:
+                tipo = "generico"
+            nome  = (ent.get("nome") or "").strip()
+            vulgo = (ent.get("vulgo") or "").strip()
+            rotulo = (ent.get("rotulo") or vulgo or nome or "Entidade").strip()
+            no_id = _id_entidade(tipo, nome, vulgo, rotulo)
+            ref = ent.get("ref") or no_id
+            ref_para_id[str(ref)] = no_id
+
+            existe = con.execute("SELECT id FROM nos WHERE id = ?", (no_id,)).fetchone()
+            if existe:
+                # Não clobberar nó existente; apenas registra a menção neste extrato.
+                _registrar_mencao(con, no_id, extrato_id, ent)
+                continue
+            det = {
+                "nome": nome or None, "vulgo": vulgo or None,
+                "papel_no_contexto": ent.get("papel_no_contexto"),
+                "extratos": [{"extrato_id": extrato_id,
+                              "papel": ent.get("papel_no_contexto"),
+                              "evidencia": ent.get("evidencia")}],
+            }
+            _upsert_no(con, no_id, tipo, rotulo,
+                       icone=ICONE_PADRAO.get(tipo, "⚪"), detalhes=det, origem=origem)
+            nos_criados += 1
+
+        arestas_criadas = 0
+        for cx in conexoes:
+            sid = ref_para_id.get(str(cx.get("source")))
+            tid = ref_para_id.get(str(cx.get("target")))
+            if not sid or not tid or sid == tid:
+                continue
+            rel = (cx.get("relation") or "VINCULADO_A").strip().upper().replace(" ", "_")
+            try:
+                weight = int(cx.get("weight") or 2)
+            except Exception:
+                weight = 2
+            _upsert_aresta_auto(con, sid, tid, rel, {
+                "weight": max(1, min(3, weight)),
+                "evidencia": cx.get("evidencia"),
+                "extrato_id": extrato_id,
+            }, origem)
+            arestas_criadas += 1
+
+        # Liga o hub do extrato a TODAS as entidades (garante grafo conectado)
+        for ent in entidades:
+            eid_no = ref_para_id.get(str(ent.get("ref")))
+            if not eid_no or eid_no == hub_id:
+                continue
+            _upsert_aresta_auto(con, hub_id, eid_no, "CITADO_NO_EXTRATO", {
+                "papel": ent.get("papel_no_contexto"),
+                "evidencia": ent.get("evidencia"),
+                "extrato_id": extrato_id,
+            }, origem)
+            arestas_criadas += 1
+
+    return {"ref_para_id": ref_para_id, "nos_criados": nos_criados,
+            "arestas_criadas": arestas_criadas, "hub_id": hub_id}
+
+
+def _registrar_mencao(con, no_id: str, extrato_id: str, ent: dict) -> None:
+    """Anexa a menção deste extrato ao detalhe de um nó já existente."""
+    row = con.execute("SELECT detalhes FROM nos WHERE id = ?", (no_id,)).fetchone()
+    det = _loads(row["detalhes"]) if row else {}
+    mencoes = det.get("extratos") or []
+    if not any(m.get("extrato_id") == extrato_id for m in mencoes):
+        mencoes.append({"extrato_id": extrato_id,
+                        "papel": ent.get("papel_no_contexto"),
+                        "evidencia": ent.get("evidencia")})
+        det["extratos"] = mencoes
+        con.execute("UPDATE nos SET detalhes = ?, atualizado_em = ? WHERE id = ?",
+                    (json.dumps(det, ensure_ascii=False), _agora(), no_id))
+
+
+# ── Resolução de homônimos (sugerir e confirmar) ─────────────────────────────
+
+def candidatos_fusao() -> list[dict]:
+    """
+    Sugere pares de PESSOAS que provavelmente são a mesma (homônimos/variações),
+    para fusão MANUAL pelo analista. Nunca funde nada sozinho.
+
+    Heurísticas (com score):
+      - mesmo vulgo normalizado (forte)
+      - um nome contido no outro (médio)
+      - alta sobreposição de tokens do nome (médio)
+    """
+    with _conn() as con:
+        rows = [_no_dict(r) for r in
+                con.execute("SELECT * FROM nos WHERE tipo = 'pessoa'").fetchall()]
+        contagem = {}
+        for r in rows:
+            c = con.execute(
+                "SELECT COUNT(*) c FROM arestas WHERE origem_id = ? OR destino_id = ?",
+                (r["id"], r["id"]),
+            ).fetchone()["c"]
+            contagem[r["id"]] = c
+
+    def info(r):
+        det = r.get("detalhes", {})
+        return {
+            "id": r["id"], "rotulo": r["rotulo"],
+            "nome": det.get("nome"), "vulgo": det.get("vulgo"),
+            "faccao": det.get("faccao_atual"), "unidade": det.get("unidade_atual"),
+            "origem": r["origem"], "vinculos": contagem.get(r["id"], 0),
+        }
+
+    pares, vistos = [], set()
+    for i in range(len(rows)):
+        for j in range(i + 1, len(rows)):
+            a, b = rows[i], rows[j]
+            da, db = a.get("detalhes", {}), b.get("detalhes", {})
+            va, vb = _norm(da.get("vulgo")), _norm(db.get("vulgo"))
+            na, nb = _norm(da.get("nome")), _norm(db.get("nome"))
+            score, motivos = 0.0, []
+            if va and vb and va == vb:
+                score += 0.6; motivos.append(f"mesmo vulgo «{da.get('vulgo')}»")
+            if na and nb:
+                if na == nb:
+                    score += 0.6; motivos.append("mesmo nome")
+                elif na in nb or nb in na:
+                    score += 0.35; motivos.append("nome contido")
+                else:
+                    ta, tb = set(na.split()), set(nb.split())
+                    if ta and tb:
+                        inter = len(ta & tb) / len(ta | tb)
+                        if inter >= 0.5:
+                            score += 0.3; motivos.append("nomes semelhantes")
+            if score < 0.45:
+                continue
+            chave = tuple(sorted([a["id"], b["id"]]))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            pares.append({
+                "a": info(a), "b": info(b),
+                "score": round(min(1.0, score), 2), "motivo": "; ".join(motivos),
+            })
+    pares.sort(key=lambda p: p["score"], reverse=True)
+    return pares
+
+
+def fundir_nos(manter_id: str, fundir_id: str) -> dict:
+    """Funde `fundir_id` em `manter_id` (após confirmação manual)."""
+    if manter_id == fundir_id:
+        return {"ok": False, "erro": "ids_iguais"}
+    with _conn() as con:
+        manter = con.execute("SELECT * FROM nos WHERE id = ?", (manter_id,)).fetchone()
+        fundir = con.execute("SELECT * FROM nos WHERE id = ?", (fundir_id,)).fetchone()
+        if not manter or not fundir:
+            return {"ok": False, "erro": "no_inexistente"}
+
+        # Religa arestas evitando self-loop e duplicatas exatas
+        for col in ("origem_id", "destino_id"):
+            outras = con.execute(
+                f"SELECT * FROM arestas WHERE {col} = ?", (fundir_id,)
+            ).fetchall()
+            for ar in outras:
+                novo_o = manter_id if ar["origem_id"] == fundir_id else ar["origem_id"]
+                novo_d = manter_id if ar["destino_id"] == fundir_id else ar["destino_id"]
+                if novo_o == novo_d:
+                    con.execute("DELETE FROM arestas WHERE id = ?", (ar["id"],))
+                    continue
+                dup = con.execute(
+                    """SELECT id FROM arestas WHERE origem_id = ? AND destino_id = ?
+                       AND rotulo IS ? AND id != ?""",
+                    (novo_o, novo_d, ar["rotulo"], ar["id"]),
+                ).fetchone()
+                if dup:
+                    con.execute("DELETE FROM arestas WHERE id = ?", (ar["id"],))
+                else:
+                    con.execute(
+                        "UPDATE arestas SET origem_id = ?, destino_id = ? WHERE id = ?",
+                        (novo_o, novo_d, ar["id"]),
+                    )
+
+        con.execute("UPDATE movimentacoes SET pessoa_id = ? WHERE pessoa_id = ?",
+                    (manter_id, fundir_id))
+
+        # Mescla detalhes (mantém o principal; preenche lacunas; guarda alias)
+        dm = _loads(manter["detalhes"]); df = _loads(fundir["detalhes"])
+        for k, v in df.items():
+            if v and not dm.get(k):
+                dm[k] = v
+        aliases = set(dm.get("aliases") or [])
+        if fundir["rotulo"] and fundir["rotulo"] != manter["rotulo"]:
+            aliases.add(fundir["rotulo"])
+        if df.get("vulgo") and df.get("vulgo") != dm.get("vulgo"):
+            aliases.add(df.get("vulgo"))
+        if aliases:
+            dm["aliases"] = sorted(aliases)
+        dm.setdefault("extratos", [])
+        for m in (df.get("extratos") or []):
+            if m not in dm["extratos"]:
+                dm["extratos"].append(m)
+        con.execute("UPDATE nos SET detalhes = ?, atualizado_em = ? WHERE id = ?",
+                    (json.dumps(dm, ensure_ascii=False), _agora(), manter_id))
+
+        con.execute("DELETE FROM nos WHERE id = ?", (fundir_id,))
+    return {"ok": True, "manter_id": manter_id, "fundido": fundir_id}
+
+
+# ── Foto de nó (upload manual, individual por entidade) ──────────────────────
+
+def set_foto_no(no_id: str, conteudo: bytes, ext: str = "jpg") -> dict | None:
+    """Anexa/atualiza a foto de QUALQUER nó (manual ou automático)."""
+    no = buscar_no(no_id)
+    if not no:
+        return None
+    ext = (ext or "jpg").lower().lstrip(".")
+    if ext == "jpeg":
+        ext = "jpg"
+    if ext not in _FOTO_EXTS:
+        ext = "jpg"
+    # remove fotos anteriores (qualquer extensão)
+    for e in _FOTO_EXTS:
+        p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+    with open(os.path.join(FOTOS_DIR, f"{no_id}.{ext}"), "wb") as f:
+        f.write(conteudo)
+    det = no.get("detalhes") or {}
+    det["foto"] = f"{no_id}.{ext}"
+    det["foto_url"] = f"/api/grafo/no/{no_id}/foto"
+    return atualizar_no(no_id, {"detalhes": det})
+
+
+def remover_foto_no(no_id: str) -> dict | None:
+    no = buscar_no(no_id)
+    if not no:
+        return None
+    for e in _FOTO_EXTS:
+        p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+    det = no.get("detalhes") or {}
+    det.pop("foto", None)
+    det.pop("foto_url", None)
+    return atualizar_no(no_id, {"detalhes": det})
+
+
+def foto_path_no(no_id: str) -> str | None:
+    for e in _FOTO_EXTS:
+        p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
+        if os.path.exists(p):
+            return p
+    return None
 
 
 # Inicializa o banco ao importar

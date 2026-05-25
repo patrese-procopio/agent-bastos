@@ -16,7 +16,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)  # .env é a fonte de verdade (vence env vars pré-existentes)
 
 # ── Routers ──────────────────────────────────────────────────────────────────
 from routers.liderancas_router import router as liderancas_router
@@ -32,6 +32,7 @@ from routers.chat_router import router as chat_router
 from routers.config_router import router as config_router
 from routers.grupos_router import router as grupos_router
 from routers.grafo_router import router as grafo_router
+from routers.extrato_router import router as extrato_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -125,6 +126,7 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(config_router, prefix="/api")
 app.include_router(grupos_router, prefix="/api")
 app.include_router(grafo_router)
+app.include_router(extrato_router)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":

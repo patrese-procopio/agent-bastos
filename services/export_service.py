@@ -237,3 +237,144 @@ def build_docx(t: dict) -> bytes:
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# --- RAE (Relatório Analítico de Extrato) ------------------------------------
+
+def _esc(s) -> str:
+    """Escapa caracteres sensíveis ao mini-XML do reportlab Paragraph."""
+    return (str(s or "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def build_rae_pdf(rae: dict) -> bytes:
+    """
+    Gera o RAE — Relatório Analítico de Extrato — em PDF timbrado.
+    NÃO é um RELINT (produto final consolidado da agência); é o artefato
+    analítico de nível de extrato, com validação humana.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+    )
+
+    ex   = rae.get("extrato", {})
+    nav  = colors.HexColor("#1E3A5F")
+    gold = colors.HexColor("#B8860B")
+    nivel = (rae.get("risk_nivel") or "MÉDIO").upper()
+    risk_hex = {"ALTO": "#DC2626", "MÉDIO": "#D97706", "BAIXO": "#16A34A"}.get(nivel, "#D97706")
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm,
+                            leftMargin=2.2 * cm, rightMargin=2.2 * cm)
+    styles = getSampleStyleSheet()
+    S = {
+        "title": ParagraphStyle("T", parent=styles["Heading1"], fontSize=13,
+                                alignment=TA_CENTER, spaceAfter=2, textColor=nav),
+        "sub":   ParagraphStyle("S", parent=styles["Normal"], fontSize=8.5,
+                                alignment=TA_CENTER, spaceAfter=8, textColor=colors.grey),
+        "head":  ParagraphStyle("H", parent=styles["Heading2"], fontSize=10.5,
+                                spaceBefore=12, spaceAfter=4, textColor=nav),
+        "body":  ParagraphStyle("B", parent=styles["Normal"], fontSize=9, leading=14),
+        "small": ParagraphStyle("Sm", parent=styles["Normal"], fontSize=8, leading=11,
+                                textColor=colors.grey),
+        "flag":  ParagraphStyle("F", parent=styles["Normal"], fontSize=9, leading=13,
+                                leftIndent=8, textColor=colors.HexColor("#B45309")),
+    }
+
+    el = [
+        Paragraph("SEAP/AM &mdash; AG&Ecirc;NCIA DE INTELIG&Ecirc;NCIA PENITENCI&Aacute;RIA", S["title"]),
+        Paragraph("RELAT&Oacute;RIO ANAL&Iacute;TICO DE EXTRATO (RAE) &middot; USO RESERVADO", S["sub"]),
+        Paragraph("Artefato anal&iacute;tico de n&iacute;vel de extrato &mdash; n&atilde;o constitui RELINT. "
+                  "Requer valida&ccedil;&atilde;o humana antes de consolida&ccedil;&atilde;o.", S["small"]),
+        HRFlowable(width="100%", thickness=1, color=nav), Spacer(1, 6),
+    ]
+
+    meta = [
+        ["Extrato:", _esc(ex.get("id")), "Data:", _esc(ex.get("data") or "—")],
+        ["Unidade:", _esc(ex.get("unidade") or "—"), "Núcleo:", _esc(ex.get("nucleo") or "—")],
+        ["Autor:", _esc(ex.get("autor") or "—"), "Classificação:", _esc(ex.get("classificacao") or "—")],
+        ["Motor IA:", _esc(f"{ex.get('provedor') or '—'} / {ex.get('modelo') or '—'}"),
+         "Risco:", Paragraph(f'<font color="{risk_hex}"><b>{_esc(nivel)} ({rae.get("risk_score")})</b></font>', S["body"])],
+    ]
+    mt = Table(meta, colWidths=[3 * cm, 7.6 * cm, 3 * cm, 3 * cm])
+    mt.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.3, colors.whitesmoke),
+    ]))
+    el += [mt, Spacer(1, 8), HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey)]
+
+    el.append(Paragraph("SÍNTESE DA AMEAÇA", S["head"]))
+    el.append(Paragraph(_esc(rae.get("assunto_sintetizado") or "—"), S["body"]))
+
+    just = rae.get("justificativa_risco") or "—"
+    if rae.get("risco_forcado"):
+        just += "  [Piso de risco aplicado automaticamente por palavra-crítica.]"
+    el.append(Paragraph("AVALIAÇÃO DE RISCO", S["head"]))
+    el.append(Paragraph(_esc(just), S["body"]))
+
+    ents = rae.get("entidades", [])
+    if ents:
+        el.append(Paragraph(f"ENTIDADES-CHAVE ({len(ents)})", S["head"]))
+        linhas = [["Tipo", "Rótulo", "Nome/Vulgo", "Papel no contexto", "Prov."]]
+        for e in ents:
+            nv = " / ".join([x for x in [e.get("nome"), e.get("vulgo")] if x]) or "—"
+            prov = "✓" if e.get("evidencia_ok") else "⚠"
+            linhas.append([
+                _esc((e.get("tipo") or "").upper()),
+                Paragraph(_esc(e.get("rotulo") or "—"), S["body"]),
+                Paragraph(_esc(nv), S["body"]),
+                Paragraph(_esc(e.get("papel") or "—"), S["body"]),
+                prov,
+            ])
+        t = Table(linhas, colWidths=[2.2 * cm, 3.3 * cm, 3.6 * cm, 6 * cm, 1.2 * cm])
+        t.setStyle(TableStyle([
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("BACKGROUND", (0, 0), (-1, 0), nav),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        el.append(t)
+
+    cxs = rae.get("conexoes", [])
+    if cxs:
+        el.append(Paragraph(f"VÍNCULOS DETECTADOS ({len(cxs)})", S["head"]))
+        for c in cxs:
+            el.append(Paragraph(
+                f"<b>{_esc(c.get('source'))}</b> &rarr; <i>{_esc(c.get('relation'))}</i> "
+                f"&rarr; <b>{_esc(c.get('target'))}</b> &nbsp;(peso {_esc(c.get('weight'))})", S["body"]))
+
+    jgs = rae.get("jargoes", [])
+    if jgs:
+        el.append(Paragraph(f"SINAIS FRACOS / JARGÕES ({len(jgs)})", S["head"]))
+        for j in jgs:
+            el.append(Paragraph(
+                f"<b>«{_esc(j.get('termo'))}»</b> &asymp; {_esc(j.get('significado_provavel'))}", S["flag"]))
+
+    tags = rae.get("tags", [])
+    if tags:
+        el.append(Paragraph("TAGS DE INDEXAÇÃO", S["head"]))
+        el.append(Paragraph(_esc(" · ".join(tags)), S["small"]))
+
+    el.append(Spacer(1, 10))
+    el.append(Paragraph(
+        f"Proveniência: {rae.get('evidencias_ok', 0)}/{rae.get('evidencias_total', 0)} "
+        "itens com trecho-fonte conferido (✓). Itens com ⚠ exigem revisão manual.", S["small"]))
+
+    el += [
+        Spacer(1, 12), HRFlowable(width="100%", thickness=1, color=gold),
+        Paragraph("Gerado pelo Agent Bastos — Módulo Extrato. Documento sob sigilo.", S["sub"]),
+    ]
+    doc.build(el)
+    buf.seek(0)
+    return buf.read()
