@@ -6,6 +6,7 @@ export default defineConfig({
   base: "./",
   build: { outDir: "dist" },
   server: {
+    host: "::",
     port: 5174,
     strictPort: true,
     proxy: {

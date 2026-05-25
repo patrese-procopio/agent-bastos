@@ -81,7 +81,14 @@ export default function GrafoVinculos() {
     (async () => {
       try { const r = await api.get("/grafo/meta"); setMeta(await r.json()) } catch {}
       await carregarAlvos()
+      // foco vindo do Módulo Extrato ("Ver no Grafo")
+      const foco = localStorage.getItem("grafo_foco_alvo")
+      if (foco) {
+        localStorage.removeItem("grafo_foco_alvo")
+        setHops(2); setAlvoId(foco); carregarRede(foco, 2)
+      }
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregarAlvos])
 
   /* Carrega a rede de um alvo */
@@ -108,7 +115,7 @@ export default function GrafoVinculos() {
     const token = localStorage.getItem("ab_access_token")
     nodes.forEach(n => {
       const url = n.detalhes?.foto_url
-      if (n.tipo !== "pessoa" || !url || imgCache.has(url)) return
+      if (!url || imgCache.has(url)) return
       imgCache.set(url, "loading")
       const img = new Image()
       img.onload  = () => { imgCache.set(url, img); fgRef.current?.refresh?.() }
@@ -178,6 +185,34 @@ export default function GrafoVinculos() {
     const a = await r.json()
     setGraph(g => ({ ...g, links: g.links.map(l => l.id === id ? { ...l, ...a } : l) }))
     setSel(null); aviso("Vínculo atualizado.", C.green)
+  }
+  async function enviarFoto(no_id, file) {
+    if (!file) return
+    const fd = new FormData(); fd.append("file", file)
+    const r = await api.upload(`/grafo/no/${no_id}/foto`, fd)
+    if (!r.ok) { aviso("Falha ao enviar foto.", C.red); return }
+    const no = await r.json()
+    const url = no.detalhes?.foto_url
+    if (url) {
+      imgCache.delete(url)
+      const token = localStorage.getItem("ab_access_token")
+      const img = new Image()
+      img.onload = () => { imgCache.set(url, img); fgRef.current?.refresh?.() }
+      img.onerror = () => { imgCache.set(url, "error") }
+      img.src = `/api-proxy${url.replace(/^\/api/, "")}${token ? `?token=${token}` : ""}&_=${Date.now()}`
+    }
+    setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === no_id ? { ...n, ...no, x: n.x, y: n.y, fx: n.fx, fy: n.fy } : n) }))
+    setSel(s => s?.tipo === "node" && s.data.id === no_id ? { tipo: "node", data: { ...s.data, ...no } } : s)
+    aviso("Foto anexada à entidade.", C.green)
+  }
+  async function removerFoto(no_id) {
+    const r = await api.delete(`/grafo/no/${no_id}/foto`)
+    if (!r.ok) { aviso("Falha ao remover foto.", C.red); return }
+    const no = await r.json()
+    setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === no_id ? { ...n, ...no, x: n.x, y: n.y, fx: n.fx, fy: n.fy } : n) }))
+    setSel(s => s?.tipo === "node" && s.data.id === no_id ? { tipo: "node", data: { ...s.data, ...no } } : s)
+    fgRef.current?.refresh?.()
+    aviso("Foto removida.", C.textMid)
   }
   async function excluirNo(id) {
     if (!window.confirm("Excluir este nó e seus vínculos?")) return
@@ -434,6 +469,8 @@ export default function GrafoVinculos() {
         onEdit={() => setModal({ tipo: sel.tipo === "node" ? "editNo" : "editLink", data: sel.data })}
         onConnect={() => setLinking({ sourceId: sel.data.id })}
         onDelete={() => sel.tipo === "node" ? excluirNo(sel.data.id) : excluirAresta(sel.data.id)}
+        onFoto={(file) => enviarFoto(sel.data.id, file)}
+        onRemoveFoto={() => removerFoto(sel.data.id)}
         onClose={() => setSel(null)} />}
 
       {/* ── MODAIS ── */}
@@ -489,13 +526,16 @@ function Vazio({ onSync, busy, temAlvos }) {
 }
 
 /* ── painel de detalhe (nó ou vínculo) ── */
-function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose }) {
+function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto, onRemoveFoto }) {
   const isNode = sel.tipo === "node"
   const d = sel.data
   const cor = isNode ? corCategoria(d.tipo) : C.gold
   const det = isNode ? (d.detalhes || {}) : (d.propriedades || {})
   const movs = isNode ? det.movimentacoes : null
-  const ocultar = new Set(["movimentacoes", "foto_url", "foto_lider_id"])
+  const ocultar = new Set(["movimentacoes", "foto_url", "foto_lider_id", "foto"])
+  const token = (typeof localStorage !== "undefined" && localStorage.getItem("ab_access_token")) || ""
+  const fotoSrc = det.foto_url ? `/api-proxy${det.foto_url.replace(/^\/api/, "")}?token=${token}` : null
+  const miniBtn = (c) => ({ padding: "6px 12px", borderRadius: 6, border: `1px solid ${c}55`, background: `${c}1a`, color: c, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: MONO })
   return (
     <aside style={{ width: 320, flexShrink: 0, background: C.surface, borderLeft: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -512,6 +552,27 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose }) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* foto da entidade (upload individual) */}
+        {isNode && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            {fotoSrc ? (
+              <img src={fotoSrc} alt="" style={{ width: 104, height: 128, objectFit: "cover", borderRadius: 8, border: `2px solid ${cor}` }} />
+            ) : (
+              <div style={{ width: 104, height: 128, borderRadius: 8, border: `1px dashed ${C.borderUp}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, fontFamily: EMOJI_FONT, color: C.textMid, background: "rgba(255,255,255,0.02)" }}>
+                {d.icone || iconePadrao(d.tipo)}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              <label style={{ ...miniBtn(C.gold), display: "inline-flex", alignItems: "center" }}>
+                {fotoSrc ? "Trocar foto" : "Anexar foto"}
+                <input type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) onFoto?.(f); e.target.value = "" }} />
+              </label>
+              {fotoSrc && <button onClick={onRemoveFoto} style={miniBtn(C.textMid)}>Remover</button>}
+            </div>
+          </div>
+        )}
+
         {/* metadados */}
         {Object.entries(det).filter(([k, v]) => !ocultar.has(k) && v != null && v !== "").length > 0 && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px" }}>
