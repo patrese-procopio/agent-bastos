@@ -28,12 +28,16 @@ Governança:
 """
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, Response
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from pydantic import BaseModel
 
 from modules import extrato, grafo, lexico
 from services import llm_extracao, export_service
 from dependencies import require_module
+from services.rate_limit_service import limiter, LIMIT_IA_PESADA, LIMIT_ESCRITA
+from services.logging_service import get_logger
+
+_log_audit = get_logger("audit.extrato")
 
 router = APIRouter(prefix="/api/extrato", tags=["extrato"])
 _GATE = require_module("alertas")
@@ -71,19 +75,26 @@ class FusaoIn(BaseModel):
 # ── Submissão / processamento ────────────────────────────────────────────────
 
 @router.post("/submeter")
-def submeter(body: ExtratoIn, user: dict = Depends(_GATE)):
+@limiter.limit(LIMIT_IA_PESADA)
+def submeter(request: Request, body: ExtratoIn, user: dict = Depends(_GATE)):
     if not (body.corpo or "").strip():
         raise HTTPException(status_code=400, detail="Corpo do extrato vazio.")
+    _log_audit.info("extrato submetido",
+                    extra={"username": user.get("sub"), "classif": body.classificacao,
+                           "unidade": body.unidade, "bytes": len(body.corpo)})
     return extrato.criar_e_processar(body.model_dump(), usuario=user.get("sub", "?"))
 
 
 @router.post("/criar")
-def criar(body: ExtratoIn, user: dict = Depends(_GATE)):
+@limiter.limit(LIMIT_ESCRITA)
+def criar(request: Request, body: ExtratoIn, user: dict = Depends(_GATE)):
     return extrato.criar_extrato(body.model_dump(), usuario=user.get("sub", "?"))
 
 
 @router.post("/{eid}/processar")
-def processar(eid: str, user: dict = Depends(_GATE)):
+@limiter.limit(LIMIT_IA_PESADA)
+def processar(request: Request, eid: str, user: dict = Depends(_GATE)):
+    _log_audit.info("extrato reprocessado", extra={"username": user.get("sub"), "eid": eid})
     res = extrato.processar(eid, usuario=user.get("sub", "?"))
     if not res.get("ok"):
         raise HTTPException(status_code=422, detail=res)
@@ -92,7 +103,8 @@ def processar(eid: str, user: dict = Depends(_GATE)):
 
 @router.get("/listar")
 def listar(limite: int = Query(default=200, ge=1, le=1000), user: dict = Depends(_GATE)):
-    return {"extratos": extrato.listar(limite)}
+    # Scoping: admin ve tudo; demais veem so os proprios (autor=user.sub)
+    return {"extratos": extrato.listar(limite, user=user)}
 
 
 # ── Vitrines ─────────────────────────────────────────────────────────────────
@@ -165,14 +177,18 @@ def auditoria_verificar(user: dict = Depends(_GATE)):
 
 @router.get("/{eid}")
 def obter(eid: str, user: dict = Depends(_GATE)):
-    reg = extrato.obter(eid)
+    reg = extrato.obter(eid, user=user)
     if not reg:
+        # 404 (nao 403) intencional: nao revelar existencia de extrato de outro autor
         raise HTTPException(status_code=404, detail="Extrato não encontrado.")
     return reg
 
 
 @router.get("/{eid}/rae")
 def rae(eid: str, user: dict = Depends(_GATE)):
+    # Garante scoping: so retorna RAE se o usuario puder ver o extrato
+    if not extrato.obter(eid, user=user):
+        raise HTTPException(status_code=404, detail="Extrato não encontrado.")
     dados = extrato.rae_dados(eid)
     if not dados:
         raise HTTPException(status_code=404, detail="Extrato não encontrado.")
@@ -181,6 +197,8 @@ def rae(eid: str, user: dict = Depends(_GATE)):
 
 @router.get("/{eid}/rae.pdf")
 def rae_pdf(eid: str, user: dict = Depends(_GATE)):
+    if not extrato.obter(eid, user=user):
+        raise HTTPException(status_code=404, detail="Extrato não encontrado.")
     dados = extrato.rae_dados(eid)
     if not dados:
         raise HTTPException(status_code=404, detail="Extrato não encontrado.")

@@ -24,7 +24,7 @@ Rotas registradas:
   GET    /alertas/telegram/status
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from services.alertas_service import (
     ler_alertas,
     salvar_alertas,
@@ -32,6 +32,10 @@ from services.alertas_service import (
     ALERTAS_OSINT_PATH,
 )
 from dependencies import get_current_user, require_module
+from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA
+from services.logging_service import get_logger
+
+_log_audit = get_logger("audit.alertas")
 
 router = APIRouter(tags=["alertas"])
 
@@ -156,28 +160,37 @@ def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
 
 
 @router.post("/alertas/varrer")
-def varrer_alertas_realtime(user: dict = Depends(require_module("alertas"))):
+@limiter.limit(LIMIT_VARREDURA)
+def varrer_alertas_realtime(request: Request, user: dict = Depends(require_module("alertas"))):
     from modules.monitor import varrer_realtime
+    _log_audit.info("varrer realtime", extra={"username": user.get("sub")})
     return varrer_realtime()
 
 
 @router.post("/alertas/osint/varrer")
-def varrer_alertas_osint(user: dict = Depends(require_module("osint"))):
+@limiter.limit(LIMIT_VARREDURA)
+def varrer_alertas_osint(request: Request, user: dict = Depends(require_module("osint"))):
     from modules.monitor import varrer_osint
+    _log_audit.info("varrer osint", extra={"username": user.get("sub")})
     return varrer_osint()
 
 
 @router.post("/alertas/analisar-pendentes")
-def analisar_alertas_pendentes(limite: int = 20, user: dict = Depends(require_module("alertas"))):
+@limiter.limit(LIMIT_IA_PESADA)
+def analisar_alertas_pendentes(request: Request, limite: int = 20,
+                                user: dict = Depends(require_module("alertas"))):
     """Aplica análise por IA em alertas existentes sem analise_ia."""
     from modules.monitor import analisar_pendentes
+    _log_audit.info("analisar pendentes", extra={"username": user.get("sub"), "limite": limite})
     return analisar_pendentes(limite)
 
 
 @router.post("/alertas/telegram/varrer")
-def varrer_alertas_telegram(user: dict = Depends(require_module("osint"))):
+@limiter.limit(LIMIT_VARREDURA)
+def varrer_alertas_telegram(request: Request, user: dict = Depends(require_module("osint"))):
     """Varre canais públicos do Telegram em busca de menções aos alvos (salva como OSINT)."""
     from modules.telegram_monitor import varrer_telegram
+    _log_audit.info("varrer telegram", extra={"username": user.get("sub")})
     return varrer_telegram()
 
 

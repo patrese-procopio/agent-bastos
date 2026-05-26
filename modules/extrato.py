@@ -404,12 +404,20 @@ def _extrato_dict(row) -> dict:
     return d
 
 
-def obter(eid: str) -> dict | None:
+def obter(eid: str, user: dict | None = None) -> dict | None:
+    """Le um extrato pelo ID.
+
+    Se `user` for fornecido e nao for admin, aplica scoping (so ve se for autor).
+    Chamadas internas (sem user) ignoram o scoping.
+    """
+    from services.scoping_service import pode_ver_registro
     with _conn() as con:
         row = con.execute("SELECT * FROM extratos WHERE id = ?", (eid,)).fetchone()
         if not row:
             return None
         d = _extrato_dict(row)
+        if user is not None and not pode_ver_registro(user, d, coluna="autor"):
+            return None
         ents = con.execute(
             "SELECT * FROM extrato_entidades WHERE extrato_id = ? ORDER BY id", (eid,)
         ).fetchall()
@@ -417,15 +425,19 @@ def obter(eid: str) -> dict | None:
     return d
 
 
-def listar(limite: int = 200) -> list[dict]:
+def listar(limite: int = 200, user: dict | None = None) -> list[dict]:
+    """Lista extratos recentes. Se `user` for nao-admin, filtra por autor=user.sub."""
+    from services.scoping_service import where_escopo
+    sql_escopo, params_escopo = where_escopo(user, coluna="autor")
+    sql = (
+        "SELECT id, data, unidade, nucleo, autor, assunto, assunto_sintetizado, "
+        "       classificacao, status, risk_score, risk_nivel, criado_em, "
+        "       processado_em, provedor, forcado_local, bloqueado, rae_gerado "
+        "FROM extratos WHERE 1=1" + sql_escopo +
+        " ORDER BY criado_em DESC LIMIT ?"
+    )
     with _conn() as con:
-        rows = con.execute(
-            """SELECT id, data, unidade, nucleo, autor, assunto, assunto_sintetizado,
-                   classificacao, status, risk_score, risk_nivel, criado_em,
-                   processado_em, provedor, forcado_local, bloqueado, rae_gerado
-               FROM extratos ORDER BY criado_em DESC LIMIT ?""",
-            (limite,),
-        ).fetchall()
+        rows = con.execute(sql, (*params_escopo, limite)).fetchall()
         out = []
         for r in rows:
             d = dict(r)

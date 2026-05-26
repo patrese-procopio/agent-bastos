@@ -351,22 +351,36 @@ def deletar_aresta(aresta_id: str) -> bool:
 # ── Consulta / Rede ─────────────────────────────────────────────────────────
 
 def listar_alvos() -> list[dict]:
-    """Pessoas disponíveis para focar (auto + manuais), com contagem de vínculos."""
+    """Pessoas disponíveis para focar (auto + manuais), com contagem de vínculos.
+
+    Otimização anti-N+1: contagem de vínculos é feita em UMA query agregada
+    (antes era 1 query por pessoa → 75+ round-trips em bases grandes).
+    """
     with _conn() as con:
-        rows = con.execute("SELECT * FROM nos WHERE tipo = 'pessoa' ORDER BY rotulo").fetchall()
+        rows = con.execute(
+            "SELECT * FROM nos WHERE tipo = 'pessoa' ORDER BY rotulo"
+        ).fetchall()
+
+        # Contagem agregada de vínculos por nó em uma única query.
+        # UNION ALL é mais barato que OR aqui (cada lado usa seu índice nativo).
+        contagens = dict(con.execute("""
+            SELECT no_id, SUM(c) FROM (
+                SELECT origem_id  AS no_id, COUNT(*) AS c FROM arestas GROUP BY origem_id
+                UNION ALL
+                SELECT destino_id AS no_id, COUNT(*) AS c FROM arestas GROUP BY destino_id
+            )
+            GROUP BY no_id
+        """).fetchall())
+
         alvos = []
         for r in rows:
             d = _no_dict(r)
-            g = con.execute(
-                "SELECT COUNT(*) c FROM arestas WHERE origem_id = ? OR destino_id = ?",
-                (d["id"], d["id"]),
-            ).fetchone()["c"]
             det = d.get("detalhes", {})
             alvos.append({
                 "id": d["id"], "rotulo": d["rotulo"], "icone": d.get("icone"),
                 "vulgo": det.get("vulgo"), "nome": det.get("nome"),
                 "faccao": det.get("faccao_atual"), "unidade": det.get("unidade_atual"),
-                "origem": d["origem"], "vinculos": g,
+                "origem": d["origem"], "vinculos": int(contagens.get(d["id"], 0) or 0),
             })
     return alvos
 

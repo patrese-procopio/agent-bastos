@@ -23,12 +23,16 @@ Automático:
 """
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from modules import grafo
 from dependencies import require_module, get_current_user_media
+from services.rate_limit_service import limiter, LIMIT_VARREDURA
+from services.logging_service import get_logger
+
+_log_audit = get_logger("audit.grafo")
 
 router = APIRouter(prefix="/api/grafo", tags=["grafo"])
 
@@ -180,12 +184,17 @@ def delete_aresta(aresta_id: str, user: dict = Depends(_GATE)):
 # ── Automático ──────────────────────────────────────────────────────────────
 
 @router.post("/sincronizar")
-def post_sincronizar(user: dict = Depends(_GATE)):
+@limiter.limit(LIMIT_VARREDURA)
+def post_sincronizar(request: Request, user: dict = Depends(_GATE)):
+    _log_audit.info("grafo sincronizar", extra={"username": user.get("sub")})
     return grafo.sincronizar()
 
 
 @router.post("/alvo/{alvo_id}/varrer-citacoes")
-def post_varrer_citacoes(alvo_id: str, user: dict = Depends(_GATE)):
+@limiter.limit(LIMIT_VARREDURA)
+def post_varrer_citacoes(request: Request, alvo_id: str, user: dict = Depends(_GATE)):
+    _log_audit.info("grafo varrer citacoes",
+                    extra={"username": user.get("sub"), "alvo_id": alvo_id})
     res = grafo.varrer_citacoes(alvo_id)
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("erro", "Falha na varredura."))

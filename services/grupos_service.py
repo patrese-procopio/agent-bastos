@@ -203,10 +203,19 @@ def _contagem_mes(con, ano_mes: str) -> dict:
 
 
 def computar_kpis() -> dict:
-    """Série histórica {mês:{grupo:qtd}} + alertas de variação ≥20% (espelha o /kpis antigo)."""
+    """Série histórica {mês:{grupo:qtd}} + alertas de variação ≥20% (espelha o /kpis antigo).
+
+    Anti-N+1: a série inteira sai em UMA query (antes era 1 query por mês).
+    """
     with _conn() as con:
-        meses = [r[0] for r in con.execute("SELECT DISTINCT ano_mes FROM ocupacao ORDER BY ano_mes").fetchall()]
-        series = {m: _contagem_mes(con, m) for m in meses}
+        rows = con.execute(
+            "SELECT ano_mes, grupo, COUNT(*) n FROM ocupacao "
+            "WHERE grupo <> '' GROUP BY ano_mes, grupo ORDER BY ano_mes"
+        ).fetchall()
+    series: dict[str, dict] = {}
+    for r in rows:
+        series.setdefault(r["ano_mes"], {})[r["grupo"]] = r["n"]
+    meses = sorted(series.keys())
     alertas = []
     if len(meses) >= 2:
         atual, anterior = series[meses[-1]], series[meses[-2]]

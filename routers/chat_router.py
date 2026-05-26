@@ -5,10 +5,11 @@ Conecta o frontend ao motor real do rag.py.
 Retorna resposta + fontes + score de confiança.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from dependencies import get_current_user
 from modules.rag import conversar_com_fontes, _db
+from services.rate_limit_service import limiter, LIMIT_IA_LEVE
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -18,7 +19,8 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-async def chat(req: ChatRequest, user=Depends(get_current_user)):
+@limiter.limit(LIMIT_IA_LEVE)
+async def chat(request: Request, req: ChatRequest, user=Depends(get_current_user)):
     """
     RAG real: busca semântica no ChromaDB → gera via Groq.
     Retorna: { resposta, fontes, confianca }

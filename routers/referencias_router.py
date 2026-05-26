@@ -20,11 +20,15 @@ import re
 import subprocess
 import sys
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from services.drive_service import download_bytes, get_service
 from dependencies import get_current_user, require_module
+from services.rate_limit_service import limiter, LIMIT_REINDEX
+from services.logging_service import get_logger
+
+_log_audit = get_logger("audit.referencias")
 
 router = APIRouter(tags=["referencias"])
 
@@ -233,12 +237,14 @@ def download_referencia_pdf(
 
 
 @router.post("/referencias/reindexar")
-def reindexar_drive(user: dict = Depends(require_module("referencias"))):
+@limiter.limit(LIMIT_REINDEX)
+def reindexar_drive(request: Request, user: dict = Depends(require_module("referencias"))):
     """
     Re-indexa o Google Drive: regenera indice_documentos.json.
     Roda o indexer como subprocesso com -X utf8 (evita crash de encoding no
     Windows). Pensado para ser chamado por um agendador externo (n8n).
     """
+    _log_audit.info("reindexar drive", extra={"username": user.get("sub")})
     py = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
     if not os.path.exists(py):
         py = sys.executable

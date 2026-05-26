@@ -14,9 +14,12 @@ Tudo vai em routers/ (transporte HTTP) ou services/ (lógica).
 import os
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 load_dotenv(override=True)  # .env é a fonte de verdade (vence env vars pré-existentes)
+
+# ── Logging (PRIMEIRA coisa antes de importar routers, p/ não perder eventos) ─
+from services.logging_service import configurar_logging
+configurar_logging()
 
 # ── Routers ──────────────────────────────────────────────────────────────────
 from routers.liderancas_router import router as liderancas_router
@@ -90,26 +93,17 @@ seed_alertas_iniciais()
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Agent Bastos API", version="1.0.0")
 
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+# Ordem dos middlewares (Starlette executa em ordem INVERSA da adição):
+#   request entra → SecurityHeaders → AccessLog → CORS → SlowAPI → router
+#   response sai  ← (mesmos em ordem reversa)
+# Por isso adicionamos do "mais externo" para o "mais interno".
+from services.middlewares import SecurityHeadersMiddleware, AccessLogMiddleware, montar_cors
+from services.rate_limit_service import montar_rate_limit
 
-class ForceCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
-            from starlette.responses import Response
-            response = Response()
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-            return response
-        response = await call_next(request)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        return response
-
-app.add_middleware(ForceCORSMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)   # sempre adiciona headers, mesmo em 4xx/5xx
+app.add_middleware(AccessLogMiddleware)         # 1 linha por request em bastos.access
+montar_cors(app)                                # allowlist Electron + localhost
+montar_rate_limit(app)                          # slowapi: anti brute-force e abuse
 
 
 # ── Registro de routers ───────────────────────────────────────────────────────
@@ -130,4 +124,10 @@ app.include_router(extrato_router)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
+    # host=127.0.0.1 (loopback APENAS) — fecha a porta na LAN.
+    # Electron+Vite rodam no mesmo host, não precisam de 0.0.0.0.
+    # Pra expor na rede (raríssimo: só se for usar de outra máquina),
+    # use BASTOS_HOST=0.0.0.0 no .env e tenha consciência do risco.
+    host = os.getenv("BASTOS_HOST", "127.0.0.1")
+    port = int(os.getenv("BASTOS_PORT", "8000"))
+    uvicorn.run("api:app", host=host, port=port, reload=False)

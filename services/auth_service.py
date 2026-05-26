@@ -11,6 +11,7 @@ Regra: zero FastAPI aqui. Só lógica pura — testável de forma isolada.
 """
 
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -18,6 +19,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from dotenv import load_dotenv
 load_dotenv()
+
+_log = logging.getLogger("bastos.auth")
 
 # ── Configuração ──────────────────────────────────────────────────────────────
 SECRET_KEY  = os.getenv("JWT_SECRET_KEY")
@@ -36,14 +39,33 @@ _blacklist: set[str] = set()
 
 
 # ── Banco de usuários ─────────────────────────────────────────────────────────
-# Por ora: dicionário estático. Quando tiver banco real, só trocar get_user().
-# A senha NUNCA fica em texto puro — sempre o hash bcrypt.
-# Para gerar um hash novo: python -c "from passlib.context import CryptContext; c=CryptContext(schemes=['bcrypt']); print(c.hash('sua_senha'))"
+# Hashes ficam no .env (ADMIN_PASSWORD_HASH / ANALISTA_PASSWORD_HASH).
+# Para gerar/atualizar: rode `python scripts/setar_senha.py admin` (getpass).
+#
+# Fallback (legado): se o .env não tiver hash, usa admin123/analista123 e
+# emite WARNING gritante no log — sinal claro para o operador trocar.
+
+_FALLBACK_ADMIN     = "admin123"
+_FALLBACK_ANALISTA  = "analista123"
+
+
+def _carregar_hash(env_var: str, fallback: str, usuario: str) -> str:
+    """Lê hash bcrypt do .env; se ausente, faz hash do fallback e avisa."""
+    h = os.getenv(env_var, "").strip()
+    if h:
+        return h
+    _log.warning(
+        f"{env_var} não definido — usando senha padrão para '{usuario}'. "
+        f"Rode: python scripts/setar_senha.py {usuario}",
+        extra={"usuario": usuario, "acao": "fallback_senha_padrao"},
+    )
+    return pwd_context.hash(fallback)
+
 
 USERS_DB: dict = {
     "admin": {
         "username": "admin",
-        "hashed_password": pwd_context.hash("admin123"),   # troque antes de produção
+        "hashed_password": _carregar_hash("ADMIN_PASSWORD_HASH", _FALLBACK_ADMIN, "admin"),
         "level": "admin",
         "modules": [
             "chat_rag", "grafoscopia", "transcricao", "dashboard",
@@ -54,7 +76,7 @@ USERS_DB: dict = {
     },
     "analista": {
         "username": "analista",
-        "hashed_password": pwd_context.hash("analista123"),  # troque antes de produção
+        "hashed_password": _carregar_hash("ANALISTA_PASSWORD_HASH", _FALLBACK_ANALISTA, "analista"),
         "level": "analista",
         "modules": ["chat_rag", "transcricao", "referencias", "noticias"],
     },

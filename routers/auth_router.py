@@ -10,7 +10,7 @@ Regra: zero lógica de negócio aqui. Só HTTP — validar entrada, chamar
 o service, montar resposta.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi import Depends
 from pydantic import BaseModel
@@ -24,6 +24,11 @@ from services.auth_service import (
     revoke_refresh_token,
     is_revoked,
 )
+from services.rate_limit_service import limiter, LIMIT_LOGIN, LIMIT_REFRESH
+from services.logging_service import get_logger
+
+_log_audit    = get_logger("audit")
+_log_security = get_logger("security")
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -46,16 +51,24 @@ class RefreshRequest(BaseModel):
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
-def login(form: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit(LIMIT_LOGIN)
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     """
     Recebe username + password no formato form-data (padrão OAuth2).
     Verifica credenciais e devolve o par de tokens + dados do usuário.
     O frontend guarda esses tokens para usar nas próximas requests.
+
+    Rate limit: LIMIT_LOGIN por IP (anti brute-force).
     """
     user = get_user(form.username)
+    ip = request.client.host if request.client else "?"
 
     # Mensagem genérica intencional — não revelar se o usuário existe ou não
     if not user or not verify_password(form.password, user["hashed_password"]):
+        _log_security.warning(
+            "login falhou",
+            extra={"username": form.username, "ip": ip, "motivo": "credenciais"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciais inválidas",
@@ -64,6 +77,11 @@ def login(form: OAuth2PasswordRequestForm = Depends()):
 
     access  = create_access_token(user["username"], user["level"], user["modules"])
     refresh = create_refresh_token(user["username"])
+
+    _log_audit.info(
+        "login ok",
+        extra={"username": user["username"], "level": user["level"], "ip": ip},
+    )
 
     return TokenResponse(
         access_token=access,
@@ -75,7 +93,8 @@ def login(form: OAuth2PasswordRequestForm = Depends()):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshRequest):
+@limiter.limit(LIMIT_REFRESH)
+def refresh(request: Request, body: RefreshRequest):
     """
     Recebe o refresh token, valida, e devolve novo par de tokens.
     Rotação de token: o refresh antigo é revogado e um novo é emitido.
@@ -112,10 +131,16 @@ def refresh(body: RefreshRequest):
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(body: RefreshRequest):
+def logout(request: Request, body: RefreshRequest):
     """
     Revoga o refresh token — impede renovação futura.
     O access token ainda válido expira naturalmente em 15 min.
     Status 204: sucesso sem corpo de resposta (padrão REST para logout).
     """
     revoke_refresh_token(body.refresh_token)
+    ip = request.client.host if request.client else "?"
+    try:
+        payload = decode_token(body.refresh_token)
+        _log_audit.info("logout", extra={"username": payload.get("sub"), "ip": ip})
+    except Exception:
+        _log_audit.info("logout", extra={"username": "?", "ip": ip})
