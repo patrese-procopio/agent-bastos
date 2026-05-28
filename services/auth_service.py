@@ -1,61 +1,114 @@
-"""
-auth_service.py — Lógica de autenticação JWT
-─────────────────────────────────────────────────────────────────────────────
+﻿"""
+auth_service.py - Logica de autenticacao JWT
+-----------------------------------------------------------------------------
 Responsabilidades:
   1. Verificar senha com bcrypt
   2. Criar access token (15 min) e refresh token (7 dias)
   3. Decodificar e validar tokens
   4. Gerenciar blacklist de refresh tokens (logout)
 
-Regra: zero FastAPI aqui. Só lógica pura — testável de forma isolada.
+Regra: zero FastAPI aqui. So logica pura - testavel de forma isolada.
 """
 
 import os
 import logging
+import sqlite3
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from dotenv import load_dotenv
-load_dotenv()
+
+# override=True: o .env e a fonte de verdade das chaves/config (consistente com api.py).
+load_dotenv(override=True)
 
 _log = logging.getLogger("bastos.auth")
 
-# ── Configuração ──────────────────────────────────────────────────────────────
-SECRET_KEY  = os.getenv("JWT_SECRET_KEY")
+# --- Configuracao -------------------------------------------------------------
+# JWT_SECRET_KEY e OBRIGATORIA (fail-fast).
+# Para gerar uma nova chave forte:
+#   python -c "import secrets; print(secrets.token_hex(48))"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY nao encontrada no ambiente. Configure o arquivo .env.\n"
+        "Para gerar uma chave forte: "
+        "python -c \"import secrets; print(secrets.token_hex(48))\""
+    )
+
 ALGORITHM   = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS   = 7
 
-# Contexto bcrypt — custo 12 é o padrão corporativo
-# (lento o suficiente pra dificultar força bruta, rápido o suficiente pra UX)
+# Banco SQLite para blacklist de tokens revogados.
+# Fica em data/auth.db â€” persiste entre reinicializacoes do servidor.
+AUTH_DB_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "auth.db"
+)
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Blacklist em memória — guarda refresh tokens revogados (logout)
-# Limitação: reiniciar o servidor limpa a blacklist.
-# Próximo passo natural: migrar para Redis ou SQLite.
-_blacklist: set[str] = set()
+# --- Blacklist SQLite â€” logout persistente ----------------------------
+
+def _get_db_conn() -> sqlite3.Connection:
+    """
+    Conexao SQLite com WAL (Write-Ahead Logging).
+    WAL permite leituras concorrentes sem bloquear escritas.
+    """
+    os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(AUTH_DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
 
 
-# ── Banco de usuários ─────────────────────────────────────────────────────────
-# Hashes ficam no .env (ADMIN_PASSWORD_HASH / ANALISTA_PASSWORD_HASH).
-# Para gerar/atualizar: rode `python scripts/setar_senha.py admin` (getpass).
-#
-# Fallback (legado): se o .env não tiver hash, usa admin123/analista123 e
-# emite WARNING gritante no log — sinal claro para o operador trocar.
+def _init_blacklist_db() -> None:
+    """
+    Cria a tabela revoked_tokens se nao existir. Idempotente.
+    Remove tokens ja expirados na inicializacao (housekeeping automatico).
 
+    Schema:
+      token_hash : SHA-256 do JWT (nunca o token raw)
+      revoked_at : quando foi revogado (ISO UTC)
+      expires_at : quando o token expiraria naturalmente (para cleanup)
+    """
+    with _get_db_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS revoked_tokens (
+                token_hash TEXT PRIMARY KEY,
+                revoked_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+        """)
+        # Remove tokens expirados â€” ja sao invalidos de qualquer forma
+        conn.execute(
+            "DELETE FROM revoked_tokens WHERE expires_at < ?",
+            (datetime.now(timezone.utc).isoformat(),)
+        )
+
+
+def _hash_token(token: str) -> str:
+    """SHA-256 do token â€” nunca armazenamos o JWT raw no banco."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+# Inicializa o banco na carga do modulo (idempotente)
+_init_blacklist_db()
+
+
+# --- Banco de usuarios --------------------------------------------------------
 _FALLBACK_ADMIN     = "admin123"
 _FALLBACK_ANALISTA  = "analista123"
 
 
 def _carregar_hash(env_var: str, fallback: str, usuario: str) -> str:
-    """Lê hash bcrypt do .env; se ausente, faz hash do fallback e avisa."""
     h = os.getenv(env_var, "").strip()
     if h:
         return h
     _log.warning(
-        f"{env_var} não definido — usando senha padrão para '{usuario}'. "
+        f"{env_var} nao definido - usando senha padrao para '{usuario}'. "
         f"Rode: python scripts/setar_senha.py {usuario}",
         extra={"usuario": usuario, "acao": "fallback_senha_padrao"},
     )
@@ -78,40 +131,37 @@ USERS_DB: dict = {
         "username": "analista",
         "hashed_password": _carregar_hash("ANALISTA_PASSWORD_HASH", _FALLBACK_ANALISTA, "analista"),
         "level": "analista",
-        "modules": ["chat_rag", "transcricao", "referencias", "noticias"],
+        # grafoscopia: concedido explicitamente â€” funcao primordial para o
+        # trabalho operacional diario dos analistas da agencia.
+        # Principio do menor privilegio aplicado: acesso por concessao
+        # intencional, nao por ausencia de controle.
+        "modules": [
+            "chat_rag", "grafoscopia", "transcricao",
+            "referencias", "noticias"
+        ],
     },
 }
 
 
-# ── Funções de senha ──────────────────────────────────────────────────────────
+# --- Funcoes de senha ---------------------------------------------------------
 def verify_password(plain: str, hashed: str) -> bool:
-    """Compara senha em texto puro com o hash armazenado."""
     return pwd_context.verify(plain, hashed)
 
 
 def get_user(username: str) -> Optional[dict]:
-    """Retorna o usuário do banco ou None se não existir."""
     return USERS_DB.get(username)
 
 
-# ── Funções de token ──────────────────────────────────────────────────────────
+# --- Funcoes de token ---------------------------------------------------------
 def _create_token(payload: dict, expires_delta: timedelta) -> str:
-    """
-    Função interna — não chamar diretamente.
-    Adiciona exp e iat ao payload e assina com a SECRET_KEY.
-    """
     data = payload.copy()
     now  = datetime.now(timezone.utc)
-    data["iat"] = now                        # issued at — quando foi criado
-    data["exp"] = now + expires_delta        # expiration — quando expira
+    data["iat"] = now
+    data["exp"] = now + expires_delta
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_access_token(username: str, level: str, modules: list[str]) -> str:
-    """
-    Token de curta duração — vai no header de cada request.
-    Carrega as permissões do usuário nos claims para evitar consulta ao banco.
-    """
     return _create_token(
         {"sub": username, "level": level, "modules": modules, "type": "access"},
         timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -119,10 +169,6 @@ def create_access_token(username: str, level: str, modules: list[str]) -> str:
 
 
 def create_refresh_token(username: str) -> str:
-    """
-    Token de longa duração — fica guardado no frontend.
-    Só carrega o username, sem permissões (permissões são relidas no refresh).
-    """
     return _create_token(
         {"sub": username, "type": "refresh"},
         timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
@@ -130,22 +176,34 @@ def create_refresh_token(username: str) -> str:
 
 
 def decode_token(token: str) -> dict:
-    """
-    Decodifica e valida o token.
-    Lança JWTError se assinatura inválida, expirado ou malformado.
-    """
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError as exc:
-        raise exc   # quem chamar decide o que fazer com o erro
+        raise exc
 
 
-# ── Blacklist (logout) ────────────────────────────────────────────────────────
+# --- Blacklist (logout) -------------------------------------------------------
 def revoke_refresh_token(token: str) -> None:
-    """Adiciona o refresh token à blacklist — efetua logout."""
-    _blacklist.add(token)
+    try:
+        claims = jwt.get_unverified_claims(token)
+        exp = claims.get("exp", 0)
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+    except Exception:
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)).isoformat()
+    token_hash = _hash_token(token)
+    with _get_db_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO revoked_tokens (token_hash, revoked_at, expires_at) VALUES (?, ?, ?)",
+            (token_hash, datetime.now(timezone.utc).isoformat(), expires_at)
+        )
 
 
 def is_revoked(token: str) -> bool:
-    """Verifica se o refresh token já foi revogado."""
-    return token in _blacklist
+    token_hash = _hash_token(token)
+    with _get_db_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM revoked_tokens WHERE token_hash = ?",
+            (token_hash,)
+        ).fetchone()
+    return row is not None
+

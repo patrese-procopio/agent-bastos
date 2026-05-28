@@ -12,41 +12,56 @@ from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+import getpass
+import socket
+from datetime import datetime, timezone
 
 load_dotenv()
 
 ROOT_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROMA_DIR = os.path.join(ROOT_DIR, "data", "chroma_db")
-LOG_PATH   = os.path.join(ROOT_DIR, "logs", "missao.log")
+LOG_PATH       = os.path.join(ROOT_DIR, "logs", "missao.log")
+# Log de auditoria: NAO criptografado e NAO deletado pelo protocolo-zero.
+# Registra acoes sensiveis (ativacao do protocolo-zero, etc.).
+# Separado do log de conversas para garantir rastreabilidade operacional.
+AUDIT_LOG_PATH = os.path.join(ROOT_DIR, "logs", "auditoria.log")
 
-# Segurança — chave lida do .env, fallback para compatibilidade com logs existentes
-_fernet_key = os.getenv("FERNET_KEY", "HO-eVf31rwjok3MHPYnwUJ3sEemwwLHbw8P7rLCGisY=").encode()
-fernet      = Fernet(_fernet_key)
+# Seguranca - chave Fernet OBRIGATORIA via .env (fail-fast).
+# Para gerar uma nova chave, rode:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# IMPORTANTE: rotacionar a chave torna logs antigos ilegiveis. Faca isso so em
+# janela de manutencao planejada, apos exportar/auditar os logs existentes.
+_fernet_key = os.getenv("FERNET_KEY")
+if not _fernet_key:
+    raise RuntimeError(
+        "FERNET_KEY nao encontrada no ambiente. Configure o arquivo .env.\n"
+        "Para gerar uma chave: "
+        "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    )
+fernet = Fernet(_fernet_key.encode())
 
-# Histórico de conversa com limite para evitar crescimento ilimitado do prompt
+# Historico de conversa com limite para evitar crescimento ilimitado do prompt
 _MAX_HISTORICO  = 20   # 10 pares pergunta/resposta
 _historico_lock = threading.Lock()
 _log_lock       = threading.Lock()
 historico_conversa = []
 
 # ONNX/torch e embeddings devem ser carregados ANTES do Groq/httpx
-# para evitar conflito de inicialização de bibliotecas nativas no Python 3.14+
+# para evitar conflito de inicializacao de bibliotecas nativas no Python 3.14+
 print("[*] Carregando modelo de embeddings...")
 _embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 print("[*] Conectando ao ChromaDB...")
 _db = Chroma(persist_directory=CHROMA_DIR, embedding_function=_embeddings)
 print(f"[+] ChromaDB carregado: {_db._collection.count()} chunks indexados.")
 
-# Singleton Groq — criado APÓS embeddings para não conflitar com ONNX
+# Singleton Groq - criado APOS embeddings para nao conflitar com ONNX
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not _GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY não encontrada no ambiente. Configure o arquivo .env.")
+    raise RuntimeError("GROQ_API_KEY nao encontrada no ambiente. Configure o arquivo .env.")
 _groq_client = Groq(api_key=_GROQ_API_KEY)
 
 
-# ─── Logs criptografados ─────────────────────────────────────────────────────
-
-_log_lock = threading.Lock()
+# --- Logs criptografados ------------------------------------------------------
 
 def salvar_log_criptografado(texto: str) -> None:
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
@@ -54,6 +69,32 @@ def salvar_log_criptografado(texto: str) -> None:
     with _log_lock:
         with open(LOG_PATH, "ab") as f:
             f.write(token + b"\n")
+
+
+def registrar_auditoria(acao: str, detalhes: str = "") -> None:
+    """
+    Registra acao sensivel em log de auditoria em texto puro.
+    Este log NAO e criptografado e NAO e apagado pelo protocolo-zero —
+    e a prova de que a operacao ocorreu, mesmo apos deleção dos dados.
+    Campos: timestamp UTC, acao, operador (usuario do SO), hostname, PID.
+    """
+    os.makedirs(os.path.dirname(AUDIT_LOG_PATH), exist_ok=True)
+    ts = datetime.now(timezone.utc).isoformat()
+    try:
+        operador = getpass.getuser()
+    except Exception:
+        operador = "desconhecido"
+    try:
+        host = socket.gethostname()
+    except Exception:
+        host = "desconhecido"
+    entrada = (
+        f"[{ts}] ACAO={acao} | "
+        f"OPERADOR={operador} | HOST={host} | "
+        f"PID={os.getpid()} | {detalhes}\n"
+    )
+    with open(AUDIT_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(entrada)
 
 
 def carregar_memoria_recente() -> bool:
@@ -75,7 +116,7 @@ def _adicionar_historico(pergunta: str, resposta: str) -> None:
     with _historico_lock:
         historico_conversa.append(f"AGENTE: {pergunta}")
         historico_conversa.append(f"BASTOS: {resposta}")
-        # Mantém apenas as últimas _MAX_HISTORICO entradas
+        # Mantem apenas as ultimas _MAX_HISTORICO entradas
         if len(historico_conversa) > _MAX_HISTORICO:
             del historico_conversa[: len(historico_conversa) - _MAX_HISTORICO]
 
@@ -85,7 +126,7 @@ def _snapshot_historico() -> str:
         return "\n".join(historico_conversa[-6:])
 
 
-# ─── Recuperação doutrinária ─────────────────────────────────────────────────
+# --- Recuperacao doutrinaria --------------------------------------------------
 
 def recuperar_contexto_doutrinario(pergunta: str, top_k: int = 4):
     documentos = _db.similarity_search(pergunta, k=top_k)
@@ -98,7 +139,7 @@ def recuperar_contexto_doutrinario(pergunta: str, top_k: int = 4):
     return "\n\n".join(partes), documentos
 
 
-# ─── Funções de conversação ──────────────────────────────────────────────────
+# --- Funcoes de conversacao ---------------------------------------------------
 
 def conversar_com_bastos(pergunta: str) -> str:
     contexto_doutrinario, _ = recuperar_contexto_doutrinario(pergunta)
@@ -191,9 +232,29 @@ if __name__ == "__main__":
         if not comando:
             continue
         if comando.lower() == "protocolo-zero":
-            if os.path.exists(LOG_PATH):
+            # Confirmacao obrigatoria — evita ativacao acidental
+            print("\n[!] ATENCAO: Esta operacao destrói permanentemente")
+            print("    os logs de conversa. Isso nao pode ser desfeito.")
+            print("    Digite CONFIRMO para prosseguir (qualquer outra")
+            print("    entrada cancela a operacao):")
+            try:
+                confirmacao = input("    > ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print("\n[!] Operacao cancelada.")
+                continue
+            if confirmacao != "CONFIRMO":
+                print("[!] Operacao cancelada. Log preservado.")
+                continue
+            # Registra em auditoria ANTES de deletar
+            log_existia = os.path.exists(LOG_PATH)
+            registrar_auditoria(
+                "PROTOCOLO_ZERO_ATIVADO",
+                f"LOG_PATH={LOG_PATH} | LOG_EXISTIA={log_existia}"
+            )
+            if log_existia:
                 os.remove(LOG_PATH)
             print("\n[!] DADOS ELIMINADOS. SESSAO ENCERRADA.")
+            print(f"[!] Registro de auditoria: {AUDIT_LOG_PATH}")
             break
         if comando.lower() in ("sair", "exit"):
             print("\n[!] Sessao encerrada.")

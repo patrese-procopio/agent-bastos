@@ -108,7 +108,7 @@ montar_rate_limit(app)                          # slowapi: anti brute-force e ab
 
 # ── Registro de routers ───────────────────────────────────────────────────────
 app.include_router(auth_router, prefix="/api")
-app.include_router(liderancas_router)
+app.include_router(liderancas_router, prefix="/api")
 app.include_router(alertas_router,     prefix="/api")
 app.include_router(agenda_router,      prefix="/api")
 app.include_router(dashboard_router,   prefix="/api")
@@ -119,8 +119,8 @@ app.include_router(sistema_router,     prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(config_router, prefix="/api")
 app.include_router(grupos_router, prefix="/api")
-app.include_router(grafo_router)
-app.include_router(extrato_router)
+app.include_router(grafo_router,      prefix="/api")
+app.include_router(extrato_router,    prefix="/api")
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":

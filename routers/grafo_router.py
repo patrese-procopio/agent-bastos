@@ -34,7 +34,7 @@ from services.logging_service import get_logger
 
 _log_audit = get_logger("audit.grafo")
 
-router = APIRouter(prefix="/api/grafo", tags=["grafo"])
+router = APIRouter(prefix="/grafo", tags=["grafo"])
 
 _GATE = require_module("alertas")
 

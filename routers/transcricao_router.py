@@ -12,6 +12,7 @@ import tempfile
 import wave
 from datetime import datetime
 
+from functools import lru_cache
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from fastapi.responses import Response
 
@@ -35,6 +36,7 @@ _MESES_PT = [
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ]
 
+@lru_cache(maxsize=1)
 def _get_groq():
     from groq import Groq
     api_key = os.getenv("GROQ_API_KEY")
@@ -52,6 +54,18 @@ def _get_wav_duration(path: str) -> str:
         return f"{secs // 60:02d}:{secs % 60:02d}:00"
     except Exception:
         return "00:00:00"
+
+
+def _sanitize_filename(name: str) -> str:
+    """
+    Sanitiza o nome do arquivo para uso seguro em prompts LLM.
+    Permite apenas: letras, numeros, ponto, hifen, underscore.
+    Trunca em 120 chars para evitar prompt bloating.
+    Defesa contra prompt injection via nome de arquivo malicioso.
+    """
+    import re
+    safe = re.sub(r'[^a-zA-Z0-9._-]', '_', name)
+    return safe[:120]
 
 
 def _parse_llm_json(text: str) -> dict:
@@ -78,6 +92,9 @@ async def transcribe(
 ):
     groq     = _get_groq()
     filename = audio.filename or "audio.wav"
+    # safe_filename: usado APENAS no prompt LLM — defesa contra prompt injection.
+    # filename original mantido para: extensao, API Whisper e mensagens de erro.
+    safe_filename = _sanitize_filename(filename)
     suffix   = os.path.splitext(filename)[1].lower()
 
     if suffix not in _AUDIO_EXTS:
@@ -141,7 +158,7 @@ async def transcribe(
             "{\n"
             f'  "laudo_number": "{laudo_number}",\n'
             f'  "date": "{date_str}",\n'
-            f'  "filename": "{filename}",\n'
+            f'  "filename": "{safe_filename}",\n'
             f'  "duration": "{duration_str}",\n'
             '  "speakers": [{"id":"M1","label":"Voz masculina","role":"Interlocutor A"}],\n'
             '  "segments": [{"ts":"00:00:00","speaker":"M1","text":"..."}],\n'
@@ -224,7 +241,7 @@ async def decifrar(
     imagem: UploadFile = File(...),
     tipo_documento: str = Form("desconhecido"),
     contexto_extra: str = Form(""),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_module("grafoscopia")),
 ):
     """
     Recebe imagem de manuscrito, analisa via Gemini 2.5 Flash.

@@ -22,7 +22,7 @@ from services.auth_service import decode_token
 
 # Aponta para onde fica a rota de login — usado pelo Swagger para
 # gerar o botão "Authorize" e pelo OAuth2 para saber onde buscar o token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:

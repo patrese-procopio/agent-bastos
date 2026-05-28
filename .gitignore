@@ -63,3 +63,9 @@ inject_*.py
 # ─── Mas __pycache__ dentro delas continua ignorado ──────────────────────────
 services/__pycache__/
 routers/__pycache__/
+
+auth.db
+
+*.bak_*
+*.bak2
+*_v2.py

@@ -39,7 +39,7 @@ from services.logging_service import get_logger
 
 _log_audit = get_logger("audit.extrato")
 
-router = APIRouter(prefix="/api/extrato", tags=["extrato"])
+router = APIRouter(prefix="/extrato", tags=["extrato"])
 _GATE = require_module("alertas")
 
 

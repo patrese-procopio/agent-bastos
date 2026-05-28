@@ -26,7 +26,7 @@ from modules.liderancas import (
 )
 from dependencies import get_current_user, get_current_user_media, require_module
 
-router = APIRouter(prefix="/api/liderancas", tags=["liderancas"])
+router = APIRouter(prefix="/liderancas", tags=["liderancas"])
 liderancas_router = router
 
 _MESES_PT = ["","Janeiro","Fevereiro","Março","Abril","Maio","Junho",
