@@ -1,4 +1,4 @@
-"""
+﻿"""
 modules/rag.py - Motor de Inteligencia do Agent Bastos
 =======================================================
 RAG real: busca semantica no ChromaDB + geracao via Groq (LLaMA 70b).
@@ -25,6 +25,7 @@ LOG_PATH       = os.path.join(ROOT_DIR, "logs", "missao.log")
 # Registra acoes sensiveis (ativacao do protocolo-zero, etc.).
 # Separado do log de conversas para garantir rastreabilidade operacional.
 AUDIT_LOG_PATH = os.path.join(ROOT_DIR, "logs", "auditoria.log")
+LOG_MAX_BYTES  = 10 * 1024 * 1024  # 10 MB — apos esse limite o log e rotacionado
 
 # Seguranca - chave Fernet OBRIGATORIA via .env (fail-fast).
 # Para gerar uma nova chave, rode:
@@ -63,8 +64,25 @@ _groq_client = Groq(api_key=_GROQ_API_KEY)
 
 # --- Logs criptografados ------------------------------------------------------
 
+def _rotar_log_se_necessario() -> None:
+    """
+    Se missao.log ultrapassar LOG_MAX_BYTES, move para .old e inicia arquivo novo.
+    Mantem 1 geracao de backup. Rotacao registrada no auditoria.log.
+    """
+    if not os.path.exists(LOG_PATH):
+        return
+    if os.path.getsize(LOG_PATH) < LOG_MAX_BYTES:
+        return
+    backup = LOG_PATH + ".old"
+    if os.path.exists(backup):
+        os.remove(backup)
+    os.rename(LOG_PATH, backup)
+    registrar_auditoria("LOG_ROTACIONADO", f"BACKUP={backup} | NOVO={LOG_PATH}")
+
+
 def salvar_log_criptografado(texto: str) -> None:
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+    _rotar_log_se_necessario()
     token = fernet.encrypt(texto.encode())
     with _log_lock:
         with open(LOG_PATH, "ab") as f:
@@ -74,8 +92,8 @@ def salvar_log_criptografado(texto: str) -> None:
 def registrar_auditoria(acao: str, detalhes: str = "") -> None:
     """
     Registra acao sensivel em log de auditoria em texto puro.
-    Este log NAO e criptografado e NAO e apagado pelo protocolo-zero —
-    e a prova de que a operacao ocorreu, mesmo apos deleção dos dados.
+    Este log NAO e criptografado e NAO e apagado pelo protocolo-zero â€”
+    e a prova de que a operacao ocorreu, mesmo apos deleÃ§Ã£o dos dados.
     Campos: timestamp UTC, acao, operador (usuario do SO), hostname, PID.
     """
     os.makedirs(os.path.dirname(AUDIT_LOG_PATH), exist_ok=True)
@@ -106,7 +124,15 @@ def carregar_memoria_recente() -> bool:
             linhas = f.readlines()
         with _historico_lock:
             for linha in linhas[-4:]:
-                historico_conversa.append(fernet.decrypt(linha.strip()).decode())
+                entrada = fernet.decrypt(linha.strip()).decode()
+                # Formato do log: "AGENTE: x | BASTOS: y"
+                # Divide em 2 entradas para consistencia com o historico em memoria
+                if " | BASTOS: " in entrada:
+                    partes = entrada.split(" | BASTOS: ", 1)
+                    historico_conversa.append(partes[0])
+                    historico_conversa.append(f"BASTOS: {partes[1]}")
+                else:
+                    historico_conversa.append(entrada)
         return True
     except Exception:
         return False
@@ -232,8 +258,8 @@ if __name__ == "__main__":
         if not comando:
             continue
         if comando.lower() == "protocolo-zero":
-            # Confirmacao obrigatoria — evita ativacao acidental
-            print("\n[!] ATENCAO: Esta operacao destrói permanentemente")
+            # Confirmacao obrigatoria â€” evita ativacao acidental
+            print("\n[!] ATENCAO: Esta operacao destrÃ³i permanentemente")
             print("    os logs de conversa. Isso nao pode ser desfeito.")
             print("    Digite CONFIRMO para prosseguir (qualquer outra")
             print("    entrada cancela a operacao):")
@@ -261,3 +287,5 @@ if __name__ == "__main__":
             break
         print("\n[PROCESSANDO...]")
         print(f"\n[BASTOS]> {conversar_com_bastos(comando)}\n")
+
+
