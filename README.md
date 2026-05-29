@@ -1,221 +1,263 @@
-# 🦉 Agent Bastos
-### Assistente de Inteligência Corporativa com IA
+﻿<div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
-![LLaMA](https://img.shields.io/badge/LLaMA_3.3_70B-Groq-F55036?style=flat)
-![Claude](https://img.shields.io/badge/Claude_Vision-Anthropic-191919?style=flat)
-![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)
-![Status](https://img.shields.io/badge/Status-Em_desenvolvimento-yellow?style=flat)
+# ðŸ›¡ï¸ Agent Bastos
+
+### Assistente de InteligÃªncia com RAG, TranscriÃ§Ã£o Forense e Arquitetura Segura
+
+*Sistema de apoio Ã  anÃ¡lise de inteligÃªncia em seguranÃ§a pÃºblica â€” construÃ­do com foco em seguranÃ§a, rastreabilidade e conformidade com a LGPD.*
+
+<br>
+
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=for-the-badge&logo=databricks&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=electron&logoColor=white)
+
+![JWT](https://img.shields.io/badge/Auth-JWT%20%2B%20RBAC-000000?style=flat-square)
+![Encryption](https://img.shields.io/badge/Logs-Fernet%20AES--128-green?style=flat-square)
+![LGPD](https://img.shields.io/badge/Compliance-LGPD-blue?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Auditado-success?style=flat-square)
+
+</div>
 
 ---
 
-## Sobre o Projeto
+## ðŸ“‹ Sobre o Projeto
 
-O **Agent Bastos** é um assistente de inteligência corporativa desenvolvido para modernizar a produção analítica de equipes de segurança e inteligência. Nasceu de uma dor real: analistas perdiam horas consultando doutrinas em documentos dispersos, transcrevendo entrevistas manualmente e buscando referências em acervos desorganizados.
+**Agent Bastos** Ã© um assistente de inteligÃªncia projetado para apoiar analistas de seguranÃ§a pÃºblica em tarefas como consulta a doutrinas, transcriÃ§Ã£o de Ã¡udios para relatÃ³rios e anÃ¡lise de informaÃ§Ãµes operacionais.
 
-A solução combina **RAG doutrinário**, **transcrição de áudio**, **análise de documentos manuscritos** e **agenda operacional em tempo real** numa única interface integrada — construída para ser implantada em qualquer organização que trabalhe com produção de conhecimento e gestão de inteligência.
+O diferencial do projeto nÃ£o estÃ¡ apenas nas funcionalidades de IA, mas na **engenharia por trÃ¡s delas**: autenticaÃ§Ã£o robusta, controle de acesso por mÃ³dulo, criptografia de dados sensÃ­veis, trilha de auditoria forense e conformidade com a LGPD â€” tudo validado por uma auditoria de seguranÃ§a documentada ([`AUDIT.md`](./AUDIT.md)).
 
-> Projeto desenvolvido como portfólio de especialização em **IA aplicada à inteligência corporativa**, unindo experiência operacional real em análise de inteligência com Engenharia de Dados e soluções de IA.
+> âš ï¸ **Nota sobre privacidade:** Este repositÃ³rio Ã© uma versÃ£o de demonstraÃ§Ã£o. Nenhum dado operacional real, informaÃ§Ã£o pessoal ou material sensÃ­vel estÃ¡ incluÃ­do. A base de conhecimento usa apenas doutrinas pÃºblicas e dados fictÃ­cios para exemplos.
+
+<div align="center">
+
+![Painel principal do Agent Bastos](./docs/screenshots/painel.jpg)
+
+</div>
 
 ---
 
-## Screenshots
+## ðŸ–¥ï¸ Interface
 
-> 💡 *Adicione prints da interface na pasta `docs/screenshots/` e referencie abaixo.*
+<div align="center">
+
+| Chat com RAG | Dashboard Operacional |
+|:---:|:---:|
+| ![Chat RAG](./docs/screenshots/chat_rag.jpg) | ![Dashboard](./docs/screenshots/dashboard.jpg) |
+| **TranscriÃ§Ã£o de Ãudio** | **Alertas** |
+| ![TranscriÃ§Ã£o](./docs/screenshots/transcricao.jpg) | ![Alertas](./docs/screenshots/alertas.jpg) |
+| **Agenda** | **NotÃ­cias** |
+| ![Agenda](./docs/screenshots/agenda.jpg) | ![NotÃ­cias](./docs/screenshots/noticias.jpg) |
+
+</div>
+
+---
+
+## âœ¨ Funcionalidades
+
+| MÃ³dulo | DescriÃ§Ã£o | Tecnologia-chave |
+|---|---|---|
+| ðŸ’¬ **Chat com RAG** | Consulta semÃ¢ntica a doutrinas indexadas, com memÃ³ria de conversa criptografada | ChromaDB + embeddings multilÃ­ngues |
+| ðŸŽ™ï¸ **TranscriÃ§Ã£o** | Converte Ã¡udios em texto e gera anÃ¡lise estruturada para relatÃ³rios | Whisper + LLM |
+| âœï¸ **Grafoscopia** | AnÃ¡lise de documentos manuscritos | VisÃ£o computacional + LLM |
+| ðŸ“Š **Dashboard** | Painel operacional com mÃ©tricas e visÃ£o consolidada | React + Recharts |
+| ðŸ•¸ï¸ **AnÃ¡lise de Grafos** | Mapeamento de relaÃ§Ãµes entre entidades | SQLite + visualizaÃ§Ã£o |
+| ðŸ‘¥ **GestÃ£o de UsuÃ¡rios** | CRUD de usuÃ¡rios com controle de acesso por mÃ³dulo | SQLite + JWT |
+
+---
+
+## ðŸ—ï¸ Arquitetura
 
 ```
-docs/
-└── screenshots/
-    ├── interface_principal.png
-    ├── chat_doutrina.png
-    ├── agenda_operacional.png
-    └── dashboard.png
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                      Frontend (Electron + React)             â”‚
+â”‚              Interface desktop multiplataforma               â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚ HTTPS + JWT Bearer
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                       API (FastAPI)                          â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
+â”‚  â”‚  Middlewares: SecurityHeaders Â· RateLimit Â· CORS     â”‚    â”‚
+â”‚  â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤    â”‚
+â”‚  â”‚  Auth: JWT (HS256) Â· bcrypt Â· Blacklist persistente  â”‚    â”‚
+â”‚  â”‚  RBAC: controle de acesso por mÃ³dulo (require_module)â”‚    â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
+â”‚                                                              â”‚
+â”‚   14 routers organizados por domÃ­nio de responsabilidade     â”‚
+â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+       â”‚               â”‚              â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  ChromaDB   â”‚ â”‚   SQLite    â”‚ â”‚  Logs (Fernet) â”‚
+â”‚ (vetorial)  â”‚ â”‚ (usuÃ¡rios + â”‚ â”‚  criptografadosâ”‚
+â”‚ doutrinas   â”‚ â”‚  blacklist) â”‚ â”‚  + auditoria   â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
+
+### DecisÃµes de arquitetura
+
+- **SeparaÃ§Ã£o por camadas:** `routers/` cuidam apenas de HTTP; `services/` concentram a lÃ³gica de negÃ³cio; `modules/` encapsulam capacidades de IA. Zero lÃ³gica de negÃ³cio nos routers.
+- **RAG vetorial:** a base doutrinÃ¡ria Ã© dividida em *chunks*, transformada em embeddings e indexada no ChromaDB para busca semÃ¢ntica â€” nÃ£o busca por palavra-chave.
+- **PersistÃªncia consciente:** dados que precisam sobreviver a reinicializaÃ§Ãµes (usuÃ¡rios, tokens revogados) vÃ£o para SQLite; o que Ã© efÃªmero fica em memÃ³ria.
 
 ---
 
-## Funcionalidades
+## ðŸ” SeguranÃ§a & Conformidade
 
-### 🔍 Consulta Doutrinária com RAG
-Consulta semântica sobre bases de conhecimento e doutrinas corporativas. O agente localiza trechos relevantes e responde com base no conteúdo indexado — sem alucinar, sempre referenciando a origem.
+SeguranÃ§a nÃ£o foi um detalhe posterior â€” Ã© o nÃºcleo do projeto. Principais controles implementados:
 
-### 📎 Análise de Documentos Manuscritos
-Upload de imagens de documentos, bilhetes e registros físicos. O Claude Vision transcreve o conteúdo e o agente gera automaticamente um **Relatório de Inteligência** formal com seções: Assunto, Dados, Análise e Observações.
+### AutenticaÃ§Ã£o e AutorizaÃ§Ã£o
+- **JWT com rotaÃ§Ã£o de tokens** â€” access token de curta duraÃ§Ã£o (15 min) + refresh token, com rotaÃ§Ã£o obrigatÃ³ria a cada renovaÃ§Ã£o para limitar a janela de ataque.
+- **Blacklist persistente** â€” tokens revogados (logout) sÃ£o armazenados como *hash* SHA-256 em SQLite, sobrevivendo a reinicializaÃ§Ãµes do servidor. Mesmo que o banco vaze, os hashes sÃ£o inÃºteis para autenticaÃ§Ã£o.
+- **RBAC por mÃ³dulo** â€” cada rota sensÃ­vel exige um mÃ³dulo especÃ­fico no token (`require_module`), aplicando o princÃ­pio do menor privilÃ©gio.
+- **Senhas com bcrypt** (custo 12) â€” nunca armazenadas em texto plano.
 
-### 🎙️ Gravação e Transcrição de Entrevistas
-Gravação de áudio diretamente pela interface (até 3 minutos). O arquivo `.wav` é salvo em `data/audios/` e integrado ao pipeline de transcrição via **n8n + Whisper**.
+### ProteÃ§Ã£o de Dados (LGPD)
+- **Criptografia de logs** â€” conversas operacionais sÃ£o criptografadas com Fernet (AES-128) antes de tocar o disco.
+- **Trilha de auditoria forense** â€” operaÃ§Ãµes sensÃ­veis (incluindo a destruiÃ§Ã£o de dados) geram registro imutÃ¡vel em texto puro, com timestamp UTC, operador, host e PID. Esse log sobrevive atÃ© mesmo ao comando de limpeza total.
+- **ConfirmaÃ§Ã£o explÃ­cita para operaÃ§Ãµes destrutivas** â€” destruiÃ§Ã£o de dados exige confirmaÃ§Ã£o consciente *case-sensitive*, evitando ativaÃ§Ã£o acidental.
+- **RotaÃ§Ã£o automÃ¡tica de logs** â€” previne crescimento indefinido de dados.
 
-### 📊 Dashboard de Produção
-Painel de acompanhamento da produção analítica por setor. Indicadores visuais de desempenho por período e por analista — útil para gestão de equipes de inteligência.
+### Hardening contra ataques
+- **SanitizaÃ§Ã£o de entrada** â€” nomes de arquivos de upload sÃ£o higienizados antes de qualquer uso, prevenindo *prompt injection*.
+- **Rate limiting** â€” proteÃ§Ã£o contra forÃ§a bruta nos endpoints de autenticaÃ§Ã£o.
+- **Fail-fast** â€” o sistema se recusa a iniciar se chaves crÃ­ticas (JWT, criptografia) nÃ£o estiverem configuradas, em vez de operar de forma insegura.
 
-### 🔒 Agenda Operacional com Firebase
-Sistema de lançamento e visualização de ordens e tarefas em tempo real via Firestore. Acesso hierárquico: gestores lançam tarefas (autenticados por senha hash SHA-256), analistas visualizam por núcleo/setor. Notificação automática em tela ao chegar nova tarefa.
-
-### 🗂️ Busca de Referências em Acervo Documental
-Indexação de acervo histórico diretamente do Google Drive. Permite consulta por palavra-chave sem acessar sistemas internos — ideal para análise de produção histórica e referência cruzada de documentos.
-
----
-
-## Arquitetura
-
-```
-Agent_Bastos/
-│
-├── main.py                  # Entrypoint único
-│
-├── config/
-│   └── settings.py          # Centraliza variáveis de ambiente (.env)
-│
-├── modules/                 # Lógica de negócio (sem UI)
-│   ├── agente.py            # RAG, consulta LLM, processamento de áudio
-│   ├── agenda.py            # Firebase — agenda operacional
-│   ├── dashboard.py         # Indicadores de produção
-│   ├── decifrar.py          # Claude Vision — análise de documentos
-│   ├── ingestor.py          # Ingestão de documentos no ChromaDB
-│   ├── rag.py               # Pipeline RAG
-│   └── transcricao.py       # Transcrição de áudio
-│
-├── ui/
-│   └── interface.py         # Interface CustomTkinter (apenas UI)
-│
-├── drive_indexer/           # Módulo de indexação do Google Drive
-│   ├── auth.py
-│   ├── crawler.py
-│   ├── indexer.py
-│   ├── parser.py
-│   └── busca_referencias.py
-│
-├── data/                    # Dados locais (não versionados)
-│   ├── doutrina/            # Base de conhecimento em .txt
-│   ├── audios/              # Gravações de entrevistas
-│   └── chroma_db/           # Banco vetorial local
-│
-├── logs/
-│   └── missao.log
-│
-├── .env                     # Segredos (não versionado)
-└── .gitignore
-```
-
-### Stack Tecnológica
-
-| Camada | Tecnologia |
-|---|---|
-| Interface | CustomTkinter (Python) |
-| LLM Principal | LLaMA 3.3 70B via Groq API |
-| Visão Computacional | Claude Vision (Anthropic) |
-| RAG / Banco Vetorial | ChromaDB + Embeddings |
-| Banco em Tempo Real | Firebase Firestore |
-| Acervo Documental | Google Drive API (OAuth2) |
-| Transcrição de Áudio | Whisper via n8n |
-| Automação de Fluxos | n8n |
+> ðŸ“‘ O processo completo de auditoria â€” com 12 correÃ§Ãµes de seguranÃ§a documentadas, anÃ¡lise de severidade e conformidade LGPD â€” estÃ¡ em **[`AUDIT.md`](./AUDIT.md)**.
 
 ---
 
-## Instalação
+## ðŸ› ï¸ Stack TecnolÃ³gica
 
-### Pré-requisitos
-- Python 3.10+
-- Conta no [Groq](https://console.groq.com) — LLM gratuito
-- Conta no [Anthropic](https://console.anthropic.com) — Claude Vision
-- Projeto no Firebase com Firestore habilitado
-- Credenciais OAuth2 do Google Drive
+**Backend**
+- Python 3.14 Â· FastAPI Â· Uvicorn
+- ChromaDB (banco vetorial) Â· embeddings multilÃ­ngues
+- SQLite (usuÃ¡rios, blacklist de tokens)
+- JWT (python-jose) Â· bcrypt (passlib) Â· Fernet (cryptography)
 
-### Passo a passo
+**IA / ML**
+- RAG (Retrieval-Augmented Generation) com busca semÃ¢ntica
+- TranscriÃ§Ã£o de Ã¡udio (Whisper)
+- Modelos de linguagem de grande porte via API
 
-**1. Clone o repositório**
+**Frontend**
+- React Â· Vite Â· Electron (aplicaÃ§Ã£o desktop)
+- Recharts (visualizaÃ§Ã£o de dados)
+
+**AutomaÃ§Ã£o & Infra**
+- n8n (orquestraÃ§Ã£o de fluxos)
+- pytest (testes)
+
+---
+
+## ðŸš€ Como Executar
+
+> **PrÃ©-requisitos:** Python 3.12+, Node.js 18+, e uma chave de API de um provedor de LLM.
+
+### 1. Backend
+
 ```bash
-git clone https://github.com/seu-usuario/agent-bastos.git
+# Clone o repositÃ³rio
+git clone https://github.com/patrese-procopio/agent-bastos.git
 cd agent-bastos
-```
 
-**2. Crie e ative o ambiente virtual**
-```bash
+# Crie e ative o ambiente virtual
 python -m venv .venv
+source .venv/bin/activate        # Linux/Mac
+# .venv\Scripts\Activate.ps1     # Windows PowerShell
 
-# Windows
-.venv\Scripts\activate
-```
-
-**3. Instale as dependências**
-```bash
+# Instale as dependÃªncias
 pip install -r requirements.txt
+
+# Configure as variÃ¡veis de ambiente (veja .env.example)
+cp .env.example .env
+# Edite o .env com suas chaves
+
+# Indexe a base de conhecimento
+python -m modules.ingestor
+
+# Inicie a API
+python api.py
 ```
 
-**4. Configure as variáveis de ambiente**
+A API estarÃ¡ disponÃ­vel em `http://127.0.0.1:8000`.
+DocumentaÃ§Ã£o interativa (Swagger) em `http://127.0.0.1:8000/docs`.
 
-Crie um arquivo `.env` na raiz com o seguinte conteúdo:
+### 2. Frontend
 
-```env
-ANTHROPIC_API_KEY=sk-ant-...
-GROQ_API_KEY=gsk_...
-GOOGLE_CREDENTIALS_PATH=credentials.json
-GOOGLE_TOKEN_PATH=token.json
-FIREBASE_KEY_PATH=serviceAccountKey.json
-```
-
-**5. Adicione os arquivos de credenciais na raiz**
-- `credentials.json` — OAuth2 do Google Drive
-- `serviceAccountKey.json` — Firebase Admin SDK
-
-**6. Execute**
 ```bash
-python main.py
+cd frontend
+npm install
+npm run dev
 ```
 
 ---
 
-## Segurança e LGPD
+## âš™ï¸ ConfiguraÃ§Ã£o
 
-Este projeto foi desenvolvido com atenção às boas práticas de segurança e conformidade com a **Lei Geral de Proteção de Dados (LGPD)**:
+O sistema usa variÃ¡veis de ambiente para todas as configuraÃ§Ãµes sensÃ­veis. Um arquivo `.env.example` documenta as variÃ¡veis necessÃ¡rias â€” **nunca** versione seu `.env` real.
 
-- ✅ Credenciais e chaves de API isoladas em `.env` — nunca versionadas
-- ✅ Arquivos sensíveis protegidos via `.gitignore`
-- ✅ Autenticação hierárquica com senha armazenada em hash SHA-256
-- ✅ Dados operacionais armazenados localmente ou em ambiente controlado
-- ✅ Acervo histórico acessado por referência — documentos originais não são replicados
-- ✅ Arquitetura modular que permite auditoria independente por camada
+As chaves crÃ­ticas (autenticaÃ§Ã£o e criptografia) seguem o princÃ­pio *fail-fast*: a aplicaÃ§Ã£o nÃ£o inicia sem elas, evitando operaÃ§Ã£o em estado inseguro.
 
----
-
-## Casos de Uso
-
-O Agent Bastos foi projetado para ser adaptável. Pode ser implantado em:
-
-- 🏢 **Empresas com setor de segurança corporativa** — consulta de políticas, análise de incidentes, gestão de ocorrências
-- 🏛️ **Órgãos públicos com produção de conhecimento** — acesso a bases doutrinárias, produção de relatórios, coordenação de equipes
-- 🔍 **Escritórios de investigação e compliance** — análise de documentos, transcrição de depoimentos, gestão de tarefas
-- 🎓 **Centros de treinamento e capacitação** — consulta a bases de conhecimento, produção de material analítico
+Para gerar uma senha de usuÃ¡rio com hash seguro:
+```bash
+python scripts/setar_senha.py <usuario>
+```
 
 ---
 
-## Roadmap
+## ðŸ“‚ Estrutura do Projeto
 
-- [x] RAG com base de conhecimento doutrinário
-- [x] Análise de documentos manuscritos com Claude Vision
-- [x] Agenda operacional com Firebase em tempo real
-- [x] Dashboard de produção por setor
-- [x] Indexação de acervo no Google Drive
-- [x] Refatoração com arquitetura MVC (separação UI / lógica)
-- [x] Gestão segura de credenciais com `.env`
-- [ ] Transcrição automática integrada (Whisper + n8n)
-- [ ] Versão mobile
-- [ ] Suporte multi-organização
-- [ ] Autenticação individual por usuário
-- [ ] Exportação de relatórios em PDF
-
----
-
-## Autor
-
-**Patrese**
-Especialista em Inteligência | Engenharia de Dados com foco em IA
-
-Construindo soluções que unem experiência operacional real com tecnologia de ponta — da coleta de dados ao insight estratégico.
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/seu-perfil)
-[![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/seu-usuario)
+```
+agent-bastos/
+â”œâ”€â”€ api.py                 # Entry point â€” registra middlewares e routers
+â”œâ”€â”€ dependencies.py        # DependÃªncias compartilhadas (auth, RBAC)
+â”œâ”€â”€ config/                # ConfiguraÃ§Ãµes centralizadas
+â”œâ”€â”€ routers/               # Camada HTTP â€” 14 routers por domÃ­nio
+â”œâ”€â”€ services/              # LÃ³gica de negÃ³cio (auth, rate limit, logging)
+â”œâ”€â”€ modules/               # Capacidades de IA (RAG, ingestÃ£o, transcriÃ§Ã£o)
+â”œâ”€â”€ frontend/              # AplicaÃ§Ã£o React + Electron
+â”œâ”€â”€ scripts/               # UtilitÃ¡rios (gestÃ£o de senhas, manutenÃ§Ã£o)
+â”œâ”€â”€ tests/                 # Testes automatizados (pytest)
+â”œâ”€â”€ automacao_n8n/         # Fluxos de automaÃ§Ã£o
+â”œâ”€â”€ AUDIT.md               # RelatÃ³rio de auditoria de seguranÃ§a
+â””â”€â”€ requirements.txt
+```
 
 ---
 
-> *"Inteligência não é sobre ter todas as respostas. É sobre fazer as perguntas certas."* 🦉
+## ðŸ—ºï¸ Roadmap
+
+- [x] Auditoria de seguranÃ§a completa (12 correÃ§Ãµes documentadas)
+- [x] Blacklist JWT persistente em SQLite
+- [x] GestÃ£o de usuÃ¡rios com RBAC via API
+- [x] RotaÃ§Ã£o automÃ¡tica de logs criptografados
+- [ ] ContainerizaÃ§Ã£o (Docker)
+- [ ] Busca hÃ­brida no RAG (vetorial + keyword) com reranking
+- [ ] CI/CD com GitHub Actions
+- [ ] Cobertura de testes ampliada
+
+---
+
+## ðŸ‘¤ Autor
+
+**Patrese ProcÃ³pio**
+Engenharia de Dados Â· InteligÃªncia de SeguranÃ§a Â· SoluÃ§Ãµes de IA Corporativa
+
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat-square&logo=github&logoColor=white)](https://github.com/patrese-procopio)
+
+---
+
+## ðŸ“„ LicenÃ§a
+
+Este projeto Ã© disponibilizado para fins de demonstraÃ§Ã£o e portfÃ³lio. Consulte o autor para usos especÃ­ficos.
+
+<div align="center">
+
+---
+
+*ConstruÃ­do com atenÃ§Ã£o Ã  seguranÃ§a, Ã  privacidade e Ã  boa engenharia.*
+
+</div>
