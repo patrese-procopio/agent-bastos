@@ -1,248 +1,221 @@
-<div align="center">
+# 🦉 Agent Bastos
+### Assistente de Inteligência Corporativa com IA
 
-# 🛡️ Agent Bastos
-
-### Assistente de Inteligência com RAG, Transcrição Forense e Arquitetura Segura
-
-*Sistema de apoio à análise de inteligência em segurança pública — construído com foco em segurança, rastreabilidade e conformidade com a LGPD.*
-
-<br>
-
-![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=for-the-badge&logo=databricks&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
-![Electron](https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=electron&logoColor=white)
-
-![JWT](https://img.shields.io/badge/Auth-JWT%20%2B%20RBAC-000000?style=flat-square)
-![Encryption](https://img.shields.io/badge/Logs-Fernet%20AES--128-green?style=flat-square)
-![LGPD](https://img.shields.io/badge/Compliance-LGPD-blue?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Auditado-success?style=flat-square)
-
-</div>
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![LLaMA](https://img.shields.io/badge/LLaMA_3.3_70B-Groq-F55036?style=flat)
+![Claude](https://img.shields.io/badge/Claude_Vision-Anthropic-191919?style=flat)
+![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)
+![Status](https://img.shields.io/badge/Status-Em_desenvolvimento-yellow?style=flat)
 
 ---
 
-## 📋 Sobre o Projeto
+## Sobre o Projeto
 
-**Agent Bastos** é um assistente de inteligência projetado para apoiar analistas de segurança pública em tarefas como consulta a doutrinas, transcrição de áudios para relatórios e análise de informações operacionais.
+O **Agent Bastos** é um assistente de inteligência corporativa desenvolvido para modernizar a produção analítica de equipes de segurança e inteligência. Nasceu de uma dor real: analistas perdiam horas consultando doutrinas em documentos dispersos, transcrevendo entrevistas manualmente e buscando referências em acervos desorganizados.
 
-O diferencial do projeto não está apenas nas funcionalidades de IA, mas na **engenharia por trás delas**: autenticação robusta, controle de acesso por módulo, criptografia de dados sensíveis, trilha de auditoria forense e conformidade com a LGPD — tudo validado por uma auditoria de segurança documentada ([`AUDIT.md`](./AUDIT.md)).
+A solução combina **RAG doutrinário**, **transcrição de áudio**, **análise de documentos manuscritos** e **agenda operacional em tempo real** numa única interface integrada — construída para ser implantada em qualquer organização que trabalhe com produção de conhecimento e gestão de inteligência.
 
-> ⚠️ **Nota sobre privacidade:** Este repositório é uma versão de demonstração. Nenhum dado operacional real, informação pessoal ou material sensível está incluído. A base de conhecimento usa apenas doutrinas públicas e dados fictícios para exemplos.
-
-<div align="center">
-
-<!-- Ajuste o nome do arquivo conforme seu screenshot real em docs/screenshots/ -->
-![Tela principal do Agent Bastos](./docs/screenshots/dashboard.png)
-
-</div>
+> Projeto desenvolvido como portfólio de especialização em **IA aplicada à inteligência corporativa**, unindo experiência operacional real em análise de inteligência com Engenharia de Dados e soluções de IA.
 
 ---
 
-## ✨ Funcionalidades
+## Screenshots
 
-| Módulo | Descrição | Tecnologia-chave |
-|---|---|---|
-| 💬 **Chat com RAG** | Consulta semântica a doutrinas indexadas, com memória de conversa criptografada | ChromaDB + embeddings multilíngues |
-| 🎙️ **Transcrição** | Converte áudios em texto e gera análise estruturada para relatórios | Whisper + LLM |
-| ✍️ **Grafoscopia** | Análise de documentos manuscritos | Visão computacional + LLM |
-| 📊 **Dashboard** | Painel operacional com métricas e visão consolidada | React + Recharts |
-| 🕸️ **Análise de Grafos** | Mapeamento de relações entre entidades | SQLite + visualização |
-| 👥 **Gestão de Usuários** | CRUD de usuários com controle de acesso por módulo | SQLite + JWT |
-
----
-
-## 🏗️ Arquitetura
+> 💡 *Adicione prints da interface na pasta `docs/screenshots/` e referencie abaixo.*
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Electron + React)             │
-│              Interface desktop multiplataforma               │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ HTTPS + JWT Bearer
-┌───────────────────────────▼─────────────────────────────────┐
-│                       API (FastAPI)                          │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  Middlewares: SecurityHeaders · RateLimit · CORS     │    │
-│  ├─────────────────────────────────────────────────────┤    │
-│  │  Auth: JWT (HS256) · bcrypt · Blacklist persistente  │    │
-│  │  RBAC: controle de acesso por módulo (require_module)│    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                              │
-│   14 routers organizados por domínio de responsabilidade     │
-└──────┬───────────────┬──────────────┬───────────────────────┘
-       │               │              │
-┌──────▼──────┐ ┌──────▼──────┐ ┌─────▼──────────┐
-│  ChromaDB   │ │   SQLite    │ │  Logs (Fernet) │
-│ (vetorial)  │ │ (usuários + │ │  criptografados│
-│ doutrinas   │ │  blacklist) │ │  + auditoria   │
-└─────────────┘ └─────────────┘ └────────────────┘
+docs/
+└── screenshots/
+    ├── interface_principal.png
+    ├── chat_doutrina.png
+    ├── agenda_operacional.png
+    └── dashboard.png
 ```
 
-### Decisões de arquitetura
+---
 
-- **Separação por camadas:** `routers/` cuidam apenas de HTTP; `services/` concentram a lógica de negócio; `modules/` encapsulam capacidades de IA. Zero lógica de negócio nos routers.
-- **RAG vetorial:** a base doutrinária é dividida em *chunks*, transformada em embeddings e indexada no ChromaDB para busca semântica — não busca por palavra-chave.
-- **Persistência consciente:** dados que precisam sobreviver a reinicializações (usuários, tokens revogados) vão para SQLite; o que é efêmero fica em memória.
+## Funcionalidades
+
+### 🔍 Consulta Doutrinária com RAG
+Consulta semântica sobre bases de conhecimento e doutrinas corporativas. O agente localiza trechos relevantes e responde com base no conteúdo indexado — sem alucinar, sempre referenciando a origem.
+
+### 📎 Análise de Documentos Manuscritos
+Upload de imagens de documentos, bilhetes e registros físicos. O Claude Vision transcreve o conteúdo e o agente gera automaticamente um **Relatório de Inteligência** formal com seções: Assunto, Dados, Análise e Observações.
+
+### 🎙️ Gravação e Transcrição de Entrevistas
+Gravação de áudio diretamente pela interface (até 3 minutos). O arquivo `.wav` é salvo em `data/audios/` e integrado ao pipeline de transcrição via **n8n + Whisper**.
+
+### 📊 Dashboard de Produção
+Painel de acompanhamento da produção analítica por setor. Indicadores visuais de desempenho por período e por analista — útil para gestão de equipes de inteligência.
+
+### 🔒 Agenda Operacional com Firebase
+Sistema de lançamento e visualização de ordens e tarefas em tempo real via Firestore. Acesso hierárquico: gestores lançam tarefas (autenticados por senha hash SHA-256), analistas visualizam por núcleo/setor. Notificação automática em tela ao chegar nova tarefa.
+
+### 🗂️ Busca de Referências em Acervo Documental
+Indexação de acervo histórico diretamente do Google Drive. Permite consulta por palavra-chave sem acessar sistemas internos — ideal para análise de produção histórica e referência cruzada de documentos.
 
 ---
 
-## 🔐 Segurança & Conformidade
+## Arquitetura
 
-Segurança não foi um detalhe posterior — é o núcleo do projeto. Principais controles implementados:
+```
+Agent_Bastos/
+│
+├── main.py                  # Entrypoint único
+│
+├── config/
+│   └── settings.py          # Centraliza variáveis de ambiente (.env)
+│
+├── modules/                 # Lógica de negócio (sem UI)
+│   ├── agente.py            # RAG, consulta LLM, processamento de áudio
+│   ├── agenda.py            # Firebase — agenda operacional
+│   ├── dashboard.py         # Indicadores de produção
+│   ├── decifrar.py          # Claude Vision — análise de documentos
+│   ├── ingestor.py          # Ingestão de documentos no ChromaDB
+│   ├── rag.py               # Pipeline RAG
+│   └── transcricao.py       # Transcrição de áudio
+│
+├── ui/
+│   └── interface.py         # Interface CustomTkinter (apenas UI)
+│
+├── drive_indexer/           # Módulo de indexação do Google Drive
+│   ├── auth.py
+│   ├── crawler.py
+│   ├── indexer.py
+│   ├── parser.py
+│   └── busca_referencias.py
+│
+├── data/                    # Dados locais (não versionados)
+│   ├── doutrina/            # Base de conhecimento em .txt
+│   ├── audios/              # Gravações de entrevistas
+│   └── chroma_db/           # Banco vetorial local
+│
+├── logs/
+│   └── missao.log
+│
+├── .env                     # Segredos (não versionado)
+└── .gitignore
+```
 
-### Autenticação e Autorização
-- **JWT com rotação de tokens** — access token de curta duração (15 min) + refresh token, com rotação obrigatória a cada renovação para limitar a janela de ataque.
-- **Blacklist persistente** — tokens revogados (logout) são armazenados como *hash* SHA-256 em SQLite, sobrevivendo a reinicializações do servidor. Mesmo que o banco vaze, os hashes são inúteis para autenticação.
-- **RBAC por módulo** — cada rota sensível exige um módulo específico no token (`require_module`), aplicando o princípio do menor privilégio.
-- **Senhas com bcrypt** (custo 12) — nunca armazenadas em texto plano.
+### Stack Tecnológica
 
-### Proteção de Dados (LGPD)
-- **Criptografia de logs** — conversas operacionais são criptografadas com Fernet (AES-128) antes de tocar o disco.
-- **Trilha de auditoria forense** — operações sensíveis (incluindo a destruição de dados) geram registro imutável em texto puro, com timestamp UTC, operador, host e PID. Esse log sobrevive até mesmo ao comando de limpeza total.
-- **Confirmação explícita para operações destrutivas** — destruição de dados exige confirmação consciente *case-sensitive*, evitando ativação acidental.
-- **Rotação automática de logs** — previne crescimento indefinido de dados.
-
-### Hardening contra ataques
-- **Sanitização de entrada** — nomes de arquivos de upload são higienizados antes de qualquer uso, prevenindo *prompt injection*.
-- **Rate limiting** — proteção contra força bruta nos endpoints de autenticação.
-- **Fail-fast** — o sistema se recusa a iniciar se chaves críticas (JWT, criptografia) não estiverem configuradas, em vez de operar de forma insegura.
-
-> 📑 O processo completo de auditoria — com 12 correções de segurança documentadas, análise de severidade e conformidade LGPD — está em **[`AUDIT.md`](./AUDIT.md)**.
+| Camada | Tecnologia |
+|---|---|
+| Interface | CustomTkinter (Python) |
+| LLM Principal | LLaMA 3.3 70B via Groq API |
+| Visão Computacional | Claude Vision (Anthropic) |
+| RAG / Banco Vetorial | ChromaDB + Embeddings |
+| Banco em Tempo Real | Firebase Firestore |
+| Acervo Documental | Google Drive API (OAuth2) |
+| Transcrição de Áudio | Whisper via n8n |
+| Automação de Fluxos | n8n |
 
 ---
 
-## 🛠️ Stack Tecnológica
+## Instalação
 
-**Backend**
-- Python 3.14 · FastAPI · Uvicorn
-- ChromaDB (banco vetorial) · embeddings multilíngues
-- SQLite (usuários, blacklist de tokens)
-- JWT (python-jose) · bcrypt (passlib) · Fernet (cryptography)
+### Pré-requisitos
+- Python 3.10+
+- Conta no [Groq](https://console.groq.com) — LLM gratuito
+- Conta no [Anthropic](https://console.anthropic.com) — Claude Vision
+- Projeto no Firebase com Firestore habilitado
+- Credenciais OAuth2 do Google Drive
 
-**IA / ML**
-- RAG (Retrieval-Augmented Generation) com busca semântica
-- Transcrição de áudio (Whisper)
-- Modelos de linguagem de grande porte via API
+### Passo a passo
 
-**Frontend**
-- React · Vite · Electron (aplicação desktop)
-- Recharts (visualização de dados)
-
-**Automação & Infra**
-- n8n (orquestração de fluxos)
-- pytest (testes)
-
----
-
-## 🚀 Como Executar
-
-> **Pré-requisitos:** Python 3.12+, Node.js 18+, e uma chave de API de um provedor de LLM.
-
-### 1. Backend
-
+**1. Clone o repositório**
 ```bash
-# Clone o repositório
-git clone https://github.com/patrese-procopio/agent-bastos.git
+git clone https://github.com/seu-usuario/agent-bastos.git
 cd agent-bastos
+```
 
-# Crie e ative o ambiente virtual
+**2. Crie e ative o ambiente virtual**
+```bash
 python -m venv .venv
-source .venv/bin/activate        # Linux/Mac
-# .venv\Scripts\Activate.ps1     # Windows PowerShell
 
-# Instale as dependências
+# Windows
+.venv\Scripts\activate
+```
+
+**3. Instale as dependências**
+```bash
 pip install -r requirements.txt
-
-# Configure as variáveis de ambiente (veja .env.example)
-cp .env.example .env
-# Edite o .env com suas chaves
-
-# Indexe a base de conhecimento
-python -m modules.ingestor
-
-# Inicie a API
-python api.py
 ```
 
-A API estará disponível em `http://127.0.0.1:8000`.
-Documentação interativa (Swagger) em `http://127.0.0.1:8000/docs`.
+**4. Configure as variáveis de ambiente**
 
-### 2. Frontend
+Crie um arquivo `.env` na raiz com o seguinte conteúdo:
 
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+GROQ_API_KEY=gsk_...
+GOOGLE_CREDENTIALS_PATH=credentials.json
+GOOGLE_TOKEN_PATH=token.json
+FIREBASE_KEY_PATH=serviceAccountKey.json
+```
+
+**5. Adicione os arquivos de credenciais na raiz**
+- `credentials.json` — OAuth2 do Google Drive
+- `serviceAccountKey.json` — Firebase Admin SDK
+
+**6. Execute**
 ```bash
-cd frontend
-npm install
-npm run dev
+python main.py
 ```
 
 ---
 
-## ⚙️ Configuração
+## Segurança e LGPD
 
-O sistema usa variáveis de ambiente para todas as configurações sensíveis. Um arquivo `.env.example` documenta as variáveis necessárias — **nunca** versione seu `.env` real.
+Este projeto foi desenvolvido com atenção às boas práticas de segurança e conformidade com a **Lei Geral de Proteção de Dados (LGPD)**:
 
-As chaves críticas (autenticação e criptografia) seguem o princípio *fail-fast*: a aplicação não inicia sem elas, evitando operação em estado inseguro.
-
-Para gerar uma senha de usuário com hash seguro:
-```bash
-python scripts/setar_senha.py <usuario>
-```
-
----
-
-## 📂 Estrutura do Projeto
-
-```
-agent-bastos/
-├── api.py                 # Entry point — registra middlewares e routers
-├── dependencies.py        # Dependências compartilhadas (auth, RBAC)
-├── config/                # Configurações centralizadas
-├── routers/               # Camada HTTP — 14 routers por domínio
-├── services/              # Lógica de negócio (auth, rate limit, logging)
-├── modules/               # Capacidades de IA (RAG, ingestão, transcrição)
-├── frontend/              # Aplicação React + Electron
-├── scripts/               # Utilitários (gestão de senhas, manutenção)
-├── tests/                 # Testes automatizados (pytest)
-├── automacao_n8n/         # Fluxos de automação
-├── AUDIT.md               # Relatório de auditoria de segurança
-└── requirements.txt
-```
+- ✅ Credenciais e chaves de API isoladas em `.env` — nunca versionadas
+- ✅ Arquivos sensíveis protegidos via `.gitignore`
+- ✅ Autenticação hierárquica com senha armazenada em hash SHA-256
+- ✅ Dados operacionais armazenados localmente ou em ambiente controlado
+- ✅ Acervo histórico acessado por referência — documentos originais não são replicados
+- ✅ Arquitetura modular que permite auditoria independente por camada
 
 ---
 
-## 🗺️ Roadmap
+## Casos de Uso
 
-- [x] Auditoria de segurança completa (12 correções documentadas)
-- [x] Blacklist JWT persistente em SQLite
-- [x] Gestão de usuários com RBAC via API
-- [x] Rotação automática de logs criptografados
-- [ ] Containerização (Docker)
-- [ ] Busca híbrida no RAG (vetorial + keyword) com reranking
-- [ ] CI/CD com GitHub Actions
-- [ ] Cobertura de testes ampliada
+O Agent Bastos foi projetado para ser adaptável. Pode ser implantado em:
+
+- 🏢 **Empresas com setor de segurança corporativa** — consulta de políticas, análise de incidentes, gestão de ocorrências
+- 🏛️ **Órgãos públicos com produção de conhecimento** — acesso a bases doutrinárias, produção de relatórios, coordenação de equipes
+- 🔍 **Escritórios de investigação e compliance** — análise de documentos, transcrição de depoimentos, gestão de tarefas
+- 🎓 **Centros de treinamento e capacitação** — consulta a bases de conhecimento, produção de material analítico
 
 ---
 
-## 👤 Autor
+## Roadmap
 
-**Patrese Procópio**
-Engenharia de Dados · Inteligência de Segurança · Soluções de IA Corporativa
-
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat-square&logo=github&logoColor=white)](https://github.com/patrese-procopio)
+- [x] RAG com base de conhecimento doutrinário
+- [x] Análise de documentos manuscritos com Claude Vision
+- [x] Agenda operacional com Firebase em tempo real
+- [x] Dashboard de produção por setor
+- [x] Indexação de acervo no Google Drive
+- [x] Refatoração com arquitetura MVC (separação UI / lógica)
+- [x] Gestão segura de credenciais com `.env`
+- [ ] Transcrição automática integrada (Whisper + n8n)
+- [ ] Versão mobile
+- [ ] Suporte multi-organização
+- [ ] Autenticação individual por usuário
+- [ ] Exportação de relatórios em PDF
 
 ---
 
-## 📄 Licença
+## Autor
 
-Este projeto é disponibilizado para fins de demonstração e portfólio. Consulte o autor para usos específicos.
+**Patrese**
+Especialista em Inteligência | Engenharia de Dados com foco em IA
 
-<div align="center">
+Construindo soluções que unem experiência operacional real com tecnologia de ponta — da coleta de dados ao insight estratégico.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/seu-perfil)
+[![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/seu-usuario)
 
 ---
 
-*Construído com atenção à segurança, à privacidade e à boa engenharia.*
-
-</div>
+> *"Inteligência não é sobre ter todas as respostas. É sobre fazer as perguntas certas."* 🦉
