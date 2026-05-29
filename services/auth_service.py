@@ -11,6 +11,7 @@ Regra: zero FastAPI aqui. So logica pura - testavel de forma isolada.
 """
 
 import os
+import json
 import logging
 import sqlite3
 import hashlib
@@ -98,6 +99,58 @@ def _hash_token(token: str) -> str:
 _init_blacklist_db()
 
 
+def _init_users_db() -> None:
+    """
+    Cria a tabela users em auth.db se nao existir.
+    Se a tabela estiver vazia, semeia admin e analista
+    usando os hashes do .env (migracao automatica).
+    """
+    with _get_db_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                username        TEXT PRIMARY KEY,
+                hashed_password TEXT NOT NULL,
+                level           TEXT NOT NULL DEFAULT 'analista',
+                modules         TEXT NOT NULL DEFAULT '[]',
+                created_at      TEXT NOT NULL,
+                created_by      TEXT NOT NULL DEFAULT 'system'
+            )
+        """)
+        count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        if count > 0:
+            return
+        # Tabela vazia: semeia usuarios padrao do .env
+        now = datetime.now(timezone.utc).isoformat()
+        seed = [
+            (
+                "admin",
+                _carregar_hash("ADMIN_PASSWORD_HASH", _FALLBACK_ADMIN, "admin"),
+                "admin",
+                json.dumps(["chat_rag", "grafoscopia", "transcricao", "dashboard",
+                            "agenda", "alertas", "lista_negra", "referencias",
+                            "noticias", "osint", "grupos", "inteligencia_grupos",
+                            "politicas", "configuracoes"]),
+                now, "system"
+            ),
+            (
+                "analista",
+                _carregar_hash("ANALISTA_PASSWORD_HASH", _FALLBACK_ANALISTA, "analista"),
+                "analista",
+                json.dumps(["chat_rag", "grafoscopia", "transcricao",
+                            "referencias", "noticias"]),
+                now, "system"
+            ),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO users "
+            "(username, hashed_password, level, modules, created_at, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            seed
+        )
+
+
+
+
 # --- Banco de usuarios --------------------------------------------------------
 _FALLBACK_ADMIN     = "admin123"
 _FALLBACK_ANALISTA  = "analista123"
@@ -143,13 +196,90 @@ USERS_DB: dict = {
 }
 
 
+_init_users_db()
+
+# --- CRUD de usuarios --------------------------------------------------------
+
+def create_user(
+    username: str,
+    plain_password: str,
+    level: str,
+    modules: list[str],
+    created_by: str = "system",
+) -> dict:
+    """
+    Cria novo usuario no banco.
+    Levanta ValueError se o username ja existe.
+    """
+    if get_user(username):
+        raise ValueError(f"Usuario '{username}' ja existe.")
+    hashed = pwd_context.hash(plain_password)
+    now    = datetime.now(timezone.utc).isoformat()
+    with _get_db_conn() as conn:
+        conn.execute(
+            "INSERT INTO users "
+            "(username, hashed_password, level, modules, created_at, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (username, hashed, level, json.dumps(modules), now, created_by)
+        )
+    return {
+        "username":   username,
+        "level":      level,
+        "modules":    modules,
+        "created_at": now,
+        "created_by": created_by,
+    }
+
+
+def delete_user(username: str) -> bool:
+    """Remove usuario. Retorna True se removido, False se nao existia."""
+    with _get_db_conn() as conn:
+        result = conn.execute(
+            "DELETE FROM users WHERE username = ?", (username,)
+        )
+    return result.rowcount > 0
+
+
+def list_users() -> list[dict]:
+    """Lista todos os usuarios sem expor hashes de senha."""
+    with _get_db_conn() as conn:
+        rows = conn.execute(
+            "SELECT username, level, modules, created_at, created_by "
+            "FROM users ORDER BY username"
+        ).fetchall()
+    return [
+        {
+            "username":   r[0],
+            "level":      r[1],
+            "modules":    json.loads(r[2]),
+            "created_at": r[3],
+            "created_by": r[4],
+        }
+        for r in rows
+    ]
+
+
 # --- Funcoes de senha ---------------------------------------------------------
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
 def get_user(username: str) -> Optional[dict]:
-    return USERS_DB.get(username)
+    """Retorna o usuario do banco SQLite ou None se nao existir."""
+    with _get_db_conn() as conn:
+        row = conn.execute(
+            "SELECT username, hashed_password, level, modules "
+            "FROM users WHERE username = ?",
+            (username,)
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "username":        row[0],
+        "hashed_password": row[1],
+        "level":           row[2],
+        "modules":         json.loads(row[3]),
+    }
 
 
 # --- Funcoes de token ---------------------------------------------------------
@@ -206,4 +336,7 @@ def is_revoked(token: str) -> bool:
             (token_hash,)
         ).fetchone()
     return row is not None
+
+
+
 

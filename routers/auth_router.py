@@ -23,7 +23,11 @@ from services.auth_service import (
     decode_token,
     revoke_refresh_token,
     is_revoked,
+    create_user,
+    delete_user,
+    list_users,
 )
+from dependencies import require_module
 from services.rate_limit_service import limiter, LIMIT_LOGIN, LIMIT_REFRESH
 from services.logging_service import get_logger
 
@@ -47,6 +51,21 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    level:    str       = "analista"
+    modules:  list[str] = []
+
+
+class UserResponse(BaseModel):
+    username:   str
+    level:      str
+    modules:    list[str]
+    created_at: str
+    created_by: str
 
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
@@ -144,3 +163,67 @@ def logout(request: Request, body: RefreshRequest):
         _log_audit.info("logout", extra={"username": payload.get("sub"), "ip": ip})
     except Exception:
         _log_audit.info("logout", extra={"username": "?", "ip": ip})
+
+
+# -- Gerenciamento de usuarios (admin only) -----------------------------------
+
+@router.get("/usuarios", response_model=list[UserResponse])
+def listar_usuarios(user: dict = Depends(require_module("configuracoes"))):
+    """
+    Lista todos os usuarios cadastrados.
+    Acesso: apenas admin (modulo configuracoes).
+    Hashes de senha nunca sao expostos.
+    """
+    return list_users()
+
+
+@router.post("/usuarios", response_model=UserResponse, status_code=201)
+def criar_usuario(
+    body: CreateUserRequest,
+    user: dict = Depends(require_module("configuracoes")),
+):
+    """
+    Cria novo usuario.
+    Acesso: apenas admin (modulo configuracoes).
+    """
+    try:
+        novo = create_user(
+            username=body.username,
+            plain_password=body.password,
+            level=body.level,
+            modules=body.modules,
+            created_by=user["sub"],
+        )
+        _log_audit.info(
+            "usuario criado",
+            extra={"novo_usuario": body.username, "criado_por": user["sub"]},
+        )
+        return novo
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.delete("/usuarios/{username}", status_code=204)
+def deletar_usuario(
+    username: str,
+    user: dict = Depends(require_module("configuracoes")),
+):
+    """
+    Remove usuario do banco.
+    Admin nao pode deletar a si mesmo.
+    Acesso: apenas admin (modulo configuracoes).
+    """
+    if username == user["sub"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Nao e possivel deletar o proprio usuario."
+        )
+    if not delete_user(username):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Usuario '{username}' nao encontrado."
+        )
+    _log_audit.info(
+        "usuario deletado",
+        extra={"usuario_deletado": username, "deletado_por": user["sub"]},
+    )
