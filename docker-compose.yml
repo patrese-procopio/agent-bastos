@@ -1,68 +1,68 @@
-
-# ─────────────────────────────────────────────────────────────────────────────
-# AGENT BASTOS — Docker Compose
-#
-# Serviços:
-#   backend  → FastAPI + ChromaDB embedded + todos os módulos
-#
-# Volumes:
-#   chroma_data  → persiste o banco vetorial entre reinicializações
-#   credentials  → monta arquivos sensíveis sem copiá-los para a imagem
+﻿# ==============================================================================
+# docker-compose.yml - Agent Bastos (backend)
+# ------------------------------------------------------------------------------
+# Orquestra o container da API com:
+#   - injecao do .env em runtime (segredos NAO ficam na imagem)
+#   - volumes nomeados para persistir ChromaDB, auth.db e logs entre restarts
+#   - restart automatico (sobe sozinho se a maquina reiniciar)
 #
 # Uso:
-#   Subir:    docker-compose up --build
-#   Parar:    docker-compose down
-#   Logs:     docker-compose logs -f backend
-# ─────────────────────────────────────────────────────────────────────────────
+#   docker compose up -d --build    (sobe em background, reconstruindo a imagem)
+#   docker compose logs -f          (acompanha os logs)
+#   docker compose down             (para e remove o container, dados PERSISTEM)
+# ==============================================================================
 
 services:
-  backend:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime         # usa o stage final do multi-stage build
+    image: agent-bastos:latest
+    command: python -u -c "from uvicorn.config import Config; from uvicorn.server import Server; import asyncio; asyncio.run(Server(Config(app='api:app', host='0.0.0.0', port=8000, log_level='info', ws='none')).serve())"
+    container_name: agent-bastos-api
 
-    container_name: agent-bastos-backend
-
-    ports:
-      - "8000:8000"           # host:container — acessa em http://localhost:8000
-
-    # Variáveis de ambiente carregadas do .env local (nunca vai pro Git)
+    # Injeta as variaveis do .env em runtime. O arquivo .env fica SO na maquina
+    # servidor, nunca dentro da imagem. Edite o .env com as chaves reais.
     env_file:
       - .env
 
+    # Mapeia a porta 8000 do container para a 8000 da maquina servidor.
+    # A equipe acessa via http://IP-DO-SERVIDOR:8000
+    ports:
+      - "8000:8000"
+
+    # VOLUMES - o coracao da persistencia.
+    # Sem isso, todo restart do container apagaria os 963 chunks do ChromaDB,
+    # os usuarios do auth.db e os logs. Com volumes nomeados, os dados ficam
+    # guardados pelo Docker e sobrevivem a qualquer restart ou rebuild.
     volumes:
-      # ChromaDB: persiste o banco vetorial no host
-      # Mesmo que o container seja destruído, os 963 chunks continuam aqui
-      - chroma_data:/app/data/chroma_db
-
-      # Credenciais OAuth e Firebase — montados como read-only por segurança
-      # O container lê, mas não pode sobrescrever
-      - ./credentials.json:/app/credentials.json:ro
+      - bastos_chroma:/app/data/chroma_db    # base vetorial (doutrinas)
+      - bastos_db:/app/data                  # auth.db e demais dados
+      - bastos_logs:/app/logs                # logs criptografados + auditoria
+      - ./data/doutrina:/app/data/doutrina:ro
       - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
-      - ./token.json:/app/token.json:rw   # token OAuth precisa ser reescrito
-
-      # Hot-reload em dev: monta o código ao vivo
-      # Remover em produção (imagem já tem o código copiado)
-      - .:/app
-
-    # Reinicia automaticamente se o processo morrer (exceto parada manual)
+      
+    # Sobe sozinho se a maquina reiniciar (exceto se voce parar manualmente).
+    # Importante para um servidor que precisa ficar sempre disponivel.
+    user: "0:0"
     restart: unless-stopped
 
-    # Healthcheck: Docker monitora se a API está respondendo
-    # Se /health retornar 200, o container está "healthy"
-    # Útil para orquestradores (Kubernetes, ECS) e para o CI saber quando testar
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s       # dá 60s para o modelo de embeddings carregar
+    # Limites de recurso - evita que o container consuma toda a RAM da maquina
+    # (o modelo de embeddings e pesado). Ajuste conforme o servidor da agencia.
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Volumes nomeados — gerenciados pelo Docker, não pelo sistema de arquivos
-# Vantagem: portável entre Windows/Linux/Mac sem ajustar caminhos
-# ─────────────────────────────────────────────────────────────────────────────
+# Volumes nomeados - gerenciados pelo Docker, persistem independente do container.
+# Para ver onde ficam: docker volume inspect agent-bastos_bastos_chroma
 volumes:
-  chroma_data:
-    driver: local
+  bastos_chroma:
+  bastos_db:
+  bastos_logs:
+
+
+
+
+
+
