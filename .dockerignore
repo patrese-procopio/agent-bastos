@@ -1,0 +1,54 @@
+# ==============================================================================
+# .dockerignore - o que NAO entra na imagem Docker
+# ------------------------------------------------------------------------------
+# Reduz o tamanho da imagem e, mais importante, EVITA vazar segredos (.env)
+# para dentro da imagem. O .env e injetado em runtime via docker-compose.
+# ==============================================================================
+
+# Segredos - NUNCA na imagem
+.env
+.env.*
+!.env.example
+*.key
+serviceAccountKey.json
+*credentials*.json
+*.session
+
+# Ambiente virtual local (a imagem cria o seu proprio)
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Git
+.git/
+.gitignore
+
+# Frontend - NAO vai pro container do backend (e empacotado separado em .exe)
+frontend/
+node_modules/
+
+# Dados que serao montados como volume (nao "assados" na imagem)
+data/chroma_db/
+data/auth.db
+logs/
+*.log
+
+# Backups e arquivos intermediarios
+*.bak
+*.bak_*
+*.bak2
+scripts/archive/
+
+# Artefatos de teste e cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Documentacao pesada (opcional - screenshots nao precisam ir pro container)
+docs/screenshots/
