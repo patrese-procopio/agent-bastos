@@ -342,6 +342,262 @@ def carregar_foto(lider_id: str, foto_ext: str) -> bytes | None:
     with open(path, "rb") as f:
         return f.read()
 
+# ── Facções de rua ────────────────────────────────────────────────────────────
+# Facções fixas predefinidas. Novas podem ser criadas via API.
+FACCOES_RUA_FIXAS = [
+    "CV/AM",   # Comando Vermelho
+    "PCC/AM",  # Primeiro Comando da Capital
+    "RDA",     # Revolucionários do Amazonas
+    "TDA",     # Taradinhos do Amazonas
+    "Neutros",
+    "CDN",     # Cartel do Norte
+]
 
+CARGOS_RUA = ["Presidente", "Vice-Presidente"]
+
+STATUS_LIDER_RUA = ["Ativo", "Preso", "Foragido", "Morto"]
+
+
+def init_db_faccoes():
+    """Cria tabelas de facções e líderes de rua. Idempotente."""
+    with _conn() as con:
+        # Tabela de facções — permite adicionar/remover grupos dinamicamente
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS faccoes_rua (
+                id         TEXT PRIMARY KEY,
+                nome       TEXT NOT NULL UNIQUE,
+                sigla      TEXT NOT NULL,
+                ativa      INTEGER NOT NULL DEFAULT 1,
+                criado_em  TEXT NOT NULL
+            )
+        """)
+
+        # Tabela de líderes de rua
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS lideres_rua (
+                id            TEXT PRIMARY KEY,
+                faccao_id     TEXT NOT NULL,
+                cargo         TEXT NOT NULL,
+                nome          TEXT,
+                vulgo         TEXT,
+                status        TEXT NOT NULL DEFAULT 'Ativo',
+                observacao    TEXT,
+                foto_ext      TEXT,
+                criado_em     TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                FOREIGN KEY (faccao_id) REFERENCES faccoes_rua(id)
+            )
+        """)
+
+        con.execute("CREATE INDEX IF NOT EXISTS idx_faccao_id ON lideres_rua(faccao_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_status_rua ON lideres_rua(status)")
+
+        # Popula facções fixas se ainda não existem
+        agora = datetime.now(timezone.utc).isoformat()
+        fixas = [
+            ("CV/AM",  "CV/AM"),
+            ("PCC/AM", "PCC/AM"),
+            ("RDA",    "RDA"),
+            ("TDA",    "TDA"),
+            ("Neutros","Neutros"),
+            ("CDN",    "CDN"),
+        ]
+        for nome, sigla in fixas:
+            existe = con.execute(
+                "SELECT id FROM faccoes_rua WHERE nome = ?", (nome,)
+            ).fetchone()
+            if not existe:
+                con.execute(
+                    "INSERT INTO faccoes_rua (id, nome, sigla, ativa, criado_em) VALUES (?,?,?,1,?)",
+                    (str(uuid.uuid4()), nome, sigla, agora),
+                )
+
+
+# ── CRUD Facções ──────────────────────────────────────────────────────────────
+
+def listar_faccoes_rua(apenas_ativas: bool = True) -> list[dict]:
+    filtro = "WHERE ativa = 1" if apenas_ativas else ""
+    with _conn() as con:
+        rows = con.execute(
+            f"SELECT * FROM faccoes_rua {filtro} ORDER BY nome"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def criar_faccao_rua(nome: str, sigla: str) -> dict:
+    """Cria nova facção customizada. Levanta ValueError se já existir."""
+    with _conn() as con:
+        existe = con.execute(
+            "SELECT id FROM faccoes_rua WHERE nome = ?", (nome,)
+        ).fetchone()
+        if existe:
+            raise ValueError(f"Facção '{nome}' já existe.")
+        fid   = str(uuid.uuid4())
+        agora = datetime.now(timezone.utc).isoformat()
+        con.execute(
+            "INSERT INTO faccoes_rua (id, nome, sigla, ativa, criado_em) VALUES (?,?,?,1,?)",
+            (fid, nome, sigla, agora),
+        )
+    return buscar_faccao_rua(fid)
+
+
+def buscar_faccao_rua(faccao_id: str) -> dict | None:
+    with _conn() as con:
+        row = con.execute(
+            "SELECT * FROM faccoes_rua WHERE id = ?", (faccao_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def deletar_faccao_rua(faccao_id: str) -> bool:
+    """
+    Deleta facção e todos os líderes vinculados.
+    Facções fixas também podem ser deletadas conforme regra do negócio
+    (facções podem acabar, como já aconteceu no AM).
+    """
+    faccao = buscar_faccao_rua(faccao_id)
+    if not faccao:
+        return False
+    # Remove fotos dos líderes vinculados
+    with _conn() as con:
+        lideres = con.execute(
+            "SELECT id, foto_ext FROM lideres_rua WHERE faccao_id = ?", (faccao_id,)
+        ).fetchall()
+        for lider in lideres:
+            if lider["foto_ext"]:
+                path = os.path.join(FOTOS_DIR, f"rua_{lider['id']}{lider['foto_ext']}")
+                if os.path.exists(path):
+                    os.remove(path)
+        con.execute("DELETE FROM lideres_rua WHERE faccao_id = ?", (faccao_id,))
+        con.execute("DELETE FROM faccoes_rua WHERE id = ?", (faccao_id,))
+    return True
+
+
+# ── CRUD Líderes de Rua ───────────────────────────────────────────────────────
+
+def criar_lider_rua(dados: dict) -> dict:
+    agora  = datetime.now(timezone.utc).isoformat()
+    lid_id = str(uuid.uuid4())
+    with _conn() as con:
+        con.execute("""
+            INSERT INTO lideres_rua
+              (id, faccao_id, cargo, nome, vulgo, status, observacao, foto_ext,
+               criado_em, atualizado_em)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (
+            lid_id,
+            dados["faccao_id"],
+            dados["cargo"],
+            dados.get("nome"),
+            dados.get("vulgo"),
+            dados.get("status", "Ativo"),
+            dados.get("observacao"),
+            dados.get("foto_ext"),
+            agora, agora,
+        ))
+    return buscar_lider_rua(lid_id)
+
+
+def atualizar_lider_rua(lider_id: str, dados: dict) -> dict:
+    agora  = datetime.now(timezone.utc).isoformat()
+    campos = {k: v for k, v in dados.items() if k in (
+        "faccao_id", "cargo", "nome", "vulgo",
+        "status", "observacao", "foto_ext",
+    )}
+    campos["atualizado_em"] = agora
+    sets   = ", ".join(f"{k} = ?" for k in campos)
+    valores = list(campos.values()) + [lider_id]
+    with _conn() as con:
+        con.execute(f"UPDATE lideres_rua SET {sets} WHERE id = ?", valores)
+    return buscar_lider_rua(lider_id)
+
+
+def deletar_lider_rua(lider_id: str) -> bool:
+    lider = buscar_lider_rua(lider_id)
+    if not lider:
+        return False
+    if lider.get("foto_ext"):
+        path = os.path.join(FOTOS_DIR, f"rua_{lider_id}{lider['foto_ext']}")
+        if os.path.exists(path):
+            os.remove(path)
+    with _conn() as con:
+        con.execute("DELETE FROM lideres_rua WHERE id = ?", (lider_id,))
+    return True
+
+
+def buscar_lider_rua(lider_id: str) -> dict | None:
+    with _conn() as con:
+        row = con.execute(
+            """SELECT l.*, f.nome as faccao_nome, f.sigla as faccao_sigla
+               FROM lideres_rua l
+               JOIN faccoes_rua f ON f.id = l.faccao_id
+               WHERE l.id = ?""",
+            (lider_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def listar_lideres_por_faccao(faccao_id: str | None = None) -> list[dict]:
+    """
+    Retorna líderes agrupados por facção.
+    Se faccao_id fornecido, filtra por ela.
+    """
+    filtro = "WHERE l.faccao_id = ?" if faccao_id else ""
+    params = (faccao_id,) if faccao_id else ()
+    with _conn() as con:
+        rows = con.execute(
+            f"""SELECT l.*, f.nome as faccao_nome, f.sigla as faccao_sigla
+                FROM lideres_rua l
+                JOIN faccoes_rua f ON f.id = l.faccao_id
+                {filtro}
+                ORDER BY f.nome, l.cargo, l.vulgo""",
+            params,
+        ).fetchall()
+    return [_serializar_rua(dict(r)) for r in rows]
+
+
+def listar_lideres_agrupados() -> list[dict]:
+    """
+    Retorna lista de facções com seus líderes embutidos.
+    Formato ideal para o frontend renderizar a aba Líderes Gerais.
+    """
+    faccoes = listar_faccoes_rua(apenas_ativas=False)
+    resultado = []
+    for f in faccoes:
+        lideres = listar_lideres_por_faccao(f["id"])
+        resultado.append({
+            "id":       f["id"],
+            "nome":     f["nome"],
+            "sigla":    f["sigla"],
+            "ativa":    bool(f["ativa"]),
+            "lideres":  lideres,
+        })
+    return resultado
+
+
+def _serializar_rua(row: dict) -> dict:
+    foto_url = f"/api/liderancas/rua/foto/{row['id']}" if row.get("foto_ext") else None
+    return {**row, "foto_url": foto_url}
+
+
+def salvar_foto_rua(lider_id: str, conteudo: bytes, ext: str) -> str:
+    ext = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
+    for old in (".jpg", ".jpeg", ".png", ".webp"):
+        old_path = os.path.join(FOTOS_DIR, f"rua_{lider_id}{old}")
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    path = os.path.join(FOTOS_DIR, f"rua_{lider_id}{ext}")
+    with open(path, "wb") as f:
+        f.write(conteudo)
+    return ext
+
+
+def carregar_foto_rua(lider_id: str, foto_ext: str) -> bytes | None:
+    path = os.path.join(FOTOS_DIR, f"rua_{lider_id}{foto_ext}")
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        return f.read()
+    
 # Inicializa banco ao importar
 init_db()

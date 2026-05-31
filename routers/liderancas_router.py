@@ -17,12 +17,18 @@ from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query, Dep
 from fastapi.responses import Response
 
 from modules.liderancas import (
-    ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, estrutura_com_celas,
+    ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, CARGOS_RUA, STATUS_LIDER_RUA,
+    estrutura_com_celas,
     criar_lider, atualizar_lider, deletar_lider,
     buscar_lider, listar_por_unidade, listar_todas_unidades,
     listar_competencias, listar_competencias_unidade,
     salvar_foto, carregar_foto, FOTOS_DIR,
     _competencia_atual,
+    # Facções de rua
+    listar_faccoes_rua, criar_faccao_rua, buscar_faccao_rua, deletar_faccao_rua,
+    criar_lider_rua, atualizar_lider_rua, deletar_lider_rua, buscar_lider_rua,
+    listar_lideres_agrupados, listar_lideres_por_faccao,
+    salvar_foto_rua, carregar_foto_rua,
 )
 from dependencies import get_current_user, get_current_user_media, require_module
 
@@ -182,6 +188,143 @@ def get_foto_lider(lider_id: str, user: dict = Depends(get_current_user_media)):
     mime = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp"}.get(ext,"image/jpeg")
     return Response(content=conteudo, media_type=mime)
 
+# ── Líderes Gerais (facções de rua) ──────────────────────────────────────────
+
+@liderancas_router.get("/rua/metadados")
+def get_metadados_rua(user: dict = Depends(get_current_user)):
+    """Retorna facções ativas, cargos e status disponíveis para o frontend."""
+    return {
+        "faccoes":  listar_faccoes_rua(apenas_ativas=False),
+        "cargos":   CARGOS_RUA,
+        "status":   STATUS_LIDER_RUA,
+    }
+
+
+@liderancas_router.get("/rua/lideres")
+def get_lideres_agrupados(user: dict = Depends(require_module("alertas"))):
+    """
+    Retorna todas as facções com seus líderes embutidos.
+    Formato pronto para renderizar a aba Líderes Gerais no frontend.
+    """
+    return {"faccoes": listar_lideres_agrupados()}
+
+
+@liderancas_router.post("/rua/faccoes")
+def post_faccao(
+    nome:  str = Form(...),
+    sigla: str = Form(...),
+    user: dict = Depends(require_module("alertas")),
+):
+    """Cria nova facção customizada."""
+    try:
+        return criar_faccao_rua(nome.strip(), sigla.strip().upper())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@liderancas_router.delete("/rua/faccoes/{faccao_id}")
+def delete_faccao(
+    faccao_id: str,
+    user: dict = Depends(require_module("alertas")),
+):
+    """
+    Deleta facção e todos os líderes vinculados.
+    Funciona inclusive para facções fixas — facções podem acabar.
+    """
+    if not deletar_faccao_rua(faccao_id):
+        raise HTTPException(status_code=404, detail="Facção não encontrada.")
+    return {"ok": True}
+
+
+@liderancas_router.post("/rua/lideres")
+async def post_lider_rua(
+    faccao_id:  str = Form(...),
+    cargo:      str = Form(...),
+    nome:       str = Form(""),
+    vulgo:      str = Form(""),
+    status:     str = Form("Ativo"),
+    observacao: str = Form(""),
+    foto: UploadFile = File(None),
+    user: dict = Depends(require_module("alertas")),
+):
+    dados = {
+        "faccao_id":  faccao_id,
+        "cargo":      cargo,
+        "nome":       nome or None,
+        "vulgo":      vulgo or None,
+        "status":     status,
+        "observacao": observacao or None,
+    }
+    lider = criar_lider_rua(dados)
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
+        conteudo = await foto.read()
+        if len(conteudo) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        lider = atualizar_lider_rua(
+            lider["id"], {"foto_ext": salvar_foto_rua(lider["id"], conteudo, ext)}
+        )
+    return lider
+
+
+@liderancas_router.put("/rua/lideres/{lider_id}")
+async def put_lider_rua(
+    lider_id:   str,
+    faccao_id:  str = Form(...),
+    cargo:      str = Form(...),
+    nome:       str = Form(""),
+    vulgo:      str = Form(""),
+    status:     str = Form("Ativo"),
+    observacao: str = Form(""),
+    foto: UploadFile = File(None),
+    user: dict = Depends(require_module("alertas")),
+):
+    if not buscar_lider_rua(lider_id):
+        raise HTTPException(status_code=404, detail="Líder não encontrado.")
+    dados = {
+        "faccao_id":  faccao_id,
+        "cargo":      cargo,
+        "nome":       nome or None,
+        "vulgo":      vulgo or None,
+        "status":     status,
+        "observacao": observacao or None,
+    }
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1] or ".jpg"
+        conteudo = await foto.read()
+        if len(conteudo) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        dados["foto_ext"] = salvar_foto_rua(lider_id, conteudo, ext)
+    return atualizar_lider_rua(lider_id, dados)
+
+
+@liderancas_router.delete("/rua/lideres/{lider_id}")
+def delete_lider_rua_endpoint(
+    lider_id: str,
+    user: dict = Depends(require_module("alertas")),
+):
+    if not deletar_lider_rua(lider_id):
+        raise HTTPException(status_code=404, detail="Líder não encontrado.")
+    return {"ok": True}
+
+
+@liderancas_router.get("/rua/foto/{lider_id}")
+def get_foto_lider_rua(
+    lider_id: str,
+    user: dict = Depends(get_current_user_media),
+):
+    lider = buscar_lider_rua(lider_id)
+    if not lider or not lider.get("foto_ext"):
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    conteudo = carregar_foto_rua(lider_id, lider["foto_ext"])
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Arquivo de foto ausente.")
+    ext  = lider["foto_ext"].lstrip(".")
+    mime = {
+        "jpg": "image/jpeg", "jpeg": "image/jpeg",
+        "png": "image/png",  "webp": "image/webp",
+    }.get(ext, "image/jpeg")
+    return Response(content=conteudo, media_type=mime)
 
 # ── Geração de PDF ────────────────────────────────────────────────────────────
 
