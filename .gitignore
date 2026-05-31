@@ -69,3 +69,6 @@ auth.db
 *.bak_*
 *.bak2
 *_v2.py
+
+rag_teste.txt
+teste_rag.txt
