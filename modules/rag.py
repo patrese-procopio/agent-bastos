@@ -1,8 +1,8 @@
 ﻿"""
 modules/rag.py - Motor de Inteligencia do Agent Bastos
 =======================================================
-RAG real: busca semantica no ChromaDB + geracao via Groq (LLaMA 70b).
-Mantem seguranca operacional: logs criptografados com Fernet.
+RAG hibrido: classifica a pergunta, busca doutrina quando relevante,
+responde como assistente tecnico geral quando nao ha contexto.
 """
 
 import os
@@ -18,57 +18,43 @@ from datetime import datetime, timezone
 
 load_dotenv()
 
-ROOT_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROMA_DIR = os.path.join(ROOT_DIR, "data", "chroma_db")
+ROOT_DIR       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHROMA_DIR     = os.path.join(ROOT_DIR, "data", "chroma_db")
 LOG_PATH       = os.path.join(ROOT_DIR, "logs", "missao.log")
-# Log de auditoria: NAO criptografado e NAO deletado pelo protocolo-zero.
-# Registra acoes sensiveis (ativacao do protocolo-zero, etc.).
-# Separado do log de conversas para garantir rastreabilidade operacional.
 AUDIT_LOG_PATH = os.path.join(ROOT_DIR, "logs", "auditoria.log")
-LOG_MAX_BYTES  = 10 * 1024 * 1024  # 10 MB — apos esse limite o log e rotacionado
+LOG_MAX_BYTES  = 10 * 1024 * 1024
 
-# Seguranca - chave Fernet OBRIGATORIA via .env (fail-fast).
-# Para gerar uma nova chave, rode:
-#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-# IMPORTANTE: rotacionar a chave torna logs antigos ilegiveis. Faca isso so em
-# janela de manutencao planejada, apos exportar/auditar os logs existentes.
+# Score minimo para usar doutrina — abaixo disso responde como assistente geral
+# Valor entre 0 e 1. 0.35 e um bom ponto de partida; ajuste conforme testes.
+SCORE_MINIMO_DOUTRINA = 0.80
+
 _fernet_key = os.getenv("FERNET_KEY")
 if not _fernet_key:
     raise RuntimeError(
-        "FERNET_KEY nao encontrada no ambiente. Configure o arquivo .env.\n"
-        "Para gerar uma chave: "
-        "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        "FERNET_KEY nao encontrada no ambiente. Configure o arquivo .env."
     )
 fernet = Fernet(_fernet_key.encode())
 
-# Historico de conversa com limite para evitar crescimento ilimitado do prompt
-_MAX_HISTORICO  = 20   # 10 pares pergunta/resposta
+_MAX_HISTORICO  = 20
 _historico_lock = threading.Lock()
 _log_lock       = threading.Lock()
 historico_conversa = []
 
-# ONNX/torch e embeddings devem ser carregados ANTES do Groq/httpx
-# para evitar conflito de inicializacao de bibliotecas nativas no Python 3.14+
 print("[*] Carregando modelo de embeddings...")
 _embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 print("[*] Conectando ao ChromaDB...")
 _db = Chroma(persist_directory=CHROMA_DIR, embedding_function=_embeddings)
 print(f"[+] ChromaDB carregado: {_db._collection.count()} chunks indexados.")
 
-# Singleton Groq - criado APOS embeddings para nao conflitar com ONNX
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not _GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY nao encontrada no ambiente. Configure o arquivo .env.")
+    raise RuntimeError("GROQ_API_KEY nao encontrada no ambiente.")
 _groq_client = Groq(api_key=_GROQ_API_KEY)
 
 
 # --- Logs criptografados ------------------------------------------------------
 
 def _rotar_log_se_necessario() -> None:
-    """
-    Se missao.log ultrapassar LOG_MAX_BYTES, move para .old e inicia arquivo novo.
-    Mantem 1 geracao de backup. Rotacao registrada no auditoria.log.
-    """
     if not os.path.exists(LOG_PATH):
         return
     if os.path.getsize(LOG_PATH) < LOG_MAX_BYTES:
@@ -77,7 +63,7 @@ def _rotar_log_se_necessario() -> None:
     if os.path.exists(backup):
         os.remove(backup)
     os.rename(LOG_PATH, backup)
-    registrar_auditoria("LOG_ROTACIONADO", f"BACKUP={backup} | NOVO={LOG_PATH}")
+    registrar_auditoria("LOG_ROTACIONADO", f"BACKUP={backup}")
 
 
 def salvar_log_criptografado(texto: str) -> None:
@@ -90,12 +76,6 @@ def salvar_log_criptografado(texto: str) -> None:
 
 
 def registrar_auditoria(acao: str, detalhes: str = "") -> None:
-    """
-    Registra acao sensivel em log de auditoria em texto puro.
-    Este log NAO e criptografado e NAO e apagado pelo protocolo-zero â€”
-    e a prova de que a operacao ocorreu, mesmo apos deleÃ§Ã£o dos dados.
-    Campos: timestamp UTC, acao, operador (usuario do SO), hostname, PID.
-    """
     os.makedirs(os.path.dirname(AUDIT_LOG_PATH), exist_ok=True)
     ts = datetime.now(timezone.utc).isoformat()
     try:
@@ -125,8 +105,6 @@ def carregar_memoria_recente() -> bool:
         with _historico_lock:
             for linha in linhas[-4:]:
                 entrada = fernet.decrypt(linha.strip()).decode()
-                # Formato do log: "AGENTE: x | BASTOS: y"
-                # Divide em 2 entradas para consistencia com o historico em memoria
                 if " | BASTOS: " in entrada:
                     partes = entrada.split(" | BASTOS: ", 1)
                     historico_conversa.append(partes[0])
@@ -142,7 +120,6 @@ def _adicionar_historico(pergunta: str, resposta: str) -> None:
     with _historico_lock:
         historico_conversa.append(f"AGENTE: {pergunta}")
         historico_conversa.append(f"BASTOS: {resposta}")
-        # Mantem apenas as ultimas _MAX_HISTORICO entradas
         if len(historico_conversa) > _MAX_HISTORICO:
             del historico_conversa[: len(historico_conversa) - _MAX_HISTORICO]
 
@@ -152,91 +129,142 @@ def _snapshot_historico() -> str:
         return "\n".join(historico_conversa[-6:])
 
 
-# --- Recuperacao doutrinaria --------------------------------------------------
+# --- Nucleo do RAG hibrido ----------------------------------------------------
 
-def recuperar_contexto_doutrinario(pergunta: str, top_k: int = 4):
-    documentos = _db.similarity_search(pergunta, k=top_k)
-    if not documentos:
-        return "Nenhum trecho doutrinario relevante encontrado.", []
-    partes = [
-        f"[TRECHO {i} - FONTE: {doc.metadata.get('fonte', 'desconhecida')}]\n{doc.page_content}"
-        for i, doc in enumerate(documentos, 1)
-    ]
-    return "\n\n".join(partes), documentos
+def _buscar_doutrina_com_score(pergunta: str, top_k: int = 6):
+    """
+    Busca os top_k chunks mais proximos e retorna junto com o score.
+    top_k=6 para ter margem de filtragem — so os acima do SCORE_MINIMO sao usados.
+    """
+    return _db.similarity_search_with_relevance_scores(pergunta, k=top_k)
 
 
-# --- Funcoes de conversacao ---------------------------------------------------
-
-def conversar_com_bastos(pergunta: str) -> str:
-    contexto_doutrinario, _ = recuperar_contexto_doutrinario(pergunta)
-    prompt_final = (
-        "### DIRETRIZ OPERACIONAL\n"
-        "Voce e o BASTOS-UNIT, analista tecnico de inteligencia de seguranca publica. "
-        "Responda APENAS com base nos trechos doutrinarios fornecidos abaixo. "
-        "Se a informacao nao estiver nos trechos, declare isso explicitamente.\n\n"
-        f"### DOUTRINA RECUPERADA\n{contexto_doutrinario}\n\n"
-        f"### HISTORICO RECENTE\n{_snapshot_historico()}\n\n"
+def _montar_prompt_doutrinario(pergunta: str, contexto: str, historico: str) -> str:
+    """
+    Prompt para quando ha doutrina relevante disponivel.
+    O modelo usa a doutrina como base mas pode complementar com conhecimento geral.
+    """
+    return (
+        "### IDENTIDADE\n"
+        "Voce e o BASTOS-UNIT, assistente tecnico de inteligencia de seguranca publica "
+        "e corporativa. Voce e especialista em inteligencia, contrainteligencia, "
+        "seguranca institucional e analise de risco.\n\n"
+        "### INSTRUCAO\n"
+        "Responda com base nos trechos doutrinarios abaixo. "
+        "Quando a doutrina nao cobrir completamente a pergunta, complemente com seu "
+        "conhecimento tecnico na area de inteligencia e seguranca. "
+        "Seja direto, tecnico e objetivo. Use linguagem profissional.\n\n"
+        f"### DOUTRINA RECUPERADA\n{contexto}\n\n"
+        f"### HISTORICO RECENTE\n{historico}\n\n"
         f"### PERGUNTA\n{pergunta}\n\n"
         "### RESPOSTA TECNICA:"
     )
-    try:
-        completion = _groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt_final}],
-            temperature=0.2,
-            max_tokens=1024,
-        )
-        resposta = completion.choices[0].message.content
-    except Exception as e:
-        return f"FALHA: {e}"
-    _adicionar_historico(pergunta, resposta)
-    salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
-    return resposta
+
+
+def _montar_prompt_geral(pergunta: str, historico: str) -> str:
+    """
+    Prompt para perguntas gerais sem contexto doutrinario relevante.
+    O modelo responde como assistente tecnico especializado.
+    """
+    return (
+        "### IDENTIDADE\n"
+        "Voce e o BASTOS-UNIT, assistente tecnico especializado em inteligencia "
+        "de seguranca publica e corporativa, analise de risco, OSINT, redacao "
+        "de documentos operacionais e suporte tecnico geral.\n\n"
+        "### INSTRUCAO\n"
+        "Responda a pergunta do agente de forma direta e util. "
+        "Para perguntas tecnicas da area de inteligencia, seja aprofundado. "
+        "Para perguntas operacionais do dia a dia, seja pratico e objetivo. "
+        "Mantenha sempre o contexto de um analista de inteligencia de seguranca.\n\n"
+        f"### HISTORICO RECENTE\n{historico}\n\n"
+        f"### PERGUNTA\n{pergunta}\n\n"
+        "### RESPOSTA:"
+    )
 
 
 def conversar_com_fontes(pergunta: str) -> dict:
-    """RAG avancado: retorna resposta + fontes + score de confianca."""
-    resultados = _db.similarity_search_with_relevance_scores(pergunta, k=4)
+    """
+    RAG hibrido com roteamento por score de relevancia.
 
-    fontes          = []
-    partes_contexto = []
-    for i, (doc, score) in enumerate(resultados, 1):
-        fonte = doc.metadata.get("fonte", "desconhecida")
-        partes_contexto.append(f"[TRECHO {i} - FONTE: {fonte}]\n{doc.page_content}")
-        fontes.append({
-            "id":     i,
-            "fonte":  fonte,
-            "trecho": doc.page_content[:300].strip(),
-            "score":  round(score * 100, 1),
-        })
+    Fluxo:
+    1. Busca os chunks mais proximos com score
+    2. Filtra apenas os acima do SCORE_MINIMO_DOUTRINA
+    3. Se ha chunks relevantes → usa prompt doutrinario
+    4. Se nao ha → usa prompt de assistente geral
+    5. Retorna resposta + fontes + score + modo usado
+    """
+    historico = _snapshot_historico()
+    resultados = _buscar_doutrina_com_score(pergunta, top_k=6)
 
-    confianca = round(sum(f["score"] for f in fontes) / len(fontes), 1) if fontes else 0
+    # Filtra chunks com score acima do minimo
+    resultados_relevantes = [
+        (doc, score) for doc, score in resultados
+        if score >= SCORE_MINIMO_DOUTRINA
+    ]
 
-    prompt_final = (
-        "### DIRETRIZ OPERACIONAL\n"
-        "Voce e o BASTOS-UNIT, analista tecnico de inteligencia de seguranca publica. "
-        "Responda APENAS com base nos trechos doutrinarios fornecidos abaixo. "
-        "Se a informacao nao estiver nos trechos, declare isso explicitamente.\n\n"
-        f"### DOUTRINA RECUPERADA\n{chr(10).join(partes_contexto)}\n\n"
-        f"### HISTORICO RECENTE\n{_snapshot_historico()}\n\n"
-        f"### PERGUNTA\n{pergunta}\n\n"
-        "### RESPOSTA TECNICA:"
+    fontes = []
+    modo   = "geral"
+
+    if resultados_relevantes:
+        modo = "doutrina"
+        partes_contexto = []
+        for i, (doc, score) in enumerate(resultados_relevantes, 1):
+            fonte = doc.metadata.get("fonte", "desconhecida")
+            partes_contexto.append(
+                f"[TRECHO {i} - FONTE: {fonte} - RELEVANCIA: {round(score*100)}%]\n"
+                f"{doc.page_content}"
+            )
+            fontes.append({
+                "id":     i,
+                "fonte":  fonte,
+                "trecho": doc.page_content[:300].strip(),
+                "score":  round(score * 100, 1),
+            })
+        contexto   = "\n\n".join(partes_contexto)
+        prompt     = _montar_prompt_doutrinario(pergunta, contexto, historico)
+    else:
+        # Sem doutrina relevante — registra os candidatos rejeitados para debug
+        fontes = [
+            {
+                "id":     i,
+                "fonte":  doc.metadata.get("fonte", "desconhecida"),
+                "trecho": doc.page_content[:200].strip(),
+                "score":  round(score * 100, 1),
+            }
+            for i, (doc, score) in enumerate(resultados[:3], 1)
+        ]
+        prompt = _montar_prompt_geral(pergunta, historico)
+
+    confianca = (
+        round(sum(f["score"] for f in fontes) / len(fontes), 1)
+        if fontes else 0
     )
 
     try:
         completion = _groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt_final}],
-            temperature=0.2,
-            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=1500,
         )
         resposta = completion.choices[0].message.content
     except Exception as e:
-        return {"resposta": f"FALHA: {e}", "fontes": fontes, "confianca": 0}
+        return {"resposta": f"FALHA: {e}", "fontes": fontes, "confianca": 0, "modo": modo}
 
     _adicionar_historico(pergunta, resposta)
     salvar_log_criptografado(f"AGENTE: {pergunta} | BASTOS: {resposta}")
-    return {"resposta": resposta, "fontes": fontes, "confianca": confianca}
+
+    return {
+        "resposta":  resposta,
+        "fontes":    fontes,
+        "confianca": confianca,
+        "modo":      modo,  # "doutrina" ou "geral" — util para o frontend mostrar
+    }
+
+
+# Mantida para compatibilidade com codigo legado
+def conversar_com_bastos(pergunta: str) -> str:
+    return conversar_com_fontes(pergunta)["resposta"]
 
 
 if __name__ == "__main__":
@@ -245,10 +273,11 @@ if __name__ == "__main__":
     print("=" * 55)
     print("\n[*] Carregando memorias criptografadas...")
     if carregar_memoria_recente():
-        print("[+] Contexto recuperado do ultimo log com sucesso.")
+        print("[+] Contexto recuperado.")
     else:
-        print("[!] Nenhum log anterior encontrado. Sessao iniciada limpa.")
-    print("[*] Sistema pronto.\n")
+        print("[!] Sessao iniciada limpa.")
+    print(f"[*] Score minimo para doutrina: {SCORE_MINIMO_DOUTRINA}\n")
+
     while True:
         try:
             comando = input("[AGENTE]> ").strip()
@@ -257,21 +286,17 @@ if __name__ == "__main__":
             break
         if not comando:
             continue
+        if comando.lower() in ("sair", "exit"):
+            break
         if comando.lower() == "protocolo-zero":
-            # Confirmacao obrigatoria â€” evita ativacao acidental
-            print("\n[!] ATENCAO: Esta operacao destrÃ³i permanentemente")
-            print("    os logs de conversa. Isso nao pode ser desfeito.")
-            print("    Digite CONFIRMO para prosseguir (qualquer outra")
-            print("    entrada cancela a operacao):")
+            print("\n[!] Digite CONFIRMO para destruir os logs:")
             try:
                 confirmacao = input("    > ").strip()
             except (KeyboardInterrupt, EOFError):
-                print("\n[!] Operacao cancelada.")
                 continue
             if confirmacao != "CONFIRMO":
-                print("[!] Operacao cancelada. Log preservado.")
+                print("[!] Cancelado.")
                 continue
-            # Registra em auditoria ANTES de deletar
             log_existia = os.path.exists(LOG_PATH)
             registrar_auditoria(
                 "PROTOCOLO_ZERO_ATIVADO",
@@ -279,13 +304,10 @@ if __name__ == "__main__":
             )
             if log_existia:
                 os.remove(LOG_PATH)
-            print("\n[!] DADOS ELIMINADOS. SESSAO ENCERRADA.")
-            print(f"[!] Registro de auditoria: {AUDIT_LOG_PATH}")
-            break
-        if comando.lower() in ("sair", "exit"):
-            print("\n[!] Sessao encerrada.")
+            print("[!] DADOS ELIMINADOS.")
             break
         print("\n[PROCESSANDO...]")
-        print(f"\n[BASTOS]> {conversar_com_bastos(comando)}\n")
-
-
+        resultado = conversar_com_fontes(comando)
+        print(f"\n[MODO: {resultado['modo'].upper()}]")
+        print(f"[CONFIANCA: {resultado['confianca']}%]")
+        print(f"\n[BASTOS]> {resultado['resposta']}\n")
