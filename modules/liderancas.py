@@ -353,7 +353,7 @@ FACCOES_RUA_FIXAS = [
     "CDN",     # Cartel do Norte
 ]
 
-CARGOS_RUA = ["Presidente", "Vice-Presidente"]
+CARGOS_RUA = ["Presidente", "Vice-Presidente, Pilar, Conselheiro, Liderança, Sintonia, Representante"]
 
 STATUS_LIDER_RUA = ["Ativo", "Preso", "Foragido", "Morto"]
 
