@@ -4,41 +4,66 @@ const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const API  = "http://127.0.0.1:8000/api"
 
+const C = {
+  bg:         "#0B1120",
+  surface:    "#111827",
+  surfaceUp:  "#1A2236",
+  surfaceMid: "#162032",
+  border:     "rgba(255,255,255,0.07)",
+  borderUp:   "rgba(255,255,255,0.13)",
+  gold:       "#E8A020",
+  goldSoft:   "rgba(232,160,32,0.10)",
+  goldBorder: "rgba(232,160,32,0.28)",
+  text:       "#F1F5F9",
+  textMid:    "#94A3B8",
+  textDim:    "rgba(255,255,255,0.35)",
+  red:        "#EF4444",
+  redSoft:    "rgba(239,68,68,0.12)",
+  green:      "#4ADE80",
+  blue:       "#60A5FA",
+  blueSoft:   "rgba(96,165,250,0.10)",
+}
+
 const GLOBAL_CSS = `
-  @keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes pulse-ring { 0%,100%{box-shadow:0 0 0 0 rgba(180,83,9,0.35)} 50%{box-shadow:0 0 0 6px rgba(180,83,9,0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes spin      { to{transform:rotate(360deg)} }
-  @keyframes bar-fill  { from{width:0} to{width:var(--w)} }
-  .osint-fade  { animation: fadeUp 0.28s ease forwards; }
-  .osint-spin  { animation: spin 0.9s linear infinite; }
-  .osint-pulse { animation: pulse-ring 1.8s ease infinite; }
-  .osint-row:hover { background:#FFFBEB !important; }
-  .osint-src:hover { border-color:#B45309 !important; background:#FEF3C7 !important; }
-  .osint-tab:hover { background:#F1F5F9 !important; }
+  @keyframes glow-pulse { 0%,100%{box-shadow:0 0 4px 1px rgba(232,160,32,0.3)} 50%{box-shadow:0 0 12px 3px rgba(232,160,32,0.6)} }
+  .o-fade  { animation: fadeUp 0.3s ease forwards; }
+  .o-spin  { animation: spin 0.9s linear infinite; }
+  .o-glow  { animation: glow-pulse 2s ease infinite; }
+  .o-row:hover  { background: rgba(232,160,32,0.05) !important; }
+  .o-tab:hover  { background: rgba(255,255,255,0.05) !important; }
+  .o-chip:hover { background: rgba(232,160,32,0.12) !important; border-color: rgba(232,160,32,0.4) !important; }
+  .o-btn-pdf:hover { background: #E8A020 !important; color: #0B1120 !important; }
+  input::placeholder { color: rgba(255,255,255,0.25) !important; }
+  select option { background: #1A2236; color: #F1F5F9; }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 `
 
 const RISCO = {
-  alto:    { bg:"#FEF2F2", badge:"#DC2626", text:"#7F1D1D", label:"▲ ALTO"    },
-  critico: { bg:"#FFF0F0", badge:"#991B1B", text:"#7F1D1D", label:"⚠ CRÍTICO" },
-  medio:   { bg:"#FFFBEB", badge:"#B45309", text:"#78350F", label:"● MÉDIO"   },
-  baixo:   { bg:"#F0FDF4", badge:"#15803D", text:"#14532D", label:"✓ BAIXO"   },
-  sem_dado:{ bg:"#F8FAFC", badge:"#64748B", text:"#475569", label:"— S/ DADO" },
+  alto:    { border:"#EF4444", badge:"#EF4444", badgeBg:"rgba(239,68,68,0.15)",  text:"#FCA5A5", label:"▲ ALTO"     },
+  critico: { border:"#DC2626", badge:"#DC2626", badgeBg:"rgba(220,38,38,0.18)",  text:"#FCA5A5", label:"⚠ CRÍTICO"  },
+  medio:   { border:"#E8A020", badge:"#E8A020", badgeBg:"rgba(232,160,32,0.12)", text:"#FCD34D", label:"● MÉDIO"    },
+  baixo:   { border:"#4ADE80", badge:"#4ADE80", badgeBg:"rgba(74,222,128,0.10)", text:"#86EFAC", label:"✓ BAIXO"    },
+  sem_dado:{ border:C.border,  badge:C.textMid, badgeBg:"rgba(255,255,255,0.06)",text:C.textMid, label:"— SEM DADO" },
 }
 
 const FINALIDADES = [
-  { value:"seguranca_publica",      label:"Segurança Pública"       },
-  { value:"investigacao_interna",   label:"Investigação Interna"    },
-  { value:"due_diligence_corporativa", label:"Due Diligence"        },
-  { value:"compliance_regulatorio", label:"Compliance Regulatório"  },
-  { value:"prevencao_fraude",       label:"Prevenção de Fraude"     },
+  { value:"seguranca_publica",         label:"Segurança Pública"       },
+  { value:"investigacao_interna",      label:"Investigação Interna"    },
+  { value:"due_diligence_corporativa", label:"Due Diligence"           },
+  { value:"compliance_regulatorio",    label:"Compliance Regulatório"  },
+  { value:"prevencao_fraude",          label:"Prevenção de Fraude"     },
 ]
 
 const FONTES = [
-  { key:"datajud",       label:"DataJud",       icon:"⚖" },
-  { key:"cnpj_ws",       label:"CNPJ.ws",       icon:"🏢" },
-  { key:"brasil_io",     label:"Brasil.io",     icon:"📊" },
-  { key:"diario_oficial",label:"D.O.U.",         icon:"📋" },
-  { key:"gnews",         label:"GNews",         icon:"📰" },
+  { key:"datajud",        label:"DataJud",  icon:"⚖" },
+  { key:"cnpj_ws",        label:"CNPJ.ws",  icon:"🏢" },
+  { key:"brasil_io",      label:"Brasil.io", icon:"📊" },
+  { key:"diario_oficial", label:"D.O.U.",   icon:"📋" },
+  { key:"gnews",          label:"GNews",    icon:"📰" },
 ]
 
 function cpfMask(v) {
@@ -48,88 +73,61 @@ function cpfMask(v) {
     .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,"$1.$2.$3-$4")
 }
 
-// ── Ícones inline ─────────────────────────────────────────────────────────────
-const IconSearch = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+// ── Ícones ────────────────────────────────────────────────────────────────────
+const Ico = ({ d, size=13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d}/>
   </svg>
 )
-const IconDownload = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-  </svg>
-)
-const IconAlert = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-)
-const IconUser = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-)
-const IconGraph = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-  </svg>
-)
-const IconClock = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-)
+const IcoSearch   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+const IcoDownload = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+const IcoAlert    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+const IcoClock    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 
-// ── Painel de contador ────────────────────────────────────────────────────────
-const StatBadge = ({ label, value, color="#0F172A" }) => (
-  <div style={{textAlign:"center",padding:"10px 14px",background:"#FFFFFF",borderRadius:8,border:"1px solid #E2E8F0",minWidth:72}}>
-    <div style={{fontSize:22,fontWeight:800,color,fontFamily:MONO,lineHeight:1}}>{value}</div>
-    <div style={{fontSize:8,fontWeight:700,color:"#94A3B8",letterSpacing:"0.1em",textTransform:"uppercase",marginTop:4}}>{label}</div>
+// ── StatBadge ─────────────────────────────────────────────────────────────────
+const StatBadge = ({ label, value, accent=false }) => (
+  <div style={{textAlign:"center",padding:"10px 16px",background:C.surfaceUp,borderRadius:8,border:`1px solid ${accent&&value>0?C.goldBorder:C.border}`,minWidth:80,flex:1}}>
+    <div style={{fontSize:24,fontWeight:800,color:accent&&value>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{value}</div>
+    <div style={{fontSize:8,fontWeight:700,color:C.textDim,letterSpacing:"0.1em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
   </div>
 )
 
-// ── Linha de tabela ───────────────────────────────────────────────────────────
-const TRow = ({ cells, even }) => (
-  <div className="osint-row" style={{display:"grid",gridTemplateColumns:"var(--cols)",background:even?"#FAFBFC":"#FFFFFF",borderBottom:"1px solid #F1F5F9",transition:"background 0.12s"}}>
-    {cells.map((c,i) => (
-      <div key={i} style={{padding:"7px 10px",fontSize:10,color:"#334155",fontFamily:i===0?MONO:SANS,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c||"—"}</div>
-    ))}
-  </div>
-)
-
-// ── Tabela com cabeçalho ──────────────────────────────────────────────────────
+// ── Tabela dark ───────────────────────────────────────────────────────────────
 const Tabela = ({ cols, rows, gridCols }) => (
-  <div style={{"--cols":gridCols,borderRadius:8,overflow:"hidden",border:"1px solid #E2E8F0",fontSize:10}}>
-    <div style={{display:"grid",gridTemplateColumns:gridCols,background:"#0F172A"}}>
-      {cols.map(c => <div key={c} style={{padding:"7px 10px",fontSize:8,fontWeight:700,color:"#94A3B8",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
+  <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
+    <div style={{display:"grid",gridTemplateColumns:gridCols,background:"rgba(0,0,0,0.3)"}}>
+      {cols.map(c=><div key={c} style={{padding:"7px 12px",fontSize:8,fontWeight:700,color:C.textDim,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
     </div>
-    {rows.length === 0
-      ? <div style={{padding:"16px 10px",fontSize:11,color:"#94A3B8",fontStyle:"italic",fontFamily:MONO,background:"#FAFBFC"}}>Nenhum registro encontrado</div>
-      : rows.map((r,i) => <TRow key={i} cells={r} even={i%2===0}/>)
+    {rows.length===0
+      ? <div style={{padding:"16px 12px",fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,background:C.surfaceMid}}>Nenhum registro encontrado</div>
+      : rows.map((r,i)=>(
+        <div key={i} className="o-row" style={{display:"grid",gridTemplateColumns:gridCols,background:i%2===0?C.surfaceMid:"transparent",borderTop:`1px solid ${C.border}`,transition:"background 0.12s"}}>
+          {r.map((c,j)=><div key={j} style={{padding:"7px 12px",fontSize:10,color:j===0?C.text:C.textMid,fontFamily:j===0?MONO:SANS,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c||"—"}</div>)}
+        </div>
+      ))
     }
   </div>
 )
 
-// ── Chip de fonte ─────────────────────────────────────────────────────────────
-const FonteChip = ({ fonte, ok }) => (
-  <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,background:ok?"#F0FDF4":"#FEF2F2",border:`1px solid ${ok?"#86EFAC":"#FECACA"}`}}>
-    <span style={{width:5,height:5,borderRadius:"50%",background:ok?"#16A34A":"#DC2626",flexShrink:0}}/>
-    <span style={{fontSize:9,fontWeight:700,color:ok?"#166534":"#991B1B",fontFamily:MONO}}>{fonte}</span>
+// ── Label de seção ────────────────────────────────────────────────────────────
+const SecLabel = ({ children, color=C.gold }) => (
+  <div style={{fontSize:9,fontWeight:700,color,fontFamily:MONO,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+    <span style={{width:16,height:1,background:color,display:"inline-block",opacity:0.6}}/>
+    {children}
   </div>
 )
 
 export default function OsintPesquisa({ onNavigate }) {
-  const [nome,        setNome]        = useState("")
-  const [cpf,         setCpf]         = useState("")
-  const [finalidade,  setFinalidade]  = useState("seguranca_publica")
-  const [operador,    setOperador]    = useState("agente_001")
-  const [loading,     setLoading]     = useState(false)
-  const [erro,        setErro]        = useState("")
-  const [resultado,   setResultado]   = useState(null)
-  const [relatorio,   setRelatorio]   = useState(null)
-  const [activeTab,   setActiveTab]   = useState("sumario")
-  const [dlLoading,   setDlLoading]   = useState(false)
+  const [nome,       setNome]       = useState("")
+  const [cpf,        setCpf]        = useState("")
+  const [finalidade, setFinalidade] = useState("seguranca_publica")
+  const [operador,   setOperador]   = useState("agente_001")
+  const [loading,    setLoading]    = useState(false)
+  const [erro,       setErro]       = useState("")
+  const [resultado,  setResultado]  = useState(null)
+  const [relatorio,  setRelatorio]  = useState(null)
+  const [activeTab,  setActiveTab]  = useState("sumario")
+  const [dlLoading,  setDlLoading]  = useState(false)
   const resultRef = useRef(null)
 
   useEffect(() => {
@@ -151,20 +149,19 @@ export default function OsintPesquisa({ onNavigate }) {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          operator_id: operador || "agente_anonimo",
+          operator_id: operador||"agente_anonimo",
           lgpd_purpose: finalidade,
-          nome: nome.trim() || undefined,
-          cpf: cpf.replace(/\D/g,"") || undefined,
+          nome: nome.trim()||undefined,
+          cpf: cpf.replace(/\D/g,"")||undefined,
         })
       })
       const data = await res.json()
-      if (!res.ok) { setErro(data.detail || "Erro na pesquisa."); return }
+      if (!res.ok) { setErro(data.detail||"Erro na pesquisa."); return }
       setResultado(data)
-      // Busca relatório completo
       const r2 = await fetch(`${API}/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
-    } catch(e) {
-      setErro("Falha de conexão com o backend. Verifique se a API está rodando.")
+    } catch {
+      setErro("Falha de conexão com o backend.")
     } finally {
       setLoading(false)
     }
@@ -179,106 +176,91 @@ export default function OsintPesquisa({ onNavigate }) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `osint_${resultado.subject_name?.replace(/ /g,"_") || resultado.report_id.slice(0,8)}.pdf`
+      a.download = `osint_${resultado.subject_name?.replace(/ /g,"_")||resultado.report_id.slice(0,8)}.pdf`
       a.click()
       URL.revokeObjectURL(url)
-    } finally {
-      setDlLoading(false)
-    }
+    } finally { setDlLoading(false) }
   }
 
   function limpar() {
     setNome(""); setCpf(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
   }
 
-  const risco = resultado ? (RISCO[resultado.risk_level] || RISCO.sem_dado) : null
+  const risco = resultado ? (RISCO[resultado.risk_level]||RISCO.sem_dado) : null
+
+  const TABS = [
+    {key:"sumario",   label:"Sumário"   },
+    {key:"processos", label:"Processos" },
+    {key:"empresas",  label:"Empresas"  },
+    {key:"timeline",  label:"Timeline"  },
+    {key:"grafo",     label:"Grafo"     },
+  ]
 
   return (
-    <div style={S.root}>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:C.bg,overflow:"hidden",fontFamily:SANS,color:C.text}}>
 
-      {/* ── TOPBAR ────────────────────────────────────────────────── */}
-      <header style={S.topbar}>
+      {/* ── TOPBAR ── */}
+      <header style={{height:44,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",background:C.surface,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{display:"flex",gap:5,marginRight:6}}>
+          <div style={{display:"flex",gap:5,marginRight:4}}>
             {["#FF5F57","#FEBC2E","#28C840"].map(c=><div key={c} style={{width:11,height:11,borderRadius:"50%",background:c}}/>)}
           </div>
           <div>
-            <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>Pesquisa OSINT</div>
-            <div style={{fontSize:10,color:"#64748B",fontFamily:MONO}}>Inteligência de Pessoas · Fontes Públicas</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>Pesquisa OSINT</div>
+            <div style={{fontSize:9,color:C.textMid,fontFamily:MONO,marginTop:1}}>Inteligência de Pessoas · Fontes Públicas</div>
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",background:"#F0FDF4",borderRadius:20,border:"1px solid #86EFAC"}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>
-          <span style={{fontSize:10,color:"#166534",fontWeight:600}}>LGPD Ativo</span>
+        <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",background:"rgba(74,222,128,0.08)",borderRadius:20,border:"1px solid rgba(74,222,128,0.2)"}}>
+          <div className="o-glow" style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>
+          <span style={{fontSize:9,color:C.green,fontWeight:600,fontFamily:MONO}}>LGPD · Art. 37</span>
         </div>
       </header>
 
-      <div style={S.body}>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14}}>
 
-        {/* ── FORMULÁRIO ────────────────────────────────────────────── */}
-        <section style={S.card}>
-          <div style={S.cardHeader}>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <IconSearch/>
-              <span style={{fontSize:11,fontWeight:700,color:"#0F172A",letterSpacing:"0.04em"}}>IDENTIFICAÇÃO DO SUJEITO</span>
+        {/* ── FORMULÁRIO ── */}
+        <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"16px 18px"}}>
+
+          {/* Header do card */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:9,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.1em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
             </div>
-            <div style={{fontSize:9,color:"#94A3B8",fontFamily:MONO}}>Informe nome e/ou CPF</div>
+            <span style={{fontSize:9,color:C.textDim,fontFamily:MONO}}>nome e/ou CPF</span>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            {/* Nome */}
             <div>
-              <label style={S.label}>Nome Completo</label>
-              <input
-                style={S.input}
-                placeholder="Ex: João Silva Santos"
-                value={nome}
-                onChange={e=>setNome(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&pesquisar()}
-              />
+              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>Nome Completo</label>
+              <input style={S.input} placeholder="Ex: João Silva Santos" value={nome} onChange={e=>setNome(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
             </div>
-            {/* CPF */}
             <div>
-              <label style={S.label}>CPF</label>
-              <input
-                style={S.input}
-                placeholder="000.000.000-00"
-                value={cpf}
-                onChange={e=>setCpf(cpfMask(e.target.value))}
-                onKeyDown={e=>e.key==="Enter"&&pesquisar()}
-                maxLength={14}
-              />
+              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>CPF</label>
+              <input style={S.input} placeholder="000.000.000-00" value={cpf} onChange={e=>setCpf(cpfMask(e.target.value))} onKeyDown={e=>e.key==="Enter"&&pesquisar()} maxLength={14}/>
             </div>
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-            {/* Finalidade */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
             <div>
-              <label style={S.label}>Finalidade LGPD <span style={{color:"#DC2626"}}>*</span></label>
+              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
               <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
                 {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
-            {/* Operador */}
             <div>
-              <label style={S.label}>ID do Operador <span style={{color:"#DC2626"}}>*</span></label>
+              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>ID do Operador <span style={{color:C.red}}>*</span></label>
               <input style={S.input} placeholder="Ex: agente_001" value={operador} onChange={e=>setOperador(e.target.value)}/>
             </div>
           </div>
 
-          {/* Fontes ativas */}
-          <div style={{marginBottom:16}}>
-            <label style={S.label}>Fontes ativas</label>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+          {/* Fontes */}
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {FONTES.map(f=>(
-                <div key={f.key} className="osint-src" style={{
-                  display:"flex",alignItems:"center",gap:5,
-                  padding:"4px 10px",borderRadius:6,
-                  background:"#FFFFFF",border:"1px solid #E2E8F0",
-                  cursor:"default",transition:"all 0.12s",
-                }}>
-                  <span>{f.icon}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:"#334155",fontFamily:MONO}}>{f.label}</span>
+                <div key={f.key} className="o-chip" style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,cursor:"default",transition:"all 0.12s"}}>
+                  <span style={{fontSize:11}}>{f.icon}</span>
+                  <span style={{fontSize:9,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{f.label}</span>
                 </div>
               ))}
             </div>
@@ -286,9 +268,8 @@ export default function OsintPesquisa({ onNavigate }) {
 
           {/* Erro */}
           {erro && (
-            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:7,marginBottom:12}}>
-              <IconAlert/>
-              <span style={{fontSize:11,color:"#991B1B",fontWeight:500}}>{erro}</span>
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.25)",borderRadius:7,marginBottom:12,color:C.red}}>
+              <IcoAlert/><span style={{fontSize:11,fontWeight:500}}>{erro}</span>
             </div>
           )}
 
@@ -297,246 +278,211 @@ export default function OsintPesquisa({ onNavigate }) {
             {resultado && (
               <button style={S.btnSecondary} onClick={limpar}>Nova pesquisa</button>
             )}
-            <button style={{...S.btnPrimary,...(loading?{opacity:0.6,cursor:"not-allowed"}:{})}} onClick={pesquisar} disabled={loading}>
+            <button style={{...S.btnPrimary,...(loading?{opacity:0.55,cursor:"not-allowed"}:{})}} onClick={pesquisar} disabled={loading}>
               {loading
-                ? <><span className="osint-spin" style={{display:"inline-block",width:12,height:12,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#FFF",borderRadius:"50%"}}/> Pesquisando...</>
-                : <><IconSearch/> Pesquisar</>
+                ? <><span className="o-spin" style={{display:"inline-block",width:11,height:11,border:"2px solid rgba(11,17,32,0.3)",borderTopColor:C.bg,borderRadius:"50%"}}/> Pesquisando...</>
+                : <><IcoSearch/> Pesquisar</>
               }
             </button>
           </div>
         </section>
 
-        {/* ── RESULTADO ─────────────────────────────────────────────── */}
+        {/* ── RESULTADO ── */}
         {resultado && (
-          <div ref={resultRef} className="osint-fade">
+          <div ref={resultRef} className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Badge de risco */}
-            <div style={{...S.riscoBanner,background:risco.bg,border:`1px solid ${risco.badge}30`}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{padding:"4px 14px",background:risco.badge,borderRadius:6}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#FFF",letterSpacing:"0.06em",fontFamily:MONO}}>{risco.label}</span>
+            {/* Banner de risco */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",background:C.surface,borderRadius:10,border:`1px solid ${risco.border}30`,flexWrap:"wrap",gap:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{padding:"5px 14px",background:risco.badgeBg,border:`1px solid ${risco.border}50`,borderRadius:6}}>
+                  <span style={{fontSize:12,fontWeight:800,color:risco.badge,letterSpacing:"0.06em",fontFamily:MONO}}>{risco.label}</span>
                 </div>
                 <div>
-                  <div style={{fontSize:13,fontWeight:700,color:risco.text}}>{resultado.subject_name}</div>
-                  <div style={{fontSize:9,color:risco.badge,fontFamily:MONO,marginTop:1}}>CPF: {resultado.subject_cpf_masked} · ID: {resultado.report_id.slice(0,8).toUpperCase()}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{resultado.subject_name}</div>
+                  <div style={{fontSize:9,color:C.textMid,fontFamily:MONO,marginTop:2}}>
+                    CPF: {resultado.subject_cpf_masked} · REL: {resultado.report_id.slice(0,8).toUpperCase()}
+                  </div>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <div style={{display:"flex",alignItems:"center",gap:4,fontSize:9,color:"#64748B",fontFamily:MONO}}>
-                  <IconClock/>{resultado.execution_time_ms ? `${(resultado.execution_time_ms/1000).toFixed(1)}s` : "—"}
+                <div style={{display:"flex",alignItems:"center",gap:4,fontSize:9,color:C.textDim,fontFamily:MONO}}>
+                  <IcoClock/>{resultado.execution_time_ms?`${(resultado.execution_time_ms/1000).toFixed(1)}s`:"—"}
                 </div>
-                <button
-                  style={{...S.btnPdf,...(dlLoading?{opacity:0.5}:{})}}
-                  onClick={baixarPdf}
-                  disabled={dlLoading}
-                >
-                  <IconDownload/>
-                  {dlLoading ? "Gerando..." : "PDF"}
+                <button className="o-btn-pdf" onClick={baixarPdf} disabled={dlLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"transparent",border:`1px solid ${C.goldBorder}`,borderRadius:6,color:C.gold,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:MONO,transition:"all 0.15s"}}>
+                  <IcoDownload/>{dlLoading?"gerando...":"PDF"}
                 </button>
               </div>
             </div>
 
             {/* Contadores */}
-            <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-              <StatBadge label="Processos Criminais" value={resultado.total_processos} color={resultado.total_processos>0?"#DC2626":"#0F172A"}/>
-              <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} color={resultado.tem_mandado_ativo?"#DC2626":"#0F172A"}/>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
+              <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
               <StatBadge label="Empresas"            value={resultado.total_empresas}/>
               <StatBadge label="Notícias"            value={resultado.total_noticias}/>
               <StatBadge label="D.O.U."              value={resultado.total_dou}/>
               <StatBadge label="Nós no Grafo"        value={resultado.nos_grafo}/>
             </div>
 
-            {/* Status das fontes */}
-            {resultado.fontes_com_erro?.length > 0 && (
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:7,marginBottom:12,flexWrap:"wrap"}}>
-                <span style={{fontSize:9,fontWeight:700,color:"#B45309",fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
-                {resultado.fontes_com_erro.map(f=><FonteChip key={f} fonte={f} ok={false}/>)}
+            {/* Fontes com erro */}
+            {resultado.fontes_com_erro?.length>0 && (
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
+                <span style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
+                {resultado.fontes_com_erro.map(f=>(
+                  <span key={f} style={{fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
+                ))}
               </div>
             )}
 
-            {/* Tabs de detalhe */}
+            {/* Tabs + Conteúdo */}
             {relatorio && (
-              <section style={S.card}>
+              <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+
                 {/* Tab bar */}
-                <div style={{display:"flex",gap:2,borderBottom:"1px solid #E2E8F0",marginBottom:14,paddingBottom:0}}>
-                  {[
-                    {key:"sumario",   label:"Sumário",    icon:<IconUser/>   },
-                    {key:"processos", label:"Processos",  icon:<IconAlert/>  },
-                    {key:"empresas",  label:"Empresas",   icon:<IconSearch/> },
-                    {key:"timeline",  label:"Timeline",   icon:<IconClock/>  },
-                    {key:"grafo",     label:"Grafo",      icon:<IconGraph/>  },
-                  ].map(t=>(
-                    <button key={t.key} className="osint-tab" onClick={()=>setActiveTab(t.key)} style={{
-                      display:"flex",alignItems:"center",gap:5,
-                      padding:"7px 14px",border:"none",background:"transparent",cursor:"pointer",
-                      borderBottom: activeTab===t.key ? "2px solid #B45309" : "2px solid transparent",
-                      color: activeTab===t.key ? "#B45309" : "#64748B",
-                      fontWeight: activeTab===t.key ? 700 : 400,
+                <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,background:"rgba(0,0,0,0.2)"}}>
+                  {TABS.map(t=>(
+                    <button key={t.key} className="o-tab" onClick={()=>setActiveTab(t.key)} style={{
+                      padding:"10px 18px",border:"none",background:"transparent",cursor:"pointer",
+                      borderBottom:activeTab===t.key?`2px solid ${C.gold}`:"2px solid transparent",
+                      color:activeTab===t.key?C.gold:C.textMid,
+                      fontWeight:activeTab===t.key?700:400,
                       fontSize:11,fontFamily:SANS,transition:"all 0.12s",
-                      borderRadius:"6px 6px 0 0",
-                    }}>
-                      {t.icon}<span>{t.label}</span>
-                    </button>
+                    }}>{t.label}</button>
                   ))}
                 </div>
 
-                {/* Tab: Sumário */}
-                {activeTab === "sumario" && (
-                  <div className="osint-fade">
-                    {relatorio.risk_summary && (
-                      <div style={{padding:"12px 14px",background:"#F8FAFC",borderRadius:8,border:"1px solid #E2E8F0",marginBottom:12}}>
-                        <div style={{fontSize:9,fontWeight:700,color:"#B45309",fontFamily:MONO,marginBottom:6,letterSpacing:"0.08em"}}>◈ ANÁLISE IA — GROQ</div>
-                        <p style={{fontSize:12,color:"#1E293B",lineHeight:1.7,margin:0}}>{relatorio.risk_summary}</p>
-                      </div>
-                    )}
-                    {relatorio.risk_indicators?.length > 0 && (
-                      <div>
-                        <div style={{fontSize:9,fontWeight:700,color:"#334155",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:8}}>INDICADORES DE RISCO</div>
-                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                          {relatorio.risk_indicators.map((ind,i)=>(
-                            <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:6}}>
-                              <span style={{color:"#DC2626",flexShrink:0}}><IconAlert/></span>
-                              <span style={{fontSize:11,color:"#7F1D1D",fontWeight:500}}>{ind}</span>
-                            </div>
-                          ))}
+                <div style={{padding:"16px 18px"}}>
+
+                  {/* Sumário */}
+                  {activeTab==="sumario" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
+                      {relatorio.risk_summary && (
+                        <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
+                          <div style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:7,letterSpacing:"0.1em"}}>◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}</div>
+                          <p style={{fontSize:12,color:C.text,lineHeight:1.75,margin:0}}>{relatorio.risk_summary}</p>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Tab: Processos */}
-                {activeTab === "processos" && (
-                  <div className="osint-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
-                    {relatorio.mandados_prisao?.length > 0 && (
-                      <div>
-                        <div style={{fontSize:9,fontWeight:700,color:"#DC2626",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>⚠ MANDADOS DE PRISÃO</div>
-                        <Tabela
-                          cols={["Nº Mandado","Tipo","Status","Data Expedição"]}
-                          rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])}
-                          gridCols="2fr 1.5fr 1fr 1.2fr"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:"#334155",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>PROCESSOS CRIMINAIS</div>
-                      <Tabela
-                        cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]}
-                        rows={(relatorio.processos_criminais||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])}
-                        gridCols="2.2fr 1fr 2fr 1fr 1fr"
-                      />
-                    </div>
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:"#334155",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>PROCESSOS CÍVEIS</div>
-                      <Tabela
-                        cols={["Nº Processo","Tribunal","Assunto","Data"]}
-                        rows={(relatorio.processos_civeis||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])}
-                        gridCols="2.2fr 1fr 2.5fr 1fr"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab: Empresas */}
-                {activeTab === "empresas" && (
-                  <div className="osint-fade">
-                    <Tabela
-                      cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]}
-                      rows={(relatorio.vinculos_empresariais||[]).map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])}
-                      gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"
-                    />
-                    {relatorio.mencoes_dou?.length > 0 && (
-                      <div style={{marginTop:12}}>
-                        <div style={{fontSize:9,fontWeight:700,color:"#334155",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>DIÁRIO OFICIAL DA UNIÃO</div>
-                        <Tabela
-                          cols={["Data","Tipo","Órgão","Título"]}
-                          rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])}
-                          gridCols="0.8fr 1fr 1.2fr 3fr"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Tab: Timeline */}
-                {activeTab === "timeline" && (
-                  <div className="osint-fade" style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {[
-                      ...(relatorio.processos_criminais||[]).map(p=>({data:p.data_ajuizamento||p.data,tipo:"PROCESSO CRIMINAL",desc:p.classe||"Processo",cor:"#DC2626",bg:"#FEF2F2"})),
-                      ...(relatorio.mandados_prisao||[]).map(m=>({data:m.data_expedicao,tipo:"MANDADO PRISÃO",desc:m.tipo,cor:"#991B1B",bg:"#FFF0F0"})),
-                      ...(relatorio.mencoes_midia||[]).map(n=>({data:n.data?.slice(0,10),tipo:"MÍDIA",desc:n.titulo,cor:"#1D4ED8",bg:"#EFF6FF"})),
-                      ...(relatorio.mencoes_dou||[]).map(d=>({data:d.data,tipo:"D.O.U.",desc:d.titulo,cor:"#065F46",bg:"#F0FDF4"})),
-                    ].filter(e=>e.data).sort((a,b)=>b.data.localeCompare(a.data)).map((e,i)=>(
-                      <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 10px",background:e.bg,border:`1px solid ${e.cor}20`,borderRadius:7}}>
-                        <span style={{fontSize:9,fontWeight:700,color:e.cor,fontFamily:MONO,flexShrink:0,minWidth:76}}>{e.data}</span>
-                        <span style={{fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:3,background:e.cor,color:"#FFF",fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
-                        <span style={{fontSize:11,color:"#334155",lineHeight:1.4}}>{e.desc}</span>
-                      </div>
-                    ))}
-                    {![...(relatorio.processos_criminais||[]),...(relatorio.mencoes_midia||[]),...(relatorio.mencoes_dou||[])].some(e=>e.data||e.data_ajuizamento) && (
-                      <div style={{fontSize:11,color:"#94A3B8",fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum evento com data identificado.</div>
-                    )}
-                  </div>
-                )}
-
-                {/* Tab: Grafo */}
-                {activeTab === "grafo" && (
-                  <div className="osint-fade">
-                    {relatorio.graph?.nodes?.length > 0 ? (
-                      <>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                          <div style={{padding:"4px 10px",background:"#0F172A",borderRadius:6}}>
-                            <span style={{fontSize:9,fontWeight:700,color:"#F59E0B",fontFamily:MONO}}>◈ NÓ CENTRAL</span>
+                      )}
+                      {relatorio.risk_indicators?.length>0 && (
+                        <div>
+                          <SecLabel>Indicadores de Risco</SecLabel>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            {relatorio.risk_indicators.map((ind,i)=>(
+                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.2)",borderRadius:6,color:C.red}}>
+                                <IcoAlert/><span style={{fontSize:11,fontWeight:500,color:"#FCA5A5"}}>{ind}</span>
+                              </div>
+                            ))}
                           </div>
-                          <span style={{fontSize:12,fontWeight:700,color:"#0F172A"}}>{relatorio.graph.nodes.find(n=>n.is_subject)?.label}</span>
-                          <span style={{fontSize:9,color:"#94A3B8",fontFamily:MONO,marginLeft:"auto"}}>{relatorio.graph.nodes.length} nós · {relatorio.graph.edges.length} arestas</span>
                         </div>
-                        <Tabela
-                          cols={["Entidade","Tipo","Relação","Fonte"]}
-                          rows={relatorio.graph.edges.map(e=>{
-                            const t = relatorio.graph.nodes.find(n=>n.node_id===e.target_id)
-                            return [t?.label, t?.node_type?.toUpperCase(), e.edge_type?.replace(/_/g," ").toUpperCase(), e.data_source]
-                          }).filter(r=>r[0])}
-                          gridCols="2.5fr 1fr 1.5fr 1fr"
-                        />
-                      </>
-                    ) : (
-                      <div style={{fontSize:11,color:"#94A3B8",fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Grafo não disponível.</div>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
 
+                  {/* Processos */}
+                  {activeTab==="processos" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
+                      {relatorio.mandados_prisao?.length>0 && (
+                        <div>
+                          <SecLabel color={C.red}>⚠ Mandados de Prisão</SecLabel>
+                          <Tabela cols={["Nº Mandado","Tipo","Status","Data"]} rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])} gridCols="2fr 1.5fr 1fr 1.2fr"/>
+                        </div>
+                      )}
+                      <div>
+                        <SecLabel>Processos Criminais</SecLabel>
+                        <Tabela cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]} rows={(relatorio.processos_criminais||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])} gridCols="2.2fr 1fr 2fr 1fr 1fr"/>
+                      </div>
+                      <div>
+                        <SecLabel>Processos Cíveis</SecLabel>
+                        <Tabela cols={["Nº Processo","Tribunal","Assunto","Data"]} rows={(relatorio.processos_civeis||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])} gridCols="2.2fr 1fr 2.5fr 1fr"/>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empresas */}
+                  {activeTab==="empresas" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
+                      <div>
+                        <SecLabel>Vínculos Empresariais</SecLabel>
+                        <Tabela cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]} rows={(relatorio.vinculos_empresariais||[]).map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])} gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"/>
+                      </div>
+                      {relatorio.mencoes_dou?.length>0 && (
+                        <div>
+                          <SecLabel>Diário Oficial da União</SecLabel>
+                          <Tabela cols={["Data","Tipo","Órgão","Título"]} rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])} gridCols="0.8fr 1fr 1.2fr 3fr"/>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Timeline */}
+                  {activeTab==="timeline" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:6}}>
+                      <SecLabel>Linha do Tempo</SecLabel>
+                      {[
+                        ...(relatorio.processos_criminais||[]).map(p=>({data:p.data_ajuizamento||p.data,tipo:"PROCESSO CRIMINAL",desc:p.classe||"Processo",cor:C.red,bg:"rgba(239,68,68,0.08)"})),
+                        ...(relatorio.mandados_prisao||[]).map(m=>({data:m.data_expedicao,tipo:"MANDADO PRISÃO",desc:m.tipo,cor:"#DC2626",bg:"rgba(220,38,38,0.1)"})),
+                        ...(relatorio.mencoes_midia||[]).map(n=>({data:n.data?.slice(0,10),tipo:"MÍDIA",desc:n.titulo,cor:C.blue,bg:C.blueSoft})),
+                        ...(relatorio.mencoes_dou||[]).map(d=>({data:d.data,tipo:"D.O.U.",desc:d.titulo,cor:C.green,bg:"rgba(74,222,128,0.08)"})),
+                      ].filter(e=>e.data).sort((a,b)=>b.data.localeCompare(a.data)).map((e,i)=>(
+                        <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 12px",background:e.bg,border:`1px solid ${e.cor}20`,borderRadius:7,borderLeft:`3px solid ${e.cor}`}}>
+                          <span style={{fontSize:9,fontWeight:700,color:e.cor,fontFamily:MONO,flexShrink:0,minWidth:80}}>{e.data}</span>
+                          <span style={{fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:3,background:`${e.cor}22`,color:e.cor,fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
+                          <span style={{fontSize:11,color:C.textMid,lineHeight:1.4}}>{e.desc}</span>
+                        </div>
+                      ))}
+                      {![...(relatorio.processos_criminais||[]),...(relatorio.mencoes_midia||[]),...(relatorio.mencoes_dou||[])].some(e=>e.data||e.data_ajuizamento) && (
+                        <div style={{fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum evento com data identificado.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Grafo */}
+                  {activeTab==="grafo" && (
+                    <div className="o-fade">
+                      {relatorio.graph?.nodes?.length>0 ? (
+                        <>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                            <div style={{padding:"4px 12px",background:C.goldSoft,border:`1px solid ${C.goldBorder}`,borderRadius:6}}>
+                              <span style={{fontSize:9,fontWeight:700,color:C.gold,fontFamily:MONO}}>◈ NÓ CENTRAL</span>
+                            </div>
+                            <span style={{fontSize:13,fontWeight:700,color:C.text}}>{relatorio.graph.nodes.find(n=>n.is_subject)?.label}</span>
+                            <span style={{fontSize:9,color:C.textDim,fontFamily:MONO,marginLeft:"auto"}}>{relatorio.graph.nodes.length} nós · {relatorio.graph.edges.length} arestas</span>
+                          </div>
+                          <Tabela
+                            cols={["Entidade","Tipo","Relação","Fonte"]}
+                            rows={relatorio.graph.edges.map(e=>{
+                              const t=relatorio.graph.nodes.find(n=>n.node_id===e.target_id)
+                              return [t?.label,t?.node_type?.toUpperCase(),e.edge_type?.replace(/_/g," ").toUpperCase(),e.data_source]
+                            }).filter(r=>r[0])}
+                            gridCols="2.5fr 1fr 1.5fr 1fr"
+                          />
+                        </>
+                      ) : (
+                        <div style={{fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Grafo não disponível.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
             {/* Rodapé LGPD */}
-            <div style={{padding:"8px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
-              <span style={{fontSize:9,fontWeight:700,color:"#B45309",fontFamily:MONO,flexShrink:0,marginTop:1}}>LGPD</span>
-              <span style={{fontSize:9,color:"#64748B",lineHeight:1.6}}>
-                Pesquisa realizada por <b style={{color:"#334155"}}>{operador}</b> · Finalidade: <b style={{color:"#334155"}}>{finalidade}</b> · Registro em audit log conforme Art. 37 LGPD · {new Date().toLocaleString("pt-BR")}
+            <div style={{padding:"8px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
+              <span style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.1em"}}>LGPD · ART.37</span>
+              <span style={{fontSize:9,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
+                operador: <span style={{color:C.textMid}}>{operador}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
               </span>
             </div>
 
           </div>
         )}
-
       </div>
     </div>
   )
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-  root:{ display:"flex",flexDirection:"column",height:"100vh",background:"#F8FAFC",overflow:"hidden",fontFamily:SANS },
-  topbar:{ height:44,borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",background:"#FFFFFF",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)" },
-  body:{ flex:1,overflowY:"auto",padding:"14px 18px",display:"flex",flexDirection:"column",gap:12 },
-  card:{ background:"#FFFFFF",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",boxShadow:"0 2px 8px rgba(0,0,0,0.05)" },
-  cardHeader:{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,paddingBottom:10,borderBottom:"1px solid #F1F5F9" },
-  label:{ display:"block",fontSize:9,fontWeight:700,color:"#334155",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO },
-  input:{ width:"100%",background:"#F8FAFC",border:"1px solid #CBD5E1",borderRadius:7,padding:"9px 12px",fontSize:12,color:"#0F172A",outline:"none",fontFamily:SANS,boxSizing:"border-box",transition:"border-color 0.15s" },
-  select:{ width:"100%",background:"#F8FAFC",border:"1px solid #CBD5E1",borderRadius:7,padding:"9px 12px",fontSize:12,color:"#0F172A",outline:"none",fontFamily:SANS,boxSizing:"border-box",cursor:"pointer" },
-  btnPrimary:{ display:"flex",alignItems:"center",gap:6,padding:"9px 20px",background:"linear-gradient(135deg,#F59E0B,#B45309)",border:"none",borderRadius:7,color:"#FFF",fontSize:12,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 12px rgba(180,83,9,0.3)",transition:"opacity 0.15s" },
-  btnSecondary:{ padding:"9px 16px",background:"transparent",border:"1px solid #CBD5E1",borderRadius:7,color:"#475569",fontSize:12,fontWeight:500,cursor:"pointer" },
-  btnPdf:{ display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#0F172A",border:"none",borderRadius:6,color:"#FFF",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:MONO },
-  riscoBanner:{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderRadius:10,marginBottom:12,flexWrap:"wrap",gap:8 },
+  input:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"9px 12px",fontSize:12,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",transition:"border-color 0.15s" },
+  select:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"9px 12px",fontSize:12,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",cursor:"pointer" },
+  btnPrimary:{ display:"flex",alignItems:"center",gap:6,padding:"9px 20px",background:C.gold,border:"none",borderRadius:7,color:C.bg,fontSize:12,fontWeight:800,cursor:"pointer",transition:"opacity 0.15s",fontFamily:MONO },
+  btnSecondary:{ padding:"9px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:7,color:C.textMid,fontSize:11,fontWeight:500,cursor:"pointer",fontFamily:SANS },
 }
