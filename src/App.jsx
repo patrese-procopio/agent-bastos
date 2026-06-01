@@ -9,6 +9,7 @@ import Referencias from "./Referencias"
 import Configuracoes from "./Configuracoes"
 import Agenda from "./Agenda"
 import ListaNegra from "./ListaNegra"
+import OsintPesquisa from "./OsintPesquisa"
 import Grafoscopia from "./Grafoscopia"
 import ControleGrupos from "./ControleGrupos"
 import InteligenciaGrupos from "./InteligenciaGrupos"
@@ -19,6 +20,7 @@ import SinaisFracos from "./SinaisFracos"
 import MatrizNucadis from "./MatrizNucadis"
 import Login from "./Login"
 import api from "./api"
+import LideresGerais from "./LideresGerais"
 
 const NAV_GROUPS = [
   { title: "PRINCIPAL", items: [
@@ -27,12 +29,14 @@ const NAV_GROUPS = [
     { label: "Controle de Grupos", color: "#F87171" },
     { label: "Inteligência de Grupos", color: "#A78BFA" },
     { label: "Lideranças por Unidade", color: "#F87171" },
+    { label: "Líderes Gerais", color: "#F97316" },
     { label: "Análise de Vínculo", color: "#38BDF8" },
     { label: "Extrato", color: "#E8A020" },
     { label: "Lista Negra", color: "#94A3B8" },
   ]},
   { title: "INTELIGÊNCIA", items: [
-    { label: "Chat RAG", color: "#60A5FA" },
+    { label: "Chat RAG", color: "#1D4ED8" },
+    { label: "OSINT Pessoas", color: "#B45309" },
     { label: "Sinais Fracos", color: "#FBBF24" },
     { label: "Referências", color: "#C4B5FD" },
     { label: "Agenda de Missão", color: "#F59E0B", badge: "2" },
@@ -288,12 +292,14 @@ export default function App() {
         {active==="Controle de Grupos"     && <ControleGrupos onNavigate={setActive}/>}
         {active==="Inteligência de Grupos" && <InteligenciaGrupos onNavigate={setActive}/>}
         {active==="Lideranças por Unidade" && <LiderancasUnidade onNavigate={setActive}/>}
+        {active==="Líderes Gerais"         && <LideresGerais    onNavigate={setActive}/>}
         {active==="Análise de Vínculo"     && <GrafoVinculos onNavigate={setActive}/>}
         {active==="Extrato"                && <Extrato      onNavigate={setActive}/>}
         {active==="Sinais Fracos"          && <SinaisFracos onNavigate={setActive}/>}
         {active==="Matriz NUCADIs"         && <MatrizNucadis onNavigate={setActive}/>}
         {active==="Agenda de Missão"       && <Agenda       onNavigate={setActive}/>}
-        {active==="Lista Negra"            && <ListaNegra   onNavigate={setActive}/>}
+        {active === "Lista Negra"          && <ListaNegra     onNavigate={setActive} />}
+        {active === "OSINT Pessoas"        && <OsintPesquisa  onNavigate={setActive} />}
 
         {active==="Painel" && (
           <>
@@ -473,9 +479,9 @@ export default function App() {
           </>
         )}
 
-        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
+       {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
-           "Inteligência de Grupos","Lideranças por Unidade","Análise de Vínculo","Análise Grafoscópica",
+           "Inteligência de Grupos","Lideranças por Unidade","Líderes Gerais","Análise de Vínculo","Análise Grafoscópica",
            "Extrato","Sinais Fracos","Matriz NUCADIs"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
