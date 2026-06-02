@@ -87,8 +87,8 @@ const IcoClock    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="
 // ── StatBadge ─────────────────────────────────────────────────────────────────
 const StatBadge = ({ label, value, accent=false }) => (
   <div style={{textAlign:"center",padding:"10px 16px",background:C.surfaceUp,borderRadius:8,border:`1px solid ${accent&&value>0?C.goldBorder:C.border}`,minWidth:80,flex:1}}>
-    <div style={{fontSize:24,fontWeight:800,color:accent&&value>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{value}</div>
-    <div style={{fontSize:8,fontWeight:700,color:C.textDim,letterSpacing:"0.1em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
+    <div style={{fontSize:28,fontWeight:800,color:accent&&value>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{value}</div>
+    <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
   </div>
 )
 
@@ -96,13 +96,13 @@ const StatBadge = ({ label, value, accent=false }) => (
 const Tabela = ({ cols, rows, gridCols }) => (
   <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
     <div style={{display:"grid",gridTemplateColumns:gridCols,background:"rgba(0,0,0,0.3)"}}>
-      {cols.map(c=><div key={c} style={{padding:"7px 12px",fontSize:8,fontWeight:700,color:C.textDim,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
+      {cols.map(c=><div key={c} style={{padding:"7px 12px",fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
     </div>
     {rows.length===0
       ? <div style={{padding:"16px 12px",fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,background:C.surfaceMid}}>Nenhum registro encontrado</div>
       : rows.map((r,i)=>(
         <div key={i} className="o-row" style={{display:"grid",gridTemplateColumns:gridCols,background:i%2===0?C.surfaceMid:"transparent",borderTop:`1px solid ${C.border}`,transition:"background 0.12s"}}>
-          {r.map((c,j)=><div key={j} style={{padding:"7px 12px",fontSize:10,color:j===0?C.text:C.textMid,fontFamily:j===0?MONO:SANS,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c||"—"}</div>)}
+          {r.map((c,j)=><div key={j} style={{padding:"7px 12px",fontSize:13,color:j===0?C.text:C.textMid,fontFamily:j===0?MONO:SANS,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c||"—"}</div>)}
         </div>
       ))
     }
@@ -111,7 +111,7 @@ const Tabela = ({ cols, rows, gridCols }) => (
 
 // ── Label de seção ────────────────────────────────────────────────────────────
 const SecLabel = ({ children, color=C.gold }) => (
-  <div style={{fontSize:9,fontWeight:700,color,fontFamily:MONO,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+  <div style={{fontSize:11,fontWeight:700,color,fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
     <span style={{width:16,height:1,background:color,display:"inline-block",opacity:0.6}}/>
     {children}
   </div>
@@ -206,13 +206,13 @@ export default function OsintPesquisa({ onNavigate }) {
             {["#FF5F57","#FEBC2E","#28C840"].map(c=><div key={c} style={{width:11,height:11,borderRadius:"50%",background:c}}/>)}
           </div>
           <div>
-            <div style={{fontSize:13,fontWeight:700,color:C.text}}>Pesquisa OSINT</div>
-            <div style={{fontSize:9,color:C.textMid,fontFamily:MONO,marginTop:1}}>Inteligência de Pessoas · Fontes Públicas</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Pesquisa OSINT</div>
+            <div style={{fontSize:11,color:C.textMid,fontFamily:MONO,marginTop:1}}>Inteligência de Pessoas · Fontes Públicas</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",background:"rgba(74,222,128,0.08)",borderRadius:20,border:"1px solid rgba(74,222,128,0.2)"}}>
           <div className="o-glow" style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>
-          <span style={{fontSize:9,color:C.green,fontWeight:600,fontFamily:MONO}}>LGPD · Art. 37</span>
+          <span style={{fontSize:11,color:C.green,fontWeight:600,fontFamily:MONO}}>LGPD · Art. 37</span>
         </div>
       </header>
 
@@ -224,31 +224,31 @@ export default function OsintPesquisa({ onNavigate }) {
           {/* Header do card */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:9,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.1em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
+              <span style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
             </div>
-            <span style={{fontSize:9,color:C.textDim,fontFamily:MONO}}>nome e/ou CPF</span>
+            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>nome e/ou CPF</span>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
             <div>
-              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>Nome Completo</label>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Nome Completo</label>
               <input style={S.input} placeholder="Ex: João Silva Santos" value={nome} onChange={e=>setNome(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
             </div>
             <div>
-              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>CPF</label>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>CPF</label>
               <input style={S.input} placeholder="000.000.000-00" value={cpf} onChange={e=>setCpf(cpfMask(e.target.value))} onKeyDown={e=>e.key==="Enter"&&pesquisar()} maxLength={14}/>
             </div>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
             <div>
-              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
               <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
                 {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>ID do Operador <span style={{color:C.red}}>*</span></label>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>ID do Operador <span style={{color:C.red}}>*</span></label>
               <input style={S.input} placeholder="Ex: agente_001" value={operador} onChange={e=>setOperador(e.target.value)}/>
             </div>
           </div>
@@ -260,7 +260,7 @@ export default function OsintPesquisa({ onNavigate }) {
               {FONTES.map(f=>(
                 <div key={f.key} className="o-chip" style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,cursor:"default",transition:"all 0.12s"}}>
                   <span style={{fontSize:11}}>{f.icon}</span>
-                  <span style={{fontSize:9,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{f.label}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{f.label}</span>
                 </div>
               ))}
             </div>
@@ -295,20 +295,20 @@ export default function OsintPesquisa({ onNavigate }) {
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",background:C.surface,borderRadius:10,border:`1px solid ${risco.border}30`,flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{padding:"5px 14px",background:risco.badgeBg,border:`1px solid ${risco.border}50`,borderRadius:6}}>
-                  <span style={{fontSize:12,fontWeight:800,color:risco.badge,letterSpacing:"0.06em",fontFamily:MONO}}>{risco.label}</span>
+                  <span style={{fontSize:15,fontWeight:800,color:risco.badge,letterSpacing:"0.06em",fontFamily:MONO}}>{risco.label}</span>
                 </div>
                 <div>
-                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{resultado.subject_name}</div>
-                  <div style={{fontSize:9,color:C.textMid,fontFamily:MONO,marginTop:2}}>
+                  <div style={{fontSize:18,fontWeight:700,color:C.text}}>{resultado.subject_name}</div>
+                  <div style={{fontSize:12,color:C.textMid,fontFamily:MONO,marginTop:2}}>
                     CPF: {resultado.subject_cpf_masked} · REL: {resultado.report_id.slice(0,8).toUpperCase()}
                   </div>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <div style={{display:"flex",alignItems:"center",gap:4,fontSize:9,color:C.textDim,fontFamily:MONO}}>
+                <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.textDim,fontFamily:MONO}}>
                   <IcoClock/>{resultado.execution_time_ms?`${(resultado.execution_time_ms/1000).toFixed(1)}s`:"—"}
                 </div>
-                <button className="o-btn-pdf" onClick={baixarPdf} disabled={dlLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"transparent",border:`1px solid ${C.goldBorder}`,borderRadius:6,color:C.gold,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:MONO,transition:"all 0.15s"}}>
+                <button className="o-btn-pdf" onClick={baixarPdf} disabled={dlLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"transparent",border:`1px solid ${C.goldBorder}`,borderRadius:6,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:MONO,transition:"all 0.15s"}}>
                   <IcoDownload/>{dlLoading?"gerando...":"PDF"}
                 </button>
               </div>
@@ -327,9 +327,9 @@ export default function OsintPesquisa({ onNavigate }) {
             {/* Fontes com erro */}
             {resultado.fontes_com_erro?.length>0 && (
               <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
-                <span style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
+                <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
                 {resultado.fontes_com_erro.map(f=>(
-                  <span key={f} style={{fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
+                  <span key={f} style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
                 ))}
               </div>
             )}
@@ -346,7 +346,7 @@ export default function OsintPesquisa({ onNavigate }) {
                       borderBottom:activeTab===t.key?`2px solid ${C.gold}`:"2px solid transparent",
                       color:activeTab===t.key?C.gold:C.textMid,
                       fontWeight:activeTab===t.key?700:400,
-                      fontSize:11,fontFamily:SANS,transition:"all 0.12s",
+                      fontSize:13,fontFamily:SANS,transition:"all 0.12s",
                     }}>{t.label}</button>
                   ))}
                 </div>
@@ -358,8 +358,8 @@ export default function OsintPesquisa({ onNavigate }) {
                     <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
                       {relatorio.risk_summary && (
                         <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
-                          <div style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:7,letterSpacing:"0.1em"}}>◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}</div>
-                          <p style={{fontSize:12,color:C.text,lineHeight:1.75,margin:0}}>{relatorio.risk_summary}</p>
+                          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}</div>
+                          <p style={{fontSize:14,color:C.text,lineHeight:1.8,margin:0}}>{relatorio.risk_summary}</p>
                         </div>
                       )}
                       {relatorio.risk_indicators?.length>0 && (
@@ -368,7 +368,7 @@ export default function OsintPesquisa({ onNavigate }) {
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
                             {relatorio.risk_indicators.map((ind,i)=>(
                               <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.2)",borderRadius:6,color:C.red}}>
-                                <IcoAlert/><span style={{fontSize:11,fontWeight:500,color:"#FCA5A5"}}>{ind}</span>
+                                <IcoAlert/><span style={{fontSize:14,fontWeight:500,color:"#FCA5A5"}}>{ind}</span>
                               </div>
                             ))}
                           </div>
@@ -424,13 +424,13 @@ export default function OsintPesquisa({ onNavigate }) {
                         ...(relatorio.mencoes_dou||[]).map(d=>({data:d.data,tipo:"D.O.U.",desc:d.titulo,cor:C.green,bg:"rgba(74,222,128,0.08)"})),
                       ].filter(e=>e.data).sort((a,b)=>b.data.localeCompare(a.data)).map((e,i)=>(
                         <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 12px",background:e.bg,border:`1px solid ${e.cor}20`,borderRadius:7,borderLeft:`3px solid ${e.cor}`}}>
-                          <span style={{fontSize:9,fontWeight:700,color:e.cor,fontFamily:MONO,flexShrink:0,minWidth:80}}>{e.data}</span>
-                          <span style={{fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:3,background:`${e.cor}22`,color:e.cor,fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
-                          <span style={{fontSize:11,color:C.textMid,lineHeight:1.4}}>{e.desc}</span>
+                          <span style={{fontSize:12,fontWeight:700,color:e.cor,fontFamily:MONO,flexShrink:0,minWidth:90}}>{e.data}</span>
+                          <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:3,background:`${e.cor}22`,color:e.cor,fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
+                          <span style={{fontSize:13,color:C.textMid,lineHeight:1.5}}>{e.desc}</span>
                         </div>
                       ))}
                       {![...(relatorio.processos_criminais||[]),...(relatorio.mencoes_midia||[]),...(relatorio.mencoes_dou||[])].some(e=>e.data||e.data_ajuizamento) && (
-                        <div style={{fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum evento com data identificado.</div>
+                        <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum evento com data identificado.</div>
                       )}
                     </div>
                   )}
@@ -442,9 +442,9 @@ export default function OsintPesquisa({ onNavigate }) {
                         <>
                           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                             <div style={{padding:"4px 12px",background:C.goldSoft,border:`1px solid ${C.goldBorder}`,borderRadius:6}}>
-                              <span style={{fontSize:9,fontWeight:700,color:C.gold,fontFamily:MONO}}>◈ NÓ CENTRAL</span>
+                              <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO}}>◈ NÓ CENTRAL</span>
                             </div>
-                            <span style={{fontSize:13,fontWeight:700,color:C.text}}>{relatorio.graph.nodes.find(n=>n.is_subject)?.label}</span>
+                            <span style={{fontSize:16,fontWeight:700,color:C.text}}>{relatorio.graph.nodes.find(n=>n.is_subject)?.label}</span>
                             <span style={{fontSize:9,color:C.textDim,fontFamily:MONO,marginLeft:"auto"}}>{relatorio.graph.nodes.length} nós · {relatorio.graph.edges.length} arestas</span>
                           </div>
                           <Tabela
@@ -457,7 +457,7 @@ export default function OsintPesquisa({ onNavigate }) {
                           />
                         </>
                       ) : (
-                        <div style={{fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Grafo não disponível.</div>
+                        <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Grafo não disponível.</div>
                       )}
                     </div>
                   )}
@@ -467,8 +467,8 @@ export default function OsintPesquisa({ onNavigate }) {
 
             {/* Rodapé LGPD */}
             <div style={{padding:"8px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
-              <span style={{fontSize:8,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.1em"}}>LGPD · ART.37</span>
-              <span style={{fontSize:9,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
+              <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.08em"}}>LGPD · ART.37</span>
+              <span style={{fontSize:12,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
                 operador: <span style={{color:C.textMid}}>{operador}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
               </span>
             </div>
@@ -481,8 +481,8 @@ export default function OsintPesquisa({ onNavigate }) {
 }
 
 const S = {
-  input:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"9px 12px",fontSize:12,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",transition:"border-color 0.15s" },
-  select:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"9px 12px",fontSize:12,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",cursor:"pointer" },
-  btnPrimary:{ display:"flex",alignItems:"center",gap:6,padding:"9px 20px",background:C.gold,border:"none",borderRadius:7,color:C.bg,fontSize:12,fontWeight:800,cursor:"pointer",transition:"opacity 0.15s",fontFamily:MONO },
-  btnSecondary:{ padding:"9px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:7,color:C.textMid,fontSize:11,fontWeight:500,cursor:"pointer",fontFamily:SANS },
+  input:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"10px 14px",fontSize:14,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",transition:"border-color 0.15s" },
+  select:{ width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,padding:"10px 14px",fontSize:14,color:C.text,outline:"none",fontFamily:SANS,boxSizing:"border-box",cursor:"pointer" },
+  btnPrimary:{ display:"flex",alignItems:"center",gap:6,padding:"9px 20px",background:C.gold,border:"none",borderRadius:7,color:C.bg,fontSize:14,fontWeight:800,cursor:"pointer",transition:"opacity 0.15s",fontFamily:MONO },
+  btnSecondary:{ padding:"9px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:7,color:C.textMid,fontSize:13,fontWeight:500,cursor:"pointer",fontFamily:SANS },
 }
