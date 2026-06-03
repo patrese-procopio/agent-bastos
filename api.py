@@ -22,7 +22,7 @@ from services.logging_service import configurar_logging
 configurar_logging()
 
 # ── Routers ──────────────────────────────────────────────────────────────────
-from routers.liderancas_router import router as liderancas_router
+from routers.liderancas_router  import router as liderancas_router
 from routers.alertas_router     import router as alertas_router
 from routers.agenda_router      import router as agenda_router
 from routers.dashboard_router   import router as dashboard_router
@@ -30,12 +30,14 @@ from routers.transcricao_router import router as transcricao_router
 from routers.referencias_router import router as referencias_router
 from routers.inteligencia_router import router as inteligencia_router
 from routers.sistema_router     import router as sistema_router
-from routers.auth_router import router as auth_router
-from routers.chat_router import router as chat_router
-from routers.config_router import router as config_router
-from routers.grupos_router import router as grupos_router
-from routers.grafo_router import router as grafo_router
-from routers.extrato_router import router as extrato_router
+from routers.auth_router        import router as auth_router
+from routers.chat_router        import router as chat_router
+from routers.config_router      import router as config_router
+from routers.grupos_router      import router as grupos_router
+from routers.grafo_router       import router as grafo_router
+from routers.extrato_router     import router as extrato_router
+from routers.processo_router    import router as processo_router
+from modules.osint.router       import router as osint_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -107,8 +109,8 @@ montar_rate_limit(app)                          # slowapi: anti brute-force e ab
 
 
 # ── Registro de routers ───────────────────────────────────────────────────────
-app.include_router(auth_router, prefix="/api")
-app.include_router(liderancas_router, prefix="/api")
+app.include_router(auth_router,        prefix="/api")
+app.include_router(liderancas_router,  prefix="/api")
 app.include_router(alertas_router,     prefix="/api")
 app.include_router(agenda_router,      prefix="/api")
 app.include_router(dashboard_router,   prefix="/api")
@@ -116,11 +118,13 @@ app.include_router(transcricao_router, prefix="/api")
 app.include_router(referencias_router, prefix="/api")
 app.include_router(inteligencia_router,prefix="/api")
 app.include_router(sistema_router,     prefix="/api")
-app.include_router(chat_router, prefix="/api")
-app.include_router(config_router, prefix="/api")
-app.include_router(grupos_router, prefix="/api")
-app.include_router(grafo_router,      prefix="/api")
-app.include_router(extrato_router,    prefix="/api")
+app.include_router(chat_router,        prefix="/api")
+app.include_router(config_router,      prefix="/api")
+app.include_router(grupos_router,      prefix="/api")
+app.include_router(grafo_router,       prefix="/api")
+app.include_router(extrato_router,     prefix="/api")
+app.include_router(osint_router,       prefix="/api")
+app.include_router(processo_router,    prefix="/api")  # DataJud por número de processo
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
