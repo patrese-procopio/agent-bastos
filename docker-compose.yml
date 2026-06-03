@@ -1,15 +1,21 @@
-﻿# ==============================================================================
+# ==============================================================================
 # docker-compose.yml - Agent Bastos (backend)
 # ------------------------------------------------------------------------------
 # Orquestra o container da API com:
-#   - injecao do .env em runtime (segredos NAO ficam na imagem)
+#   - injeção do .env em runtime (segredos NÃO ficam na imagem)
 #   - volumes nomeados para persistir ChromaDB, auth.db e logs entre restarts
-#   - restart automatico (sobe sozinho se a maquina reiniciar)
+#   - volumes bind para módulos Python (editar no VS Code → container vê na hora)
+#   - restart automático (sobe sozinho se a máquina reiniciar)
 #
 # Uso:
 #   docker compose up -d --build    (sobe em background, reconstruindo a imagem)
 #   docker compose logs -f          (acompanha os logs)
 #   docker compose down             (para e remove o container, dados PERSISTEM)
+#
+# DESENVOLVIMENTO SEM REBUILD:
+#   Edite qualquer arquivo em modules/, routers/, services/ no VS Code.
+#   O container lê direto do seu HD — não precisa rebuild nem restart.
+#   Apenas alterações em api.py ou requirements.txt exigem rebuild.
 # ==============================================================================
 
 services:
@@ -21,48 +27,51 @@ services:
     command: python -u -c "from uvicorn.config import Config; from uvicorn.server import Server; import asyncio; asyncio.run(Server(Config(app='api:app', host='0.0.0.0', port=8000, log_level='info', ws='none')).serve())"
     container_name: agent-bastos-api
 
-    # Injeta as variaveis do .env em runtime. O arquivo .env fica SO na maquina
+    # Injeta as variáveis do .env em runtime. O arquivo .env fica SÓ na máquina
     # servidor, nunca dentro da imagem. Edite o .env com as chaves reais.
     env_file:
       - .env
 
-    # Mapeia a porta 8000 do container para a 8000 da maquina servidor.
-    # A equipe acessa via http://IP-DO-SERVIDOR:8000
     ports:
       - "8000:8000"
 
-    # VOLUMES - o coracao da persistencia.
-    # Sem isso, todo restart do container apagaria os 963 chunks do ChromaDB,
-    # os usuarios do auth.db e os logs. Com volumes nomeados, os dados ficam
-    # guardados pelo Docker e sobrevivem a qualquer restart ou rebuild.
     volumes:
-      - bastos_chroma:/app/data/chroma_db    # base vetorial (doutrinas)
-      - bastos_db:/app/data                  # auth.db e demais dados
-      - bastos_logs:/app/logs                # logs criptografados + auditoria
+      # ── PERSISTÊNCIA DE DADOS (volumes nomeados) ──────────────────────────
+      # Gerenciados pelo Docker — sobrevivem a rebuild, restart e até remoção
+      # do container. Só somem com `docker volume rm`.
+      - bastos_chroma:/app/data/chroma_db    # base vetorial (963+ chunks)
+      - bastos_db:/app/data                  # auth.db, liderancas.db, etc.
+      - bastos_logs:/app/logs                # logs de auditoria (LGPD Art.37)
+
+      # ── BIND MOUNTS DE CÓDIGO (desenvolvimento) ───────────────────────────
+      # O arquivo no seu HD é montado diretamente dentro do container.
+      # Você edita no VS Code → o container já lê a versão nova.
+      # Isso elimina o ciclo: editar → docker cp → restart.
+      #
+      # REGRA: bind mounts ficam ABAIXO dos volumes nomeados para não
+      # sobrescrever os dados persistidos em bastos_db.
+      - ./modules:/app/modules               # lógica de negócio (RAG, OSINT...)
+      - ./routers:/app/routers               # endpoints FastAPI
+      - ./services:/app/services             # serviços transversais
+      - ./config:/app/config                 # configurações
+      - ./api.py:/app/api.py                 # entry-point da API
+
+      # ── ARQUIVOS DE CREDENCIAIS (read-only) ───────────────────────────────
+      # :ro = read-only — o container não consegue alterar mesmo que tente.
       - ./data/doutrina:/app/data/doutrina:ro
       - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
-      
-    # Sobe sozinho se a maquina reiniciar (exceto se voce parar manualmente).
-    # Importante para um servidor que precisa ficar sempre disponivel.
+
     user: "0:0"
     restart: unless-stopped
 
-    # Limites de recurso - evita que o container consuma toda a RAM da maquina
-    # (o modelo de embeddings e pesado). Ajuste conforme o servidor da agencia.
     deploy:
       resources:
         limits:
           memory: 4G
 
 # Volumes nomeados - gerenciados pelo Docker, persistem independente do container.
-# Para ver onde ficam: docker volume inspect agent-bastos_bastos_chroma
+# Para inspecionar: docker volume inspect agent-bastos_bastos_chroma
 volumes:
   bastos_chroma:
   bastos_db:
   bastos_logs:
-
-
-
-
-
-
