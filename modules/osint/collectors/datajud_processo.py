@@ -283,7 +283,7 @@ class DataJudProcessoService:
             classe=raw.get("classe", {}).get("nome", ""),
             classe_codigo=classe_codigo,
             grau=raw.get("grau", ""),
-            data_ajuizamento=raw.get("dataAjuizamento", ""),
+            data_ajuizamento=self._formatar_data_cnj(raw.get("dataAjuizamento", "")),
             ultima_atualizacao=(raw.get("dataHoraUltimaAtualizacao") or "")[:10],
             orgao_julgador=raw.get("orgaoJulgador", {}).get("nome", ""),
             assuntos=[a.get("nome", "") for a in raw.get("assuntos", [])],
@@ -291,3 +291,15 @@ class DataJudProcessoService:
             nivel_sigilo=raw.get("nivelSigilo", 0),
             is_criminal=is_criminal,
         )
+    @staticmethod
+    def _formatar_data_cnj(data_crua: str) -> str:
+        """
+        Converte data do DataJud (YYYYMMDDHHMMSS) → ISO (YYYY-MM-DD).
+        Exemplo: '20260330124252' → '2026-03-30'.
+        """
+        if not data_crua or len(data_crua) < 8:
+            return data_crua
+        try:
+            return f"{data_crua[0:4]}-{data_crua[4:6]}-{data_crua[6:8]}"
+        except Exception:
+            return data_crua

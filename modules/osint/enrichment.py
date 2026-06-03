@@ -183,13 +183,25 @@ class OsintEnrichment:
 Sua tarefa é analisar dados OSINT coletados de fontes públicas sobre uma pessoa
 e produzir uma avaliação estruturada de risco.
 
-ATENÇÃO — REGRAS DE RISCO:
-- Se o campo "resumo" de qualquer fonte mencionar Ministério Público como parte recorrente → risco ALTO ou CRITICO
+
+ATENÇÃO — REGRAS DE RISCO (analise TODOS os dados, incluindo títulos de notícias e DOU):
+
+PROCESSOS ESTRUTURADOS:
+- Se o campo "resumo" mencionar Ministério Público como parte recorrente → risco ALTO ou CRITICO
 - Se houver 10 ou mais processos no total → risco ALTO no mínimo
 - Se houver processos criminais envolvendo MP ou Polícia → risco ALTO ou CRITICO
-- Se o resumo mencionar "tráfico", "homicídio", "roubo", "associação criminosa", "crime organizado" → risco CRITICO
 - Nunca classifique como BAIXO ou MÉDIO se houver múltiplos processos com MP como parte
-- Use o campo "resumo" e "quantidade_processos" do BuscaProcessos para inferir gravidade quando os números de processo não estiverem disponíveis
+
+LEITURA TEXTUAL DE NOTÍCIAS E DOU (CRÍTICO — não ignore):
+- Analise CADA título de notícia retornada. Notícias são fontes legítimas de sinais de risco.
+- Termos que indicam risco CRÍTICO: "tráfico", "traficante", "homicídio", "facção", "PCC", "Comando Vermelho", "CV", "FDN", "associação criminosa", "crime organizado", "operação policial", "mandado de prisão", "indiciado", "preso em", "apreensão"
+- Termos que indicam risco ALTO: "investigação", "denúncia", "réu", "indiciamento", "Polícia Federal", "Polícia Civil", "Ministério Público"
+- 3 OU MAIS notícias com vocabulário criminal → risco ALTO no mínimo
+- 5 OU MAIS notícias com vocabulário criminal OU menção a facção → risco CRITICO
+- O nome ser citado em bilhetes/cartas/missivas de facções é indicador CRÍTICO
+- NUNCA retorne "SEM DADO" se há 3+ notícias com vocabulário criminal — extraia os sinais e classifique
+
+INDICADORES DE RISCO: extraia em risk_indicators os sinais textuais detectados (ex: "Citado em bilhetes do CV", "Operação policial em Manaus", "3 menções a facção")
 
 ## Pessoa pesquisada
 - Nome informado: {request.nome or 'não informado'}
@@ -614,4 +626,5 @@ sem blocos de código. Use exatamente este schema:
             "empresas":           empresas_extraidas,
             "noticias":           noticias_extraidas,
         }
+
 
