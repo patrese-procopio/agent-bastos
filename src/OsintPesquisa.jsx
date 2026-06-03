@@ -66,11 +66,39 @@ const FONTES = [
   { key:"gnews",          label:"GNews",    icon:"📰" },
 ]
 
+const TRIBUNAIS = [
+  { value: "",     label: "Auto-detectar pelo número CNJ" },
+  { value: "tjam", label: "TJAM — Amazonas" },
+  { value: "tjsp", label: "TJSP — São Paulo" },
+  { value: "tjrj", label: "TJRJ — Rio de Janeiro" },
+  { value: "tjmg", label: "TJMG — Minas Gerais" },
+  { value: "tjrs", label: "TJRS — Rio Grande do Sul" },
+  { value: "tjba", label: "TJBA — Bahia" },
+  { value: "tjpr", label: "TJPR — Paraná" },
+  { value: "tjsc", label: "TJSC — Santa Catarina" },
+  { value: "stj",  label: "STJ — Superior Tribunal de Justiça" },
+  { value: "stf",  label: "STF — Supremo Tribunal Federal" },
+  { value: "trf1", label: "TRF1 — Tribunal Regional Federal 1" },
+  { value: "trf2", label: "TRF2 — Tribunal Regional Federal 2" },
+  { value: "trf3", label: "TRF3 — Tribunal Regional Federal 3" },
+]
+
 function cpfMask(v) {
   return v.replace(/\D/g,"").slice(0,11)
     .replace(/(\d{3})(\d)/,"$1.$2")
     .replace(/(\d{3})\.(\d{3})(\d)/,"$1.$2.$3")
     .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,"$1.$2.$3-$4")
+}
+
+// Formata número CNJ: NNNNNNN-DD.AAAA.J.TT.OOOO (20 dígitos)
+function cnjMask(v) {
+  const digits = v.replace(/\D/g,"").slice(0,20)
+  if (digits.length <= 7)  return digits
+  if (digits.length <= 9)  return `${digits.slice(0,7)}-${digits.slice(7)}`
+  if (digits.length <= 13) return `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9)}`
+  if (digits.length <= 14) return `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13)}`
+  if (digits.length <= 16) return `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14)}`
+  return `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16)}`
 }
 
 // ── Ícones ────────────────────────────────────────────────────────────────────
@@ -83,6 +111,7 @@ const IcoSearch   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="
 const IcoDownload = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 const IcoAlert    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 const IcoClock    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+const IcoGavel    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 13l-7.586 7.586a2 2 0 1 1-2.828-2.828L11.172 10.172"/><path d="M16 16l4-4"/><path d="M8 8l4-4"/><path d="M12 12L8 8m4 4l4 4"/></svg>
 
 // ── StatBadge ─────────────────────────────────────────────────────────────────
 const StatBadge = ({ label, value, accent=false }) => (
@@ -128,6 +157,14 @@ export default function OsintPesquisa({ onNavigate }) {
   const [relatorio,  setRelatorio]  = useState(null)
   const [activeTab,  setActiveTab]  = useState("sumario")
   const [dlLoading,  setDlLoading]  = useState(false)
+
+  // ── State da aba "Processo" ─────────────────────────────────────────────────
+  const [numProc,       setNumProc]       = useState("")
+  const [tribunalProc,  setTribunalProc]  = useState("")
+  const [procLoading,   setProcLoading]   = useState(false)
+  const [procErro,      setProcErro]      = useState("")
+  const [procResultado, setProcResultado] = useState(null)
+
   const resultRef = useRef(null)
 
   useEffect(() => {
@@ -167,6 +204,31 @@ export default function OsintPesquisa({ onNavigate }) {
     }
   }
 
+  async function consultarProcesso() {
+    const numeroLimpo = numProc.replace(/\D/g,"")
+    if (!numeroLimpo) {
+      setProcErro("Informe o número do processo.")
+      return
+    }
+    setProcErro(""); setProcLoading(true); setProcResultado(null)
+    try {
+      const url = tribunalProc
+        ? `${API}/osint/processo/${numeroLimpo}?tribunal=${tribunalProc}`
+        : `${API}/osint/processo/${numeroLimpo}`
+      const res = await fetch(url)
+      const data = await res.json()
+      if (!res.ok) {
+        setProcErro(data.detail||"Erro ao consultar processo.")
+        return
+      }
+      setProcResultado(data)
+    } catch {
+      setProcErro("Falha de conexão com o backend.")
+    } finally {
+      setProcLoading(false)
+    }
+  }
+
   async function baixarPdf() {
     if (!resultado?.report_id) return
     setDlLoading(true)
@@ -184,6 +246,7 @@ export default function OsintPesquisa({ onNavigate }) {
 
   function limpar() {
     setNome(""); setCpf(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
+    setNumProc(""); setTribunalProc(""); setProcResultado(null); setProcErro("")
   }
 
   const risco = resultado ? (RISCO[resultado.risk_level]||RISCO.sem_dado) : null
@@ -194,6 +257,7 @@ export default function OsintPesquisa({ onNavigate }) {
     {key:"empresas",  label:"Empresas"  },
     {key:"timeline",  label:"Timeline"  },
     {key:"grafo",     label:"Grafo"     },
+    {key:"processo",  label:"Processo CNJ" },
   ]
 
   return (
@@ -221,7 +285,6 @@ export default function OsintPesquisa({ onNavigate }) {
         {/* ── FORMULÁRIO ── */}
         <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"16px 18px"}}>
 
-          {/* Header do card */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
@@ -253,7 +316,6 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
           </div>
 
-          {/* Fontes */}
           <div style={{marginBottom:14}}>
             <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -266,14 +328,12 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
           </div>
 
-          {/* Erro */}
           {erro && (
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.25)",borderRadius:7,marginBottom:12,color:C.red}}>
               <IcoAlert/><span style={{fontSize:11,fontWeight:500}}>{erro}</span>
             </div>
           )}
 
-          {/* Botões */}
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             {resultado && (
               <button style={S.btnSecondary} onClick={limpar}>Nova pesquisa</button>
@@ -291,7 +351,6 @@ export default function OsintPesquisa({ onNavigate }) {
         {resultado && (
           <div ref={resultRef} className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Banner de risco */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",background:C.surface,borderRadius:10,border:`1px solid ${risco.border}30`,flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{padding:"5px 14px",background:risco.badgeBg,border:`1px solid ${risco.border}50`,borderRadius:6}}>
@@ -314,7 +373,6 @@ export default function OsintPesquisa({ onNavigate }) {
               </div>
             </div>
 
-            {/* Contadores */}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
               <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
@@ -324,7 +382,6 @@ export default function OsintPesquisa({ onNavigate }) {
               <StatBadge label="Nós no Grafo"        value={resultado.nos_grafo}/>
             </div>
 
-            {/* Fontes com erro */}
             {resultado.fontes_com_erro?.length>0 && (
               <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
                 <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
@@ -334,11 +391,9 @@ export default function OsintPesquisa({ onNavigate }) {
               </div>
             )}
 
-            {/* Tabs + Conteúdo */}
             {relatorio && (
               <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
 
-                {/* Tab bar */}
                 <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,background:"rgba(0,0,0,0.2)"}}>
                   {TABS.map(t=>(
                     <button key={t.key} className="o-tab" onClick={()=>setActiveTab(t.key)} style={{
@@ -461,11 +516,142 @@ export default function OsintPesquisa({ onNavigate }) {
                       )}
                     </div>
                   )}
+
+                  {/* ── NOVA ABA: Processo CNJ ───────────────────────────── */}
+                  {activeTab==="processo" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
+
+                      {/* Formulário de consulta */}
+                      <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
+                        <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:10,letterSpacing:"0.1em"}}>◈ APROFUNDAMENTO POR NÚMERO CNJ</div>
+                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.6,margin:"0 0 12px 0"}}>
+                          Consulta direta ao DataJud (CNJ). Informe o número do processo para obter a ficha completa com movimentações, classe, órgão julgador e datas.
+                        </p>
+
+                        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginBottom:10}}>
+                          <div>
+                            <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Número do Processo</label>
+                            <input
+                              style={S.input}
+                              placeholder="0000000-00.0000.0.00.0000"
+                              value={numProc}
+                              onChange={e=>setNumProc(cnjMask(e.target.value))}
+                              onKeyDown={e=>e.key==="Enter"&&consultarProcesso()}
+                              maxLength={25}
+                            />
+                          </div>
+                          <div>
+                            <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Tribunal</label>
+                            <select style={S.select} value={tribunalProc} onChange={e=>setTribunalProc(e.target.value)}>
+                              {TRIBUNAIS.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                          </div>
+                        </div>
+
+                        {procErro && (
+                          <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.25)",borderRadius:7,marginBottom:10,color:C.red}}>
+                            <IcoAlert/><span style={{fontSize:11,fontWeight:500}}>{procErro}</span>
+                          </div>
+                        )}
+
+                        <div style={{display:"flex",justifyContent:"flex-end"}}>
+                          <button
+                            style={{...S.btnPrimary,...(procLoading?{opacity:0.55,cursor:"not-allowed"}:{})}}
+                            onClick={consultarProcesso}
+                            disabled={procLoading}
+                          >
+                            {procLoading
+                              ? <><span className="o-spin" style={{display:"inline-block",width:11,height:11,border:"2px solid rgba(11,17,32,0.3)",borderTopColor:C.bg,borderRadius:"50%"}}/> Consultando DataJud...</>
+                              : <><IcoGavel/> Consultar Processo</>
+                            }
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Resultado da consulta */}
+                      {procResultado && procResultado.numero && !procResultado.mensagem && (
+                        <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
+
+                          {/* Header do processo */}
+                          <div style={{padding:"12px 14px",background:C.surface,borderRadius:8,border:`1px solid ${procResultado.is_criminal?"rgba(239,68,68,0.3)":C.border}`,borderLeft:`3px solid ${procResultado.is_criminal?C.red:C.gold}`}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                              {procResultado.is_criminal && (
+                                <span style={{fontSize:10,fontWeight:800,padding:"3px 8px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",borderRadius:4,color:C.red,fontFamily:MONO,letterSpacing:"0.08em"}}>⚠ CRIMINAL</span>
+                              )}
+                              <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:C.goldSoft,border:`1px solid ${C.goldBorder}`,borderRadius:4,color:C.gold,fontFamily:MONO}}>{procResultado.tribunal}</span>
+                              <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:4,color:C.textMid,fontFamily:MONO}}>{procResultado.grau}</span>
+                              {procResultado.nivel_sigilo > 0 && (
+                                <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:"rgba(220,38,38,0.15)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:4,color:"#FCA5A5",fontFamily:MONO}}>SIGILO {procResultado.nivel_sigilo}</span>
+                              )}
+                            </div>
+                            <div style={{fontSize:16,fontWeight:700,color:C.text,fontFamily:MONO,marginBottom:4}}>{procResultado.numero}</div>
+                            <div style={{fontSize:14,color:C.textMid,marginBottom:2}}>{procResultado.classe}</div>
+                            <div style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>{procResultado.orgao_julgador}</div>
+                          </div>
+
+                          {/* Metadados */}
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                            <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
+                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Data de Ajuizamento</div>
+                              <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.data_ajuizamento||"—"}</div>
+                            </div>
+                            <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
+                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Última Atualização</div>
+                              <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.ultima_atualizacao||"—"}</div>
+                            </div>
+                            <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
+                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Movimentações</div>
+                              <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.movimentos?.length||0}</div>
+                            </div>
+                          </div>
+
+                          {/* Assuntos */}
+                          {procResultado.assuntos?.length>0 && (
+                            <div>
+                              <SecLabel>Assuntos</SecLabel>
+                              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                                {procResultado.assuntos.map((a,i)=>(
+                                  <span key={i} style={{fontSize:12,padding:"4px 10px",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:6,color:C.textMid,fontFamily:MONO}}>{a}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Movimentações */}
+                          {procResultado.movimentos?.length>0 && (
+                            <div>
+                              <SecLabel>Movimentações Processuais</SecLabel>
+                              <Tabela
+                                cols={["Data","Movimentação","Órgão Julgador"]}
+                                rows={procResultado.movimentos.map(m=>[m.data,m.nome,m.orgao_julgador])}
+                                gridCols="1fr 2fr 3fr"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Processo não encontrado */}
+                      {procResultado && procResultado.mensagem && (
+                        <div style={{padding:"14px 16px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+                          <IcoAlert/>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:2}}>PROCESSO NÃO LOCALIZADO</div>
+                            <div style={{fontSize:12,color:C.textMid}}>
+                              {procResultado.mensagem}
+                              {procResultado.tribunais_consultados?.length>0 && (
+                                <> · Tribunais consultados: <span style={{color:C.text,fontFamily:MONO}}>{procResultado.tribunais_consultados.join(", ")}</span></>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </section>
             )}
 
-            {/* Rodapé LGPD */}
             <div style={{padding:"8px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
               <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.08em"}}>LGPD · ART.37</span>
               <span style={{fontSize:12,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
