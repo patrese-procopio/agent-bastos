@@ -174,7 +174,7 @@ USERS_DB: dict = {
         "hashed_password": _carregar_hash("ADMIN_PASSWORD_HASH", _FALLBACK_ADMIN, "admin"),
         "level": "admin",
         "modules": [
-            "chat_rag", "grafoscopia", "transcricao", "dashboard",
+            "admin", "chat_rag", "grafoscopia", "transcricao", "dashboard",
             "agenda", "alertas", "lista_negra", "referencias",
             "noticias", "osint", "grupos", "inteligencia_grupos",
             "politicas", "configuracoes"
@@ -335,8 +335,4 @@ def is_revoked(token: str) -> bool:
             "SELECT 1 FROM revoked_tokens WHERE token_hash = ?",
             (token_hash,)
         ).fetchone()
-    return row is not None
-
-
-
-
+    return row is not None

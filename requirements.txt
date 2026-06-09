@@ -200,3 +200,6 @@ zipp==3.23.1
 zstandard==0.25.0
 
 slowapi
+
+alembic==1.13.3
+sqlalchemy==2.0.49

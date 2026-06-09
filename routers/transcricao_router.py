@@ -13,12 +13,24 @@ import wave
 from datetime import datetime
 
 from functools import lru_cache
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, Depends
 from fastapi.responses import Response
 
 from services.export_service import build_txt, build_pdf, build_docx
 from dependencies import get_current_user, require_module
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
+
+# ── Human-in-the-Loop: importações opcionais ──────────────────────────────────
+# Importadas aqui para não criar dependência circular se o módulo não existir.
+try:
+    from services.human_loop_service import criar_aprovacao, marcar_notificado
+    from services.notification_service import notificar_aprovacao_pendente
+    _HITL_DISPONIVEL = True
+except ImportError:
+    _HITL_DISPONIVEL = False
+
+# Níveis de risco que disparam notificação ao Chefe de Inteligência
+_RISCO_GATILHO = {"ALTO", "CRÍTICO", "CRITICO"}
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
@@ -88,6 +100,7 @@ def _date_str_pt(dt: datetime) -> str:
 @router.post("/transcribe")
 async def transcribe(
     audio: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     user: dict = Depends(require_module("transcricao")),
 ):
     groq     = _get_groq()
@@ -178,7 +191,64 @@ async def transcribe(
             max_tokens=3000,
         )
 
-        return _parse_llm_json(completion.choices[0].message.content)
+        resultado = _parse_llm_json(completion.choices[0].message.content)
+
+        # ── Human-in-the-Loop: dispara notificação se risco é alto ────────────
+        # A notificação roda em background — não atrasa a resposta ao analista.
+        risco_detectado = (resultado.get("risk_level") or "").upper()
+        if _HITL_DISPONIVEL and risco_detectado in _RISCO_GATILHO:
+            operador = user.get("sub", "desconhecido")
+            summary  = resultado.get("summary", "Sem resumo")[:200]
+            detalhes = {
+                "filename":   filename,
+                "duration":   duration_str,
+                "summary":    summary,
+                "red_flags":  len(resultado.get("red_flags", [])),
+            }
+
+            def _criar_e_notificar():
+                """
+                Cria o registro de aprovação e dispara a notificação WA.
+                Roda em background para não bloquear a resposta HTTP.
+
+                Por que BackgroundTask e não asyncio.create_task?
+                  BackgroundTasks do FastAPI é gerenciada pelo framework —
+                  garantida de rodar após o response ser enviado.
+                  create_task requereria event loop disponível no contexto.
+                """
+                import asyncio
+                aprov_id = criar_aprovacao(
+                    tipo_evento = "transcricao_risco_alto",
+                    descricao   = f"Transcrição: {filename[:80]} — {summary[:100]}",
+                    risco       = risco_detectado,
+                    operador    = operador,
+                    detalhes    = detalhes,
+                )
+                # Roda a coroutine de notificação no event loop atual
+                loop = asyncio.new_event_loop()
+                try:
+                    sucesso = loop.run_until_complete(
+                        notificar_aprovacao_pendente(
+                            aprovacao_id = aprov_id,
+                            tipo_evento  = "transcricao_risco_alto",
+                            descricao    = f"🎙️ Transcrição com risco {risco_detectado}\n"
+                                           f"Arquivo: {filename[:60]}\n"
+                                           f"Resumo: {summary[:150]}",
+                            risco        = risco_detectado,
+                            operador     = operador,
+                            detalhes     = detalhes,
+                        )
+                    )
+                    marcar_notificado(aprov_id, sucesso)
+                finally:
+                    loop.close()
+
+            background_tasks.add_task(_criar_e_notificar)
+            resultado["hitl_ativado"] = True
+            resultado["hitl_risco"]   = risco_detectado
+        # ─────────────────────────────────────────────────────────────────────
+
+        return resultado
 
     except json.JSONDecodeError:
         return {

@@ -1,0 +1,198 @@
+{
+  "name": "Agent Bastos — Human-in-the-Loop WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hitl-bastos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node_webhook_entrada",
+      "name": "1. Recebe Evento do Backend",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notes": "Backend chama este webhook quando detecta risco ALTO/CRÍTICO."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ok: true}) }}",
+        "options": {}
+      },
+      "id": "node_resposta_imediata",
+      "name": "2. Responde 200 ao Backend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aceita tanto o formato de teste (pendencia_id/audio_resumo/nivel_risco)\n// quanto o formato de produção (aprovacao_id/descricao/risco)\nconst d = $input.first().json;\n\nconst risco      = d.nivel_risco || d.risco || 'ALTO';\nconst descricao  = d.audio_resumo || d.descricao || '(sem descrição)';\nconst aprovId    = d.pendencia_id || d.aprovacao_id || ('HITL-' + Date.now());\n\nconst emojis = { 'ALTO': '🔴', 'CRÍTICO': '🚨', 'CRITICO': '🚨' };\nconst emoji = emojis[risco.toUpperCase()] || '⚠️';\n\nconst ts = new Date().toLocaleString('pt-BR', {\n  timeZone: 'America/Manaus',\n  day: '2-digit', month: '2-digit', year: 'numeric',\n  hour: '2-digit', minute: '2-digit',\n});\n\nconst mensagem =\n  `${emoji} *AGENT BASTOS — ALERTA ${risco}*\\n\\n` +\n  `📝 *Descrição:*\\n${descricao}\\n\\n` +\n  `🔑 *ID:* ${aprovId}\\n` +\n  `🕐 *Horário:* ${ts}\\n\\n` +\n  `━━━━━━━━━━━━━━━━━━━━\\n` +\n  `Responda com:\\n` +\n  `✅ *CONFIRMAR ${aprovId}* — para aprovar\\n` +\n  `❌ *REJEITAR ${aprovId}* — para reprovar\\n\\n` +\n  `_Esta aprovação expira em 60 minutos._`;\n\nreturn [{ json: { aprovacao_id: aprovId, numero_destino: '559281727347', mensagem } }];"
+      },
+      "id": "node_formatar_mensagem",
+      "name": "3. Formata Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8080/message/sendText/bastos",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "pBQSF1d1HVEOcIWWGOm8xlxho1A" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero_destino, textMessage: { text: $json.mensagem } }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "node_enviar_wa",
+      "name": "4. Envia via Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 420],
+      "notes": "Envia texto simples via Evolution API v1.8.7 (sendText)."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hitl-resposta-bastos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node_webhook_resposta",
+      "name": "5. Recebe Resposta do WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n webhook wraps o payload do Evolution como { headers, params, query, body }\n// O payload real do Evolution está sempre em raw.body\nconst raw = $input.first().json;\nconst payload = raw.body ?? raw;\n\nlet aprovacao_id = null;\nlet decisao = null;\n\n// Texto digitado: CONFIRMAR <id> ou REJEITAR <id>\nconst texto = (\n  payload?.data?.message?.conversation ||\n  payload?.data?.message?.extendedTextMessage?.text ||\n  payload?.message?.conversation ||\n  ''\n).trim().toUpperCase();\n\nconst match = texto.match(/(CONFIRMAR|REJEITAR)\\s+(HITL-\\d+|[A-F0-9-]{36})/i);\nif (match) {\n  decisao = match[1].toLowerCase() === 'confirmar' ? 'confirmada' : 'rejeitada';\n  aprovacao_id = match[2];\n}\n\n// Botão de resposta (formato Evolution)\nconst buttonId = payload?.data?.key?.buttonId\n  || payload?.data?.message?.buttonsResponseMessage?.selectedButtonId || '';\nif (buttonId.startsWith('confirmar_')) {\n  aprovacao_id = buttonId.replace('confirmar_', '');\n  decisao = 'confirmada';\n} else if (buttonId.startsWith('rejeitar_')) {\n  aprovacao_id = buttonId.replace('rejeitar_', '');\n  decisao = 'rejeitada';\n}\n\nif (!aprovacao_id || !decisao) {\n  return [{ json: { ignorar: true, motivo: 'Mensagem não relacionada ao HITL' } }];\n}\n\nconst remetente = payload?.data?.key?.remoteJid || 'whatsapp';\nreturn [{ json: { aprovacao_id, decisao, resposta_por: remetente, observacao: `Respondido via WhatsApp por ${remetente}` } }];"
+      },
+      "id": "node_processar_resposta",
+      "name": "6. Processa Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ignorar }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "node_filtrar_relevante",
+      "name": "7. É Mensagem HITL?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:8000/api/human-loop/responder/{{ $json.aprovacao_id }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Hitl-Key",   "value": "9908396e9e9398ec7adba2663041ef1db4f6a82a447f5b06" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ decisao: $json.decisao, resposta_por: $json.resposta_por, observacao: $json.observacao }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "node_callback_backend",
+      "name": "8. Notifica o Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8080/message/sendText/bastos",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "pBQSF1d1HVEOcIWWGOm8xlxho1A" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: '559281727347', textMessage: { text: $json.decisao === 'confirmada' ? '✅ *CONFIRMADO* — Agent Bastos registrou a aprovação.\\n\\nID: ' + $json.aprovacao_id : '❌ *REJEITADO* — Agent Bastos registrou a rejeição.\\n\\nID: ' + $json.aprovacao_id } }) }}",
+        "options": {}
+      },
+      "id": "node_confirmacao_wa",
+      "name": "9. Confirma no WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 640]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true}",
+        "options": {}
+      },
+      "id": "node_resposta_wa",
+      "name": "10. Responde 200 ao Evolution",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 860]
+    }
+  ],
+  "connections": {
+    "1. Recebe Evento do Backend": {
+      "main": [[
+        { "node": "2. Responde 200 ao Backend", "type": "main", "index": 0 },
+        { "node": "3. Formata Mensagem",         "type": "main", "index": 0 }
+      ]]
+    },
+    "3. Formata Mensagem": {
+      "main": [[{ "node": "4. Envia via Evolution API", "type": "main", "index": 0 }]]
+    },
+    "5. Recebe Resposta do WhatsApp": {
+      "main": [[{ "node": "6. Processa Resposta", "type": "main", "index": 0 }]]
+    },
+    "6. Processa Resposta": {
+      "main": [[{ "node": "7. É Mensagem HITL?", "type": "main", "index": 0 }]]
+    },
+    "7. É Mensagem HITL?": {
+      "main": [
+        [{ "node": "8. Notifica o Backend",       "type": "main", "index": 0 }],
+        [{ "node": "10. Responde 200 ao Evolution","type": "main", "index": 0 }]
+      ]
+    },
+    "8. Notifica o Backend": {
+      "main": [[
+        { "node": "9. Confirma no WhatsApp",       "type": "main", "index": 0 },
+        { "node": "10. Responde 200 ao Evolution",  "type": "main", "index": 0 }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [{ "name": "agent-bastos" }, { "name": "human-in-the-loop" }]
+}
