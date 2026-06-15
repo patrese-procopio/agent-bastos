@@ -272,4 +272,5 @@ def expirar_pendentes() -> int:
         )
     count = result.rowcount
     if count:
-        logger.info("Aprovaçõe
+        logger.info("Aprovações expiradas: %d", count, extra={"expiradas": count})
+    return count
