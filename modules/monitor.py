@@ -34,10 +34,31 @@ ALERTAS_OST = os.path.join(BASE_DIR, "data", "relatorios", "alertas_osint.json")
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _carregar_alvos() -> list:
+    """
+    Retorna a lista de alvos do alvos.json.
+    Suporta dois tipos:
+      {"id": 1, "nome": "João Silva"}           → tipo "pessoa" (nome completo, sem vulgos)
+      {"id": "t1", "tipo": "termo", "termo": "CV-AM"}  → tipo "termo" (hashtag/expressão livre)
+    Vulgos foram removidos da varredura — geram ruído excessivo sem contexto.
+    """
     if not os.path.exists(ALVOS_PATH):
         return []
     with open(ALVOS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _termos_de_busca(alvo: dict) -> list[str]:
+    """
+    Retorna a lista de termos a buscar para um alvo.
+    - Pessoa: apenas o nome completo (vulgos excluídos — geram falsos positivos)
+    - Termo:  o próprio termo livre (ex: "CV-AM", "Tropa de Manaus")
+    """
+    if alvo.get("tipo") == "termo":
+        t = (alvo.get("termo") or "").strip()
+        return [t] if t else []
+    # Tipo pessoa — só o nome, sem vulgos
+    nome = (alvo.get("nome") or "").strip()
+    return [nome] if nome else []
 
 
 def _ler_alertas(caminho: str) -> list:
@@ -206,7 +227,7 @@ def varrer_realtime() -> dict:
     ia_orcamento   = _IA_MAX_POR_VARREDURA
 
     for alvo in alvos:
-        termos = [alvo["nome"]] + alvo.get("vulgos", [])
+        termos = _termos_de_busca(alvo)
 
         for termo in termos:
             noticias = _buscar_google_news(termo, max_resultados=3)
@@ -229,15 +250,16 @@ def varrer_realtime() -> dict:
                     "timestamp":       datetime.now(timezone.utc).isoformat(),
                     "lido":            False,
                     "categoria":       "realtime",
-                    "alvo_id":         alvo["id"],
-                    "alvo_nome":       alvo["nome"],
-                    "alvo_vulgos":     alvo.get("vulgos", []),
+                    "alvo_id":          alvo["id"],
+                    "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
+                    "alvo_tipo":        alvo.get("tipo", "pessoa"),
                     "termo_encontrado": termo,
-                    "analise_ia":      None,
+                    "analise_ia":       None,
                 }
 
+                nome_ref = alvo.get("nome") or alvo.get("termo") or termo
                 if ia_orcamento > 0:
-                    ia = _analisar_ia(n["titulo"], n["resumo"], alvo["nome"])
+                    ia = _analisar_ia(n["titulo"], n["resumo"], nome_ref)
                     if ia:
                         if ia["risco"]:
                             alerta["risco"] = ia["risco"]
@@ -251,6 +273,7 @@ def varrer_realtime() -> dict:
     if novos:
         alertas_atualizados = novos + alertas_atuais
         _salvar_alertas(ALERTAS_RT, alertas_atualizados[:200])
+        _hitl_automatico(novos)
 
     return {"ok": True, "novos": len(novos), "alvos_varridos": len(alvos)}
 
@@ -279,7 +302,7 @@ def varrer_osint() -> dict:
     ia_orcamento    = _IA_MAX_POR_VARREDURA
 
     for alvo in alvos:
-        termos = [t for t in ([alvo.get("nome", "")] + alvo.get("vulgos", [])) if t][:3]  # nome + até 2 vulgos
+        termos = _termos_de_busca(alvo)
 
         for termo in termos:
             for site in _DORK_SITES[:3]:  # Máx 3 sites por termo
@@ -332,9 +355,9 @@ def varrer_osint() -> dict:
                         "timestamp":       datetime.now(timezone.utc).isoformat(),
                         "lido":            False,
                         "categoria":       "osint",
-                        "alvo_id":         alvo["id"],
-                        "alvo_nome":       alvo["nome"],
-                        "alvo_vulgos":     alvo.get("vulgos", []),
+                        "alvo_id":          alvo["id"],
+                        "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
+                        "alvo_tipo":        alvo.get("tipo", "pessoa"),
                         "termo_encontrado": termo,
                         "dork":            dork,
                         "plataforma":      plataforma,
@@ -356,6 +379,7 @@ def varrer_osint() -> dict:
     if novos:
         alertas_atualizados = novos + alertas_atuais
         _salvar_alertas(ALERTAS_OST, alertas_atualizados[:200])
+        _hitl_automatico(novos)
 
     return {"ok": True, "novos": len(novos), "alvos_varridos": len(alvos)}
 
@@ -414,6 +438,144 @@ def analisar_pendentes(limite: int = 20) -> dict:
             _salvar_alertas(caminho, alertas)
 
     return {"ok": True, "analisados": analisados}
+
+
+# ─── HITL Automático ─────────────────────────────────────────────────────────
+
+def _hitl_automatico(alertas: list) -> None:
+    """
+    Para cada alerta novo com risco ALTO, abre automaticamente um HITL
+    sem nenhuma intervenção humana.
+
+    Por que só ALTO?
+      MÉDIO e BAIXO geram volume demais — o chefe ia ignorar tudo.
+      ALTO significa que o LLM ou o léxico já confirmaram relevância operacional.
+      Se não houver LLM configurado, apenas os do léxico chegam aqui.
+
+    Falha silenciosa: se o HITL não puder ser criado (sem n8n, sem WhatsApp),
+    o alerta já está salvo localmente — não é perdido.
+    """
+    try:
+        from services.human_loop_service import criar_aprovacao
+        from services.notification_service import notificar_aprovacao_pendente
+        from services.human_loop_service import marcar_notificado
+        import asyncio
+
+        altos = [a for a in alertas if a.get("risco") == "ALTO"]
+        for a in altos[:3]:  # máx 3 HITLs por varredura — evita spam
+            alvo   = a.get("alvo_nome", "Alvo desconhecido")
+            titulo = a.get("titulo", "")
+            fonte  = a.get("fonte", "")
+            analise = a.get("analise_ia") or ""
+            tipo_alvo = "TERMO" if a.get("alvo_tipo") == "termo" else "PESSOA"
+
+            descricao = (
+                f"[{tipo_alvo}] {alvo}\n"
+                f"Fonte: {fonte}\n"
+                f"Título: {titulo[:200]}\n"
+                + (f"Análise IA: {analise}" if analise else "")
+            ).strip()
+
+            aprov_id = criar_aprovacao(
+                tipo_evento = "alerta_watchlist",
+                descricao   = descricao,
+                risco       = "ALTO",
+                operador    = "watchlist_engine",
+                detalhes    = {
+                    "alerta_id":  a.get("id"),
+                    "alvo_nome":  alvo,
+                    "alvo_tipo":  a.get("alvo_tipo", "pessoa"),
+                    "link":       a.get("link", ""),
+                    "analise_ia": analise,
+                },
+            )
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        fut = pool.submit(
+                            asyncio.run,
+                            notificar_aprovacao_pendente(
+                                aprovacao_id=aprov_id, tipo_evento="alerta_watchlist",
+                                descricao=descricao, risco="ALTO",
+                                operador="watchlist_engine", detalhes=a,
+                            )
+                        )
+                        sucesso = fut.result(timeout=10)
+                else:
+                    sucesso = loop.run_until_complete(
+                        notificar_aprovacao_pendente(
+                            aprovacao_id=aprov_id, tipo_evento="alerta_watchlist",
+                            descricao=descricao, risco="ALTO",
+                            operador="watchlist_engine", detalhes=a,
+                        )
+                    )
+            except Exception:
+                sucesso = False
+
+            marcar_notificado(aprov_id, sucesso)
+
+    except Exception:
+        pass  # nunca quebra a varredura
+
+
+# ─── Scheduler Automático ─────────────────────────────────────────────────────
+
+_scheduler_iniciado = False
+
+
+def iniciar_scheduler() -> None:
+    """
+    Inicia thread de varredura automática em background.
+    Chamado uma única vez pelo lifespan do FastAPI (api.py).
+
+    Intervalo configurável via .env:
+      WATCHLIST_INTERVALO_HORAS=6   (padrão: 6 horas)
+      WATCHLIST_ATIVO=true          (padrão: true — setar false para desabilitar)
+
+    Por que thread e não asyncio?
+      varrer_realtime/osint usam urllib síncrono e socket blocking.
+      Rodar num executor asyncio seria mais correto, mas thread é mais simples
+      e o overhead é mínimo (só 1 thread extra rodando a cada N horas).
+    """
+    global _scheduler_iniciado
+    if _scheduler_iniciado:
+        return
+
+    ativo = os.getenv("WATCHLIST_ATIVO", "true").lower() == "true"
+    if not ativo:
+        return
+
+    try:
+        intervalo_h = float(os.getenv("WATCHLIST_INTERVALO_HORAS", "6"))
+    except ValueError:
+        intervalo_h = 6.0
+
+    import threading
+    import time
+
+    def _loop():
+        import logging
+        log = logging.getLogger("bastos.watchlist")
+        log.info(f"Watchlist Engine iniciado — varredura a cada {intervalo_h}h")
+        while True:
+            time.sleep(intervalo_h * 3600)
+            try:
+                log.info("Watchlist: iniciando varredura automática")
+                rt  = varrer_realtime()
+                ost = varrer_osint()
+                log.info(
+                    f"Watchlist: RT={rt['novos']} novos | OSINT={ost['novos']} novos | "
+                    f"alvos={rt['alvos_varridos']}"
+                )
+            except Exception as e:
+                log.error(f"Watchlist: erro na varredura automática: {e}")
+
+    t = threading.Thread(target=_loop, daemon=True, name="watchlist-scheduler")
+    t.start()
+    _scheduler_iniciado = True
 
 
 # ─── Execução direta (teste) ──────────────────────────────────────────────────

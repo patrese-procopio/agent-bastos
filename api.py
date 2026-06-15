@@ -130,6 +130,14 @@ app.include_router(processo_router,    prefix="/api")  # DataJud por número de 
 app.include_router(human_loop_router,  prefix="/api")  # Human-in-the-Loop via WhatsApp
 app.include_router(audit_router,       prefix="/api")  # Log imutável de auditoria
 
+# ── Watchlist Scheduler ───────────────────────────────────────────────────────
+from modules.monitor import iniciar_scheduler as _iniciar_watchlist
+
+@app.on_event("startup")
+def _startup():
+    _iniciar_watchlist()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     # host=127.0.0.1 (loopback APENAS) — fecha a porta na LAN.
