@@ -328,6 +328,38 @@ export default function App() {
 
         <div style={S.sidebarFooter}>
           <div style={S.footerDivider}/>
+          {/* Badge do usuário logado */}
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",
+            borderRadius:7,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
+            marginBottom:6}}>
+            <div style={{width:26,height:26,borderRadius:"50%",background:"rgba(232,160,32,0.2)",
+              border:"1px solid rgba(232,160,32,0.4)",display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:11,fontWeight:800,color:"#E8A020",flexShrink:0}}>
+              {(user?.username||"?")[0].toUpperCase()}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#F1F5F9",
+                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {user?.username}
+              </div>
+              <div style={{fontSize:9,color:"#F59E0B",fontWeight:700,
+                letterSpacing:"0.1em",textTransform:"uppercase"}}>
+                {user?.level}
+              </div>
+            </div>
+            <button onClick={handleLogout} title="Sair"
+              style={{width:26,height:26,borderRadius:6,border:"1px solid rgba(239,68,68,0.35)",
+                background:"rgba(239,68,68,0.1)",cursor:"pointer",display:"flex",
+                alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.25)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.1)"}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
           <button className="config-btn" style={S.configBtn} onClick={()=>setActive("Configurações")}>
             <GearIcon/>
             <span style={{fontSize:13,color:"#FFFFFF",fontWeight:600}}>Configurações</span>
