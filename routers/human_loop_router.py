@@ -35,6 +35,7 @@ from services.human_loop_service import (
     responder_aprovacao,
 )
 from services.notification_service import notificar_aprovacao_pendente
+from services.audit_service import registrar as audit
 
 logger = logging.getLogger("bastos.human_loop")
 
@@ -174,6 +175,8 @@ def responder(
             "decisao": payload.decisao,
         },
     )
+    audit(f"hitl_{payload.decisao}", "hitl", usuario=payload.resposta_por,
+          alvo=aprovacao_id, detalhe=f"via whatsapp · {payload.observacao or ''}")
     return {"ok": True, "aprovacao": registro}
 
 
@@ -189,6 +192,40 @@ def listar(
     status_filtro: pendente | confirmada | rejeitada | expirada | None (todos)
     """
     return {"aprovacoes": listar_aprovacoes(status=status_filtro, limite=limite)}
+
+
+@router.post("/decidir/{aprovacao_id}", summary="Confirmar ou rejeitar aprovação via Dashboard (admin JWT)")
+def decidir(
+    aprovacao_id: str,
+    payload: ResponderPayload,
+    user: dict = Depends(require_module("admin")),
+):
+    """
+    Permite que um analista admin decida uma aprovação diretamente pelo
+    Dashboard do Agent Bastos — sem precisar responder via WhatsApp.
+
+    Usa autenticação JWT (Bearer token) em vez da HITL_CALLBACK_KEY,
+    pois o chamador é um humano autenticado no app, não o n8n.
+
+    Idempotente: chamar duas vezes com o mesmo ID é seguro.
+    """
+    try:
+        registro = responder_aprovacao(
+            aprovacao_id = aprovacao_id,
+            decisao      = payload.decisao,
+            resposta_por = f"dashboard:{user.get('username', 'admin')}",
+            observacao   = payload.observacao or "Respondido via Dashboard",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    logger.info(
+        "Decisão HITL via Dashboard.",
+        extra={"aprovacao_id": aprovacao_id, "decisao": payload.decisao, "usuario": user.get("username")},
+    )
+    audit(f"hitl_{payload.decisao}", "hitl", usuario=user.get("sub","?"),
+          alvo=aprovacao_id, detalhe=f"via dashboard · {payload.observacao or ''}")
+    return {"ok": True, "aprovacao": registro}
 
 
 @router.get("/{aprovacao_id}", summary="Detalhe de uma aprovação (admin)")

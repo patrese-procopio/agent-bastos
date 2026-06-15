@@ -4,11 +4,11 @@ notification_service.py — Dispatcher de notificações Human-in-the-Loop
 Responsabilidade única: enviar o payload de uma aprovação pendente para o
 n8n, que por sua vez aciona o WhatsApp via Evolution API.
 
-Por que separar esse serviço do router?
-  - O router não deve conhecer detalhes de integração externa (n8n/WA).
-  - Essa separação permite trocar o canal (Telegram, SMS, e-mail) sem
-    tocar na lógica de negócio de aprovação.
-  - Facilita testes unitários: basta mockar esta função.
+Suporte a múltiplos destinatários:
+  WA_NUMEROS_HITL aceita uma lista separada por vírgula.
+  O n8n recebe a lista completa e dispara sendText para cada número
+  em paralelo — todos recebem o alerta simultaneamente.
+  Qualquer um deles pode responder CONFIRMAR/REJEITAR.
 
 Fail-safe: se a notificação falhar (n8n fora do ar, WA bloqueado), o
   registro de aprovação fica em estado "pendente" no banco e pode ser
@@ -27,6 +27,22 @@ logger = logging.getLogger("bastos.notification")
 # URL do webhook n8n — configurada no .env
 N8N_WEBHOOK_HITL = os.getenv("N8N_WEBHOOK_HITL", "")
 
+# Números autorizados a receber alertas HITL
+# Suporta lista separada por vírgula: 5592999990000,5592888880000
+_NUMEROS_RAW = os.getenv("WA_NUMEROS_HITL", os.getenv("WA_NUMERO_CHEFE", ""))
+
+
+def get_numeros_hitl() -> list[str]:
+    """
+    Retorna a lista de números autorizados, lendo do ambiente em runtime.
+    Suporta tanto WA_NUMEROS_HITL (novo, lista) quanto WA_NUMERO_CHEFE
+    (legado, único número) — compatibilidade retroativa garantida.
+    """
+    raw = os.getenv("WA_NUMEROS_HITL", os.getenv("WA_NUMERO_CHEFE", ""))
+    numeros = [n.strip() for n in raw.split(",") if n.strip()]
+    return numeros
+
+
 # Timeout para chamada ao n8n (não pode bloquear a resposta do endpoint)
 _TIMEOUT_S = 8.0
 
@@ -41,6 +57,7 @@ async def notificar_aprovacao_pendente(
 ) -> bool:
     """
     Dispara notificação para o n8n com os dados da aprovação pendente.
+    O n8n envia o alerta para TODOS os números em WA_NUMEROS_HITL em paralelo.
 
     Parâmetros:
       aprovacao_id : UUID gerado no banco — serve como chave de retorno
@@ -62,18 +79,35 @@ async def notificar_aprovacao_pendente(
         )
         return False
 
+    numeros = get_numeros_hitl()
+    if not numeros:
+        logger.warning(
+            "WA_NUMEROS_HITL não configurado — aprovação %s sem destinatários.",
+            aprovacao_id,
+            extra={"aprovacao_id": aprovacao_id},
+        )
+        return False
+
     payload = {
-        "aprovacao_id": aprovacao_id,
-        "tipo_evento":  tipo_evento,
-        "descricao":    descricao,
-        "risco":        risco,
-        "operador":     operador,
-        "timestamp":    datetime.now(timezone.utc).isoformat(),
-        "detalhes":     detalhes or {},
+        "aprovacao_id":    aprovacao_id,
+        "tipo_evento":     tipo_evento,
+        "descricao":       descricao,
+        "risco":           risco,
+        "operador":        operador,
+        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "detalhes":        detalhes or {},
+        # Lista de destinatários — n8n itera e envia para cada um
+        "numeros_destino": numeros,
         # URL de retorno que o n8n usará para confirmar/rejeitar
-        "callback_url": os.getenv("BASTOS_CALLBACK_URL", "http://127.0.0.1:8000")
-                        + f"/api/human-loop/responder/{aprovacao_id}",
+        "callback_url":    os.getenv("BASTOS_CALLBACK_URL", "http://127.0.0.1:8000")
+                           + f"/api/human-loop/responder/{aprovacao_id}",
     }
+
+    logger.info(
+        "Disparando HITL para %d número(s): %s",
+        len(numeros), numeros,
+        extra={"aprovacao_id": aprovacao_id},
+    )
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
@@ -81,7 +115,8 @@ async def notificar_aprovacao_pendente(
 
         if resp.status_code < 300:
             logger.info(
-                "Notificação HITL enviada ao n8n.",
+                "Notificação HITL enviada ao n8n para %d destinatário(s).",
+                len(numeros),
                 extra={"aprovacao_id": aprovacao_id, "status": resp.status_code},
             )
             return True

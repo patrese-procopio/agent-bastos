@@ -104,6 +104,7 @@ def _init_users_db() -> None:
     Cria a tabela users em auth.db se nao existir.
     Se a tabela estiver vazia, semeia admin e analista
     usando os hashes do .env (migracao automatica).
+    Migra automaticamente colunas novas (active, nivel) se a tabela ja existir.
     """
     with _get_db_conn() as conn:
         conn.execute("""
@@ -112,10 +113,15 @@ def _init_users_db() -> None:
                 hashed_password TEXT NOT NULL,
                 level           TEXT NOT NULL DEFAULT 'analista',
                 modules         TEXT NOT NULL DEFAULT '[]',
+                active          INTEGER NOT NULL DEFAULT 1,
                 created_at      TEXT NOT NULL,
                 created_by      TEXT NOT NULL DEFAULT 'system'
             )
         """)
+        # Migracao: adiciona coluna active se nao existir (banco pre-existente)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "active" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         if count > 0:
             return
@@ -268,7 +274,7 @@ def get_user(username: str) -> Optional[dict]:
     """Retorna o usuario do banco SQLite ou None se nao existir."""
     with _get_db_conn() as conn:
         row = conn.execute(
-            "SELECT username, hashed_password, level, modules "
+            "SELECT username, hashed_password, level, modules, active "
             "FROM users WHERE username = ?",
             (username,)
         ).fetchone()
@@ -279,7 +285,49 @@ def get_user(username: str) -> Optional[dict]:
         "hashed_password": row[1],
         "level":           row[2],
         "modules":         json.loads(row[3]),
+        "active":          bool(row[4]),
     }
+
+
+def update_user(
+    username: str,
+    plain_password: Optional[str] = None,
+    level: Optional[str] = None,
+    modules: Optional[list] = None,
+    active: Optional[bool] = None,
+) -> dict:
+    """
+    Atualiza campos do usuario. Apenas os campos fornecidos (nao-None) sao alterados.
+    Levanta ValueError se o usuario nao existir.
+    """
+    user = get_user(username)
+    if not user:
+        raise ValueError(f"Usuario '{username}' nao encontrado.")
+
+    fields, values = [], []
+    if plain_password is not None:
+        fields.append("hashed_password = ?")
+        values.append(pwd_context.hash(plain_password))
+    if level is not None:
+        fields.append("level = ?")
+        values.append(level)
+    if modules is not None:
+        fields.append("modules = ?")
+        values.append(json.dumps(modules))
+    if active is not None:
+        fields.append("active = ?")
+        values.append(1 if active else 0)
+
+    if not fields:
+        return get_user(username)
+
+    values.append(username)
+    with _get_db_conn() as conn:
+        conn.execute(
+            f"UPDATE users SET {', '.join(fields)} WHERE username = ?",
+            values,
+        )
+    return get_user(username)
 
 
 # --- Funcoes de token ---------------------------------------------------------
@@ -335,4 +383,8 @@ def is_revoked(token: str) -> bool:
             "SELECT 1 FROM revoked_tokens WHERE token_hash = ?",
             (token_hash,)
         ).fetchone()
-    return row is not None
+    return row is not None
+
+
+
+

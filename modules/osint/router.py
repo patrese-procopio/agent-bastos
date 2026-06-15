@@ -164,6 +164,15 @@ async def pesquisar(body: PesquisarRequest, request: Request) -> PesquisarRespon
     # Salva no cache para GET /relatorio/{id}
     _report_cache[str(report.report_id)] = report
 
+    try:
+        from services.audit_service import registrar as audit
+        audit("osint_pesquisa", "consulta", usuario=body.operator_id,
+              alvo=body.nome or body.cpf or "?",
+              detalhe=f"risco={report.risk_level.value} finalidade={body.lgpd_purpose}",
+              ip=ip)
+    except Exception:
+        pass
+
     return PesquisarResponse(
         report_id=str(report.report_id),
         subject_name=report.subject_name,

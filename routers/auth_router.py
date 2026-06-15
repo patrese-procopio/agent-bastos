@@ -24,12 +24,14 @@ from services.auth_service import (
     revoke_refresh_token,
     is_revoked,
     create_user,
+    update_user,
     delete_user,
     list_users,
 )
 from dependencies import require_module
 from services.rate_limit_service import limiter, LIMIT_LOGIN, LIMIT_REFRESH
 from services.logging_service import get_logger
+from services.audit_service import registrar as audit
 
 _log_audit    = get_logger("audit")
 _log_security = get_logger("security")
@@ -60,10 +62,18 @@ class CreateUserRequest(BaseModel):
     modules:  list[str] = []
 
 
+class UpdateUserRequest(BaseModel):
+    password: str | None = None
+    level:    str | None = None
+    modules:  list[str] | None = None
+    active:   bool | None = None
+
+
 class UserResponse(BaseModel):
     username:   str
     level:      str
     modules:    list[str]
+    active:     bool = True
     created_at: str
     created_by: str
 
@@ -83,11 +93,13 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     ip = request.client.host if request.client else "?"
 
     # Mensagem genérica intencional — não revelar se o usuário existe ou não
-    if not user or not verify_password(form.password, user["hashed_password"]):
+    if not user or not verify_password(form.password, user["hashed_password"]) or not user.get("active", True):
         _log_security.warning(
             "login falhou",
             extra={"username": form.username, "ip": ip, "motivo": "credenciais"},
         )
+        audit("login_falhou", "autenticacao", usuario=form.username, ip=ip,
+              detalhe="credenciais invalidas ou usuario inativo")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciais inválidas",
@@ -101,6 +113,8 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
         "login ok",
         extra={"username": user["username"], "level": user["level"], "ip": ip},
     )
+    audit("login_ok", "autenticacao", usuario=user["username"], ip=ip,
+          detalhe=f"level={user['level']}")
 
     return TokenResponse(
         access_token=access,
@@ -161,8 +175,10 @@ def logout(request: Request, body: RefreshRequest):
     try:
         payload = decode_token(body.refresh_token)
         _log_audit.info("logout", extra={"username": payload.get("sub"), "ip": ip})
+        audit("logout", "autenticacao", usuario=payload.get("sub","?"), ip=ip)
     except Exception:
         _log_audit.info("logout", extra={"username": "?", "ip": ip})
+        audit("logout", "autenticacao", ip=ip)
 
 
 # -- Gerenciamento de usuarios (admin only) -----------------------------------
@@ -198,9 +214,45 @@ def criar_usuario(
             "usuario criado",
             extra={"novo_usuario": body.username, "criado_por": user["sub"]},
         )
+        audit("usuario_criado", "usuario", usuario=user["sub"], alvo=body.username,
+              detalhe=f"level={body.level}")
         return novo
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.put("/usuarios/{username}", response_model=UserResponse)
+def atualizar_usuario(
+    username: str,
+    body: UpdateUserRequest,
+    user: dict = Depends(require_module("configuracoes")),
+):
+    """
+    Atualiza nivel, modulos, senha ou status ativo de um usuario.
+    Campos omitidos (null) nao sao alterados.
+    Acesso: apenas admin (modulo configuracoes).
+    """
+    try:
+        atualizado = update_user(
+            username=username,
+            plain_password=body.password,
+            level=body.level,
+            modules=body.modules,
+            active=body.active,
+        )
+        _log_audit.info(
+            "usuario atualizado",
+            extra={"usuario": username, "atualizado_por": user["sub"]},
+        )
+        audit("usuario_editado", "usuario", usuario=user["sub"], alvo=username,
+              detalhe=f"level={body.level or '?'} active={body.active}")
+        # get_user nao retorna created_at/created_by, busca da listagem
+        from services.auth_service import list_users
+        todos = {u["username"]: u for u in list_users()}
+        dados = todos.get(username, atualizado)
+        return {**atualizado, "created_at": dados.get("created_at",""), "created_by": dados.get("created_by","")}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/usuarios/{username}", status_code=204)
@@ -227,3 +279,4 @@ def deletar_usuario(
         "usuario deletado",
         extra={"usuario_deletado": username, "deletado_por": user["sub"]},
     )
+    audit("usuario_deletado", "usuario", usuario=user["sub"], alvo=username)

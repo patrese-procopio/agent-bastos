@@ -137,6 +137,13 @@ async def post_lider(
         if len(conteudo) > 5 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
         lider = atualizar_lider(lider["id"], {"foto_ext": salvar_foto(lider["id"], conteudo, ext)})
+    try:
+        from services.audit_service import registrar as audit
+        audit("lideranca_cadastrada", "liderancas", usuario=user.get("sub","?"),
+              alvo=lider.get("id","?"),
+              detalhe=f"{nome or vulgo or '?'} · {cargo} · {faccao} · {unidade}")
+    except Exception:
+        pass
     return lider
 
 
@@ -166,7 +173,14 @@ async def put_lider(
         if len(conteudo) > 5 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
         dados["foto_ext"] = salvar_foto(lider_id, conteudo, ext)
-    return atualizar_lider(lider_id, dados)
+    resultado = atualizar_lider(lider_id, dados)
+    try:
+        from services.audit_service import registrar as audit
+        audit("lideranca_editada", "liderancas", usuario=user.get("sub","?"),
+              alvo=lider_id, detalhe=f"{nome or vulgo or '?'} · {cargo} · {faccao}")
+    except Exception:
+        pass
+    return resultado
 
 
 @liderancas_router.delete("/{lider_id}")

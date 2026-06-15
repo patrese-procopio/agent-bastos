@@ -39,6 +39,7 @@ from routers.extrato_router     import router as extrato_router
 from routers.processo_router    import router as processo_router
 from modules.osint.router       import router as osint_router
 from routers.human_loop_router  import router as human_loop_router
+from routers.audit_router       import router as audit_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -127,6 +128,7 @@ app.include_router(extrato_router,     prefix="/api")
 app.include_router(osint_router,       prefix="/api")
 app.include_router(processo_router,    prefix="/api")  # DataJud por número de processo
 app.include_router(human_loop_router,  prefix="/api")  # Human-in-the-Loop via WhatsApp
+app.include_router(audit_router,       prefix="/api")  # Log imutável de auditoria
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
