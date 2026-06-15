@@ -169,12 +169,51 @@ def _salvar_firestore(alerta: dict, colecao: str = "alertas") -> bool:
 
 # ─── Google News RSS ──────────────────────────────────────────────────────────
 
+def _janela_dias() -> int:
+    """Retorna quantos dias atrás considerar como 'atual'. Configurável via .env."""
+    try:
+        return int(os.getenv("WATCHLIST_JANELA_DIAS", "30"))
+    except ValueError:
+        return 30
+
+
+def _parsear_data(pub_raw: str):
+    """
+    Tenta parsear a data de publicação do RSS (formato RFC 2822).
+    Retorna datetime timezone-aware ou None se não conseguir.
+    """
+    if not pub_raw:
+        return None
+    formatos = [
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%a, %d %b %Y %H:%M:%S GMT",
+        "%d %b %Y %H:%M:%S %z",
+    ]
+    for fmt in formatos:
+        try:
+            from datetime import timezone as _tz
+            dt = datetime.strptime(pub_raw, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=_tz.utc)
+            return dt
+        except ValueError:
+            continue
+    return None
+
+
 def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
     """
     Busca no Google News RSS por termo.
+    Filtra automaticamente resultados mais antigos que WATCHLIST_JANELA_DIAS (padrão: 30 dias).
     Retorna lista de dicts: {titulo, resumo, link, fonte, data_pub}
     """
-    query = urllib.parse.quote(f'"{termo}" Manaus OR Amazonas OR AM')
+    janela = _janela_dias()
+    # Parâmetro 'after:' do Google News limita a data mínima na query
+    from datetime import timedelta
+    data_corte = datetime.now(timezone.utc) - timedelta(days=janela)
+    after_str  = data_corte.strftime("%Y-%m-%d")
+
+    query = urllib.parse.quote(f'"{termo}" Manaus OR Amazonas OR AM after:{after_str}')
     url   = f"https://news.google.com/rss/search?q={query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
 
     headers = {"User-Agent": "Mozilla/5.0 (compatible; AgentBastos/1.0)"}
@@ -189,7 +228,7 @@ def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
     resultados = []
     try:
         root  = ET.fromstring(xml)
-        items = root.findall(".//item")[:max_resultados]
+        items = root.findall(".//item")
         for item in items:
             titulo  = item.findtext("title", "").strip()
             link    = item.findtext("link",  "").strip()
@@ -197,7 +236,12 @@ def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
             fonte   = item.findtext("source", "").strip() or "Google News"
             pub_raw = item.findtext("pubDate", "").strip()
 
-            # Remove tags HTML do resumo
+            # Validação dupla: além do filtro na query, checa a data do item
+            # (Google às vezes ignora o after: em alguns resultados)
+            dt_pub = _parsear_data(pub_raw)
+            if dt_pub and dt_pub < data_corte:
+                continue  # descarta item antigo
+
             resumo = re.sub(r"<[^>]+>", "", desc).strip()[:400]
 
             resultados.append({
@@ -207,6 +251,10 @@ def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
                 "fonte":    fonte,
                 "data_pub": pub_raw,
             })
+
+            if len(resultados) >= max_resultados:
+                break
+
     except ET.ParseError:
         pass
 
