@@ -229,7 +229,7 @@ def listar_aprovacoes(
     limite: int = 50,
 ) -> list[dict]:
     """Lista aprovações, opcionalmente filtrando por status."""
-    sql    = "SELECT id, tipo_evento, descricao, risco, operador, status, notificado, criado_em, respondido_em FROM aprovacoes_pendentes"
+    sql    = "SELECT id, tipo_evento, descricao, risco, operador, status, detalhes_json, notificado, criado_em, respondido_em FROM aprovacoes_pendentes"
     params: list = []
     if status:
         sql   += " WHERE status = ?"
@@ -248,9 +248,10 @@ def listar_aprovacoes(
             "risco":         r[3],
             "operador":      r[4],
             "status":        r[5],
-            "notificado":    bool(r[6]),
-            "criado_em":     r[7],
-            "respondido_em": r[8],
+            "detalhes":      json.loads(r[6] or "{}"),
+            "notificado":    bool(r[7]),
+            "criado_em":     r[8],
+            "respondido_em": r[9],
         }
         for r in rows
     ]
@@ -271,5 +272,4 @@ def expirar_pendentes() -> int:
         )
     count = result.rowcount
     if count:
-        logger.info("Aprovações expiradas: %d", count, extra={"expiradas": count})
-    return count
+        logger.info("Aprovaçõe
