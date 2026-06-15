@@ -83,6 +83,112 @@ function minutosRestantes(criado_em, timeoutMin=60) {
   return `${Math.floor(rest)} min`
 }
 
+// ── Mapa de ícones por fonte de dados ─────────────────────────────────────────
+const FONTE_ICON = {
+  "Alvo Monitorado":      "🎯",
+  "Liderança (Pavilhão)": "🏛",
+  "Liderança (Rua)":      "🏘",
+  "Extrato de Campo":     "📋",
+}
+const FONTE_COLOR = {
+  "Alvo Monitorado":      "#F87171",   // vermelho — alta prioridade
+  "Liderança (Pavilhão)": "#FBBF24",   // âmbar
+  "Liderança (Rua)":      "#FB923C",   // laranja
+  "Extrato de Campo":     "#60A5FA",   // azul
+}
+
+// ── Painel de cruzamento — renderizado dentro do card quando tipo = transcricao_cruzamento
+function PainelCruzamento({ detalhes }) {
+  const hits    = detalhes?.hits    || []
+  const summary = detalhes?.summary || ""
+  const nFlags  = detalhes?.red_flags ?? 0
+
+  if (!hits.length && !summary) return null
+
+  return (
+    <div style={{
+      margin: "12px 0",
+      borderRadius: 10,
+      border: "1px solid rgba(248,113,113,0.25)",
+      background: "rgba(248,113,113,0.05)",
+      overflow: "hidden",
+    }}>
+      {/* Cabeçalho do painel */}
+      <div style={{
+        padding: "8px 14px",
+        borderBottom: "1px solid rgba(248,113,113,0.18)",
+        background: "rgba(248,113,113,0.08)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#F87171",
+          letterSpacing: "0.1em", fontFamily: MONO }}>
+          🔍 NOMES ENCONTRADOS NAS BASES
+        </span>
+        <span style={{ fontSize: 11, color: "rgba(248,113,113,0.7)", fontFamily: MONO }}>
+          {hits.length} hit{hits.length !== 1 ? "s" : ""}
+          {nFlags > 0 && <span style={{ marginLeft: 8 }}>· 🚩 {nFlags} red flag{nFlags !== 1 ? "s" : ""}</span>}
+        </span>
+      </div>
+
+      {/* Lista de hits */}
+      {hits.length > 0 && (
+        <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+          {hits.map((h, i) => {
+            const cor  = FONTE_COLOR[h.fonte] || "#94A3B8"
+            const icon = FONTE_ICON[h.fonte]  || "📌"
+            return (
+              <div key={i} style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: "8px 12px", borderRadius: 8,
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${cor}22`,
+              }}>
+                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>
+                      {h.nome}
+                    </span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4,
+                      background: `${cor}18`, color: cor,
+                      border: `1px solid ${cor}44`, fontFamily: MONO, letterSpacing: "0.05em",
+                    }}>
+                      {h.fonte}
+                    </span>
+                  </div>
+                  {h.detalhe && (
+                    <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 3, lineHeight: 1.4 }}>
+                      {h.detalhe}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Resumo da transcrição */}
+      {summary && (
+        <div style={{
+          padding: "8px 14px 10px",
+          borderTop: hits.length ? "1px solid rgba(255,255,255,0.06)" : "none",
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8",
+            letterSpacing: "0.08em", fontFamily: MONO, marginBottom: 4 }}>
+            RESUMO DA TRANSCRIÇÃO
+          </div>
+          <p style={{ fontSize: 12.5, color: "#CBD5E1", lineHeight: 1.55, margin: 0,
+            fontStyle: "italic" }}>
+            "{summary}"
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function HitlDashboard() {
   const [aprovacoes, setAprovacoes]   = useState([])
@@ -254,7 +360,7 @@ export default function HitlDashboard() {
                         </p>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontSize:11,color:C.amber,fontWeight:700,fontFamily:MONO}}>
+                        <div style={{fontSize:11,color:C.amber,fontWeight:700,fontFamily:MONO,whiteSpace:"nowrap"}}>
                           ⏱ {rest}
                         </div>
                         <div style={{fontSize:10,color:C.textDim,fontFamily:MONO,marginTop:2}}>
@@ -275,6 +381,11 @@ export default function HitlDashboard() {
                         Criado: <span style={{color:C.textMid}}>{fmtDate(a.criado_em)}</span>
                       </span>
                     </div>
+
+                    {/* Painel de cruzamento — exibido apenas para tipo transcricao_cruzamento */}
+                    {a.tipo_evento === "transcricao_cruzamento" && a.detalhes && (
+                      <PainelCruzamento detalhes={a.detalhes} />
+                    )}
 
                     {/* Botões de ação */}
                     <div style={{display:"flex",gap:10}}>
@@ -345,7 +456,7 @@ export default function HitlDashboard() {
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
                       <span style={{fontSize:12,fontWeight:600,color:C.text,
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:380}}>
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:320}}>
                         {a.descricao}
                       </span>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
@@ -353,6 +464,13 @@ export default function HitlDashboard() {
                         fontFamily:MONO,letterSpacing:"0.05em",flexShrink:0}}>
                         {a.risco}
                       </span>
+                      {a.tipo_evento === "transcricao_cruzamento" && (
+                        <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
+                          background:"rgba(248,113,113,0.1)",color:"#F87171",
+                          border:"1px solid rgba(248,113,113,0.3)",fontFamily:MONO,flexShrink:0}}>
+                          🔍 CRUZAMENTO
+                        </span>
+                      )}
                     </div>
                     <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
                       <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>
