@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import logoImg from "./assets/logo.png"
+import ErrorBoundary from "./ErrorBoundary"
 import ChatRAG from "./ChatRAG"
 import Dashboard from "./Dashboard"
 import Transcricao from "./Transcricao"
@@ -21,34 +22,77 @@ import MatrizNucadis from "./MatrizNucadis"
 import Login from "./Login"
 import api from "./api"
 import LideresGerais from "./LideresGerais"
+import HitlDashboard from "./HitlDashboard"
+import GerenciarUsuarios from "./GerenciarUsuarios"
+import AuditoriaLog from "./AuditoriaLog"
 
-const NAV_GROUPS = [
+// Mapeamento: label do nav → módulo necessário no JWT
+// Se module === null → sempre visível para qualquer usuário autenticado
+const NAV_PERMISSIONS = {
+  "Painel":                  null,
+  "Alertas":                 "alertas",
+  "Controle HITL":           "hitl",
+  "Controle de Grupos":      "grupos",
+  "Inteligência de Grupos":  "inteligencia_grupos",
+  "Lideranças por Unidade":  "liderancas",
+  "Líderes Gerais":          "liderancas",
+  "Análise de Vínculo":      "vinculo",
+  "Extrato":                 "extrato",
+  "Lista Negra":             "lista_negra",
+  "Chat RAG":                "chat_rag",
+  "OSINT Pessoas":           "osint",
+  "Sinais Fracos":           "sinais_fracos",
+  "Referências":             "referencias",
+  "Agenda de Missão":        "agenda",
+  "Dashboard":               "dashboard",
+  "Matriz NUCADIs":          "matrix_nucadis",
+  "Transcrição":             "transcricao",
+  "Análise Grafoscópica":    "grafoscopia",
+  "Notícias":                "noticias",
+  "Gerenciar Usuários":      "usuarios",
+  "Auditoria":               "auditoria",
+}
+
+const NAV_GROUPS_ALL = [
   { title: "PRINCIPAL", items: [
-    { label: "Painel", color: "#F59E0B", active: true },
-    { label: "Alertas", color: "#F87171", pulse: true },
-    { label: "Controle de Grupos", color: "#F87171" },
-    { label: "Inteligência de Grupos", color: "#A78BFA" },
-    { label: "Lideranças por Unidade", color: "#F87171" },
-    { label: "Líderes Gerais", color: "#F97316" },
-    { label: "Análise de Vínculo", color: "#38BDF8" },
-    { label: "Extrato", color: "#E8A020" },
-    { label: "Lista Negra", color: "#94A3B8" },
+    { label: "Painel",                  color: "#F59E0B" },
+    { label: "Alertas",                 color: "#F87171", pulse: true },
+    { label: "Controle HITL",           color: "#F59E0B", pulse: true },
+    { label: "Controle de Grupos",      color: "#F87171" },
+    { label: "Inteligência de Grupos",  color: "#A78BFA" },
+    { label: "Lideranças por Unidade",  color: "#F87171" },
+    { label: "Líderes Gerais",          color: "#F97316" },
+    { label: "Análise de Vínculo",      color: "#38BDF8" },
+    { label: "Extrato",                 color: "#E8A020" },
+    { label: "Lista Negra",             color: "#94A3B8" },
   ]},
   { title: "INTELIGÊNCIA", items: [
-    { label: "Chat RAG", color: "#1D4ED8" },
-    { label: "OSINT Pessoas", color: "#B45309" },
-    { label: "Sinais Fracos", color: "#FBBF24" },
-    { label: "Referências", color: "#C4B5FD" },
-    { label: "Agenda de Missão", color: "#F59E0B", badge: "2" },
+    { label: "Chat RAG",        color: "#1D4ED8" },
+    { label: "OSINT Pessoas",   color: "#B45309" },
+    { label: "Sinais Fracos",   color: "#FBBF24" },
+    { label: "Referências",     color: "#C4B5FD" },
+    { label: "Agenda de Missão",color: "#F59E0B", badge: "2" },
   ]},
   { title: "FERRAMENTAS", items: [
-    { label: "Dashboard", color: "#34D399" },
-    { label: "Matriz NUCADIs", color: "#F472B6" },
-    { label: "Transcrição", color: "#818CF8" },
-    { label: "Análise Grafoscópica", color: "#FBBF24" },
-    { label: "Notícias", color: "#FB923C" },
+    { label: "Dashboard",             color: "#34D399" },
+    { label: "Matriz NUCADIs",        color: "#F472B6" },
+    { label: "Transcrição",           color: "#818CF8" },
+    { label: "Análise Grafoscópica",  color: "#FBBF24" },
+    { label: "Notícias",              color: "#FB923C" },
+    { label: "Gerenciar Usuários",    color: "#60A5FA" },
+    { label: "Auditoria",             color: "#A78BFA" },
   ]},
 ]
+
+function buildNavGroups(modules = []) {
+  return NAV_GROUPS_ALL.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      const mod = NAV_PERMISSIONS[item.label]
+      return mod === null || mod === undefined || modules.includes(mod)
+    }),
+  })).filter(group => group.items.length > 0)
+}
 
 const NEWS = [
   { title: "Acordo bilateral entre Brasil e Argentina avança em questões de defesa", source: "Defesa Net", time: "2h", category: "Defesa", accent: "#60A5FA", img: "https://picsum.photos/seed/defesa/400/200" },
@@ -64,6 +108,22 @@ const REFS = [
   { label: "Busca por período", color: "#60A5FA" },
   { label: "Drive institucional", color: "#34D399" },
 ]
+
+// Decodifica o payload do JWT sem verificar assinatura (o backend verifica em cada chamada)
+function decodeJwt(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")))
+  } catch { return null }
+}
+
+// Lê o usuário atual a partir do access token armazenado (sempre fresco)
+function userFromStorage() {
+  const token = localStorage.getItem("ab_access_token")
+  if (!token) return null
+  const p = decodeJwt(token)
+  if (!p?.sub) return null
+  return { username: p.sub, level: p.level || "analista", modules: p.modules || [] }
+}
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -132,10 +192,7 @@ const GearIcon = () => (
 function tempoH(ts) { const d = Math.floor((Date.now()/1000 - ts)/3600); return d + "h" }
 export default function App() {
   const [active, setActive]             = useState("Painel")
-  const [user, setUser]                 = useState(() => {
-    const u = localStorage.getItem("ab_user")
-    return u ? JSON.parse(u) : null
-  })
+  const [user, setUser]                 = useState(() => userFromStorage())
   const [message, setMessage]           = useState("")
   const [focused, setFocused]           = useState(false)
   const [chatHistory, setChatHistory]   = useState([])
@@ -172,7 +229,9 @@ export default function App() {
   }, [user])
 
   function handleLogin(data) {
-    setUser({ username: data.username, level: data.level, modules: data.modules })
+    // Remove cache stale — módulos sempre lidos do JWT via userFromStorage()
+    localStorage.removeItem("ab_user")
+    setUser({ username: data.username, level: data.level, modules: data.modules || [] })
   }
 
   function handleLogout() {
@@ -205,6 +264,7 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
+  const NAV_GROUPS = buildNavGroups(user?.modules || [])
 
   const newsToShow = liveNews.length > 0
     ? liveNews.slice(0,4).map((n,i)=>({
@@ -281,25 +341,28 @@ export default function App() {
       </aside>
 
       <main style={S.main}>
-        {active==="Chat RAG"               && <ChatRAG      onNavigate={setActive}/>}
-        {active==="Dashboard"              && <Dashboard    onNavigate={setActive}/>}
-        {active==="Transcrição"            && <Transcricao  onNavigate={setActive}/>}
-        {active==="Análise Grafoscópica"   && <Grafoscopia  onNavigate={setActive}/>}
-        {active==="Alertas"                && <Alertas      onNavigate={setActive}/>}
-        {active==="Notícias"               && <Noticias     onNavigate={setActive}/>}
-        {active==="Referências"            && <Referencias  onNavigate={setActive}/>}
-        {active==="Configurações"          && <Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/>}
-        {active==="Controle de Grupos"     && <ControleGrupos onNavigate={setActive}/>}
-        {active==="Inteligência de Grupos" && <InteligenciaGrupos onNavigate={setActive}/>}
-        {active==="Lideranças por Unidade" && <LiderancasUnidade onNavigate={setActive}/>}
-        {active==="Líderes Gerais"         && <LideresGerais    onNavigate={setActive}/>}
-        {active==="Análise de Vínculo"     && <GrafoVinculos onNavigate={setActive}/>}
-        {active==="Extrato"                && <Extrato      onNavigate={setActive}/>}
-        {active==="Sinais Fracos"          && <SinaisFracos onNavigate={setActive}/>}
-        {active==="Matriz NUCADIs"         && <MatrizNucadis onNavigate={setActive}/>}
-        {active==="Agenda de Missão"       && <Agenda       onNavigate={setActive}/>}
-        {active === "Lista Negra"          && <ListaNegra     onNavigate={setActive} />}
-        {active === "OSINT Pessoas"        && <OsintPesquisa  onNavigate={setActive} />}
+        {active==="Chat RAG"               && <ErrorBoundary modulo="Chat RAG"><ChatRAG      onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Dashboard"              && <ErrorBoundary modulo="Dashboard"><Dashboard    onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Transcrição"            && <ErrorBoundary modulo="Transcrição"><Transcricao  onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Análise Grafoscópica"   && <ErrorBoundary modulo="Análise Grafoscópica"><Grafoscopia  onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Alertas"                && <ErrorBoundary modulo="Alertas"><Alertas      onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Notícias"               && <ErrorBoundary modulo="Notícias"><Noticias     onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Referências"            && <ErrorBoundary modulo="Referências"><Referencias  onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Configurações"          && <ErrorBoundary modulo="Configurações"><Configuracoes onNavigate={setActive} tema={tema} setTema={setTema}/></ErrorBoundary>}
+        {active==="Controle de Grupos"     && <ErrorBoundary modulo="Controle de Grupos"><ControleGrupos onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Inteligência de Grupos" && <ErrorBoundary modulo="Inteligência de Grupos"><InteligenciaGrupos onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Lideranças por Unidade" && <ErrorBoundary modulo="Lideranças por Unidade"><LiderancasUnidade onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Líderes Gerais"         && <ErrorBoundary modulo="Líderes Gerais"><LideresGerais    onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Análise de Vínculo"     && <ErrorBoundary modulo="Análise de Vínculo"><GrafoVinculos onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Extrato"                && <ErrorBoundary modulo="Extrato"><Extrato      onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Sinais Fracos"          && <ErrorBoundary modulo="Sinais Fracos"><SinaisFracos onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Matriz NUCADIs"         && <ErrorBoundary modulo="Matriz NUCADIs"><MatrizNucadis onNavigate={setActive}/></ErrorBoundary>}
+        {active==="Agenda de Missão"       && <ErrorBoundary modulo="Agenda de Missão"><Agenda       onNavigate={setActive}/></ErrorBoundary>}
+        {active === "Lista Negra"          && <ErrorBoundary modulo="Lista Negra"><ListaNegra     onNavigate={setActive} /></ErrorBoundary>}
+        {active === "OSINT Pessoas"        && <ErrorBoundary modulo="OSINT Pessoas"><OsintPesquisa  onNavigate={setActive} /></ErrorBoundary>}
+        {active === "Controle HITL"        && <ErrorBoundary modulo="Controle HITL"><HitlDashboard     onNavigate={setActive} /></ErrorBoundary>}
+        {active === "Gerenciar Usuários"   && <ErrorBoundary modulo="Gerenciar Usuários"><GerenciarUsuarios onNavigate={setActive} /></ErrorBoundary>}
+        {active === "Auditoria"            && <ErrorBoundary modulo="Auditoria"><AuditoriaLog onNavigate={setActive} /></ErrorBoundary>}
 
         {active==="Painel" && (
           <>
@@ -482,7 +545,7 @@ export default function App() {
        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
            "Inteligência de Grupos","Lideranças por Unidade","Líderes Gerais","Análise de Vínculo","Análise Grafoscópica",
-           "Extrato","Sinais Fracos","Matriz NUCADIs","OSINT Pessoas"].includes(active) && (
+           "Extrato","Sinais Fracos","Matriz NUCADIs","OSINT Pessoas","Controle HITL","Gerenciar Usuários","Auditoria"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
             <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>

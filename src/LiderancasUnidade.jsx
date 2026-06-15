@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import api from "./api"
 
-const API     = "http://127.0.0.1:8000"
-const API_LID = "/api-proxy/liderancas"
-const tkn     = () => localStorage.getItem("ab_access_token") || ""
 const MONO    = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS    = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 

@@ -101,8 +101,6 @@ function ModalLancarMissao({ onFechar, onPublicar }) {
 
   function verificarSenha() {
     if (!senha.trim()) { setErroSenha("Digite a senha do Chefe AIPEN."); return }
-    const cfg = JSON.parse(localStorage.getItem("ab_config") || "{}")
-    const BACKEND = cfg.backendUrl || "http://127.0.0.1:8000"
     api.post("/agenda/login", { senha })
       .then(r => r?.json())
       .then(d => {
@@ -118,8 +116,6 @@ function ModalLancarMissao({ onFechar, onPublicar }) {
   async function publicarMissao() {
     if (!mensagem.trim()) return
     setPublicando(true)
-    const cfg = JSON.parse(localStorage.getItem("ab_config") || "{}")
-    const BACKEND = cfg.backendUrl || "http://127.0.0.1:8000"
     try { await api.post("/agenda/publicar", { nucleo:nucleoSel, mensagem:mensagem.trim() }) } catch {}
     setSucesso(true); setPublicando(false)
     onPublicar({ nucleo:nucleoSel, mensagem:mensagem.trim(), timestamp:new Date().toISOString(), status:"pendente" })
@@ -313,9 +309,6 @@ export default function Agenda({ onNavigate }) {
   const [toast, setToast] = useState(null)
   const [modalAberto, setModalAberto] = useState(false)
   const toastMostradoRef = useRef(new Set())
-  const cfg = JSON.parse(localStorage.getItem("ab_config") || "{}")
-  const BACKEND = cfg.backendUrl || "http://127.0.0.1:8000"
-
   useEffect(() => {
     const style = document.createElement("style"); style.textContent = GLOBAL_CSS; document.head.appendChild(style)
     return () => document.head.removeChild(style)

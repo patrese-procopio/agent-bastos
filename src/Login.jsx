@@ -1,5 +1,6 @@
 import { useState } from "react"
 import api from "./api"
+import logoImg from "./assets/logo.png"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -60,7 +61,7 @@ export default function Login({ onLogin }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             overflow: "hidden",
           }}>
-            <img src="./src/assets/logo.png" alt="AB"
+            <img src={logoImg} alt="AB"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               onError={e => { e.target.style.display = "none" }}
             />

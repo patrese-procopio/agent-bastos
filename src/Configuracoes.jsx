@@ -280,7 +280,7 @@ function AbaAgenda() {
   async function carregarMissoes() {
     setLoading(true)
     try {
-      const r = await fetch("http://127.0.0.1:8000/agenda/missoes?limite=30")
+      const r = await api.get("/agenda/missoes?limite=30")
       const d = await r.json()
       setMissoes(d.missoes || [])
     } catch {
@@ -296,9 +296,7 @@ function AbaAgenda() {
 
   async function verificarSenha() {
     try {
-      const r = await fetch("http://127.0.0.1:8000/agenda/login", {
-        method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ senha }),
-      })
+      const r = await api.post("/agenda/login", { senha })
       const d = await r.json()
       if (d.ok) { setAutenticado(true); setLoginMode(false); setSenha(""); setErroSenha("") }
       else       { setErroSenha("Senha incorreta. Tente novamente.") }
@@ -312,10 +310,7 @@ function AbaAgenda() {
     if (!novaMensagem.trim()) return
     setPublicando(true)
     try {
-      const r = await fetch("http://127.0.0.1:8000/agenda/publicar", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nucleo: novoNucleo, mensagem: novaMensagem.trim() }),
-      })
+      const r = await api.post("/agenda/publicar", { nucleo: novoNucleo, mensagem: novaMensagem.trim() })
       const d = await r.json()
       if (d.ok) {
         setFeedback("✓ Missão publicada com sucesso!")
@@ -531,7 +526,7 @@ function AbaConexoes() {
   async function verificar() {
     setStatus({ backend:"checking", firebase:"checking", n8n:"checking" })
     try {
-      const r = await fetch(`${backendUrl}/status`, { signal: AbortSignal.timeout(4000) })
+      const r = await api.get("/status")
       const d = await r.json()
       setStatus(s => ({...s, backend:"online"}))
       setInfos(i  => ({...i, backend: `v${d.version || "—"} · ${d.model || "—"}`}))
@@ -540,7 +535,7 @@ function AbaConexoes() {
       setInfos(i  => ({...i, backend: "Sem resposta"}))
     }
     try {
-      const r = await fetch(`${backendUrl}/status/firebase`, { signal: AbortSignal.timeout(4000) })
+      const r = await api.get("/status/firebase")
       const d = await r.json()
       setStatus(s => ({...s, firebase: d.ok ? "online" : "offline"}))
       setInfos(i  => ({...i, firebase: d.projeto || "—"}))

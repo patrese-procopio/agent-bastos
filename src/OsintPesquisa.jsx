@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react"
+import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
-const API  = "http://127.0.0.1:8000/api"
 
 const C = {
   bg:         "#0B1120",
@@ -182,20 +182,16 @@ export default function OsintPesquisa({ onNavigate }) {
     if (!nome.trim() && !cpf.trim()) { setErro("Informe nome ou CPF para pesquisar."); return }
     setErro(""); setLoading(true); setResultado(null); setRelatorio(null)
     try {
-      const res = await fetch(`${API}/osint/pesquisar`, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          operator_id: operador||"agente_anonimo",
-          lgpd_purpose: finalidade,
-          nome: nome.trim()||undefined,
-          cpf: cpf.replace(/\D/g,"")||undefined,
-        })
+      const res = await api.post("/osint/pesquisar", {
+        operator_id: operador||"agente_anonimo",
+        lgpd_purpose: finalidade,
+        nome: nome.trim()||undefined,
+        cpf: cpf.replace(/\D/g,"")||undefined,
       })
       const data = await res.json()
       if (!res.ok) { setErro(data.detail||"Erro na pesquisa."); return }
       setResultado(data)
-      const r2 = await fetch(`${API}/osint/relatorio/${data.report_id}`)
+      const r2 = await api.get(`/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
     } catch {
       setErro("Falha de conexão com o backend.")
@@ -212,10 +208,10 @@ export default function OsintPesquisa({ onNavigate }) {
     }
     setProcErro(""); setProcLoading(true); setProcResultado(null)
     try {
-      const url = tribunalProc
-        ? `${API}/osint/processo/${numeroLimpo}?tribunal=${tribunalProc}`
-        : `${API}/osint/processo/${numeroLimpo}`
-      const res = await fetch(url)
+      const path = tribunalProc
+        ? `/osint/processo/${numeroLimpo}?tribunal=${tribunalProc}`
+        : `/osint/processo/${numeroLimpo}`
+      const res = await api.get(path)
       const data = await res.json()
       if (!res.ok) {
         setProcErro(data.detail||"Erro ao consultar processo.")
@@ -233,7 +229,7 @@ export default function OsintPesquisa({ onNavigate }) {
     if (!resultado?.report_id) return
     setDlLoading(true)
     try {
-      const res = await fetch(`${API}/osint/relatorio/${resultado.report_id}/pdf`)
+      const res = await api.get(`/osint/relatorio/${resultado.report_id}/pdf`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
