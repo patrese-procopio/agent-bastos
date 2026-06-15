@@ -29,6 +29,14 @@ try:
 except ImportError:
     _HITL_DISPONIVEL = False
 
+# ── Pipeline de cruzamento pós-transcrição: importação opcional ───────────────
+# Mesmo padrão do HITL: não quebra o boot se o módulo não existir.
+try:
+    from services.pipeline_transcricao import executar as _pipeline_cruzar
+    _PIPELINE_DISPONIVEL = True
+except ImportError:
+    _PIPELINE_DISPONIVEL = False
+
 # Níveis de risco que disparam notificação ao Chefe de Inteligência
 _RISCO_GATILHO = {"ALTO", "CRÍTICO", "CRITICO"}
 
@@ -246,6 +254,21 @@ async def transcribe(
             background_tasks.add_task(_criar_e_notificar)
             resultado["hitl_ativado"] = True
             resultado["hitl_risco"]   = risco_detectado
+        # ─────────────────────────────────────────────────────────────────────
+
+        # ── Pipeline de cruzamento pós-transcrição ────────────────────────────
+        # Roda em background — não atrasa a resposta ao analista.
+        # Cruza o texto com alvos.json, liderancas.db e extrato_entidades.
+        # Se encontrar nomes monitorados → abre HITL automaticamente.
+        if _PIPELINE_DISPONIVEL:
+            background_tasks.add_task(
+                _pipeline_cruzar,
+                texto    = raw_text,
+                resultado = resultado,
+                filename  = filename,
+                operador  = user.get("sub", "desconhecido"),
+            )
+            resultado["pipeline_cruzamento"] = True
         # ─────────────────────────────────────────────────────────────────────
 
         return resultado
