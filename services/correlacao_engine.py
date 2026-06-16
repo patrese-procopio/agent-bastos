@@ -262,7 +262,12 @@ def _carregar_extratos_historicos() -> list[dict]:
 
 def _abrir_hitl(hits: list[dict], fonte_tipo: str, fonte_id: str,
                 metadados: dict, operador: str) -> str | None:
-    """Cria aprovação HITL e dispara notificação. Retorna o ID criado ou None."""
+    """
+    Cria aprovação e decide o destino com base no risco:
+      - BAIXO / MÉDIO → auto-confirma (sem WhatsApp) — Missão 26
+      - ALTO / CRÍTICO → HITL normal (WhatsApp → operador)
+    Retorna o ID da aprovação criada ou None em caso de falha.
+    """
     try:
         from services.human_loop_service import criar_aprovacao, marcar_notificado
         from services.notification_service import notificar_aprovacao_pendente
@@ -303,6 +308,29 @@ def _abrir_hitl(hits: list[dict], fonte_tipo: str, fonte_id: str,
         detalhes=detalhes,
     )
 
+    # ── Branch Missão 26: risco baixo/médio → auto-resposta ───────────────────
+    try:
+        from services.auto_response_service import deve_responder_auto, responder_automaticamente
+        _auto = deve_responder_auto(risco)
+    except ImportError:
+        _auto = False
+
+    if _auto:
+        responder_automaticamente(
+            hitl_id     = aprov_id,
+            risco       = risco,
+            hits        = hits,
+            tipo_evento = "correlacao_cruzada",
+            fonte_tipo  = fonte_tipo,
+            fonte_id    = fonte_id,
+        )
+        logger.info(
+            "[correlacao] Auto-confirmado: %s | risco=%s | hits=%d | fonte=%s/%s",
+            aprov_id, risco, len(hits), fonte_tipo, fonte_id,
+        )
+        return aprov_id
+
+    # ── HITL normal: risco alto/crítico → WhatsApp ────────────────────────────
     hits_linhas = "\n".join(
         f"  * [{h['fonte']}] {h['nome']}\n    {h['detalhe']}" for h in hits[:10]
     )
