@@ -105,6 +105,27 @@ def get_completo(user: dict = Depends(_GATE)):
     return grafo.grafo_completo()
 
 
+@router.get("/recentes", summary="Nós/arestas adicionados via HITL (ORÁCULO LIVE)")
+def get_recentes(
+    limite: int = Query(default=20, ge=1, le=100),
+    user: dict = Depends(_GATE),
+):
+    """
+    Retorna os nós e arestas mais recentes criados automaticamente
+    após confirmações de HITL (origem: auto:correlacao:*).
+
+    Usado pelo painel ORÁCULO LIVE do GrafoVinculos para mostrar
+    o que o sistema materializou sem intervenção manual.
+    """
+    return grafo.recentes_auto(limite=limite)
+
+
+@router.get("/stats", summary="Estatísticas do grafo de vínculos")
+def get_stats(user: dict = Depends(_GATE)):
+    """Contagens rápidas: total de nós/arestas, auto vs manual, última atualização."""
+    return grafo.stats_grafo()
+
+
 # ── Escrita manual ──────────────────────────────────────────────────────────
 
 @router.post("/no")

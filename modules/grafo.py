@@ -447,6 +447,66 @@ def grafo_completo() -> dict:
     return {"nodes": nos, "edges": edges}
 
 
+def recentes_auto(limite: int = 20) -> dict:
+    """
+    Nós e arestas adicionados automaticamente via HITL (origem LIKE 'auto:correlacao:%')
+    ordenados do mais recente para o mais antigo.
+
+    Útil para o painel ORÁCULO LIVE do frontend — mostra o que o sistema
+    materializou no grafo sem intervenção manual.
+    """
+    with _conn() as con:
+        nos = [
+            _no_dict(r)
+            for r in con.execute(
+                """SELECT * FROM nos
+                   WHERE origem LIKE 'auto:correlacao:%'
+                   ORDER BY criado_em DESC
+                   LIMIT ?""",
+                (limite,),
+            ).fetchall()
+        ]
+        arestas = [
+            _aresta_dict(r)
+            for r in con.execute(
+                """SELECT * FROM arestas
+                   WHERE origem LIKE 'auto:correlacao:%'
+                   ORDER BY criado_em DESC
+                   LIMIT ?""",
+                (limite,),
+            ).fetchall()
+        ]
+    return {"nos": nos, "arestas": arestas, "total_nos": len(nos), "total_arestas": len(arestas)}
+
+
+def stats_grafo() -> dict:
+    """Contagens rápidas para o painel de status do frontend."""
+    with _conn() as con:
+        total_nos    = con.execute("SELECT COUNT(*) FROM nos").fetchone()[0]
+        total_arestas = con.execute("SELECT COUNT(*) FROM arestas").fetchone()[0]
+        auto_nos     = con.execute(
+            "SELECT COUNT(*) FROM nos WHERE origem LIKE 'auto:%'"
+        ).fetchone()[0]
+        auto_arestas = con.execute(
+            "SELECT COUNT(*) FROM arestas WHERE origem LIKE 'auto:%'"
+        ).fetchone()[0]
+        hitl_nos     = con.execute(
+            "SELECT COUNT(*) FROM nos WHERE origem LIKE 'auto:correlacao:%'"
+        ).fetchone()[0]
+        ultima_auto  = con.execute(
+            "SELECT MAX(criado_em) FROM nos WHERE origem LIKE 'auto:%'"
+        ).fetchone()[0]
+    return {
+        "total_nos":     total_nos,
+        "total_arestas": total_arestas,
+        "auto_nos":      auto_nos,
+        "auto_arestas":  auto_arestas,
+        "hitl_nos":      hitl_nos,       # nós que vieram de HITLs confirmados
+        "manual_nos":    total_nos - auto_nos,
+        "ultima_auto":   ultima_auto,
+    }
+
+
 # ── Sincronização com lideranças ────────────────────────────────────────────
 
 def sincronizar() -> dict:
