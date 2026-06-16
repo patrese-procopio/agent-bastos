@@ -92,6 +92,29 @@ def _registrar_feedback(aprovacao_id: str, registro: dict, decisao: str, operado
         except Exception as exc:
             logger.warning("[human_loop] Falha ao atualizar grafo: %s", exc)
 
+    # Missão 28 — Score de Risco Dinâmico: confirmar HITL eleva score das entidades
+    if decisao == "confirmada":
+        try:
+            import json as _json
+            from services.risco_score_service import registrar_hitl_confirmado
+            _det28 = registro.get("detalhes") or {}
+            if isinstance(_det28, str):
+                try:
+                    _det28 = _json.loads(_det28)
+                except Exception:
+                    _det28 = {}
+            _hits28  = _det28.get("hits", [])
+            _risco28 = _det28.get("risco", registro.get("risco", "ALTO"))
+            if _hits28:
+                _n = registrar_hitl_confirmado(
+                    hits   = _hits28,
+                    risco  = _risco28,
+                    motivo = f"HITL {aprovacao_id[:8]} confirmado por {operador}",
+                )
+                logger.debug("[human_loop] M28: score atualizado para %d entidade(s).", _n)
+        except Exception as exc:
+            logger.warning("[human_loop] Falha ao atualizar score de risco: %s", exc)
+
 router = APIRouter(prefix="/human-loop", tags=["human-loop"])
 
 # Chave simples para autenticar o callback do n8n

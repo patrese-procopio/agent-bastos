@@ -43,6 +43,7 @@ from routers.audit_router       import router as audit_router
 from routers.correlacao_router  import router as correlacao_router
 from routers.briefing_router    import router as briefing_router
 from routers.feedback_router    import router as feedback_router
+from routers.risco_score_router import router as risco_score_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -135,6 +136,7 @@ app.include_router(audit_router,       prefix="/api")  # Log imutável de audito
 app.include_router(correlacao_router,  prefix="/api")  # Motor de Correlação (Missão 23)
 app.include_router(briefing_router,    prefix="/api")  # Boletim Diário de Inteligência (Missão 24)
 app.include_router(feedback_router,    prefix="/api")  # Feedback Loop de Correlação (Missão 25)
+app.include_router(risco_score_router, prefix="/api")  # Score de Risco Dinâmico (Missão 28)
 
 # ── Schedulers ────────────────────────────────────────────────────────────────
 from modules.monitor import iniciar_scheduler as _iniciar_watchlist
