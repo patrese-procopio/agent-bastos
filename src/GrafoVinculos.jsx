@@ -12,6 +12,8 @@ const C = {
   gold: "#E8A020", goldSoft: "rgba(232,160,32,0.12)", goldBorder: "rgba(232,160,32,0.3)",
   text: "#F1F5F9", textMid: "#94A3B8", textDim: "rgba(255,255,255,0.4)",
   red: "#EF4444", green: "#4ADE80", blue: "#60A5FA",
+  oracle: "#7C3AED", oracleLight: "#A78BFA",
+  oracleSoft: "rgba(124,58,237,0.15)", oracleBorder: "rgba(167,139,250,0.35)",
 }
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -23,8 +25,11 @@ const CSS = `
   .gv-btn { transition: all .12s; }
   .gv-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
   .gv-ico:hover { background: rgba(232,160,32,0.14) !important; transform: scale(1.08); }
+  .gv-oracle-item:hover { background: rgba(124,58,237,0.12) !important; }
   @keyframes gv-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+  @keyframes gv-oracle-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0)} 60%{box-shadow:0 0 0 4px rgba(124,58,237,0.22)} }
   .gv-link-mode { animation: gv-pulse 1.2s ease-in-out infinite; }
+  .gv-oracle-dot { animation: gv-oracle-pulse 2.5s ease-in-out infinite; }
   ::-webkit-scrollbar { width: 6px; height:6px; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius:4px; }
 `
@@ -48,6 +53,12 @@ export default function GrafoVinculos() {
   const [carregando, setCarreg] = useState(false)
   const [busy, setBusy]         = useState(false)
   const [dim, setDim]           = useState({ w: 800, h: 600 })
+
+  // ORÁCULO LIVE
+  const [recentes,    setRecentes]    = useState({ nos: [], arestas: [] })
+  const [stats,       setStats]       = useState(null)
+  const [showOraculo, setShowOraculo] = useState(true)
+  const prevHitlNos                   = useRef(0)
 
   const fgRef   = useRef()
   const wrapRef = useRef()
@@ -77,10 +88,32 @@ export default function GrafoVinculos() {
     } catch { aviso("Backend offline.", C.red); return [] }
   }, [])
 
+  const carregarRecentes = useCallback(async (recarregarRede = false) => {
+    try {
+      const [rRec, rStat] = await Promise.all([
+        api.get("/grafo/recentes?limite=15"),
+        api.get("/grafo/stats"),
+      ])
+      const dRec  = await rRec.json()
+      const dStat = await rStat.json()
+      setRecentes(dRec)
+      setStats(dStat)
+      // detecta novos nós HITL desde última verificação
+      const hitlNos = dStat.hitl_nos || 0
+      if (prevHitlNos.current > 0 && hitlNos > prevHitlNos.current) {
+        aviso(`🔮 ORÁCULO: +${hitlNos - prevHitlNos.current} nó(s) adicionados via HITL`, C.oracleLight)
+        if (recarregarRede && alvoId) carregarRede(alvoId)
+        await carregarAlvos()
+      }
+      prevHitlNos.current = hitlNos
+    } catch { /* silencioso — não quebra o grafo */ }
+  }, [alvoId, carregarAlvos]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     (async () => {
       try { const r = await api.get("/grafo/meta"); setMeta(await r.json()) } catch {}
       await carregarAlvos()
+      await carregarRecentes()
       // foco vindo do M?dulo Extrato ("Ver no Grafo")
       const foco = localStorage.getItem("grafo_foco_alvo")
       if (foco) {
@@ -90,6 +123,12 @@ export default function GrafoVinculos() {
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregarAlvos])
+
+  // Polling ORÁCULO: verifica novos nós HITL a cada 30s
+  useEffect(() => {
+    const t = setInterval(() => carregarRecentes(true), 30_000)
+    return () => clearInterval(t)
+  }, [carregarRecentes])
 
   /* Carrega a rede de um alvo */
   const carregarRede = useCallback(async (id, h = hops) => {
@@ -281,6 +320,12 @@ export default function GrafoVinculos() {
       ctx.textAlign = "center"; ctx.textBaseline = "middle"
       ctx.fillText(icon, node.x, node.y + 0.5)
     }
+    // anel púrpura para nós criados via HITL (auto:correlacao:*)
+    const isAutoCorr = node.origem?.startsWith("auto:correlacao:")
+    if (isAutoCorr && !isSel) {
+      ctx.beginPath(); ctx.arc(node.x, node.y, r + 3.5, 0, 2 * Math.PI)
+      ctx.strokeStyle = "rgba(167,139,250,0.65)"; ctx.lineWidth = 1.8; ctx.stroke()
+    }
     // r?tulo
     if (isAlvo || isSel || scale > 1.1) {
       const label = (node.rotulo || "").slice(0, 22)
@@ -290,7 +335,7 @@ export default function GrafoVinculos() {
       const w = ctx.measureText(label).width
       ctx.fillStyle = "rgba(11,17,32,0.78)"
       ctx.fillRect(node.x - w / 2 - 2, node.y + r + 1.5, w + 4, fs + 2)
-      ctx.fillStyle = isAlvo ? C.gold : C.text
+      ctx.fillStyle = isAlvo ? C.gold : (isAutoCorr ? C.oracleLight : C.text)
       ctx.fillText(label, node.x, node.y + r + 2.5)
     }
   }, [sel, linking])
@@ -313,6 +358,7 @@ export default function GrafoVinculos() {
 
   const linkColor = useCallback((l) => {
     if (sel?.tipo === "link" && sel.data.id === l.id) return C.gold
+    if (l.origem?.startsWith("auto:correlacao:")) return "rgba(167,139,250,0.55)"
     if (l.origem === "auto:citacao") return "rgba(56,189,248,0.55)"
     if (l.origem === "auto:liderancas") return "rgba(148,163,184,0.4)"
     return "rgba(232,160,32,0.55)"
@@ -330,6 +376,65 @@ export default function GrafoVinculos() {
           </div>
           <div style={{ fontSize: 11.7, color: C.textMid, fontFamily: MONO, marginTop: 6 }}>{alvos.length} alvo(s) no grafo</div>
         </div>
+        {/* ── ORÁCULO LIVE panel ─────────────────────────────── */}
+        <div style={{ borderBottom: `1px solid ${C.border}` }}>
+          <button onClick={() => setShowOraculo(v => !v)}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "transparent", border: "none", cursor: "pointer", color: C.oracleLight }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span className="gv-oracle-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: C.oracle, flexShrink: 0 }} />
+              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>🔮 ORÁCULO LIVE</span>
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {stats && (
+                <span style={{ fontSize: 10.5, fontFamily: MONO, color: C.oracleSoft === C.oracle ? C.oracleLight : C.textDim, background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, borderRadius: 10, padding: "1px 7px" }}>
+                  {stats.hitl_nos ?? 0} nós
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: C.textDim }}>{showOraculo ? "▲" : "▼"}</span>
+            </span>
+          </button>
+
+          {showOraculo && (
+            <div style={{ padding: "0 10px 10px" }}>
+              {/* mini stats */}
+              {stats && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 8 }}>
+                  {[
+                    { label: "Total nós",    val: stats.total_nos     ?? 0 },
+                    { label: "Auto HITL",    val: stats.hitl_nos      ?? 0 },
+                    { label: "Arestas",      val: stats.total_arestas ?? 0 },
+                    { label: "Auto arestas", val: stats.auto_arestas  ?? 0 },
+                  ].map(({ label, val }) => (
+                    <div key={label} style={{ background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, borderRadius: 7, padding: "5px 8px", textAlign: "center" }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: C.oracleLight }}>{val}</div>
+                      <div style={{ fontSize: 9.5, color: C.textDim, marginTop: 1 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* lista de nós recentes */}
+              {recentes.nos.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: C.textDim, textAlign: "center", padding: "8px 0", fontFamily: MONO }}>
+                  Nenhum nó via HITL ainda
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 190, overflowY: "auto" }}>
+                  {recentes.nos.slice(0, 8).map(n => (
+                    <button key={n.id} className="gv-oracle-item" onClick={() => { focar(n.id) }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 15, fontFamily: EMOJI_FONT, flexShrink: 0, lineHeight: 1 }}>{n.icone || "🔗"}</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: C.oracleLight, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.rotulo}</span>
+                        <span style={{ display: "block", fontSize: 10, color: C.textDim, fontFamily: MONO }}>{n.tipo} · {n.criado_em ? new Date(n.criado_em).toLocaleDateString("pt-BR") : "?"}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div style={{ padding: "10px 14px" }}>
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar alvo, vulgo, fac??o?"
             style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }} />
