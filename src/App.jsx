@@ -31,7 +31,7 @@ import AuditoriaLog from "./AuditoriaLog"
 const NAV_PERMISSIONS = {
   "Painel":                  null,
   "Alertas":                 "alertas",
-  "Controle HITL":           "hitl",
+  "ORÁCULO":                 "hitl",
   "Controle de Grupos":      "grupos",
   "Inteligência de Grupos":  "inteligencia_grupos",
   "Lideranças por Unidade":  "liderancas",
@@ -57,7 +57,7 @@ const NAV_GROUPS_ALL = [
   { title: "PRINCIPAL", items: [
     { label: "Painel",                  color: "#F59E0B" },
     { label: "Alertas",                 color: "#F87171", pulse: true },
-    { label: "Controle HITL",           color: "#F59E0B", pulse: true },
+    { label: "ORÁCULO",                  color: "#A78BFA", pulse: true },
     { label: "Controle de Grupos",      color: "#F87171" },
     { label: "Inteligência de Grupos",  color: "#A78BFA" },
     { label: "Lideranças por Unidade",  color: "#F87171" },
@@ -392,7 +392,7 @@ export default function App() {
         {active==="Agenda de Missão"       && <ErrorBoundary modulo="Agenda de Missão"><Agenda       onNavigate={setActive}/></ErrorBoundary>}
         {active === "Lista Negra"          && <ErrorBoundary modulo="Lista Negra"><ListaNegra     onNavigate={setActive} /></ErrorBoundary>}
         {active === "OSINT Pessoas"        && <ErrorBoundary modulo="OSINT Pessoas"><OsintPesquisa  onNavigate={setActive} /></ErrorBoundary>}
-        {active === "Controle HITL"        && <ErrorBoundary modulo="Controle HITL"><HitlDashboard     onNavigate={setActive} /></ErrorBoundary>}
+        {active === "ORÁCULO"              && <ErrorBoundary modulo="ORÁCULO"><HitlDashboard         onNavigate={setActive} /></ErrorBoundary>}
         {active === "Gerenciar Usuários"   && <ErrorBoundary modulo="Gerenciar Usuários"><GerenciarUsuarios onNavigate={setActive} /></ErrorBoundary>}
         {active === "Auditoria"            && <ErrorBoundary modulo="Auditoria"><AuditoriaLog onNavigate={setActive} /></ErrorBoundary>}
 
@@ -577,7 +577,7 @@ export default function App() {
        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
            "Inteligência de Grupos","Lideranças por Unidade","Líderes Gerais","Análise de Vínculo","Análise Grafoscópica",
-           "Extrato","Sinais Fracos","Matriz NUCADIs","OSINT Pessoas","Controle HITL","Gerenciar Usuários","Auditoria"].includes(active) && (
+           "Extrato","Sinais Fracos","Matriz NUCADIs","OSINT Pessoas","ORÁCULO","Gerenciar Usuários","Auditoria"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
             <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>
