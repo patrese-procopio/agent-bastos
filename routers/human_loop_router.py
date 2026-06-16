@@ -36,8 +36,36 @@ from services.human_loop_service import (
 )
 from services.notification_service import notificar_aprovacao_pendente
 from services.audit_service import registrar as audit
+import services.feedback_service as _fb
 
 logger = logging.getLogger("bastos.human_loop")
+
+
+def _registrar_feedback(aprovacao_id: str, registro: dict, decisao: str, operador: str) -> None:
+    """
+    Registra feedback de correlação após decisão HITL.
+    Wrapper seguro: nunca lança exceção para não quebrar o endpoint.
+    """
+    try:
+        import json
+        tipo_evento = registro.get("tipo_evento", "")
+        detalhes = registro.get("detalhes") or {}
+        if isinstance(detalhes, str):
+            try:
+                detalhes = json.loads(detalhes)
+            except Exception:
+                detalhes = {}
+        hits = detalhes.get("hits", [])
+        if hits:
+            _fb.registrar_feedback(
+                hitl_id    = aprovacao_id,
+                tipo_evento = tipo_evento,
+                hits        = hits,
+                decisao     = decisao,
+                operador    = operador,
+            )
+    except Exception as exc:
+        logger.warning("[human_loop] Falha ao registrar feedback: %s", exc)
 
 router = APIRouter(prefix="/human-loop", tags=["human-loop"])
 
@@ -177,6 +205,7 @@ def responder(
     )
     audit(f"hitl_{payload.decisao}", "hitl", usuario=payload.resposta_por,
           alvo=aprovacao_id, detalhe=f"via whatsapp · {payload.observacao or ''}")
+    _registrar_feedback(aprovacao_id, registro, payload.decisao, payload.resposta_por)
     return {"ok": True, "aprovacao": registro}
 
 
@@ -225,6 +254,7 @@ def decidir(
     )
     audit(f"hitl_{payload.decisao}", "hitl", usuario=user.get("sub","?"),
           alvo=aprovacao_id, detalhe=f"via dashboard · {payload.observacao or ''}")
+    _registrar_feedback(aprovacao_id, registro, payload.decisao, user.get("username", "admin"))
     return {"ok": True, "aprovacao": registro}
 
 

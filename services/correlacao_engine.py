@@ -360,11 +360,22 @@ def correlacionar_texto(
         corpus = _carregar_corpus()
         metadados = metadados or {}
 
-        # Filtra apenas hits ainda não registrados para este (fonte_tipo, fonte_id)
+        # Importação local para evitar circular import no boot
+        try:
+            from services.feedback_service import verificar_supressao as _suprimido
+        except ImportError:
+            _suprimido = lambda *a: False  # noqa: E731
+
+        # Filtra apenas hits ainda não registrados e não suprimidos pelo feedback loop
         hits_novos: list[dict] = []
         for entrada in corpus:
             key = entrada["nome_norm"]
             if _ja_registrada(fonte_tipo, fonte_id, key):
+                continue
+            if _suprimido("correlacao_cruzada", entrada["nome_norm"], entrada["fonte"]):
+                logger.debug(
+                    "[correlacao] Hit '%s' suprimido pelo feedback loop.", entrada["nome"]
+                )
                 continue
             if _tem_hit(texto_norm, entrada):
                 hits_novos.append(entrada)
