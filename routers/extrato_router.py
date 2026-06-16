@@ -28,7 +28,7 @@ Governança:
 """
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Query, Request, Response
 from pydantic import BaseModel
 
 from modules import extrato, grafo, lexico
@@ -36,6 +36,13 @@ from services import llm_extracao, export_service
 from dependencies import require_module
 from services.rate_limit_service import limiter, LIMIT_IA_PESADA, LIMIT_ESCRITA
 from services.logging_service import get_logger
+
+# ── Correlação automática: importação opcional ────────────────────────────────
+try:
+    from services.correlacao_engine import correlacionar_texto as _correlacionar
+    _CORRELACAO_OK = True
+except ImportError:
+    _CORRELACAO_OK = False
 
 _log_audit = get_logger("audit.extrato")
 
@@ -76,19 +83,49 @@ class FusaoIn(BaseModel):
 
 @router.post("/submeter")
 @limiter.limit(LIMIT_IA_PESADA)
-def submeter(request: Request, body: ExtratoIn, user: dict = Depends(_GATE)):
+def submeter(request: Request, body: ExtratoIn,
+             background_tasks: BackgroundTasks = BackgroundTasks(),
+             user: dict = Depends(_GATE)):
     if not (body.corpo or "").strip():
         raise HTTPException(status_code=400, detail="Corpo do extrato vazio.")
     _log_audit.info("extrato submetido",
                     extra={"username": user.get("sub"), "classif": body.classificacao,
                            "unidade": body.unidade, "bytes": len(body.corpo)})
-    return extrato.criar_e_processar(body.model_dump(), usuario=user.get("sub", "?"))
+    resultado = extrato.criar_e_processar(body.model_dump(), usuario=user.get("sub", "?"))
+    # ── Correlação automática em background ───────────────────────────────────
+    if _CORRELACAO_OK:
+        eid = resultado.get("id") or resultado.get("extrato_id", "?")
+        background_tasks.add_task(
+            _correlacionar,
+            texto=body.corpo,
+            fonte_tipo="extrato",
+            fonte_id=eid,
+            metadados={"summary": body.assunto or "", "unidade": body.unidade or "",
+                       "risco": "ALTO"},
+            operador=user.get("sub", "sistema"),
+        )
+    return resultado
 
 
 @router.post("/criar")
 @limiter.limit(LIMIT_ESCRITA)
-def criar(request: Request, body: ExtratoIn, user: dict = Depends(_GATE)):
-    return extrato.criar_extrato(body.model_dump(), usuario=user.get("sub", "?"))
+def criar(request: Request, body: ExtratoIn,
+          background_tasks: BackgroundTasks = BackgroundTasks(),
+          user: dict = Depends(_GATE)):
+    resultado = extrato.criar_extrato(body.model_dump(), usuario=user.get("sub", "?"))
+    # ── Correlação automática em background ───────────────────────────────────
+    if _CORRELACAO_OK:
+        eid = resultado.get("id") or resultado.get("extrato_id", "?")
+        background_tasks.add_task(
+            _correlacionar,
+            texto=body.corpo,
+            fonte_tipo="extrato",
+            fonte_id=eid,
+            metadados={"summary": body.assunto or "", "unidade": body.unidade or "",
+                       "risco": "ALTO"},
+            operador=user.get("sub", "sistema"),
+        )
+    return resultado
 
 
 @router.post("/{eid}/processar")

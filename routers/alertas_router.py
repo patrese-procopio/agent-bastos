@@ -31,6 +31,7 @@ from services.alertas_service import (
     ALERTAS_PATH,
     ALERTAS_OSINT_PATH,
 )
+from fastapi import BackgroundTasks
 from dependencies import get_current_user, require_module
 from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA
 from services.logging_service import get_logger
@@ -38,6 +39,13 @@ from services.logging_service import get_logger
 _log_audit = get_logger("audit.alertas")
 
 router = APIRouter(tags=["alertas"])
+
+# ── Correlação automática: importação opcional ────────────────────────────────
+try:
+    from services.correlacao_engine import correlacionar_texto as _correlacionar
+    _CORRELACAO_OK = True
+except ImportError:
+    _CORRELACAO_OK = False
 
 
 # ─── Helpers Firestore ────────────────────────────────────────────────────────
@@ -105,12 +113,30 @@ def listar_alertas_osint(limite: int = 50, user: dict = Depends(get_current_user
 
 
 @router.post("/alertas/salvar")
-async def salvar_alerta(alerta: dict, user: dict = Depends(require_module("alertas"))):
+async def salvar_alerta(alerta: dict,
+                        background_tasks: BackgroundTasks = BackgroundTasks(),
+                        user: dict = Depends(require_module("alertas"))):
     alertas = ler_alertas(ALERTAS_PATH)
     ids     = {a.get("id") for a in alertas}
-    if alerta.get("id") not in ids:
+    novo    = alerta.get("id") not in ids
+    if novo:
         alertas.insert(0, alerta)
     salvar_alertas(ALERTAS_PATH, alertas)
+    # ── Correlação apenas em alertas novos ────────────────────────────────────
+    if _CORRELACAO_OK and novo:
+        texto = " ".join(filter(None, [
+            alerta.get("titulo", ""), alerta.get("descricao", ""),
+            alerta.get("conteudo", ""), alerta.get("texto", ""),
+        ]))
+        if texto.strip():
+            background_tasks.add_task(
+                _correlacionar,
+                texto=texto,
+                fonte_tipo="alerta",
+                fonte_id=str(alerta.get("id", "sem-id")),
+                metadados={"summary": alerta.get("titulo", "")[:200], "risco": "ALTO"},
+                operador=user.get("sub", "sistema"),
+            )
     return {"status": "salvo", "total": len(alertas)}
 
 

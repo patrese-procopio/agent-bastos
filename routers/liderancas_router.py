@@ -13,8 +13,15 @@ import io
 import os
 import base64
 from datetime import datetime
-from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query, Depends
+from fastapi import APIRouter, BackgroundTasks, Form, File, UploadFile, HTTPException, Query, Depends
 from fastapi.responses import Response
+
+# ── Correlação automática: importação opcional ────────────────────────────────
+try:
+    from services.correlacao_engine import correlacionar_entidade as _correlacionar_ent
+    _CORRELACAO_OK = True
+except ImportError:
+    _CORRELACAO_OK = False
 
 from modules.liderancas import (
     ESTRUTURA, FACCOES, CARGOS_POR_FACCAO, CARGOS_RUA, STATUS_LIDER_RUA,
@@ -120,6 +127,7 @@ async def post_lider(
     nome:        str = Form(""),  vulgo:       str = Form(""),
     observacao:  str = Form(""),  competencia: str = Form(""),
     foto: UploadFile = File(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     user: dict = Depends(require_module("alertas")),
 ):
     dados = {
@@ -144,6 +152,18 @@ async def post_lider(
               detalhe=f"{nome or vulgo or '?'} · {cargo} · {faccao} · {unidade}")
     except Exception:
         pass
+    # ── Correlação: nova liderança × textos históricos ────────────────────────
+    if _CORRELACAO_OK and (nome or vulgo):
+        background_tasks.add_task(
+            _correlacionar_ent,
+            nome=nome or vulgo,
+            vulgo=vulgo if nome else None,
+            fonte_tipo="Liderança (Pavilhão)",
+            fonte_id=lider.get("id", "?"),
+            metadados={"detalhe": f"Cargo: {cargo} | Facção: {faccao} | Unidade: {unidade}",
+                       "risco": "ALTO"},
+            operador=user.get("sub", "sistema"),
+        )
     return lider
 
 
@@ -259,6 +279,7 @@ async def post_lider_rua(
     status:     str = Form("Ativo"),
     observacao: str = Form(""),
     foto: UploadFile = File(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     user: dict = Depends(require_module("alertas")),
 ):
     dados = {
@@ -277,6 +298,18 @@ async def post_lider_rua(
             raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
         lider = atualizar_lider_rua(
             lider["id"], {"foto_ext": salvar_foto_rua(lider["id"], conteudo, ext)}
+        )
+    # ── Correlação: novo líder de rua × textos históricos ────────────────────
+    if _CORRELACAO_OK and (nome or vulgo):
+        background_tasks.add_task(
+            _correlacionar_ent,
+            nome=nome or vulgo,
+            vulgo=vulgo if nome else None,
+            fonte_tipo="Liderança (Rua)",
+            fonte_id=lider.get("id", "?"),
+            metadados={"detalhe": f"Cargo: {cargo} | Facção ID: {faccao_id}",
+                       "risco": "ALTO"},
+            operador=user.get("sub", "sistema"),
         )
     return lider
 
