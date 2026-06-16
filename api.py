@@ -40,6 +40,7 @@ from routers.processo_router    import router as processo_router
 from modules.osint.router       import router as osint_router
 from routers.human_loop_router  import router as human_loop_router
 from routers.audit_router       import router as audit_router
+from routers.correlacao_router  import router as correlacao_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -129,6 +130,7 @@ app.include_router(osint_router,       prefix="/api")
 app.include_router(processo_router,    prefix="/api")  # DataJud por número de processo
 app.include_router(human_loop_router,  prefix="/api")  # Human-in-the-Loop via WhatsApp
 app.include_router(audit_router,       prefix="/api")  # Log imutável de auditoria
+app.include_router(correlacao_router,  prefix="/api")  # Motor de Correlação (Missão 23)
 
 # ── Watchlist Scheduler ───────────────────────────────────────────────────────
 from modules.monitor import iniciar_scheduler as _iniciar_watchlist
@@ -143,7 +145,7 @@ if __name__ == "__main__":
     # host=127.0.0.1 (loopback APENAS) — fecha a porta na LAN.
     # Electron+Vite rodam no mesmo host, não precisam de 0.0.0.0.
     # Pra expor na rede (raríssimo: só se for usar de outra máquina),
-    # use BASTOS_HOST=0.0.0.0 no .env e tenha consciência do risco.
+    # use BASTOS_HOST=0.0.0.0 no .env e tenha consciência do risco.
     host = os.getenv("BASTOS_HOST", "127.0.0.1")
     port = int(os.getenv("BASTOS_PORT", "8000"))
     uvicorn.run("api:app", host=host, port=port, reload=False)
