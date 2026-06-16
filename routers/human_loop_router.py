@@ -44,6 +44,7 @@ logger = logging.getLogger("bastos.human_loop")
 def _registrar_feedback(aprovacao_id: str, registro: dict, decisao: str, operador: str) -> None:
     """
     Registra feedback de correlação após decisão HITL.
+    Se confirmado, também materializa os vínculos no grafo (Missão 27).
     Wrapper seguro: nunca lança exceção para não quebrar o endpoint.
     """
     try:
@@ -66,6 +67,30 @@ def _registrar_feedback(aprovacao_id: str, registro: dict, decisao: str, operado
             )
     except Exception as exc:
         logger.warning("[human_loop] Falha ao registrar feedback: %s", exc)
+
+    # Missão 27 — Grafo Automático: confirmar = materializar vínculos no grafo
+    if decisao == "confirmada":
+        try:
+            import json
+            from services.grafo_auto_service import registrar_correlacao_no_grafo
+            tipo_evento = registro.get("tipo_evento", "")
+            detalhes = registro.get("detalhes") or {}
+            if isinstance(detalhes, str):
+                try:
+                    detalhes = json.loads(detalhes)
+                except Exception:
+                    detalhes = {}
+            hits = detalhes.get("hits", [])
+            if hits:
+                registrar_correlacao_no_grafo(
+                    hitl_id     = aprovacao_id,
+                    tipo_evento = tipo_evento,
+                    hits        = hits,
+                    detalhes    = detalhes,
+                    operador    = operador,
+                )
+        except Exception as exc:
+            logger.warning("[human_loop] Falha ao atualizar grafo: %s", exc)
 
 router = APIRouter(prefix="/human-loop", tags=["human-loop"])
 
@@ -258,24 +283,24 @@ def decidir(
     return {"ok": True, "aprovacao": registro}
 
 
-@router.get("/{aprovacao_id}", summary="Detalhe de uma aprovação (admin)")
+@router.get("/{aprovacao_id}", summary="Detalhe de uma aproção (admin)")
 def detalhe(
     aprovacao_id: str,
     user: dict = Depends(require_module("admin")),
 ):
     registro = buscar_aprovacao(aprovacao_id)
     if not registro:
-        raise HTTPException(status_code=404, detail="Aprovação não encontrada.")
+        raise HTTPException(status_code=404, detail="Aproção não encontrada.")
     return registro
 
 
 @router.post("/expirar", summary="Forçar expiração de pendentes (admin)")
 def expirar(user: dict = Depends(require_module("admin"))):
     """
-    Marca como 'expirada' toda aprovação pendente além do timeout configurado
+    Marca como 'expirada' toda aproção pendente além do timeout configurado
     em HITL_TIMEOUT_MINUTOS (padrão: 60 minutos).
 
     Use para manutenção ou em caso de mensagem WA não entregue.
     """
     expiradas = expirar_pendentes()
-    return {"expiradas": expiradas, "mensagem": f"{expiradas} aprovação(ões) expirada(s)."}
+    return {"expiradas": expiradas, "mensagem": f"{expiradas} aproção(ões) expirada(s)."}
