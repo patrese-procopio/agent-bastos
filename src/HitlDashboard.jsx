@@ -447,6 +447,9 @@ function SubintModal({ hitl, onClose }) {
                 </button>
               </div>
 
+              {/* Preview inline */}
+              <PreviewInlineBtn subintId={resultado.id} />
+
               <button onClick={onClose} style={{ width:"100%", padding:"10px 0", borderRadius:9,
                 cursor:"pointer", background:"rgba(255,255,255,0.05)", border:`1px solid ${C.border}`,
                 color:C.textMid, fontWeight:700, fontSize:13, fontFamily:MONO }}>
@@ -460,14 +463,195 @@ function SubintModal({ hitl, onClose }) {
   )
 }
 
+// ── Botão de preview inline (usado dentro do SubintModal pós-geração) ────────
+function PreviewInlineBtn({ subintId }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button className="o-btn" onClick={() => setOpen(true)}
+        style={{ width:"100%", padding:"10px 0", borderRadius:9, cursor:"pointer",
+          border:`1px solid ${C.cyanBorder}`, background:C.cyanSoft,
+          color:C.cyan, fontWeight:700, fontSize:13, fontFamily:MONO,
+          letterSpacing:"0.04em", display:"flex", alignItems:"center",
+          justifyContent:"center", gap:8, marginBottom:10 }}>
+        👁 VER PREVIEW INLINE
+      </button>
+      {open && <SubintPreviewModal subintId={subintId} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+// ── Modal de preview inline do SUBINT ────────────────────────────────────────
+function SubintPreviewModal({ subintId, onClose }) {
+  const [doc,          setDoc]          = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [errMsg,       setErrMsg]       = useState(null)
+  const [baixandoPdf,  setBaixandoPdf]  = useState(false)
+  const [baixandoDocx, setBaixandoDocx] = useState(false)
+
+  useEffect(() => {
+    api.get(`/subint/${subintId}`)
+      .then(r => r.json())
+      .then(d => { setDoc(d); setLoading(false) })
+      .catch(() => { setErrMsg("Falha ao carregar o documento."); setLoading(false) })
+  }, [subintId])
+
+  async function baixar(formato) {
+    const setBaixando = formato === "pdf" ? setBaixandoPdf : setBaixandoDocx
+    setBaixando(true)
+    try {
+      const res  = await api.get(`/subint/${subintId}/${formato}`)
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement("a")
+      a.href     = url
+      a.download = `SUBINT_${(doc?.numero || subintId.slice(0, 8)).replace(/\//g, "-")}.${formato}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { alert(`Falha ao baixar ${formato.toUpperCase()}.`) }
+    finally { setBaixando(false) }
+  }
+
+  // Inline: **bold**
+  function inl(text) {
+    return text.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
+      p.startsWith("**") && p.endsWith("**")
+        ? <strong key={i} style={{ color: C.oracleLight, fontWeight: 800 }}>{p.slice(2, -2)}</strong>
+        : p
+    )
+  }
+
+  // Renderer markdown linha a linha
+  function renderTexto(texto) {
+    return texto.split("\n").map((l, i) => {
+      if (l.startsWith("# "))
+        return <div key={i} style={{ fontSize: 18, fontWeight: 800, color: C.cyan,
+          borderBottom: `1px solid ${C.cyanBorder}`, paddingBottom: 8,
+          marginBottom: 14, marginTop: i === 0 ? 0 : 22 }}>{inl(l.slice(2))}</div>
+      if (l.startsWith("## "))
+        return <div key={i} style={{ fontSize: 12, fontWeight: 800, color: C.oracleLight,
+          marginTop: 18, marginBottom: 5, letterSpacing: "0.07em",
+          textTransform: "uppercase" }}>{inl(l.slice(3))}</div>
+      if (l.startsWith("### "))
+        return <div key={i} style={{ fontSize: 13, fontWeight: 700, color: C.textMid,
+          marginTop: 12, marginBottom: 4 }}>{inl(l.slice(4))}</div>
+      if (/^---+$/.test(l.trim()))
+        return <hr key={i} style={{ border: "none",
+          borderTop: `1px solid ${C.border}`, margin: "14px 0" }}/>
+      if (l.startsWith("- ") || l.startsWith("* "))
+        return <div key={i} style={{ display: "flex", gap: 8, margin: "4px 0", paddingLeft: 4 }}>
+          <span style={{ color: C.oracleLight, flexShrink: 0, lineHeight: 1.7 }}>▸</span>
+          <span style={{ fontSize: 13.5, color: C.text, lineHeight: 1.7 }}>{inl(l.slice(2))}</span>
+        </div>
+      if (l.trim() === "")
+        return <div key={i} style={{ height: 8 }}/>
+      return <p key={i} style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75,
+        margin: "2px 0" }}>{inl(l)}</p>
+    })
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1200,
+      background: "rgba(4,7,16,0.92)", backdropFilter: "blur(14px)",
+      display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+
+      <div className="o-card" style={{ background: "#060D1C", borderRadius: 16,
+        width: "min(820px,96vw)", maxHeight: "92vh",
+        boxShadow: "0 40px 110px rgba(0,0,0,0.88),0 0 0 1px rgba(34,211,238,0.22)",
+        display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: "16px 22px", flexShrink: 0,
+          background: `linear-gradient(135deg,${C.cyanSoft},rgba(6,13,28,0.98))`,
+          borderBottom: `1px solid ${C.cyanBorder}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9,
+              background: C.cyanSoft, border: `1px solid ${C.cyanBorder}`,
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📋</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
+                {loading ? "Carregando…" : doc ? `SUBINT ${doc.numero}` : "SUBINT"}
+              </div>
+              {doc && (
+                <div style={{ fontSize: 11, color: C.cyan, fontFamily: MONO, marginTop: 1 }}>
+                  {doc.entidade_nome} · {doc.origem} · {fmtDate(doc.criado_em)}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+            {doc && (<>
+              <button className="o-btn" onClick={() => baixar("pdf")} disabled={baixandoPdf}
+                style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+                  border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.12)",
+                  color: "#FCA5A5", fontWeight: 700, fontSize: 11, fontFamily: MONO,
+                  display: "flex", alignItems: "center", gap: 5 }}>
+                {baixandoPdf
+                  ? <div style={{ width:10, height:10, border:"2px solid rgba(252,165,165,0.3)",
+                      borderTopColor:"#FCA5A5", borderRadius:"50%" }} className="o-spin"/>
+                  : <>📥 PDF</>}
+              </button>
+              <button className="o-btn" onClick={() => baixar("docx")} disabled={baixandoDocx}
+                style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+                  border: `1px solid ${C.cyanBorder}`, background: C.cyanSoft,
+                  color: C.cyan, fontWeight: 700, fontSize: 11, fontFamily: MONO,
+                  display: "flex", alignItems: "center", gap: 5 }}>
+                {baixandoDocx
+                  ? <div style={{ width:10, height:10, border:`2px solid rgba(34,211,238,0.2)`,
+                      borderTopColor:C.cyan, borderRadius:"50%" }} className="o-spin"/>
+                  : <>📝 DOCX</>}
+              </button>
+            </>)}
+            <button onClick={onClose}
+              style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.border}`,
+                background: "rgba(255,255,255,0.05)", cursor: "pointer", color: C.textMid,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>×</button>
+          </div>
+        </div>
+
+        {/* ── Corpo ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10,
+              color: C.textMid, fontSize: 14, fontFamily: MONO }}>
+              <div style={{ width:14, height:14, border:"2px solid rgba(255,255,255,0.12)",
+                borderTopColor:C.cyan, borderRadius:"50%" }} className="o-spin"/>
+              Carregando documento…
+            </div>
+          )}
+          {errMsg && (
+            <div style={{ padding: "12px 16px", borderRadius: 9, background: C.redSoft,
+              border: "1px solid rgba(239,68,68,0.3)", color: "#FCA5A5",
+              fontSize: 13, fontFamily: MONO }}>⚠ {errMsg}</div>
+          )}
+          {doc?.texto && (
+            <div style={{ fontFamily: SANS }}>
+              {renderTexto(doc.texto)}
+            </div>
+          )}
+          {!loading && !errMsg && !doc?.texto && (
+            <div style={{ color: C.textDim, fontSize: 13, fontFamily: MONO,
+              textAlign: "center", padding: "48px 0" }}>
+              Texto não disponível para este SUBINT.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function HitlDashboard() {
   const [aprovacoes, setAprovacoes] = useState([])
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState(null)
   const [acao,       setAcao]       = useState({})
-  const [confirmModal, setConfirmModal] = useState(null)
-  const [subintModal,  setSubintModal]  = useState(null)
+  const [confirmModal,  setConfirmModal]  = useState(null)
+  const [subintModal,   setSubintModal]   = useState(null)
+  const [subintPreview, setSubintPreview] = useState(null) // { id, numero }
 
   // ORÁCULO state
   const [scores,  setScores]  = useState([])
@@ -915,7 +1099,18 @@ export default function HitlDashboard() {
                       {s.operador && <span> · {s.operador}</span>}
                     </div>
                   </div>
-                  <SubintDownloadBtns id={s.id} numero={s.numero} />
+                  <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                    <button className="o-btn"
+                      onClick={() => setSubintPreview({ id: s.id, numero: s.numero })}
+                      title="Visualizar SUBINT"
+                      style={{ padding:"5px 10px", borderRadius:7, cursor:"pointer",
+                        border:`1px solid ${C.oracleBorder}`, background:C.oracleSoft,
+                        color:C.oracleLight, fontWeight:700, fontSize:11, fontFamily:MONO,
+                        display:"flex", alignItems:"center", gap:4 }}>
+                      👁 VER
+                    </button>
+                    <SubintDownloadBtns id={s.id} numero={s.numero} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -985,6 +1180,14 @@ export default function HitlDashboard() {
       {subintModal && (
         <SubintModal hitl={subintModal}
           onClose={() => { setSubintModal(null); carregarSubints() }} />
+      )}
+
+      {/* ══ Preview inline SUBINT ══ */}
+      {subintPreview && (
+        <SubintPreviewModal
+          subintId={subintPreview.id}
+          onClose={() => setSubintPreview(null)}
+        />
       )}
     </div>
   )
