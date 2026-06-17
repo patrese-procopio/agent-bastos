@@ -5,7 +5,7 @@ import {
   GALERIA, CATEGORIAS, corCategoria, labelCategoria, iconePadrao,
 } from "./iconesGrafo"
 
-/* ?? Paleta enterprise dark ?? */
+/* ── Paleta enterprise dark ── */
 const C = {
   bg: "#0B1120", surface: "#111827", surfaceUp: "#1A2236", surfaceMid: "#162032",
   border: "rgba(255,255,255,0.07)", borderUp: "rgba(255,255,255,0.13)",
@@ -34,7 +34,7 @@ const CSS = `
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius:4px; }
 `
 
-/* ?? Cache de imagens (fotos de pessoas) ?? */
+/* ── Cache de imagens (fotos de pessoas) ── */
 const imgCache = new Map() // url -> HTMLImageElement | 'loading' | 'error'
 
 /* ============================================================ */
@@ -54,17 +54,14 @@ export default function GrafoVinculos() {
   const [busy, setBusy]         = useState(false)
   const [dim, setDim]           = useState({ w: 800, h: 600 })
 
-  // ORÁCULO LIVE
-  const [recentes,    setRecentes]    = useState({ nos: [], arestas: [] })
   const [stats,       setStats]       = useState(null)
-  const [showOraculo, setShowOraculo] = useState(true)
   const prevHitlNos                   = useRef(0)
 
   const fgRef   = useRef()
   const wrapRef = useRef()
   const fitOnce = useRef(false)
 
-  /* CSS + dimens?es */
+  /* CSS + dimensões */
   useEffect(() => {
     const s = document.createElement("style"); s.textContent = CSS
     document.head.appendChild(s); return () => document.head.removeChild(s)
@@ -90,13 +87,8 @@ export default function GrafoVinculos() {
 
   const carregarRecentes = useCallback(async (recarregarRede = false) => {
     try {
-      const [rRec, rStat] = await Promise.all([
-        api.get("/grafo/recentes?limite=15"),
-        api.get("/grafo/stats"),
-      ])
-      const dRec  = await rRec.json()
+      const rStat = await api.get("/grafo/stats")
       const dStat = await rStat.json()
-      setRecentes(dRec)
       setStats(dStat)
       // detecta novos nós HITL desde última verificação
       const hitlNos = dStat.hitl_nos || 0
@@ -114,7 +106,7 @@ export default function GrafoVinculos() {
       try { const r = await api.get("/grafo/meta"); setMeta(await r.json()) } catch {}
       await carregarAlvos()
       await carregarRecentes()
-      // foco vindo do M?dulo Extrato ("Ver no Grafo")
+      // foco vindo do Módulo Extrato ("Ver no Grafo")
       const foco = localStorage.getItem("grafo_foco_alvo")
       if (foco) {
         localStorage.removeItem("grafo_foco_alvo")
@@ -165,13 +157,13 @@ export default function GrafoVinculos() {
 
   function focar(id) { setAlvoId(id); carregarRede(id) }
 
-  /* ?? A??es autom?ticas ?? */
+  /* ── Ações automáticas ── */
   async function sincronizar() {
     setBusy(true)
     try {
       const r = await api.post("/grafo/sincronizar"); const d = await r.json()
       if (d.ok) { aviso(`Sincronizado: ${d.pessoas} pessoas no grafo.`, C.green); const a = await carregarAlvos(); if (alvoId) carregarRede(alvoId); else if (a[0]) focar(a[0].id) }
-      else aviso("Sincroniza??o falhou.", C.red)
+      else aviso("Sincronização falhou.", C.red)
     } catch { aviso("Erro ao sincronizar.", C.red) } finally { setBusy(false) }
   }
   async function varrerCitacoes() {
@@ -180,15 +172,15 @@ export default function GrafoVinculos() {
     try {
       const r = await api.post(`/grafo/alvo/${alvoId}/varrer-citacoes`)
       const d = await r.json()
-      if (d.ok) { aviso(d.criados > 0 ? `${d.criados} documento(s) citando o alvo.` : "Nenhuma nova cita??o encontrada.", d.criados > 0 ? C.green : C.textMid); carregarRede(alvoId) }
-      else aviso("Varredura indispon?vel.", C.red)
+      if (d.ok) { aviso(d.criados > 0 ? `${d.criados} documento(s) citando o alvo.` : "Nenhuma nova citação encontrada.", d.criados > 0 ? C.green : C.textMid); carregarRede(alvoId) }
+      else aviso("Varredura indisponível.", C.red)
     } catch { aviso("Erro na varredura.", C.red) } finally { setBusy(false) }
   }
 
-  /* ?? CRUD n?s/arestas ?? */
+  /* ── CRUD nós/arestas ── */
   async function criarNo(payload, conectar) {
     const r = await api.post("/grafo/no", payload)
-    if (!r.ok) { aviso("Falha ao criar n?.", C.red); return null }
+    if (!r.ok) { aviso("Falha ao criar nó.", C.red); return null }
     const no = await r.json()
     const novo = { ...no }
     // posiciona perto do alvo/selecionado
@@ -199,15 +191,15 @@ export default function GrafoVinculos() {
       await criarAresta({ origem_id: conectar.origem_id, destino_id: no.id, rotulo: conectar.rotulo }, true)
     }
     preloadFotos([novo])
-    aviso("N? criado.", C.green)
+    aviso("Nó criado.", C.green)
     return no
   }
   async function criarAresta(payload, silencioso) {
     const r = await api.post("/grafo/aresta", payload)
-    if (!r.ok) { if (!silencioso) aviso("Falha ao criar v?nculo.", C.red); return null }
+    if (!r.ok) { if (!silencioso) aviso("Falha ao criar vínculo.", C.red); return null }
     const a = await r.json()
     setGraph(g => ({ ...g, links: [...g.links, { ...a }] }))
-    if (!silencioso) aviso("V?nculo criado.", C.green)
+    if (!silencioso) aviso("Vínculo criado.", C.green)
     return a
   }
   async function atualizarNo(id, payload) {
@@ -216,14 +208,14 @@ export default function GrafoVinculos() {
     const no = await r.json()
     setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === id ? { ...n, ...no, x: n.x, y: n.y, fx: n.fx, fy: n.fy } : n) }))
     setSel(s => s?.tipo === "node" && s.data.id === id ? { tipo: "node", data: { ...s.data, ...no } } : s)
-    preloadFotos([no]); aviso("N? atualizado.", C.green)
+    preloadFotos([no]); aviso("Nó atualizado.", C.green)
   }
   async function atualizarAresta(id, payload) {
     const r = await api.put(`/grafo/aresta/${id}`, payload)
     if (!r.ok) { aviso("Falha ao salvar.", C.red); return }
     const a = await r.json()
     setGraph(g => ({ ...g, links: g.links.map(l => l.id === id ? { ...l, ...a } : l) }))
-    setSel(null); aviso("V?nculo atualizado.", C.green)
+    setSel(null); aviso("Vínculo atualizado.", C.green)
   }
   async function enviarFoto(no_id, file) {
     if (!file) return
@@ -242,7 +234,7 @@ export default function GrafoVinculos() {
     }
     setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === no_id ? { ...n, ...no, x: n.x, y: n.y, fx: n.fx, fy: n.fy } : n) }))
     setSel(s => s?.tipo === "node" && s.data.id === no_id ? { tipo: "node", data: { ...s.data, ...no } } : s)
-    aviso("Foto anexada ? entidade.", C.green)
+    aviso("Foto anexada à entidade.", C.green)
   }
   async function removerFoto(no_id) {
     const r = await api.delete(`/grafo/no/${no_id}/foto`)
@@ -254,23 +246,23 @@ export default function GrafoVinculos() {
     aviso("Foto removida.", C.textMid)
   }
   async function excluirNo(id) {
-    if (!window.confirm("Excluir este n? e seus v?nculos?")) return
+    if (!window.confirm("Excluir este nó e seus vínculos?")) return
     const r = await api.delete(`/grafo/no/${id}`)
     if (!r.ok) { aviso("Falha ao excluir.", C.red); return }
     setGraph(g => ({
       nodes: g.nodes.filter(n => n.id !== id),
       links: g.links.filter(l => (l.source.id || l.source) !== id && (l.target.id || l.target) !== id),
     }))
-    setSel(null); aviso("N? removido.", C.textMid)
+    setSel(null); aviso("Nó removido.", C.textMid)
   }
   async function excluirAresta(id) {
     const r = await api.delete(`/grafo/aresta/${id}`)
     if (!r.ok) { aviso("Falha ao excluir.", C.red); return }
     setGraph(g => ({ ...g, links: g.links.filter(l => l.id !== id) }))
-    setSel(null); aviso("V?nculo removido.", C.textMid)
+    setSel(null); aviso("Vínculo removido.", C.textMid)
   }
 
-  /* ?? Intera??es no canvas ?? */
+  /* ── Interações no canvas ── */
   function onNodeClick(node) {
     if (linking) {
       if (linking.sourceId === node.id) { setLinking(null); return }
@@ -286,14 +278,14 @@ export default function GrafoVinculos() {
     api.put(`/grafo/no/${node.id}`, { pos_x: node.x, pos_y: node.y }).catch(() => {})
   }
 
-  /* ?? Render dos n?s ?? */
+  /* ── Render dos nós ── */
   const nodeCanvas = useCallback((node, ctx, scale) => {
     const cor = corCategoria(node.tipo)
     const isAlvo = !!node.alvo
     const isSel = sel?.tipo === "node" && sel.data.id === node.id
     const isLinkSrc = linking?.sourceId === node.id
     const r = isAlvo ? 11 : 8
-    // halo de sele??o / origem de v?nculo
+    // halo de seleção / origem de vínculo
     if (isSel || isLinkSrc) {
       ctx.beginPath(); ctx.arc(node.x, node.y, r + 4, 0, 2 * Math.PI)
       ctx.fillStyle = isLinkSrc ? "rgba(74,222,128,0.25)" : "rgba(232,160,32,0.22)"; ctx.fill()
@@ -306,7 +298,7 @@ export default function GrafoVinculos() {
     ctx.beginPath(); ctx.arc(node.x, node.y, r - 1.4, 0, 2 * Math.PI)
     ctx.fillStyle = cor + "26"; ctx.fill()
 
-    // foto da pessoa (se carregada) ou ?cone
+    // foto da pessoa (se carregada) ou ícone
     const url = node.detalhes?.foto_url
     const img = url ? imgCache.get(url) : null
     if (img && img !== "loading" && img !== "error") {
@@ -326,7 +318,7 @@ export default function GrafoVinculos() {
       ctx.beginPath(); ctx.arc(node.x, node.y, r + 3.5, 0, 2 * Math.PI)
       ctx.strokeStyle = "rgba(167,139,250,0.65)"; ctx.lineWidth = 1.8; ctx.stroke()
     }
-    // r?tulo
+    // rótulo
     if (isAlvo || isSel || scale > 1.1) {
       const label = (node.rotulo || "").slice(0, 22)
       const fs = Math.min(5, 11 / scale)
@@ -367,82 +359,24 @@ export default function GrafoVinculos() {
   /* ============================ UI ============================ */
   return (
     <div style={{ display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: C.bg, fontFamily: SANS, color: C.text }}>
-      {/* ?? ASIDE: lista de alvos ?? */}
+      {/* ── ASIDE: lista de alvos ── */}
       <aside style={{ width: 280, flexShrink: 0, background: C.surface, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100%" }}>
         <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 3, height: 16, background: C.gold, borderRadius: 2, boxShadow: `0 0 8px ${C.gold}88` }} />
-            <span style={{ fontSize: 14.3, fontWeight: 800, color: C.gold, letterSpacing: "0.1em", textTransform: "uppercase" }}>An?lise de V?nculo</span>
+            <span style={{ fontSize: 14.3, fontWeight: 800, color: C.gold, letterSpacing: "0.1em", textTransform: "uppercase" }}>Análise de Vínculo</span>
           </div>
           <div style={{ fontSize: 11.7, color: C.textMid, fontFamily: MONO, marginTop: 6 }}>{alvos.length} alvo(s) no grafo</div>
         </div>
-        {/* ── ORÁCULO LIVE panel ─────────────────────────────── */}
-        <div style={{ borderBottom: `1px solid ${C.border}` }}>
-          <button onClick={() => setShowOraculo(v => !v)}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "transparent", border: "none", cursor: "pointer", color: C.oracleLight }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span className="gv-oracle-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: C.oracle, flexShrink: 0 }} />
-              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>🔮 ORÁCULO LIVE</span>
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {stats && (
-                <span style={{ fontSize: 10.5, fontFamily: MONO, color: C.oracleSoft === C.oracle ? C.oracleLight : C.textDim, background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, borderRadius: 10, padding: "1px 7px" }}>
-                  {stats.hitl_nos ?? 0} nós
-                </span>
-              )}
-              <span style={{ fontSize: 11, color: C.textDim }}>{showOraculo ? "▲" : "▼"}</span>
-            </span>
-          </button>
-
-          {showOraculo && (
-            <div style={{ padding: "0 10px 10px" }}>
-              {/* mini stats */}
-              {stats && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 8 }}>
-                  {[
-                    { label: "Total nós",    val: stats.total_nos     ?? 0 },
-                    { label: "Auto HITL",    val: stats.hitl_nos      ?? 0 },
-                    { label: "Arestas",      val: stats.total_arestas ?? 0 },
-                    { label: "Auto arestas", val: stats.auto_arestas  ?? 0 },
-                  ].map(({ label, val }) => (
-                    <div key={label} style={{ background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, borderRadius: 7, padding: "5px 8px", textAlign: "center" }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: C.oracleLight }}>{val}</div>
-                      <div style={{ fontSize: 9.5, color: C.textDim, marginTop: 1 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {/* lista de nós recentes */}
-              {recentes.nos.length === 0 ? (
-                <div style={{ fontSize: 11.5, color: C.textDim, textAlign: "center", padding: "8px 0", fontFamily: MONO }}>
-                  Nenhum nó via HITL ainda
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 190, overflowY: "auto" }}>
-                  {recentes.nos.slice(0, 8).map(n => (
-                    <button key={n.id} className="gv-oracle-item" onClick={() => { focar(n.id) }}
-                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: C.oracleSoft, border: `1px solid ${C.oracleBorder}`, cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: 15, fontFamily: EMOJI_FONT, flexShrink: 0, lineHeight: 1 }}>{n.icone || "🔗"}</span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: C.oracleLight, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.rotulo}</span>
-                        <span style={{ display: "block", fontSize: 10, color: C.textDim, fontFamily: MONO }}>{n.tipo} · {n.criado_em ? new Date(n.criado_em).toLocaleDateString("pt-BR") : "?"}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         <div style={{ padding: "10px 14px" }}>
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar alvo, vulgo, fac??o?"
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar alvo, vulgo, facção?"
             style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }} />
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 10px" }}>
           {alvosFiltrados.length === 0 && (
             <div style={{ padding: 18, textAlign: "center", color: C.textMid, fontSize: 13 }}>
-              {alvos.length === 0 ? "Grafo vazio. Clique em Sincronizar para semear das lideran?as." : "Nenhum alvo encontrado."}
+              {alvos.length === 0 ? "Grafo vazio. Clique em Sincronizar para semear das lideranças." : "Nenhum alvo encontrado."}
             </div>
           )}
           {alvosFiltrados.map(a => {
@@ -451,7 +385,7 @@ export default function GrafoVinculos() {
             return (
               <button key={a.id} className="gv-item" onClick={() => focar(a.id)}
                 style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", marginBottom: 4, borderRadius: 8, cursor: "pointer", background: ativo ? "rgba(232,160,32,0.14)" : "transparent", border: `1px solid ${ativo ? C.goldBorder : "transparent"}` }}>
-                <span style={{ fontSize: 18, fontFamily: EMOJI_FONT, lineHeight: 1, flexShrink: 0 }}>{a.icone || "??"}</span>
+                <span style={{ fontSize: 18, fontFamily: EMOJI_FONT, lineHeight: 1, flexShrink: 0 }}>{a.icone || "──"}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: ativo ? C.gold : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.rotulo || a.nome || "?"}</span>
                   <span style={{ display: "block", fontSize: 11, color: C.textMid, fontFamily: MONO, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.faccao || "?"} ? {a.vinculos} v?nc.</span>
@@ -463,20 +397,20 @@ export default function GrafoVinculos() {
         </div>
         <div style={{ padding: "12px 14px", borderTop: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
           <button className="gv-btn" onClick={sincronizar} disabled={busy}
-            style={btn(C.blue, busy)}>? Sincronizar lideran?as</button>
+            style={btn(C.blue, busy)}>? Sincronizar lideranças</button>
           <button className="gv-btn" onClick={() => setModal({ tipo: "novoAlvo" })}
             style={btn(C.gold)}>+ Novo alvo (manual)</button>
         </div>
       </aside>
 
-      {/* ?? MAIN: teia ?? */}
+      {/* ── MAIN: teia ── */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%", background: C.bg }}>
         {/* topbar */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0, gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 16.9, fontWeight: 700 }}>{alvoId ? (alvos.find(a => a.id === alvoId)?.rotulo || "Rede") : "Motor de V?nculos"}</div>
             <div style={{ fontSize: 11.7, color: C.textMid, fontFamily: MONO, marginTop: 2 }}>
-              {alvoId ? `${graph.nodes.length} n?s ? ${graph.links.length} v?nculos ? ${hops} salto(s)` : "Selecione um alvo para abrir a teia"}
+              {alvoId ? `${graph.nodes.length} nós · ${graph.links.length} vínculos · ${hops} salto(s)` : "Selecione um alvo para abrir a teia"}
             </div>
           </div>
           {alvoId && (
@@ -489,22 +423,22 @@ export default function GrafoVinculos() {
                 ))}
               </div>
               <button className="gv-btn" onClick={() => fgRef.current?.zoomToFit(400, 60)} style={btn(C.textMid)}>? Ajustar</button>
-              <button className="gv-btn" onClick={varrerCitacoes} disabled={busy} style={btn(C.blue, busy)}>?? Varrer cita??es</button>
+              <button className="gv-btn" onClick={varrerCitacoes} disabled={busy} style={btn(C.blue, busy)}>── Varrer cita──es</button>
               <button className="gv-btn" onClick={() => setEdit(e => !e)} style={btn(edit ? C.green : C.gold)}>{edit ? "? Editando" : "? Editar"}</button>
             </div>
           )}
         </header>
 
-        {/* barra de edi??o */}
+        {/* barra de edição */}
         {alvoId && edit && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 18px", background: C.surfaceMid, borderBottom: `1px solid ${C.border}`, flexWrap: "wrap" }}>
             <button className="gv-btn" onClick={() => setModal({ tipo: "novoNo" })} style={btn(C.gold)}>+ N?</button>
             <button className="gv-btn"
-              onClick={() => { if (sel?.tipo === "node") setLinking({ sourceId: sel.data.id }); else aviso("Selecione um n? de origem primeiro.", C.textMid) }}
-              style={btn(linking ? C.green : C.textMid)}>{linking ? "Clique no destino?" : "+ V?nculo a partir do selecionado"}</button>
-            {linking && <span className="gv-link-mode" style={{ fontSize: 12, color: C.green, fontFamily: MONO }}>modo conex?o ? clique no n? de destino (ESC/clique no fundo cancela)</span>}
+              onClick={() => { if (sel?.tipo === "node") setLinking({ sourceId: sel.data.id }); else aviso("Selecione um nó de origem primeiro.", C.textMid) }}
+              style={btn(linking ? C.green : C.textMid)}>{linking ? "Clique no destino →" : "+ Vínculo a partir do selecionado"}</button>
+            {linking && <span className="gv-link-mode" style={{ fontSize: 12, color: C.green, fontFamily: MONO }}>modo conexão ? clique no nó de destino (ESC/clique no fundo cancela)</span>}
             <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>arraste n?s para organizar ? a posi??o ? salva</span>
+            <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>arraste nós para organizar ? a posi──o ? salva</span>
           </div>
         )}
 
@@ -569,7 +503,7 @@ export default function GrafoVinculos() {
         </div>
       </main>
 
-      {/* ?? PAINEL DE DETALHES ?? */}
+      {/* ── PAINEL DE DETALHES ── */}
       {sel && <PainelDetalhe sel={sel} edit={edit}
         onEdit={() => setModal({ tipo: sel.tipo === "node" ? "editNo" : "editLink", data: sel.data })}
         onConnect={() => setLinking({ sourceId: sel.data.id })}
@@ -578,15 +512,15 @@ export default function GrafoVinculos() {
         onRemoveFoto={() => removerFoto(sel.data.id)}
         onClose={() => setSel(null)} />}
 
-      {/* ?? MODAIS ?? */}
+      {/* ── MODAIS ── */}
       {modal?.tipo === "novoNo" && (
-        <ModalNo titulo="Novo n?" rotulosVinculo={meta.rotulos_vinculo} podeConectar={!!alvoId}
+        <ModalNo titulo="Novo nó" rotulosVinculo={meta.rotulos_vinculo} podeConectar={!!alvoId}
           alvoLabel={alvos.find(a => a.id === alvoId)?.rotulo}
           onClose={() => setModal(null)}
           onSalvar={async (dados, conectar) => { setModal(null); await criarNo(dados, conectar ? { origem_id: alvoId, rotulo: conectar } : null) }} />
       )}
       {modal?.tipo === "editNo" && (
-        <ModalNo titulo="Editar n?" inicial={modal.data} onClose={() => setModal(null)}
+        <ModalNo titulo="Editar nó" inicial={modal.data} onClose={() => setModal(null)}
           onSalvar={async (dados) => { setModal(null); await atualizarNo(modal.data.id, dados) }} />
       )}
       {modal?.tipo === "novoAlvo" && (
@@ -611,26 +545,26 @@ export default function GrafoVinculos() {
   )
 }
 
-/* ?? bot?o helper ?? */
+/* ── botão helper ── */
 function btn(cor, off) {
   return { padding: "7px 12px", borderRadius: 7, border: `1px solid ${cor}44`, background: `${cor}1a`, color: cor, fontSize: 12.5, fontWeight: 700, cursor: off ? "not-allowed" : "pointer", fontFamily: MONO, opacity: off ? 0.5 : 1, whiteSpace: "nowrap" }
 }
 
-/* ?? estado vazio ?? */
+/* ── estado vazio ── */
 function Vazio({ onSync, busy, temAlvos }) {
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, textAlign: "center", padding: 24 }}>
-      <div style={{ fontSize: 52, fontFamily: EMOJI_FONT, opacity: 0.85 }}>???</div>
+      <div style={{ fontSize: 52, fontFamily: EMOJI_FONT, opacity: 0.85 }}>──?</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Motor de V?nculos</div>
       <div style={{ fontSize: 13.5, color: C.textMid, maxWidth: 440, lineHeight: 1.6 }}>
-        {temAlvos ? "Selecione um alvo na lista ? esquerda para abrir a teia de v?nculos." : "O grafo est? vazio. Sincronize com as lideran?as para semear automaticamente pessoas, unidades e fac??es ? depois conecte o resto na m?o."}
+        {temAlvos ? "Selecione um alvo na lista à esquerda para abrir a teia de vínculos." : "O grafo está vazio. Sincronize com as lideranças para semear automaticamente pessoas, unidades e facções ? depois conecte o resto na mão."}
       </div>
-      {!temAlvos && <button className="gv-btn" onClick={onSync} disabled={busy} style={{ ...btn(C.gold, busy), padding: "10px 20px", fontSize: 13.5 }}>? Sincronizar lideran?as</button>}
+      {!temAlvos && <button className="gv-btn" onClick={onSync} disabled={busy} style={{ ...btn(C.gold, busy), padding: "10px 20px", fontSize: 13.5 }}>? Sincronizar lideranças</button>}
     </div>
   )
 }
 
-/* ?? painel de detalhe (n? ou v?nculo) ?? */
+/* ── painel de detalhe (n? ou vínculo) ── */
 function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto, onRemoveFoto }) {
   const isNode = sel.tipo === "node"
   const d = sel.data
@@ -644,7 +578,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
   return (
     <aside style={{ width: 320, flexShrink: 0, background: C.surface, borderLeft: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <span style={{ fontSize: 26, fontFamily: EMOJI_FONT, lineHeight: 1 }}>{isNode ? (d.icone || iconePadrao(d.tipo)) : "??"}</span>
+        <span style={{ fontSize: 26, fontFamily: EMOJI_FONT, lineHeight: 1 }}>{isNode ? (d.icone || iconePadrao(d.tipo)) : "──"}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: cor, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>
             {isNode ? labelCategoria(d.tipo) : "V?nculo"}{isNode && d.alvo ? " ? ALVO" : ""}
@@ -714,19 +648,19 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
         )}
       </div>
 
-      {/* a??es */}
+      {/* a──es */}
       {edit && (
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button className="gv-btn" onClick={onEdit} style={{ ...btn(C.gold), flex: 1 }}>? Editar</button>
           {isNode && <button className="gv-btn" onClick={onConnect} style={{ ...btn(C.green), flex: 1 }}>+ V?nculo</button>}
-          <button className="gv-btn" onClick={onDelete} style={{ ...btn(C.red), flex: 1 }}>?? Excluir</button>
+          <button className="gv-btn" onClick={onDelete} style={{ ...btn(C.red), flex: 1 }}>── Excluir</button>
         </div>
       )}
     </aside>
   )
 }
 
-/* ?? modal de n? (criar/editar) com galeria de ?cones ?? */
+/* ── modal de nó (criar/editar) com galeria de ?cones ── */
 function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulosVinculo = [], onClose, onSalvar }) {
   const [tipo, setTipo]     = useState(inicial?.tipo || forcarTipo || "generico")
   const [icone, setIcone]   = useState(inicial?.icone || iconePadrao(forcarTipo || "generico"))
@@ -747,7 +681,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
     const detalhes = { ...(inicial?.detalhes || {}) }
     detalhes.observacao = obs || undefined
     detalhes.data = data || undefined
-    onSalvar({ tipo, icone, rotulo: rotulo || "Sem r?tulo", detalhes }, conectar ? rotVinc : false)
+    onSalvar({ tipo, icone, rotulo: rotulo || "Sem rótulo", detalhes }, conectar ? rotVinc : false)
   }
 
   return (
@@ -762,9 +696,9 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* r?tulo */}
+          {/* rótulo */}
           <div>
-            <Lbl>R?tulo</Lbl>
+            <Lbl>Rótulo</Lbl>
             <input value={rotulo} onChange={e => setRotulo(e.target.value)} autoFocus placeholder="Ex.: Tr?fico internacional, Col?mbia, RELINT 001/2026?"
               style={inp()} />
           </div>
@@ -816,8 +750,8 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
             </div>
           </div>
           <div>
-            <Lbl>Observa??o (opcional)</Lbl>
-            <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="Anota??o livre?"
+            <Lbl>Observação (opcional)</Lbl>
+            <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="Anotação livre?"
               style={{ ...inp(), resize: "vertical", fontFamily: SANS }} />
           </div>
 
@@ -830,7 +764,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
               </label>
               {conectar && (
                 <div style={{ marginTop: 10 }}>
-                  <Lbl>R?tulo do v?nculo</Lbl>
+                  <Lbl>Rótulo do vínculo</Lbl>
                   <SelectRotulo valor={rotVinc} onChange={setRotVinc} rotulos={rotulosVinculo} />
                 </div>
               )}
@@ -847,7 +781,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
   )
 }
 
-/* ?? modal de v?nculo ?? */
+/* ── modal de vínculo ── */
 function ModalLink({ inicial, origem, destino, rotulos = [], onClose, onSalvar }) {
   const [rotulo, setRotulo] = useState(inicial?.rotulo || "VINCULADO_A")
   const [dir, setDir]       = useState(inicial ? !!inicial.direcionada : true)
@@ -855,7 +789,7 @@ function ModalLink({ inicial, origem, destino, rotulos = [], onClose, onSalvar }
     <Overlay onClose={onClose}>
       <div style={{ width: "min(440px,94vw)", background: C.surface, borderRadius: 14, border: `1px solid ${C.borderUp}`, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 16, fontWeight: 700 }}>{inicial ? "Editar v?nculo" : "Novo v?nculo"}</span>
+          <span style={{ fontSize: 16, fontWeight: 700 }}>{inicial ? "Editar vínculo" : "Novo vínculo"}</span>
           <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${C.border}`, background: "rgba(255,255,255,0.05)", color: C.textMid, cursor: "pointer" }}>?</button>
         </div>
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -865,7 +799,7 @@ function ModalLink({ inicial, origem, destino, rotulos = [], onClose, onSalvar }
             </div>
           )}
           <div>
-            <Lbl>R?tulo do v?nculo</Lbl>
+            <Lbl>Rótulo do vínculo</Lbl>
             <SelectRotulo valor={rotulo} onChange={setRotulo} rotulos={rotulos} />
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: C.text }}>
@@ -882,7 +816,7 @@ function ModalLink({ inicial, origem, destino, rotulos = [], onClose, onSalvar }
   )
 }
 
-/* ?? select de r?tulo (lista + livre) ?? */
+/* ── select de rótulo (lista + livre) ── */
 function SelectRotulo({ valor, onChange, rotulos }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -892,12 +826,12 @@ function SelectRotulo({ valor, onChange, rotulos }) {
             style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: MONO, border: `1px solid ${valor === r ? C.goldBorder : C.border}`, background: valor === r ? C.goldSoft : "transparent", color: valor === r ? C.gold : C.textMid }}>{r.replace(/_/g, " ")}</button>
         ))}
       </div>
-      <input value={valor} onChange={e => onChange(e.target.value.toUpperCase().replace(/\s+/g, "_"))} placeholder="ou digite um r?tulo livre" style={inp()} />
+      <input value={valor} onChange={e => onChange(e.target.value.toUpperCase().replace(/\s+/g, "_"))} placeholder="ou digite um rótulo livre" style={inp()} />
     </div>
   )
 }
 
-/* ?? helpers de UI ?? */
+/* ── helpers de UI ── */
 function Overlay({ children, onClose }) {
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -912,3 +846,4 @@ function Lbl({ children, noMargin }) {
 function inp() {
   return { width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }
 }
+                                                                                                                                                                                                           

@@ -150,7 +150,7 @@ export default function Dashboard() {
     } catch { /* ignora */ }
   }
 
-  const TABS = [["geral", "Visão Geral"], ["documentos", "Por Documento"], ["lancamentos", "Lançamentos"], ["lancamento", "+ Lançamento"]]
+  const TABS = [["geral", "Visão Geral"], ["documentos", "Por Documento"], ["lancamentos", "Lançamentos"], ["lancamento", "+ Lançamento"], ["radar", "📡 Radar de Risco"], ["autonomia", "⚡ Autonomia"]]
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0B1120" }}>
@@ -367,9 +367,236 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+
+            {/* ═══ ABA: RADAR DE RISCO ═══ */}
+            {aba === "radar" && <RadarRiscoTab />}
+
+            {/* ═══ ABA: AUTONOMIA ═══ */}
+            {aba === "autonomia" && <AutonomiTab />}
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// ── Radar de Risco ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+const SCORE_COLOR = { CRÍTICO:"#F87171", ALTO:"#FBBF24", MÉDIO:"#60A5FA", BAIXO:"#4ADE80", INATIVO:"#475569" }
+const D_MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
+
+function RadarRiscoTab() {
+  const [scores,  setScores]  = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busca,   setBusca]   = useState("")
+
+  useEffect(() => {
+    api.get("/risco/scores?min_score=0&limite=100")
+      .then(r => r.json())
+      .then(d => { setScores(d.scores || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const filtrados = scores.filter(s => !busca || s.entidade_nome?.toLowerCase().includes(busca.toLowerCase()))
+  const totais = scores.reduce((acc,s)=>{ acc[s.classificacao]=(acc[s.classificacao]||0)+1; return acc }, {})
+
+  if (loading) return <div style={{ color:"#94A3B8", fontFamily:D_MONO, fontSize:14, padding:20 }}>Carregando radar…</div>
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+        {[["CRÍTICO","#F87171"],["ALTO","#FBBF24"],["MÉDIO","#60A5FA"],["BAIXO","#4ADE80"]].map(([key,color]) => (
+          <div key={key} style={{ background:"#111827", border:`1px solid rgba(255,255,255,0.07)`,
+            borderTop:`3px solid ${color}`, borderRadius:10, padding:"12px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.1em", fontFamily:D_MONO, marginBottom:4 }}>{key}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO, lineHeight:1 }}>{totais[key]||0}</div>
+            <div style={{ fontSize:10, color:"#64748B", marginTop:3 }}>entidades</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, overflow:"hidden" }}>
+        <div style={{ padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,0.07)",
+          display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+            Ranking de Entidades
+          </span>
+          <span style={{ fontSize:11, color:"#64748B", fontFamily:D_MONO }}>· {filtrados.length} registros</span>
+          <div style={{ flex:1 }}/>
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Filtrar…"
+            style={{ padding:"5px 10px", borderRadius:6, border:"1px solid rgba(255,255,255,0.1)",
+              background:"#0B1120", color:"#F1F5F9", fontSize:12, fontFamily:D_MONO, outline:"none", width:160 }}/>
+        </div>
+
+        {filtrados.length === 0 ? (
+          <div style={{ padding:"28px", textAlign:"center", color:"#64748B", fontSize:13, fontFamily:D_MONO }}>
+            Nenhuma entidade no radar ainda.
+          </div>
+        ) : filtrados.map((s,i) => {
+          const cor = SCORE_COLOR[s.classificacao] || "#64748B"
+          const pct = Math.min(100, s.score_atual || 0)
+          return (
+            <div key={s.entidade_id} style={{ padding:"12px 16px",
+              borderBottom: i < filtrados.length-1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:"#64748B", fontFamily:D_MONO, width:22, textAlign:"right", flexShrink:0 }}>#{i+1}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13.5, fontWeight:700, color:"#F1F5F9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {s.entidade_nome}
+                </div>
+              </div>
+              <div style={{ width:160, flexShrink:0 }}>
+                <div style={{ height:5, background:"rgba(255,255,255,0.07)", borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${pct}%`, borderRadius:3, transition:"width 0.6s ease",
+                    background:`linear-gradient(90deg,${cor}77,${cor})` }}/>
+                </div>
+              </div>
+              <div style={{ textAlign:"right", width:44, flexShrink:0 }}>
+                <div style={{ fontSize:18, fontWeight:800, color:cor, fontFamily:D_MONO, lineHeight:1 }}>{pct.toFixed(0)}</div>
+              </div>
+              <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4,
+                background:`${cor}18`, color:cor, border:`1px solid ${cor}33`,
+                fontFamily:D_MONO, letterSpacing:"0.06em", flexShrink:0 }}>{s.classificacao}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Painel de Autonomia ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function AutonomiTab() {
+  const [hitls,      setHitls]      = useState([])
+  const [suprimidos, setSuprimidos] = useState([])
+  const [corrStats,  setCorrStats]  = useState(null)
+  const [loading,    setLoading]    = useState(true)
+
+  useEffect(() => {
+    const safe = async (url, def) => { try { const r = await api.get(url); return r.ok ? await r.json() : def } catch { return def } }
+    Promise.all([
+      safe("/human-loop/listar?limite=500", { aprovacoes:[] }),
+      safe("/feedback/suprimidos",          { suprimidos:[] }),
+      safe("/correlacao/stats",             null),
+    ]).then(([h,s,c]) => {
+      setHitls(h.aprovacoes || [])
+      setSuprimidos(s.suprimidos || [])
+      setCorrStats(c)
+      setLoading(false)
+    })
+  }, [])
+
+  if (loading) return <div style={{ color:"#94A3B8", fontFamily:D_MONO, fontSize:14, padding:20 }}>Carregando métricas…</div>
+
+  const total       = hitls.length
+  const confirmados = hitls.filter(h => h.status === "confirmada").length
+  const rejeitados  = hitls.filter(h => h.status === "rejeitada").length
+  const autoResp    = hitls.filter(h => h.resposta_por === "auto_sistema").length
+  const pctAuto     = total > 0 ? Math.round((autoResp/total)*100) : 0
+  const pctConf     = total > 0 ? Math.round((confirmados/total)*100) : 0
+  const pctRej      = total > 0 ? Math.round((rejeitados/total)*100) : 0
+  const nSuprimidos = suprimidos.length
+
+  function GaugeMini({ valor, cor, label }) {
+    const circ = 2 * Math.PI * 28
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+        <svg width={70} height={70} viewBox="0 0 70 70">
+          <circle cx={35} cy={35} r={28} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6}/>
+          <circle cx={35} cy={35} r={28} fill="none" stroke={cor} strokeWidth={6}
+            strokeDasharray={circ} strokeDashoffset={circ*(1-valor/100)}
+            strokeLinecap="round" transform="rotate(-90 35 35)"
+            style={{ transition:"stroke-dashoffset 0.8s ease" }}/>
+          <text x={35} y={40} textAnchor="middle" fontSize={15} fontWeight={800} fill={cor} fontFamily={D_MONO}>{valor}%</text>
+        </svg>
+        <div style={{ fontSize:10, color:"#94A3B8", fontFamily:D_MONO, letterSpacing:"0.08em", textAlign:"center" }}>{label}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"20px 24px" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em",
+          textTransform:"uppercase", marginBottom:20 }}>Índice de Autonomia</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-around", gap:16, flexWrap:"wrap" }}>
+          <GaugeMini valor={pctAuto} cor="#A78BFA" label="AUTO-RESPOSTA" />
+          <GaugeMini valor={pctConf} cor="#22C55E" label="CONFIRMAÇÃO" />
+          <GaugeMini valor={pctRej}  cor="#EF4444" label="REJEIÇÃO" />
+          <GaugeMini valor={Math.min(100, nSuprimidos*10)} cor="#22D3EE" label="SUPRESSÕES" />
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+        {[
+          ["Total HITLs",      total,       "#94A3B8"],
+          ["Auto-Respondidos", autoResp,    "#A78BFA"],
+          ["Confirmados",      confirmados, "#22C55E"],
+          ["Suprimidos",       nSuprimidos, "#22D3EE"],
+        ].map(([titulo,valor,cor]) => (
+          <div key={titulo} style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)",
+            borderTop:`3px solid ${cor}`, borderRadius:10, padding:"12px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:"0.1em",
+              fontFamily:D_MONO, marginBottom:4, textTransform:"uppercase" }}>{titulo}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO, lineHeight:1 }}>{valor}</div>
+          </div>
+        ))}
+      </div>
+
+      {nSuprimidos > 0 && (
+        <div style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, overflow:"hidden" }}>
+          <div style={{ padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+            <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+              Pares Suprimidos pelo Feedback Loop
+            </span>
+          </div>
+          {suprimidos.map((s,i) => (
+            <div key={i} style={{ padding:"10px 16px",
+              borderBottom: i < suprimidos.length-1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:7, height:7, borderRadius:"50%", background:"#22D3EE", flexShrink:0 }}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#F1F5F9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {s.alvo_nome_norm || s.entidade || "—"}
+                </div>
+                <div style={{ fontSize:11, color:"#64748B", fontFamily:D_MONO }}>
+                  {s.alvo_fonte || s.fonte || "—"} · {s.tipo_evento || "—"}
+                </div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:"#EF4444", fontFamily:D_MONO }}>
+                  {s.rejeicoes || s.total_rejeicoes || 0} rej.
+                </div>
+                <div style={{ fontSize:10, color:"#64748B", fontFamily:D_MONO }}>
+                  {s.total || s.total_decisoes || 0} total
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {corrStats && (
+        <div style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"14px 16px" }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em",
+            textTransform:"uppercase", marginBottom:12 }}>Motor de Correlação</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:16 }}>
+            {Object.entries(corrStats).map(([k,v]) => (
+              <div key={k} style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                <div style={{ fontSize:10, color:"#64748B", fontFamily:D_MONO, textTransform:"uppercase" }}>
+                  {k.replace(/_/g," ")}
+                </div>
+                <div style={{ fontSize:20, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO }}>
+                  {typeof v === "number" ? v : JSON.stringify(v)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

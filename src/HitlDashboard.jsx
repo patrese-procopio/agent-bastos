@@ -645,6 +645,7 @@ function SubintPreviewModal({ subintId, onClose }) {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function HitlDashboard() {
+  const [aba,        setAba]        = useState("alertas") // alertas | subint | radar
   const [aprovacoes, setAprovacoes] = useState([])
   const [loading,    setLoading]    = useState(true)
   const [erro,       setErro]       = useState(null)
@@ -812,9 +813,60 @@ export default function HitlDashboard() {
         </div>
       </header>
 
+      {/* ── Tab Bar ── */}
+      <div style={{ flexShrink:0, display:"flex", gap:2, padding:"8px 22px 0",
+        background:C.surface, borderBottom:`1px solid ${C.border}` }}>
+        {[
+          { id:"alertas", icon:"⚡", label:"ALERTAS",   badge: pendentes.length || null,  color: C.amber },
+          { id:"subint",  icon:"📄", label:"SUBINT",    badge: subints.length  || null,   color: C.cyan  },
+          { id:"radar",   icon:"📡", label:"RADAR",     badge: scores.length   || null,   color: C.oracleLight },
+        ].map(({ id, icon, label, badge, color }) => {
+          const active = aba === id
+          return (
+            <button key={id} onClick={() => setAba(id)}
+              style={{ display:"flex", alignItems:"center", gap:6,
+                padding:"8px 16px", borderRadius:"8px 8px 0 0", cursor:"pointer",
+                border:"1px solid", borderBottom:"none",
+                fontFamily:MONO, fontSize:12, fontWeight:active ? 800 : 600,
+                letterSpacing:"0.07em", transition:"all 0.15s",
+                background: active ? C.bg : "transparent",
+                color:      active ? color : C.textDim,
+                borderColor: active ? C.border : "transparent",
+              }}>
+              <span>{icon}</span>
+              <span>{label}</span>
+              {badge != null && badge > 0 && (
+                <span style={{ fontSize:10, fontWeight:800, padding:"1px 6px",
+                  borderRadius:10, background: active ? `${color}22` : "rgba(255,255,255,0.06)",
+                  color: active ? color : C.textDim, border:`1px solid ${active ? color+"44" : "transparent"}` }}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       {/* ── Conteúdo ── */}
       <div style={{ flex:1, overflow:"auto", padding:"18px 22px",
         display:"flex", flexDirection:"column", gap:20 }}>
+
+        {/* ════ ABA: SUBINT ════ */}
+        {aba === "subint" && (
+          <SubintTab
+            subints={subints}
+            onRefresh={carregarSubints}
+            onPreview={(s) => setSubintPreview({ id: s.id, numero: s.numero })}
+          />
+        )}
+
+        {/* ════ ABA: RADAR ════ */}
+        {aba === "radar" && (
+          <RadarExpandido scores={scores} onRefresh={carregarScores} />
+        )}
+
+        {/* ════ ABA: ALERTAS ════ */}
+        {aba === "alertas" && <>
 
         {/* Loading / Erro */}
         {loading && (
@@ -832,7 +884,7 @@ export default function HitlDashboard() {
           </div>
         )}
 
-        {/* ── Radar de Risco ── */}
+        {/* ── Radar de Risco (mini) ── */}
         <RiskRadar scores={scores} />
 
         {/* ══ PENDENTES ══ */}
@@ -1116,6 +1168,8 @@ export default function HitlDashboard() {
             </div>
           </section>
         )}
+
+        </> /* fim aba alertas */}
       </div>
 
       {/* ══ Modal de Confirmação/Rejeição ══ */}
@@ -1182,7 +1236,7 @@ export default function HitlDashboard() {
           onClose={() => { setSubintModal(null); carregarSubints() }} />
       )}
 
-      {/* ══ Preview inline SUBINT ══ */}
+      {/* ══ Preview inline SUINT ══ */}
       {subintPreview && (
         <SubintPreviewModal
           subintId={subintPreview.id}
@@ -1193,52 +1247,384 @@ export default function HitlDashboard() {
   )
 }
 
-// ── Botões de download inline na lista de SUBINTs ─────────────────────────────
+// ── Botões de download inline ──────────────────────────────────────────────────
 function SubintDownloadBtns({ id, numero }) {
   const [baixandoPdf,  setBaixandoPdf]  = useState(false)
   const [baixandoDocx, setBaixandoDocx] = useState(false)
 
   async function baixar(formato) {
-    const setBaixando = formato==="pdf" ? setBaixandoPdf : setBaixandoDocx
-    setBaixando(true)
+    const set = formato === "pdf" ? setBaixandoPdf : setBaixandoDocx
+    set(true)
     try {
       const res  = await api.get(`/subint/${id}/${formato}`)
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
-      a.href     = url
+      a.href = url
       a.download = `SUBINT_${(numero||id.slice(0,8)).replace(/\//g,"-")}.${formato}`
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      alert(`Falha ao baixar ${formato.toUpperCase()}.`)
-    } finally {
-      setBaixando(false)
-    }
+    } catch { alert(`Falha ao baixar ${formato.toUpperCase()}.`) }
+    finally { set(false) }
   }
 
   return (
     <div style={{ display:"flex", gap:6, flexShrink:0 }}>
       <button className="o-btn" onClick={() => baixar("pdf")} disabled={baixandoPdf}
-        title="Baixar PDF"
         style={{ padding:"5px 10px", borderRadius:7, cursor:baixandoPdf?"wait":"pointer",
           border:"1px solid rgba(239,68,68,0.3)", background:"rgba(239,68,68,0.08)",
           color:"#FCA5A5", fontWeight:700, fontSize:11, fontFamily:MONO,
           display:"flex", alignItems:"center", gap:4 }}>
-        {baixandoPdf
-          ? <div style={{width:10,height:10,border:"2px solid rgba(252,165,165,0.3)",borderTopColor:"#FCA5A5",borderRadius:"50%"}} className="o-spin"/>
-          : "PDF"}
+        {baixandoPdf ? <div style={{width:10,height:10,border:"2px solid rgba(252,165,165,0.3)",borderTopColor:"#FCA5A5",borderRadius:"50%"}} className="o-spin"/> : "PDF"}
       </button>
       <button className="o-btn" onClick={() => baixar("docx")} disabled={baixandoDocx}
-        title="Baixar DOCX editável"
         style={{ padding:"5px 10px", borderRadius:7, cursor:baixandoDocx?"wait":"pointer",
           border:`1px solid ${C.cyanBorder}`, background:C.cyanSoft,
           color:C.cyan, fontWeight:700, fontSize:11, fontFamily:MONO,
           display:"flex", alignItems:"center", gap:4 }}>
-        {baixandoDocx
-          ? <div style={{width:10,height:10,border:`2px solid rgba(34,211,238,0.2)`,borderTopColor:C.cyan,borderRadius:"50%"}} className="o-spin"/>
-          : "DOCX"}
+        {baixandoDocx ? <div style={{width:10,height:10,border:`2px solid rgba(34,211,238,0.2)`,borderTopColor:C.cyan,borderRadius:"50%"}} className="o-spin"/> : "DOCX"}
       </button>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── ABA SUBINT ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+const ORIGENS = ["AIPEN","NI","NCI","NBE"]
+const LOADING_MSGS = [
+  "Coletando dados das bases operacionais…",
+  "Cruzando HITLs confirmados…",
+  "Analisando score de risco da entidade…",
+  "Consultando grafo de vínculos…",
+  "Sintetizando com IA…",
+  "Estruturando documento SUBINT…",
+  "Gerando PDF e DOCX…",
+]
+
+function SubintTab({ subints, onRefresh, onPreview }) {
+  const [entidade,  setEntidade]  = useState("")
+  const [origem,    setOrigem]    = useState("AIPEN")
+  const [gerando,   setGerando]   = useState(false)
+  const [msgIdx,    setMsgIdx]    = useState(0)
+  const [resultado, setResultado] = useState(null)
+  const [errMsg,    setErrMsg]    = useState(null)
+  const [preview,   setPreview]   = useState(null)
+  const timerRef = useRef(null)
+
+  async function gerar() {
+    if (!entidade.trim()) return
+    setGerando(true); setErrMsg(null); setResultado(null); setMsgIdx(0)
+    timerRef.current = setInterval(() => setMsgIdx(i => (i + 1) % LOADING_MSGS.length), 2200)
+    try {
+      const res  = await api.post("/subint/gerar", { entidade_nome: entidade.trim(), origem })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || "Erro ao gerar SUBINT")
+      setResultado(data)
+      onRefresh()
+    } catch(e) {
+      setErrMsg(e.message || "Falha ao gerar SUBINT")
+    } finally {
+      setGerando(false)
+      clearInterval(timerRef.current)
+    }
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20, animation:"fadeSlideIn 0.2s ease" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1.6fr", gap:16, alignItems:"start" }}>
+
+        {/* Gerador */}
+        <div style={{ background:C.surface, border:`1px solid ${C.cyanBorder}`,
+          borderRadius:14, padding:"22px 22px 20px", boxShadow:`0 0 32px rgba(34,211,238,0.05)` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <div style={{ width:36, height:36, borderRadius:9,
+              background:"linear-gradient(135deg,#0E7490,#22D3EE)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:18, boxShadow:"0 0 14px rgba(34,211,238,0.35)" }}>📄</div>
+            <div>
+              <div style={{ fontSize:15, fontWeight:800, color:C.text }}>Gerar SUBINT</div>
+              <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, marginTop:1 }}>
+                Subsídio de Inteligência automatizado
+              </div>
+            </div>
+          </div>
+
+          {!gerando && !resultado && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
+                  marginBottom:5, textTransform:"uppercase" }}>Entidade</div>
+                <input value={entidade} onChange={e => setEntidade(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && gerar()}
+                  placeholder="Nome completo da pessoa ou org."
+                  style={{ width:"100%", padding:"9px 12px", borderRadius:8,
+                    border:`1px solid ${entidade ? C.cyanBorder : C.border}`,
+                    background:C.surfaceUp, color:C.text, fontSize:13.5,
+                    fontFamily:MONO, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
+                  marginBottom:5, textTransform:"uppercase" }}>Origem</div>
+                <div style={{ display:"flex", gap:6 }}>
+                  {ORIGENS.map(o => (
+                    <button key={o} onClick={() => setOrigem(o)}
+                      style={{ flex:1, padding:"7px 0", borderRadius:7, cursor:"pointer",
+                        border:"1px solid", fontFamily:MONO, fontSize:11, fontWeight:700,
+                        transition:"all 0.13s",
+                        background: origem===o ? C.cyanSoft : "transparent",
+                        color:      origem===o ? C.cyan : C.textDim,
+                        borderColor: origem===o ? C.cyanBorder : C.border }}>{o}</button>
+                  ))}
+                </div>
+              </div>
+              {errMsg && (
+                <div style={{ padding:"9px 12px", borderRadius:8, background:C.redSoft,
+                  border:"1px solid rgba(239,68,68,0.3)", color:"#FCA5A5", fontSize:12.5, fontFamily:MONO }}>
+                  ⚠ {errMsg}
+                </div>
+              )}
+              <button onClick={gerar} disabled={!entidade.trim()}
+                style={{ width:"100%", padding:"12px 0", borderRadius:9,
+                  cursor: entidade.trim() ? "pointer" : "not-allowed", border:"none",
+                  fontWeight:800, fontSize:14, fontFamily:MONO, letterSpacing:"0.06em",
+                  background: entidade.trim() ? "linear-gradient(135deg,#0E7490,#22D3EE)" : "rgba(255,255,255,0.05)",
+                  color: entidade.trim() ? "#fff" : C.textDim,
+                  boxShadow: entidade.trim() ? "0 4px 16px rgba(34,211,238,0.3)" : "none" }}>
+                📄 GERAR SUBINT
+              </button>
+            </div>
+          )}
+
+          {gerando && (
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"12px 0 8px" }}>
+              <div style={{ position:"relative", width:64, height:64 }}>
+                <div style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid rgba(34,211,238,0.1)" }}/>
+                <div style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid transparent",
+                  borderTopColor:C.cyan, animation:"spin 0.9s linear infinite" }}/>
+                <div style={{ position:"absolute", inset:8, borderRadius:"50%", border:"1.5px solid transparent",
+                  borderTopColor:"rgba(34,211,238,0.4)", animation:"spin 1.4s linear infinite reverse" }}/>
+                <div style={{ position:"absolute", top:"50%", left:"50%",
+                  transform:"translate(-50%,-50%)", fontSize:20 }}>📄</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:C.cyan, fontFamily:MONO, marginBottom:5 }}>
+                  {LOADING_MSGS[msgIdx]}
+                </div>
+                <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>{entidade} · {origem}</div>
+              </div>
+              <div style={{ width:"100%", height:3, background:"rgba(255,255,255,0.06)", borderRadius:3, overflow:"hidden" }}>
+                <div style={{ height:"100%", background:C.cyan, borderRadius:3,
+                  animation:"bar-grow 15s linear forwards", "--w":"95%" }}/>
+              </div>
+            </div>
+          )}
+
+          {resultado && !gerando && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+                <div style={{ fontSize:28, marginBottom:6 }}>✅</div>
+                <div style={{ fontSize:15, fontWeight:800, color:C.green, marginBottom:2 }}>SUBINT Gerado</div>
+                <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>{resultado.numero}</div>
+              </div>
+              <div style={{ padding:"10px 14px", borderRadius:9,
+                background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.2)",
+                fontSize:12, color:"#86EFAC", fontFamily:MONO, lineHeight:1.8 }}>
+                <div>📌 {resultado.entidade_nome || entidade}</div>
+                <div>🏛 Origem: {resultado.origem || origem}</div>
+              </div>
+              <button onClick={() => setPreview(resultado.id)}
+                style={{ padding:"10px 0", borderRadius:8, cursor:"pointer",
+                  border:`1px solid ${C.oracleBorder}`, background:C.oracleSoft,
+                  color:C.oracleLight, fontWeight:700, fontSize:13, fontFamily:MONO,
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                👁 VER DOCUMENTO
+              </button>
+              <SubintDownloadBtns id={resultado.id} numero={resultado.numero} />
+              <button onClick={() => { setResultado(null); setEntidade(""); setErrMsg(null) }}
+                style={{ padding:"9px 0", borderRadius:8, cursor:"pointer",
+                  border:`1px solid ${C.border}`, background:"transparent",
+                  color:C.textMid, fontWeight:600, fontSize:12, fontFamily:MONO }}>
+                + Novo SUBINT
+              </button>
+            </div>
+          )}
+
+          {!gerando && !resultado && (
+            <p style={{ fontSize:11.5, color:C.textDim, marginTop:12, lineHeight:1.7,
+              borderTop:`1px solid ${C.border}`, paddingTop:12 }}>
+              O SUBINT consolida todos os dados sobre a entidade e gera um documento
+              técnico em PDF e DOCX para subsidiar o RELINT.
+            </p>
+          )}
+        </div>
+
+        {/* Histórico */}
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden" }}>
+          <div style={{ padding:"14px 18px", borderBottom:`1px solid ${C.border}`,
+            display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:3, height:16, background:C.cyan, borderRadius:2, boxShadow:`0 0 8px ${C.cyan}88` }}/>
+              <span style={{ fontSize:12, fontWeight:800, color:C.cyan, letterSpacing:"0.1em", textTransform:"uppercase" }}>
+                Histórico
+              </span>
+              <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                · {subints.length} doc{subints.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <button onClick={onRefresh}
+              style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.border}`,
+                background:"transparent", color:C.textDim, fontSize:12, fontFamily:MONO, cursor:"pointer" }}>↻</button>
+          </div>
+
+          {subints.length === 0 ? (
+            <div style={{ padding:"32px 20px", textAlign:"center", color:C.textDim, fontSize:13, fontFamily:MONO }}>
+              Nenhum SUBINT gerado ainda.<br/>
+              <span style={{ fontSize:11, marginTop:4, display:"block" }}>
+                Use o gerador ao lado para criar o primeiro.
+              </span>
+            </div>
+          ) : (
+            <div style={{ maxHeight:480, overflowY:"auto" }}>
+              {subints.map((s, i) => (
+                <div key={s.id} className="o-row"
+                  style={{ padding:"13px 18px",
+                    borderBottom: i < subints.length-1 ? `1px solid ${C.border}` : "none",
+                    display:"flex", alignItems:"center", gap:12, transition:"background 0.12s" }}>
+                  <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                    background:`linear-gradient(135deg,${C.cyanSoft},rgba(34,211,238,0.05))`,
+                    border:`1px solid ${C.cyanBorder}`,
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:15 }}>📄</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13.5, fontWeight:700, color:C.text,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:2 }}>
+                      {s.entidade_nome}
+                    </div>
+                    <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, display:"flex", gap:8, flexWrap:"wrap" }}>
+                      <span style={{ color:C.cyan, fontWeight:700 }}>{s.numero}</span>
+                      <span>·</span>
+                      <span style={{ padding:"1px 6px", borderRadius:4, background:"rgba(255,255,255,0.05)", fontSize:10 }}>
+                        {s.origem}
+                      </span>
+                      <span>·</span>
+                      <span>{fmtDate(s.criado_em)}</span>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                    <button className="o-btn"
+                      onClick={() => onPreview({ id: s.id, numero: s.numero })}
+                      style={{ padding:"5px 10px", borderRadius:7, cursor:"pointer",
+                        border:`1px solid ${C.oracleBorder}`, background:C.oracleSoft,
+                        color:C.oracleLight, fontWeight:700, fontSize:11, fontFamily:MONO }}>👁</button>
+                    <SubintDownloadBtns id={s.id} numero={s.numero} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {preview && <SubintPreviewModal subintId={preview} onClose={() => setPreview(null)} />}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── ABA RADAR ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+function RadarExpandido({ scores, onRefresh }) {
+  const [busca, setBusca] = useState("")
+  const filtrados = scores.filter(s =>
+    !busca || s.entidade_nome?.toLowerCase().includes(busca.toLowerCase())
+  )
+  const totais = scores.reduce((acc, s) => {
+    acc[s.classificacao] = (acc[s.classificacao]||0)+1; return acc
+  }, {})
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16, animation:"fadeSlideIn 0.2s ease" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+        {[["CRÍTICO","#F87171"],["ALTO","#FBBF24"],["MÉDIO","#60A5FA"],["BAIXO","#4ADE80"]].map(([key,color]) => (
+          <div key={key} style={{ background:C.surface, border:`1px solid ${color}22`,
+            borderTop:`3px solid ${color}`, borderRadius:10, padding:"12px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.1em",
+              fontFamily:MONO, marginBottom:4 }}>{key}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:C.text, fontFamily:MONO, lineHeight:1 }}>
+              {totais[key]||0}
+            </div>
+            <div style={{ fontSize:10, color:C.textDim, marginTop:3 }}>entidades</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden" }}>
+        <div style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}`,
+          display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:3, height:16, background:C.oracleLight, borderRadius:2,
+            boxShadow:`0 0 8px ${C.oracleLight}88` }}/>
+          <span style={{ fontSize:12, fontWeight:800, color:C.oracleLight,
+            letterSpacing:"0.1em", textTransform:"uppercase" }}>Radar de Risco</span>
+          <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+            · {filtrados.length} entidades
+          </span>
+          <div style={{ flex:1 }}/>
+          <input value={busca} onChange={e => setBusca(e.target.value)}
+            placeholder="Filtrar…"
+            style={{ padding:"6px 12px", borderRadius:7, border:`1px solid ${C.border}`,
+              background:C.surfaceUp, color:C.text, fontSize:12, fontFamily:MONO,
+              outline:"none", width:180 }}/>
+          <button onClick={onRefresh}
+            style={{ padding:"6px 11px", borderRadius:6, border:`1px solid ${C.border}`,
+              background:"transparent", color:C.textDim, fontSize:13, cursor:"pointer" }}>↻</button>
+        </div>
+
+        {filtrados.length === 0 ? (
+          <div style={{ padding:"32px", textAlign:"center", color:C.textDim, fontSize:13, fontFamily:MONO }}>
+            {busca ? `Nenhuma entidade com "${busca}"` : "Confirme HITLs para ativar o radar."}
+          </div>
+        ) : filtrados.map((s, i) => {
+          const cor = SCORE_COLOR[s.classificacao] || "#94A3B8"
+          const pct = Math.min(100, s.score_atual || 0)
+          return (
+            <div key={s.entidade_id} className="o-row"
+              style={{ padding:"14px 18px",
+                borderBottom: i < filtrados.length-1 ? `1px solid ${C.border}` : "none",
+                display:"flex", alignItems:"center", gap:14, transition:"background 0.12s" }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.textDim,
+                fontFamily:MONO, width:22, textAlign:"right", flexShrink:0 }}>#{i+1}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13.5, fontWeight:700, color:C.text,
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {s.entidade_nome}
+                </div>
+                {s.ultimo_evento && (
+                  <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, marginTop:2 }}>
+                    Último evento: {fmtDate(s.ultimo_evento)}
+                  </div>
+                )}
+              </div>
+              <div style={{ width:180, flexShrink:0 }}>
+                <div style={{ height:6, background:"rgba(255,255,255,0.06)", borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${pct}%`, borderRadius:3, transition:"width 0.8s ease",
+                    background:`linear-gradient(90deg,${cor}88,${cor})` }}/>
+                </div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0, width:50 }}>
+                <div style={{ fontSize:20, fontWeight:800, color:cor, fontFamily:MONO, lineHeight:1 }}>
+                  {pct.toFixed(0)}
+                </div>
+                <div style={{ fontSize:9, color:C.textDim, fontFamily:MONO }}>/ 100</div>
+              </div>
+              <span style={{ fontSize:10, fontWeight:800, padding:"3px 9px", borderRadius:5,
+                background:`${cor}18`, color:cor, border:`1px solid ${cor}33`,
+                fontFamily:MONO, letterSpacing:"0.07em", flexShrink:0 }}>
+                {s.classificacao}
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
