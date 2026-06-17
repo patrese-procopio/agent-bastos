@@ -40,6 +40,27 @@ from modules.liderancas import (
 from dependencies import get_current_user, get_current_user_media, require_module
 
 router = APIRouter(prefix="/liderancas", tags=["liderancas"])
+
+# ── Validação MIME (magic bytes) ─────────────────────────────────────────────
+_MAGIC_FOTO = {
+    b"\xff\xd8\xff": "image/jpeg",
+    b"\x89PNG":      "image/png",
+    b"GIF8":         "image/gif",
+    b"RIFF":         "image/webp",
+}
+
+def _validar_mime_foto(conteudo: bytes, max_mb: int = 5) -> None:
+    """Rejeita arquivo vazio, > max_mb MB ou com magic bytes não reconhecidos."""
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    if len(conteudo) > max_mb * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"Foto maior que {max_mb} MB.")
+    header = conteudo[:8]
+    if not any(header.startswith(magic) for magic in _MAGIC_FOTO):
+        raise HTTPException(
+            status_code=415,
+            detail="Formato inválido. Envie JPEG, PNG, GIF ou WEBP.",
+        )
 liderancas_router = router
 
 _MESES_PT = ["","Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -142,8 +163,7 @@ async def post_lider(
     if foto and foto.filename:
         ext = os.path.splitext(foto.filename)[1] or ".jpg"
         conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        _validar_mime_foto(conteudo)      # magic bytes + tamanho
         lider = atualizar_lider(lider["id"], {"foto_ext": salvar_foto(lider["id"], conteudo, ext)})
     try:
         from services.audit_service import registrar as audit
@@ -190,8 +210,7 @@ async def put_lider(
     if foto and foto.filename:
         ext = os.path.splitext(foto.filename)[1] or ".jpg"
         conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        _validar_mime_foto(conteudo)      # magic bytes + tamanho
         dados["foto_ext"] = salvar_foto(lider_id, conteudo, ext)
     resultado = atualizar_lider(lider_id, dados)
     try:
@@ -294,8 +313,7 @@ async def post_lider_rua(
     if foto and foto.filename:
         ext      = os.path.splitext(foto.filename)[1] or ".jpg"
         conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        _validar_mime_foto(conteudo)      # magic bytes + tamanho
         lider = atualizar_lider_rua(
             lider["id"], {"foto_ext": salvar_foto_rua(lider["id"], conteudo, ext)}
         )
@@ -339,8 +357,7 @@ async def put_lider_rua(
     if foto and foto.filename:
         ext      = os.path.splitext(foto.filename)[1] or ".jpg"
         conteudo = await foto.read()
-        if len(conteudo) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Foto maior que 5 MB.")
+        _validar_mime_foto(conteudo)      # magic bytes + tamanho
         dados["foto_ext"] = salvar_foto_rua(lider_id, conteudo, ext)
     return atualizar_lider_rua(lider_id, dados)
 
@@ -591,21 +608,4 @@ def exportar_pdf_geral(
     comp = competencia or (listar_competencias() or [_competencia_atual()])[0]
     try:
         try:
-            from pypdf import PdfWriter, PdfReader
-        except ImportError:
-            from PyPDF2 import PdfWriter, PdfReader
-
-        writer = PdfWriter()
-        for key in ESTRUTURA:
-            reader = PdfReader(io.BytesIO(_gerar_pdf_unidade(key, comp)))
-            for page in reader.pages:
-                writer.add_page(page)
-
-        buf = io.BytesIO()
-        writer.write(buf)
-        buf.seek(0)
-        comp_fn = comp.replace("-", "_")
-        return Response(content=buf.read(), media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="liderancas_geral_{comp_fn}.pdf"'})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF geral: {e}")
+            from pypdf import PdfWriter, Pd

@@ -145,17 +145,17 @@ def refresh(request: Request, body: RefreshRequest):
         raise HTTPException(status_code=401, detail="Tipo de token incorreto")
 
     user = get_user(payload["sub"])
-    if not user:
-        raise HTTPException(status_code=401, detail="Usuário não encontrado")
+    if not user or not user.get("active", True):
+        raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
 
     # Revoga o refresh token antigo — rotação obrigatória
     revoke_refresh_token(body.refresh_token)
 
-    access  = create_access_token(user["username"], user["level"], user["modules"])
+    access      = create_access_token(user["username"], user["level"], user["modules"])
     refresh_new = create_refresh_token(user["username"])
 
     return TokenResponse(
-        access_token=refresh_new,
+        access_token=access,        # CORRIGIDO: era refresh_new (bug crítico)
         refresh_token=refresh_new,
         username=user["username"],
         level=user["level"],
@@ -277,6 +277,4 @@ def deletar_usuario(
         )
     _log_audit.info(
         "usuario deletado",
-        extra={"usuario_deletado": username, "deletado_por": user["sub"]},
-    )
-    audit("usuario_deletado", "usuario", usuario=user["sub"], alvo=username)
+        extra={"usuario_deletado": username, "deletado_por": user[

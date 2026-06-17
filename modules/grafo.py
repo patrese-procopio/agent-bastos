@@ -72,8 +72,9 @@ ROTULOS_VINCULO = [
 
 @contextmanager
 def _conn():
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(DB_PATH, check_same_thread=False)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")   # CORRIGIDO: previne "database is locked" sob concorrência
     con.execute("PRAGMA foreign_keys = ON")
     try:
         yield con
@@ -128,10 +129,13 @@ def init_db():
                 FOREIGN KEY(pessoa_id) REFERENCES nos(id) ON DELETE CASCADE
             )
         """)
-        con.execute("CREATE INDEX IF NOT EXISTS idx_no_tipo    ON nos(tipo)")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_ar_origem  ON arestas(origem_id)")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_ar_destino ON arestas(destino_id)")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_mov_pessoa ON movimentacoes(pessoa_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_no_tipo         ON nos(tipo)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_ar_origem        ON arestas(origem_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_ar_destino       ON arestas(destino_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_mov_pessoa       ON movimentacoes(pessoa_id)")
+        # Índices compostos para ORÁCULO LIVE (recentes_auto + stats_grafo)
+        con.execute("CREATE INDEX IF NOT EXISTS idx_no_origem_criado ON nos(origem, criado_em DESC)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_ar_origem_criado ON arestas(origem, criado_em DESC)")
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -1048,22 +1052,4 @@ def remover_foto_no(no_id: str) -> dict | None:
         p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
         if os.path.exists(p):
             try:
-                os.remove(p)
-            except Exception:
-                pass
-    det = no.get("detalhes") or {}
-    det.pop("foto", None)
-    det.pop("foto_url", None)
-    return atualizar_no(no_id, {"detalhes": det})
-
-
-def foto_path_no(no_id: str) -> str | None:
-    for e in _FOTO_EXTS:
-        p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
-        if os.path.exists(p):
-            return p
-    return None
-
-
-# Inicializa o banco ao importar
-init_db()
+                o

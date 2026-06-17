@@ -32,6 +32,38 @@ from dependencies import require_module, get_current_user_media
 from services.rate_limit_service import limiter, LIMIT_VARREDURA
 from services.logging_service import get_logger
 
+# ── Validação MIME (magic bytes) ─────────────────────────────────────────────
+# Bloqueia uploads mascarados: um .exe renomeado para .jpg passa pelo content-type
+# mas falha aqui porque os primeiros bytes revelam o formato real.
+_MAGIC_FOTO = {
+    b"\xff\xd8\xff": "image/jpeg",   # JPEG
+    b"\x89PNG":      "image/png",    # PNG
+    b"GIF8":         "image/gif",    # GIF87a / GIF89a
+    b"RIFF":         "image/webp",   # WEBP (header RIFF....WEBP)
+}
+
+def _validar_mime_foto(conteudo: bytes, max_mb: int = 5) -> None:
+    """
+    Lança HTTPException 400/413 se:
+      - arquivo vazio
+      - tamanho > max_mb MB
+      - magic bytes não correspondem a imagem suportada
+
+    Por que magic bytes e não content-type?
+    O header Content-Type vem do cliente e pode ser falsificado.
+    Os primeiros bytes do arquivo são determinísticos e não mentirosos.
+    """
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    if len(conteudo) > max_mb * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"Foto maior que {max_mb} MB.")
+    header = conteudo[:8]
+    if not any(header.startswith(magic) for magic in _MAGIC_FOTO):
+        raise HTTPException(
+            status_code=415,
+            detail="Formato inválido. Envie JPEG, PNG, GIF ou WEBP.",
+        )
+
 _log_audit = get_logger("audit.grafo")
 
 router = APIRouter(prefix="/grafo", tags=["grafo"])
@@ -154,8 +186,7 @@ def delete_no(no_id: str, user: dict = Depends(_GATE)):
 async def upload_foto_no(no_id: str, file: UploadFile = File(...),
                          user: dict = Depends(_GATE)):
     conteudo = await file.read()
-    if not conteudo:
-        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    _validar_mime_foto(conteudo)          # valida magic bytes + tamanho
     ext = (file.filename or "foto.jpg").rsplit(".", 1)[-1]
     no = grafo.set_foto_no(no_id, conteudo, ext)
     if not no:
@@ -188,35 +219,4 @@ def post_aresta(body: ArestaIn, user: dict = Depends(_GATE)):
 
 
 @router.put("/aresta/{aresta_id}")
-def put_aresta(aresta_id: str, body: ArestaUpdate, user: dict = Depends(_GATE)):
-    aresta = grafo.atualizar_aresta(aresta_id, body.model_dump(exclude_unset=True))
-    if not aresta:
-        raise HTTPException(status_code=404, detail="Vínculo não encontrado.")
-    return aresta
-
-
-@router.delete("/aresta/{aresta_id}")
-def delete_aresta(aresta_id: str, user: dict = Depends(_GATE)):
-    if not grafo.deletar_aresta(aresta_id):
-        raise HTTPException(status_code=404, detail="Vínculo não encontrado.")
-    return {"ok": True}
-
-
-# ── Automático ──────────────────────────────────────────────────────────────
-
-@router.post("/sincronizar")
-@limiter.limit(LIMIT_VARREDURA)
-def post_sincronizar(request: Request, user: dict = Depends(_GATE)):
-    _log_audit.info("grafo sincronizar", extra={"username": user.get("sub")})
-    return grafo.sincronizar()
-
-
-@router.post("/alvo/{alvo_id}/varrer-citacoes")
-@limiter.limit(LIMIT_VARREDURA)
-def post_varrer_citacoes(request: Request, alvo_id: str, user: dict = Depends(_GATE)):
-    _log_audit.info("grafo varrer citacoes",
-                    extra={"username": user.get("sub"), "alvo_id": alvo_id})
-    res = grafo.varrer_citacoes(alvo_id)
-    if not res.get("ok"):
-        raise HTTPException(status_code=400, detail=res.get("erro", "Falha na varredura."))
-    return res
+def put_aresta(aresta_id: str, body: ArestaUpdate, u

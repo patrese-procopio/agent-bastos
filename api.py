@@ -100,7 +100,16 @@ seed_alertas_iniciais()
 # _seed_dashboard_inicial()  # DESATIVADO
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Agent Bastos API", version="1.0.0")
+# Swagger UI desabilitado em produção — expor /docs mapeia toda a API para atacantes.
+# Para desenvolvimento local: BASTOS_ENV=development no .env
+_DEV_MODE = os.getenv("BASTOS_ENV", "production") == "development"
+app = FastAPI(
+    title="Agent Bastos API",
+    version="1.0.0",
+    docs_url="/docs"        if _DEV_MODE else None,
+    redoc_url="/redoc"      if _DEV_MODE else None,
+    openapi_url="/openapi.json" if _DEV_MODE else None,
+)
 
 # Ordem dos middlewares (Starlette executa em ordem INVERSA da adição):
 #   request entra → SecurityHeaders → AccessLog → CORS → SlowAPI → router
@@ -140,22 +149,16 @@ app.include_router(feedback_router,    prefix="/api")  # Feedback Loop de Correl
 app.include_router(risco_score_router, prefix="/api")  # Score de Risco Dinâmico (Missão 28)
 app.include_router(subint_router,      prefix="/api")  # SUBINT Automatizado (Missão 29)
 
+# ── Health endpoint ───────────────────────────────────────────────────────────
+# Endpoint dedicado para HEALTHCHECK do Docker — não expõe informações da API.
+# /docs está desabilitado em produção, por isso o Dockerfile aponta aqui.
+from fastapi.responses import JSONResponse
+
+@app.get("/health", include_in_schema=False)
+def health_check():
+    return JSONResponse({"status": "ok"})
+
+
 # ── Schedulers ────────────────────────────────────────────────────────────────
 from modules.monitor import iniciar_scheduler as _iniciar_watchlist
-from services.briefing_service import iniciar_scheduler as _iniciar_briefing
-
-@app.on_event("startup")
-def _startup():
-    _iniciar_watchlist()
-    _iniciar_briefing()   # BDI automático: todo dia às BRIEFING_HORA (padrão 06:00 UTC)
-
-
-# ── Entry point ───────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    # host=127.0.0.1 (loopback APENAS) — fecha a porta na LAN.
-    # Electron+Vite rodam no mesmo host, não precisam de 0.0.0.0.
-    # Pra expor na rede (raríssimo: só se for usar de outra máquina),
-    # use BASTOS_HOST=0.0.0.0 no .env e tenha consciência do risco.
-    host = os.getenv("BASTOS_HOST", "127.0.0.1")
-    port = int(os.getenv("BASTOS_PORT", "8000"))
-    uvicorn.run("api:app", host=host, port=port, reload=False)
+fr
