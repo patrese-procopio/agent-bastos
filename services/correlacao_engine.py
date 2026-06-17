@@ -33,7 +33,6 @@ PRINCÍPIOS:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -270,7 +269,7 @@ def _abrir_hitl(hits: list[dict], fonte_tipo: str, fonte_id: str,
     """
     try:
         from services.human_loop_service import criar_aprovacao, marcar_notificado
-        from services.notification_service import notificar_aprovacao_pendente
+        from services.notification_service import notificar_aprovacao_pendente_sync
     except ImportError:
         logger.warning("[correlacao] HITL indisponível.")
         return None
@@ -343,21 +342,19 @@ def _abrir_hitl(hits: list[dict], fonte_tipo: str, fonte_id: str,
         f"Contexto:\n{summary}"
     )
 
-    loop = asyncio.new_event_loop()
-    try:
-        sucesso = loop.run_until_complete(
-            notificar_aprovacao_pendente(
-                aprovacao_id=aprov_id,
-                tipo_evento="correlacao_cruzada",
-                descricao=descricao_longa,
-                risco=risco,
-                operador=operador,
-                detalhes=detalhes,
-            )
-        )
-        marcar_notificado(aprov_id, sucesso)
-    finally:
-        loop.close()
+    # Chamada síncrona — elimina o conflito de event loop.
+    # _abrir_hitl é executado como BackgroundTask dentro do loop do FastAPI;
+    # criar um asyncio.new_event_loop() aqui causava RuntimeError porque o
+    # httpx.AsyncClient estava amarrado ao loop principal (já em execução).
+    sucesso = notificar_aprovacao_pendente_sync(
+        aprovacao_id=aprov_id,
+        tipo_evento="correlacao_cruzada",
+        descricao=descricao_longa,
+        risco=risco,
+        operador=operador,
+        detalhes=detalhes,
+    )
+    marcar_notificado(aprov_id, sucesso)
 
     logger.info(
         "[correlacao] HITL aberto: %s | hits=%d | fonte=%s/%s",
@@ -578,8 +575,4 @@ def reprocessar_todos(operador: str = "sistema") -> dict:
         stats["erros"] += 1
 
     logger.info(
-        "[correlacao] Reprocessamento concluído: %s",
-        stats,
-        extra={"stats": stats},
-    )
-    return stats
+        "[correlacao] Repr
