@@ -1,0 +1,30 @@
+CONTRATO DE LICENÇA DE SOFTWARE — AGENT BASTOS
+Viga Soluções e Tecnologia
+================================================================================
+
+Este software ("Agent Bastos") é licenciado exclusivamente para uso institucional
+pela Secretaria de Estado de Administração Penitenciária do Amazonas (SEAP-AM),
+conforme contrato firmado com Viga Soluções e Tecnologia.
+
+1. USO AUTORIZADO
+   O software somente pode ser instalado e utilizado em equipamentos pertencentes
+   ou gerenciados pela instituição licenciada. É vedada a redistribuição, cópia,
+   modificação ou engenharia reversa sem autorização expressa por escrito.
+
+2. PROTEÇÃO DE DADOS (LGPD — Lei 13.709/2018)
+   Este sistema processa dados pessoais de natureza sensível no exercício de
+   atividade de segurança pública. O operador é responsável por:
+   a) Restringir o acesso a agentes devidamente credenciados;
+   b) Registrar e auditar todas as consultas realizadas;
+   c) Não exportar dados para fora da rede institucional sem autorização;
+   d) Comunicar ao encarregado de dados qualquer incidente de segurança.
+
+3. RESPONSABILIDADE
+   O uso indevido das informações geradas por este sistema é de responsabilidade
+   exclusiva do operador e da instituição, nos termos da legislação vigente.
+
+4. SUPORTE
+   Viga Soluções e Tecnologia — contato@vigasolucoes.com.br
+
+Ao clicar em "Aceito", você declara ter lido, compreendido e aceito os termos
+deste contrato e confirma estar autorizado pela instituição a instalar este software.

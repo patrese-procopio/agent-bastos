@@ -1,1 +1,68 @@
-{"name":"agent-bastos-app","version":"1.0.0","description":"Agent Bastos - Sistema de Inteligencia Soberana","main":"electron.cjs","author":"Patrese Procopio","license":"ISC","scripts":{"dev":"vite","electron":"electron .","start":"concurrently \"vite\" \"electron .\"","build":"vite build","dist":"vite build && electron-builder"},"build":{"appId":"com.aipen.agentbastos","productName":"Agent Bastos","directories":{"output":"dist-installer"},"win":{"target":"nsis","icon":"src/assets/logo.png"},"nsis":{"oneClick":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"shortcutName":"Agent Bastos"},"files":["dist/**/*","electron.cjs","preload.cjs","index.html"]},"keywords":[],"dependencies":{"html2canvas":"^1.4.1","jspdf":"^4.2.1","react":"^18.2.0","react-dom":"^18.2.0","react-force-graph-2d":"^1.29.1"},"devDependencies":{"@vitejs/plugin-react":"^4.0.0","concurrently":"^8.2.2","electron":"^28.0.0","electron-builder":"^24.0.0","vite":"^5.0.0"}}
+{
+  "name": "agent-bastos-app",
+  "version": "1.0.0",
+  "description": "Agent Bastos - Sistema de Inteligência Operacional",
+  "main": "electron.cjs",
+  "author": {
+    "name": "Viga Soluções e Tecnologia",
+    "email": "contato@vigasolucoes.com.br"
+  },
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "vite",
+    "electron": "electron .",
+    "start": "concurrently \"vite\" \"electron .\"",
+    "build": "vite build",
+    "dist": "vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.vigasolucoes.agentbastos",
+    "productName": "Agent Bastos",
+    "copyright": "Copyright © 2026 Viga Soluções e Tecnologia. Todos os direitos reservados.",
+    "directories": {
+      "output": "dist-installer"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "Viga Soluções e Tecnologia",
+      "signingHashAlgorithms": ["sha256"],
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Agent Bastos",
+      "license": "build/license.txt"
+    },
+    "files": [
+      "dist/**/*",
+      "electron.cjs",
+      "preload.cjs",
+      "index.html"
+    ]
+  },
+  "keywords": [],
+  "dependencies": {
+    "electron-log": "^5.4.4",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-force-graph-2d": "^1.29.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^8.2.2",
+    "electron": "^34.0.0",
+    "electron-builder": "^24.0.0",
+    "vite": "^5.0.0"
+  }
+}
