@@ -59,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

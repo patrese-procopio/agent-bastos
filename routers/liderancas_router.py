@@ -608,4 +608,21 @@ def exportar_pdf_geral(
     comp = competencia or (listar_competencias() or [_competencia_atual()])[0]
     try:
         try:
-            from pypdf import PdfWriter, Pd
+            from pypdf import PdfWriter, PdfReader
+        except ImportError:
+            from PyPDF2 import PdfWriter, PdfReader
+
+        writer = PdfWriter()
+        for key in ESTRUTURA:
+            reader = PdfReader(io.BytesIO(_gerar_pdf_unidade(key, comp)))
+            for page in reader.pages:
+                writer.add_page(page)
+
+        buf = io.BytesIO()
+        writer.write(buf)
+        buf.seek(0)
+        comp_fn = comp.replace("-", "_")
+        return Response(content=buf.read(), media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="liderancas_geral_{comp_fn}.pdf"'})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF geral: {e}")

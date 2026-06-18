@@ -1052,4 +1052,22 @@ def remover_foto_no(no_id: str) -> dict | None:
         p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
         if os.path.exists(p):
             try:
-                o
+                os.remove(p)
+            except Exception:
+                pass
+    det = no.get("detalhes") or {}
+    det.pop("foto", None)
+    det.pop("foto_url", None)
+    return atualizar_no(no_id, {"detalhes": det})
+
+
+def foto_path_no(no_id: str) -> str | None:
+    for e in _FOTO_EXTS:
+        p = os.path.join(FOTOS_DIR, f"{no_id}.{e}")
+        if os.path.exists(p):
+            return p
+    return None
+
+
+# Inicializa o banco ao importar
+init_db()

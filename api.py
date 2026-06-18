@@ -161,4 +161,20 @@ def health_check():
 
 # ── Schedulers ────────────────────────────────────────────────────────────────
 from modules.monitor import iniciar_scheduler as _iniciar_watchlist
-fr
+from services.briefing_service import iniciar_scheduler as _iniciar_briefing
+
+@app.on_event("startup")
+def _startup():
+    _iniciar_watchlist()
+    _iniciar_briefing()   # BDI automático: todo dia às BRIEFING_HORA (padrão 06:00 UTC)
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    # host=127.0.0.1 (loopback APENAS) — fecha a porta na LAN.
+    # Electron+Vite rodam no mesmo host, não precisam de 0.0.0.0.
+    # Pra expor na rede (raríssimo: só se for usar de outra máquina),
+    # use BASTOS_HOST=0.0.0.0 no .env e tenha consciência do risco.
+    host = os.getenv("BASTOS_HOST", "127.0.0.1")
+    port = int(os.getenv("BASTOS_PORT", "8000"))
+    uvicorn.run("api:app", host=host, port=port, reload=False)

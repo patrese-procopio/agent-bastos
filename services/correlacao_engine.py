@@ -575,4 +575,8 @@ def reprocessar_todos(operador: str = "sistema") -> dict:
         stats["erros"] += 1
 
     logger.info(
-        "[correlacao] Repr
+        "[correlacao] Reprocessamento concluído: %s",
+        stats,
+        extra={"stats": stats},
+    )
+    return stats

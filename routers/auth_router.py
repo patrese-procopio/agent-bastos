@@ -277,4 +277,6 @@ def deletar_usuario(
         )
     _log_audit.info(
         "usuario deletado",
-        extra={"usuario_deletado": username, "deletado_por": user[
+        extra={"usuario_deletado": username, "deletado_por": user["sub"]},
+    )
+    audit("usuario_deletado", "usuario", usuario=user["sub"], alvo=username)

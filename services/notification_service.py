@@ -152,4 +152,78 @@ async def notificar_aprovacao_pendente(
       detalhes     : dict livre com contexto adicional (opcional)
 
     Retorna:
-      True  → n8
+      True  → n8n aceitou o webhook (HTTP 2xx)
+      False → falha de conexão ou n8n indisponível (não levanta exceção)
+    """
+    if not N8N_WEBHOOK_HITL:
+        logger.warning(
+            "N8N_WEBHOOK_HITL não configurado — aprovação %s criada mas "
+            "notificação WhatsApp não disparada.", aprovacao_id,
+            extra={"aprovacao_id": aprovacao_id},
+        )
+        return False
+
+    numeros = get_numeros_hitl()
+    if not numeros:
+        logger.warning(
+            "WA_NUMEROS_HITL não configurado — aprovação %s sem destinatários.",
+            aprovacao_id,
+            extra={"aprovacao_id": aprovacao_id},
+        )
+        return False
+
+    payload = {
+        "aprovacao_id":    aprovacao_id,
+        "tipo_evento":     tipo_evento,
+        "descricao":       descricao,
+        "risco":           risco,
+        "operador":        operador,
+        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "detalhes":        detalhes or {},
+        # Lista de destinatários — n8n itera e envia para cada um
+        "numeros_destino": numeros,
+        # URL de retorno que o n8n usará para confirmar/rejeitar
+        "callback_url":    os.getenv("BASTOS_CALLBACK_URL", "http://127.0.0.1:8000")
+                           + f"/api/human-loop/responder/{aprovacao_id}",
+    }
+
+    logger.info(
+        "Disparando HITL para %d número(s): %s",
+        len(numeros), numeros,
+        extra={"aprovacao_id": aprovacao_id},
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+            resp = await client.post(N8N_WEBHOOK_HITL, json=payload)
+
+        if resp.status_code < 300:
+            logger.info(
+                "Notificação HITL enviada ao n8n para %d destinatário(s).",
+                len(numeros),
+                extra={"aprovacao_id": aprovacao_id, "status": resp.status_code},
+            )
+            return True
+        else:
+            logger.warning(
+                "n8n retornou status inesperado para aprovação %s: %s",
+                aprovacao_id, resp.status_code,
+                extra={"aprovacao_id": aprovacao_id, "status": resp.status_code},
+            )
+            return False
+
+    except httpx.TimeoutException:
+        logger.error(
+            "Timeout ao notificar n8n para aprovação %s — "
+            "n8n pode estar fora do ar.", aprovacao_id,
+            extra={"aprovacao_id": aprovacao_id},
+        )
+        return False
+
+    except Exception as exc:
+        logger.error(
+            "Falha inesperada ao notificar n8n para aprovação %s: %s",
+            aprovacao_id, exc,
+            extra={"aprovacao_id": aprovacao_id},
+        )
+        return False
