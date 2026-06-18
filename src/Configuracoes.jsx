@@ -125,7 +125,7 @@ function AbaGeral({ tema, setTema }) {
       setN8nUrl(d.gerais.n8nUrl)
       if (d.gerais.tema && setTema) setTema(d.gerais.tema)
       setChavesStatus(d.chaves || {})
-    }).catch(() => {})
+    }).catch(() => { setErro("Não foi possível carregar as configurações do servidor.") })
     return () => { vivo = false }
   }, [])
 
