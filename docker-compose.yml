@@ -1,125 +1,175 @@
 # ==============================================================================
-# docker-compose.yml - Agent Bastos (backend)
-# ------------------------------------------------------------------------------
-# Orquestra o container da API com:
-#   - injeção do .env em runtime (segredos NÃO ficam na imagem)
-#   - volumes nomeados para persistir ChromaDB, auth.db e logs entre restarts
-#   - volumes bind para módulos Python (editar no VS Code → container vê na hora)
-#   - restart automático (sobe sozinho se a máquina reiniciar)
+# docker-compose.yml — Agent Bastos
+# ==============================================================================
+# Stack completa em rede privada isolada (bastos_net):
 #
-# Uso:
-#   docker compose up -d --build    (sobe em background, reconstruindo a imagem)
-#   docker compose logs -f          (acompanha os logs)
-#   docker compose down             (para e remove o container, dados PERSISTEM)
+#   api        FastAPI + RAG + ChromaDB        → :8000
+#   n8n        Automação HITL / workflows      → :5678
+#   evolution  WhatsApp via Baileys            → :8080
 #
-# DESENVOLVIMENTO SEM REBUILD:
-#   Edite qualquer arquivo em modules/, routers/, services/ no VS Code.
-#   O container lê direto do seu HD — não precisa rebuild nem restart.
-#   Apenas alterações em api.py ou requirements.txt exigem rebuild.
+# Serviços comunicam por NOME de serviço, não por IP ou host.docker.internal.
+# Isso funciona igual em Windows, Linux e qualquer CI/CD sem flags extras.
+#
+# ── Comandos do dia a dia ─────────────────────────────────────────────────────
+#   docker compose up -d --build        sobe tudo (reconstruindo a imagem)
+#   docker compose up -d api            sobe só a API
+#   docker compose up -d n8n evolution  sobe só o stack HITL
+#   docker compose logs -f              acompanha todos os logs
+#   docker compose logs -f api          logs só da API
+#   docker compose ps                   status de cada serviço
+#   docker compose down                 para tudo (dados PERSISTEM nos volumes)
+#   docker compose down -v              para tudo e APAGA volumes  ⚠️ CUIDADO
+#   docker compose exec api bash        terminal dentro do container
 # ==============================================================================
 
 services:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # API — FastAPI backend (RAG, autenticação, HITL, OSINT, Grafoscopia...)
+  # ────────────────────────────────────────────────────────────────────────────
   api:
     build:
       context: .
       dockerfile: Dockerfile
     image: agent-bastos:latest
-    command: python -u -c "from uvicorn.config import Config; from uvicorn.server import Server; import asyncio; asyncio.run(Server(Config(app='api:app', host='0.0.0.0', port=8000, log_level='info', ws='none')).serve())"
     container_name: agent-bastos-api
-
-    # Injeta as variáveis do .env em runtime. O arquivo .env fica SÓ na máquina
-    # servidor, nunca dentro da imagem. Edite o .env com as chaves reais.
-    env_file:
-      - .env
-
+    env_file: .env
     ports:
-      - "8000:8000"
-
+      - "8000:8000"         # Electron conecta aqui no host
     volumes:
-      # ── PERSISTÊNCIA DE DADOS (volumes nomeados) ──────────────────────────
-      # Gerenciados pelo Docker — sobrevivem a rebuild, restart e até remoção
-      # do container. Só somem com `docker volume rm`.
+      # ── Persistência de dados (volumes nomeados) ───────────────────────────
       - bastos_chroma:/app/data/chroma_db    # base vetorial (963+ chunks)
-      - bastos_db:/app/data                  # auth.db, liderancas.db, etc.
+      - bastos_db:/app/data                  # SQLite: auth, liderancas, grupos
       - bastos_logs:/app/logs                # logs de auditoria (LGPD Art.37)
-
-      # ── BIND MOUNTS DE CÓDIGO (desenvolvimento) ───────────────────────────
-      # O arquivo no seu HD é montado diretamente dentro do container.
-      # Você edita no VS Code → o container já lê a versão nova.
-      # Isso elimina o ciclo: editar → docker cp → restart.
-      #
-      # REGRA: bind mounts ficam ABAIXO dos volumes nomeados para não
-      # sobrescrever os dados persistidos em bastos_db.
-      - ./modules:/app/modules               # lógica de negócio (RAG, OSINT...)
-      - ./routers:/app/routers               # endpoints FastAPI
-      - ./services:/app/services             # serviços transversais
-      - ./config:/app/config                 # configurações
-      - ./api.py:/app/api.py                 # entry-point da API
-
-      # ── ARQUIVOS DE CREDENCIAIS (read-only) ───────────────────────────────
-      # :ro = read-only — o container não consegue alterar mesmo que tente.
+      # ── Bind mounts de código (desenvolvimento hot-reload) ─────────────────
+      # Edite no VS Code → container lê na hora. Não precisa rebuild.
+      # Apenas api.py e requirements.txt exigem `docker compose build` ao mudar.
+      - ./modules:/app/modules
+      - ./routers:/app/routers
+      - ./services:/app/services
+      - ./config:/app/config
+      - ./api.py:/app/api.py
+      # ── Credenciais somente-leitura ────────────────────────────────────────
       - ./data/doutrina:/app/data/doutrina:ro
       - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
-
-    # user não sobrescrito — o Dockerfile já cria o usuário 'bastos' (uid 1000)
-    # rodar como root dentro do container anularia essa proteção.
+    networks:
+      - bastos_net
     restart: unless-stopped
-
     deploy:
       resources:
         limits:
           memory: 4G
+    # Healthcheck próprio (definido no Dockerfile via HEALTHCHECK).
+    # depends_on n8n não é necessário: API funciona sem o stack HITL.
+    # O HITL só é acionado sob demanda (extrato de risco alto), não no boot.
 
-# ==============================================================================
-# Evolution API — WhatsApp não-oficial para Human-in-the-Loop
-# ------------------------------------------------------------------------------
-# Sobe APENAS quando você precisar do HITL.
-# Para subir apenas este serviço: docker compose up -d evolution
-#
-# Após subir:
-#   1. Acesse http://localhost:8080
-#   2. Crie uma instância com o nome configurado em EVOLUTION_INSTANCE
-#   3. Escaneie o QR Code com o WhatsApp do número operacional
-#   4. Configure os webhooks para apontar para o n8n (hitl-resposta-bastos)
-# ==============================================================================
-  # ===========================================================================
-  # Evolution API v1 — mais estável para Baileys + sem Redis/Postgres
-  # QR via REST, armazenamento em arquivo local (volume evolution_data)
-  # ===========================================================================
+  # ────────────────────────────────────────────────────────────────────────────
+  # n8n — Automação HITL e workflows de inteligência
+  #
+  # Acesse http://localhost:5678 para configurar workflows.
+  # Importe os JSONs de n8n_workflows/ na primeira inicialização.
+  #
+  # Variáveis críticas no .env:
+  #   N8N_ENCRYPTION_KEY  — chave para cifrar credenciais salvas no n8n
+  #   N8N_WEBHOOK_URL     — URL pública se usar ngrok/túnel (dev local: deixe vazio)
+  # ────────────────────────────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: agent-bastos-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      # Chave de criptografia das credenciais salvas no n8n.
+      # Gere com: openssl rand -hex 24
+      # NUNCA deixe o valor padrão em produção.
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-TROQUE_ESTA_CHAVE_openssl_rand_hex_24}
+      # Desativa telemetria e personalização (privacidade operacional)
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      # Fuso horário do Amazonas
+      - GENERIC_TIMEZONE=America/Manaus
+      - TZ=America/Manaus
+      # URL base para montar os webhook URLs exibidos na UI do n8n.
+      # Em dev local: http://localhost:5678/
+      # Em produção com domínio: https://n8n.seap.am.gov.br/
+      - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678/}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - bastos_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 20s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Evolution API — WhatsApp via Baileys (HITL)
+  #
+  # Após subir: acesse http://localhost:8080
+  # Crie a instância com o nome em EVOLUTION_INSTANCE e escaneie o QR Code.
+  # O volume evolution_data persiste a sessão — não precisa novo QR a cada restart.
+  # ────────────────────────────────────────────────────────────────────────────
   evolution:
     image: atendai/evolution-api:v1.8.7
-    container_name: evolution-api
+    container_name: agent-bastos-evolution
     ports:
       - "8080:8080"
     environment:
-      # Autenticação
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-bastos_evo_key_troque_aqui}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-bastos_evo_key_TROQUE}
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
-      # Armazenamento local (sem banco externo)
       - DATABASE_ENABLED=false
       - DATABASE_CONNECTION_URI=
-      # Redis desativado
       - REDIS_ENABLED=false
-      # Webhook global — ativar após n8n estar rodando
-      - WEBHOOK_GLOBAL_URL=${N8N_WEBHOOK_RESPOSTA_URL:-http://host.docker.internal:5678/webhook/hitl-resposta-bastos}
+      # Webhook aponta para o n8n pela rede interna — sem host.docker.internal
+      - WEBHOOK_GLOBAL_URL=http://n8n:5678/webhook/hitl-resposta-bastos
       - WEBHOOK_GLOBAL_ENABLED=true
-      # QR code via API REST
       - QRCODE_LIMIT=30
       - QRCODE_COLOR=#175197
-      # Logs
       - LOG_LEVEL=ERROR
       - LOG_COLOR=true
     volumes:
       - evolution_data:/evolution/instances
+    networks:
+      - bastos_net
+    depends_on:
+      n8n:
+        condition: service_healthy   # aguarda n8n pronto antes de registrar webhooks
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
-# Volumes nomeados - gerenciados pelo Docker, persistem independente do container.
-# Para inspecionar: docker volume inspect agent-bastos_bastos_chroma
+# ==============================================================================
+# Rede privada isolada
+# ─────────────────────────────────────────────────────────────────────────────
+# Todos os serviços compartilham bastos_net e se enxergam por nome:
+#   API chama n8n  →  http://n8n:5678/webhook/hitl-bastos
+#   n8n chama API  →  http://api:8000/hitl/callback
+#   Evolution → n8n  →  http://n8n:5678/webhook/hitl-resposta-bastos
+#
+# Nenhum tráfego inter-serviço sai do host. Superfície de ataque mínima.
+# ==============================================================================
+networks:
+  bastos_net:
+    driver: bridge
+
+# ==============================================================================
+# Volumes nomeados — gerenciados pelo Docker
+# ─────────────────────────────────────────────────────────────────────────────
+# Sobrevivem a: rebuild, restart, remoção do container, atualização de imagem.
+# Só são removidos com: docker volume rm <nome>  ou  docker compose down -v
+#
+# Para inspecionar:   docker volume ls | grep bastos
+# Para fazer backup:  docker run --rm -v bastos_chroma:/data -v $(pwd):/out \
+#                       alpine tar czf /out/chroma_backup.tar.gz /data
+# ==============================================================================
 volumes:
-  bastos_chroma:
-  bastos_db:
-  bastos_logs:
-  evolution_data:
+  bastos_chroma:   # Base vetorial ChromaDB (doutrinas, extratos indexados)
+  bastos_db:       # SQLite: auth.db, liderancas.db, dashboard.db, grupos.db
+  bastos_logs:     # Logs de auditoria cifrados com Fernet (LGPD Art.37)
+  n8n_data:        # Workflows, credenciais e execuções do n8n
+  evolution_data:  # Sessão WhatsApp autenticada (evita novo QR a cada restart)
