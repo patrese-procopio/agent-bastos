@@ -205,7 +205,7 @@ function startDockerStack() {
     const parseLine = (data) => {
       const line = data.toString().trim();
       if (!line) return;
-      if (import.meta?.env?.DEV || isDev) console.log(`[Docker] ${line}`);
+      if (isDev) console.log(`[Docker] ${line}`);
 
       // Extrai nome do container para feedback na splash
       const match = line.match(/Container ([^\s]+)/i);
