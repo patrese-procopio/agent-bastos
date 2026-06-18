@@ -24,12 +24,19 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico",
       "publisherName": "Viga Soluções e Tecnologia",
-      "signingHashAlgorithms": ["sha256"],
-      "requestedExecutionLevel": "requireAdministrator"
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
@@ -61,7 +68,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
     "concurrently": "^8.2.2",
-    "electron": "^34.0.0",
+    "electron": "^34.5.8",
     "electron-builder": "^24.0.0",
     "vite": "^5.0.0"
   }

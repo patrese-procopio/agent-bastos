@@ -88,11 +88,13 @@ app.on("second-instance", (_event, _argv, _workingDir) => {
 });
 
 // ─── Caminhos ─────────────────────────────────────────────────────────────────
-// Em dev: Agent_Bastos fica um nível acima do agent-bastos-app
-// Em produção: instalado em C:\ProgramData\AgentBastos (perMachine=true no NSIS)
+// Em dev: Agent_Bastos fica um nível acima do agent-bastos-app.
+// Em produção: lê AGENT_BASTOS_DIR do ambiente (configurável por máquina).
+//   Se não definida, usa o caminho padrão da SEAP-AM.
+//   Para outras instalações: defina AGENT_BASTOS_DIR no sistema antes de rodar.
 const BACKEND_DIR = isDev
   ? path.join(__dirname, "..", "Agent_Bastos")
-  : path.join("C:\\ProgramData\\AgentBastos");
+  : (process.env.AGENT_BASTOS_DIR || "C:\\Users\\Administrador\\Agent_Bastos");
 
 log.info("BACKEND_DIR:", BACKEND_DIR, "| isDev:", isDev);
 
@@ -384,7 +386,14 @@ app.whenReady().then(async () => {
         return;
       }
     } else {
-      await startDockerStack();
+      // Tenta subir os containers. Se falhar (ex: pasta não encontrada),
+      // loga o erro mas continua — os containers podem já estar rodando.
+      try {
+        await startDockerStack();
+      } catch (dockerErr) {
+        log.warn("docker compose up falhou, verificando se API já está no ar:", dockerErr.message);
+      }
+      // Sempre aguarda a API — independente de o compose ter rodado ou não.
       setSplash("CONECTANDO À API...", 50, 2);
       await waitForApi();
     }
