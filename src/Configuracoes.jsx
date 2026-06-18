@@ -256,7 +256,7 @@ function AbaGeral({ tema, setTema }) {
 
       <div style={{ display:"flex", justifyContent:"flex-end" }}>
         <button onClick={salvar} style={{
-          padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer",
+          padding:"10px 24px", borderRadius:8, cursor:"pointer",
           background: salvo ? "rgba(34,197,94,0.15)" : "rgba(232,160,32,0.15)",
           color: salvo ? "#4ADE80" : "#E8A020",
           border: `1px solid ${salvo ? "rgba(34,197,94,0.35)" : "rgba(232,160,32,0.35)"}`,
