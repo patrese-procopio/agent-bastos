@@ -3,3 +3,6 @@ dist/
 dist-electron/
 .env
 *.local
+dist-installer/
+build/logo pra trabalhar.png
+build/gerar_ico.py

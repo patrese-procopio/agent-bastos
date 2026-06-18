@@ -1,6 +1,6 @@
 import { useState } from "react"
 import api from "./api"
-import logoImg from "./assets/logo.png"
+import logoImg from "./assets/logo.webp"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"

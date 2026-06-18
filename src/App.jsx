@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import logoImg from "./assets/logo.png"
+import logoImg from "./assets/logo.webp"
 import ErrorBoundary from "./ErrorBoundary"
 import ChatRAG from "./ChatRAG"
 import Dashboard from "./Dashboard"
