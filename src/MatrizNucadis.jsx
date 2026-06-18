@@ -82,7 +82,7 @@ export default function MatrizNucadis() {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:10,color:C.textDim,fontFamily:MONO}}>calor por:</span>
+              <span style={{fontSize: 12,color:C.textDim,fontFamily:MONO}}>calor por:</span>
               <div style={{display:"flex",gap:3,background:"rgba(255,255,255,0.03)",padding:3,borderRadius:8,border:`1px solid ${C.border}`}}>
                 {Object.entries(MODOS).map(([k,m])=>(
                   <button key={k} onClick={()=>setModo(k)} title={m.leg}
@@ -92,9 +92,9 @@ export default function MatrizNucadis() {
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:10,color:C.textDim,fontFamily:MONO}}>frio</span>
+              <span style={{fontSize: 12,color:C.textDim,fontFamily:MONO}}>frio</span>
               <span style={{width:96,height:8,borderRadius:4,background:"linear-gradient(90deg,rgb(56,116,214),rgb(232,160,32),rgb(239,68,68))",display:"inline-block"}}/>
-              <span style={{fontSize:10,color:C.textDim,fontFamily:MONO}}>quente</span>
+              <span style={{fontSize: 12,color:C.textDim,fontFamily:MONO}}>quente</span>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function MatrizNucadis() {
                 <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
                   <div style={{fontSize:12,color:C.gold,fontWeight:700,fontFamily:MONO}}>{m.total}</div>
                   <div style={{width:"100%",maxWidth:48,height:`${(m.total/maxM)*100}%`,minHeight:4,background:"linear-gradient(180deg,#E8A020,rgba(232,160,32,0.25))",borderRadius:"5px 5px 0 0"}}/>
-                  <div style={{fontSize:10.5,color:C.textMid,fontFamily:MONO}}>{m.mes}</div>
+                  <div style={{fontSize: 12.5,color:C.textMid,fontFamily:MONO}}>{m.mes}</div>
                 </div>
               ))}
             </div>
@@ -171,7 +171,7 @@ const Kpi = ({n,l,cor}) => (
 const Stat = ({n,l,cor}) => (
   <div style={{textAlign:"center",minWidth:42}}>
     <div style={{fontSize:15,fontWeight:800,color:cor}}>{n}</div>
-    <div style={{fontSize:9.5,color:C.textDim,fontFamily:MONO,textTransform:"uppercase"}}>{l}</div>
+    <div style={{fontSize: 11.5,color:C.textDim,fontFamily:MONO,textTransform:"uppercase"}}>{l}</div>
   </div>
 )
 const SectionBar = ({label}) => (

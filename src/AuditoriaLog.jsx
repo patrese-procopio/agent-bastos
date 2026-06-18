@@ -172,7 +172,7 @@ export default function AuditoriaLog() {
                 background: filtros.categoria === key ? cfg.bg : "rgba(255,255,255,0.03)",
                 border: `1px solid ${filtros.categoria === key ? cfg.border : "rgba(255,255,255,0.07)"}`,
                 transition:"all 0.15s"}}>
-              <div style={{fontSize:10,fontWeight:800,color:cfg.color,letterSpacing:"0.1em",
+              <div style={{fontSize: 12,fontWeight:800,color:cfg.color,letterSpacing:"0.1em",
                 textTransform:"uppercase",marginBottom:5,fontFamily:MONO}}>{cfg.label}</div>
               <div style={{fontSize:24,fontWeight:900,color:C.text,lineHeight:1}}>
                 {stats[key] ?? "…"}
@@ -240,7 +240,7 @@ export default function AuditoriaLog() {
             padding:"10px 16px",borderBottom:`1px solid ${C.border}`,
             background:"rgba(255,255,255,0.025)"}}>
             {["Timestamp","Categoria","Evento","Usuário","Alvo","Detalhe","IP"].map(h => (
-              <span key={h} style={{fontSize:10,fontWeight:800,color:C.textMid,
+              <span key={h} style={{fontSize: 12,fontWeight:800,color:C.textMid,
                 letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO}}>{h}</span>
             ))}
           </div>
@@ -271,7 +271,7 @@ export default function AuditoriaLog() {
                     {fmtTs(r.timestamp)}
                   </span>
 
-                  <span style={{fontSize:10,fontWeight:800,padding:"3px 8px",
+                  <span style={{fontSize: 12,fontWeight:800,padding:"3px 8px",
                     borderRadius:5,background:cc.bg,color:cc.color,
                     border:`1px solid ${cc.border}`,fontFamily:MONO,
                     letterSpacing:"0.05em",display:"inline-block",width:"fit-content"}}>

@@ -75,7 +75,7 @@ function FotoUpload({ fotoUrl, onChange }) {
           </div>}
       <input ref={ref} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handle(e.target.files[0])}/>
       {preview && <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.7)",
-        padding:4,fontSize:9,color:"#FFF",textAlign:"center",fontFamily:MONO}}>trocar</div>}
+        padding:4,fontSize: 11,color:"#FFF",textAlign:"center",fontFamily:MONO}}>trocar</div>}
     </div>
   )
 }
@@ -83,7 +83,7 @@ function FotoUpload({ fotoUrl, onChange }) {
 function Campo({ label, children, required }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:5}}>
-      <label style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,
+      <label style={{fontSize: 12,fontWeight:700,color:C.textMid,fontFamily:MONO,
         letterSpacing:"0.15em",textTransform:"uppercase"}}>
         {label}{required&&<span style={{color:"#EF4444"}}> *</span>}
       </label>
@@ -273,7 +273,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
           {/* Competência */}
           <div style={{padding:"10px 14px",background:"rgba(245,158,11,0.08)",
             border:"1px solid rgba(245,158,11,0.25)",borderLeft:"3px solid #F59E0B",borderRadius:4}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#F59E0B",fontFamily:MONO,
+            <div style={{fontSize: 12,fontWeight:700,color:"#F59E0B",fontFamily:MONO,
               letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>
               COMPETÊNCIA (MÊS/ANO) *
             </div>
@@ -285,7 +285,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
 
           {/* Localização */}
           <div>
-            <div style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,
+            <div style={{fontSize: 12,fontWeight:700,color:C.textMid,fontFamily:MONO,
               letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10}}>LOCALIZAÇÃO</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <Campo label="Unidade" required>
@@ -321,7 +321,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
 
           {/* Facção */}
           <div>
-            <div style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,
+            <div style={{fontSize: 12,fontWeight:700,color:C.textMid,fontFamily:MONO,
               letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10}}>FUNÇÃO NA FACÇÃO</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <Campo label="Facção" required>
@@ -387,7 +387,7 @@ const btnAcao = {
   width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(11,17,32,0.72)",
   cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,
 }
-const lblMini  = { fontSize:9,fontWeight:700,color:"#7C8AA6",fontFamily:MONO,letterSpacing:"0.14em",marginBottom:2 }
+const lblMini  = { fontSize: 11,fontWeight:700,color:"#7C8AA6",fontFamily:MONO,letterSpacing:"0.14em",marginBottom:2 }
 const chipMeta = { background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,padding:"1px 9px",borderRadius:20 }
 
 // ── Card-figurinha do líder (dark premium, moldura dourada) ───────────────────
@@ -437,7 +437,7 @@ function CardLider({ lider, onEditar, onDeletar }) {
             <span style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",flexShrink:0}}/>
             <span style={{fontSize:14.5,fontWeight:700,color:"#F8FAFC"}}>{lider.cargo}</span>
           </span>
-          <span style={{fontSize:10.5,fontWeight:800,color:cor.text,background:cor.bg,border:`1px solid ${cor.border}`,
+          <span style={{fontSize: 12.5,fontWeight:800,color:cor.text,background:cor.bg,border:`1px solid ${cor.border}`,
             padding:"3px 9px",borderRadius:20,fontFamily:MONO,display:"inline-flex",alignItems:"center",gap:5}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:cor.dot}}/>{lider.faccao}
           </span>
@@ -639,7 +639,7 @@ export default function LiderancasUnidade({ onNavigate }) {
           {/* Seletor competência */}
           <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(245,158,11,0.08)",
             border:"1px solid rgba(245,158,11,0.25)",borderRadius:4,padding:"0 10px",height:34}}>
-            <span style={{fontSize:10,fontWeight:700,color:"#F59E0B",fontFamily:MONO,letterSpacing:"0.1em"}}>MÊS/ANO</span>
+            <span style={{fontSize: 12,fontWeight:700,color:"#F59E0B",fontFamily:MONO,letterSpacing:"0.1em"}}>MÊS/ANO</span>
             <select value={competencia} onChange={e=>setCompetencia(e.target.value)}
               style={{fontSize:13,fontFamily:MONO,fontWeight:700,border:"none",background:"transparent",
                 color:"#F59E0B",cursor:"pointer",outline:"none"}}>
@@ -690,7 +690,7 @@ export default function LiderancasUnidade({ onNavigate }) {
       {faccaoRank.length > 0 && (
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 20px",background:C.surface,
           borderBottom:`1px solid ${C.border}`,flexShrink:0,overflowX:"auto"}}>
-          <span style={{fontSize:10,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",
+          <span style={{fontSize: 12,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.12em",
             textTransform:"uppercase",flexShrink:0}}>Distribuição</span>
           {faccaoRank.map(([f,n])=>{ const c=corF(f); return (
             <div key={f} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,

@@ -168,7 +168,7 @@ export default function ChatRAG({ onNavigate }) {
               Base Doutrinária
             </span>
           </div>
-          <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, fontFamily: MONO, background: "rgba(232,160,32,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #FDE68A" }}>
+          <span style={{ fontSize: 11, color: "#E8A020", fontWeight: 700, fontFamily: MONO, background: "rgba(232,160,32,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #FDE68A" }}>
             710 chunks
           </span>
         </div>
@@ -177,7 +177,7 @@ export default function ChatRAG({ onNavigate }) {
         {ultimaBastos && ultimaBastos.confianca != null && (
           <div style={S.confiancaBox}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO }}>
                 Confiança
               </span>
               <span style={{ fontSize: 15.6, fontWeight: 800, color: scoreColor(ultimaBastos.confianca), fontFamily: MONO }}>
@@ -187,7 +187,7 @@ export default function ChatRAG({ onNavigate }) {
             <div style={{ height: 6, background: "#1A2236", borderRadius: 3, overflow: "hidden" }}>
               <div style={{ height: "100%", width: ultimaBastos.confianca + "%", background: scoreColor(ultimaBastos.confianca), borderRadius: 3, transition: "width 0.6s ease" }}/>
             </div>
-            <span style={{ fontSize: 9, color: scoreColor(ultimaBastos.confianca), fontWeight: 600, marginTop: 4, display: "block", fontFamily: MONO }}>
+            <span style={{ fontSize: 11, color: scoreColor(ultimaBastos.confianca), fontWeight: 600, marginTop: 4, display: "block", fontFamily: MONO }}>
               {scoreLabel(ultimaBastos.confianca)}
             </span>
           </div>
@@ -197,7 +197,7 @@ export default function ChatRAG({ onNavigate }) {
         <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 12px" }}>
           {fontes.length > 0 ? (
             <>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8, fontFamily: MONO }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8, fontFamily: MONO }}>
                 Trechos Utilizados
               </div>
               {fontes.map((f, i) => (
@@ -219,14 +219,14 @@ export default function ChatRAG({ onNavigate }) {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
                         T{f.id}
                       </span>
                       <span style={{ fontSize: 16.9, fontWeight: 600, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {f.fonte.replace(".txt", "").replace(".pdf", "").replace(/_/g, " ")}
                       </span>
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 700, fontFamily: MONO, flexShrink: 0, color: scoreColor(f.score) }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, flexShrink: 0, color: scoreColor(f.score) }}>
                       {f.score}%
                     </span>
                   </div>
@@ -235,7 +235,7 @@ export default function ChatRAG({ onNavigate }) {
                   </div>
                   {fonteAtiva && fonteAtiva.id === f.id && (
                     <div style={{ marginTop: 8, padding: "8px", background: "#0B1120", borderRadius: 5, border: "1px solid rgba(255,255,255,0.07)" }}>
-                      <p style={{ fontSize: 16.9, color: "#475569", lineHeight: 1.55, fontFamily: MONO, margin: 0 }}>
+                      <p style={{ fontSize: 16.9, color: "#94A3B8", lineHeight: 1.55, fontFamily: MONO, margin: 0 }}>
                         "{f.trecho}..."
                       </p>
                     </div>
@@ -259,9 +259,9 @@ export default function ChatRAG({ onNavigate }) {
         <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#1A2236", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#16A34A", boxShadow: "0 0 5px rgba(22,163,74,0.7)" }}/>
-            <span style={{ fontSize: 9, color: "#475569", fontFamily: MONO }}>ChromaDB · 710 chunks</span>
+            <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>ChromaDB · 710 chunks</span>
           </div>
-          <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>multilingual-e5-small</span>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>multilingual-e5-small</span>
         </div>
       </aside>
 
@@ -274,7 +274,7 @@ export default function ChatRAG({ onNavigate }) {
           <div className="live-dot" style={{ width: 9, height: 9, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
           <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#F8FAFC" }}>Chat RAG</div>
-          <div style={{ fontSize: 11, color: "#64748B", fontFamily: MONO, marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 2 }}>
           BASTOS-UNIT · Doutrina Nacional · LLaMA 70b
           </div>
           </div>
@@ -336,15 +336,15 @@ export default function ChatRAG({ onNavigate }) {
               }}>
                 {m.role === "bastos" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
-                    <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>· {now}</span>
+                    <span style={{ fontSize: 11, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
+                    <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>· {now}</span>
                     <button
                       onClick={() => falar(i, m.text)}
                       title={falando === i ? "Parar leitura" : "Ouvir resposta"}
                       style={{
                         marginLeft: "auto", display: "flex", alignItems: "center", gap: 4,
                         padding: "2px 8px", borderRadius: 4, border: "1px solid",
-                        cursor: "pointer", fontSize: 9, fontWeight: 700, fontFamily: MONO,
+                        cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: MONO,
                         transition: "all 0.15s",
                         background: falando === i ? "#FEF2F2" : "#F0FDF4",
                         color:      falando === i ? "#DC2626"  : "#16A34A",
@@ -373,13 +373,13 @@ export default function ChatRAG({ onNavigate }) {
                   <div style={{ width: 140, height: 3, background: "#1A2236", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: m.confianca + "%", background: scoreColor(m.confianca), borderRadius: 2, transition: "width 0.6s ease" }}/>
                   </div>
-                  <span style={{ fontSize: 9, color: scoreColor(m.confianca), fontWeight: 700, fontFamily: MONO }}>
+                  <span style={{ fontSize: 11, color: scoreColor(m.confianca), fontWeight: 700, fontFamily: MONO }}>
                     {m.confianca}% · {scoreLabel(m.confianca)}
                   </span>
                   {m.fontes && m.fontes.length > 0 && (
                     <div style={{ display: "flex", gap: 4 }}>
                       {m.fontes.map((f, j) => (
-                        <span key={j} style={{ fontSize: 8, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3 }}>
+                        <span key={j} style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3 }}>
                           T{f.id}
                         </span>
                       ))}
@@ -392,7 +392,7 @@ export default function ChatRAG({ onNavigate }) {
 
           {loading && (
             <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderLeft: "3px solid #EAB308", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              <span style={{ fontSize: 9, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
+              <span style={{ fontSize: 11, color: "#E8A020", fontWeight: 700, letterSpacing: "0.14em", fontFamily: MONO }}>◈ BASTOS-UNIT</span>
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 <div className="dot1" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
                 <div className="dot2" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
@@ -434,7 +434,7 @@ export default function ChatRAG({ onNavigate }) {
               </svg>
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", textAlign: "center", marginTop: 7, fontFamily: MONO, fontWeight: 500, letterSpacing: "0.03em" }}>
             <span style={{ color: "#E8A020", fontWeight: 700 }}>↵ Pressione Enter</span>
             <span style={{ color: "rgba(255,255,255,0.4)" }}> para enviar · Respostas baseadas na base doutrinária indexada</span>
           </p>
@@ -454,6 +454,6 @@ const S = {
   headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#CBD5E1", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
   messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 },
   inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.15)" },
-  input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 15, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", "--placeholder": "rgba(255,255,255,0.55)" },
+  input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 15, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", "--placeholder": "rgba(255,255,255,0.65)" },
   sendBtn: { width: 36, height: 36, background: "linear-gradient(135deg,#F59E0B,#B45309)", border: "none", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(180,83,9,0.3)", transition: "opacity 0.2s" },
 }

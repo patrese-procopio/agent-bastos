@@ -1,4 +1,4 @@
-﻿*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -8,65 +8,471 @@ body {
 }
 body img, body video, body canvas { filter: none; }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMA TATICO
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 body.theme-tactico {
   filter: none;
-  background-color: #050705 !important;
+  background-color: #070c05 !important;
 }
-body.theme-tactico img,
-body.theme-tactico video,
-body.theme-tactico canvas { filter: none; }
+body.theme-tactico img, body.theme-tactico video, body.theme-tactico canvas { filter: none; }
 
-body.theme-tactico aside,
-body.theme-tactico nav { 
-  background-color: #0a0f08 !important;
+body.theme-tactico aside {
+  background: linear-gradient(180deg,#0c1a08 0%,#091406 50%,#050c03 100%) !important;
+  border-right-color: rgba(120,160,55,0.10) !important;
+  box-shadow: 4px 0 32px rgba(0,0,0,0.6) !important;
 }
-body.theme-tactico aside *,
-body.theme-tactico nav * {
-  color: #ffffff !important;
-  border-color: #1a2a10 !important;
+body.theme-tactico main > div:first-child {
+  background: rgba(7,12,4,0.97) !important;
+  border-bottom-color: rgba(120,160,55,0.14) !important;
+  box-shadow: 0 1px 0 rgba(120,160,55,0.08), 0 4px 20px rgba(0,0,0,0.5) !important;
 }
-body.theme-tactico aside div[style*="background:#FFFFFF"],
-body.theme-tactico aside div[style*="background: #FFFFFF"],
-body.theme-tactico aside div[style*="background:#F8FAFC"],
-body.theme-tactico aside div[style*="background: #F8FAFC"],
-body.theme-tactico aside div[style*="background:#FFFFFF"] *,
-body.theme-tactico aside div[style*="background:#F8FAFC"] * {
-  color: #0a0f08 !important;
-  background-color: #1a2a10 !important;
+body.theme-tactico main { background-color: #070c05 !important; }
+
+body.theme-tactico * {
+  color: #9ab870 !important;
+  border-color: rgba(120,160,55,0.13) !important;
 }
 
-body.theme-tactico main {
-  background-color: #050705 !important;
-}
-body.theme-tactico main * {
-  color: #1a3a5c !important;
-  border-color: #2a3a1a !important;
+/* EXCECAO: botoes com background colorido -> texto escuro para legibilidade */
+body.theme-tactico [style*="background: #E8A020"],
+body.theme-tactico [style*="background:#E8A020"],
+body.theme-tactico [style*="background: rgb(232, 160, 32)"],
+body.theme-tactico [style*="background: #F59E0B"],
+body.theme-tactico [style*="background:#F59E0B"],
+body.theme-tactico [style*="background: rgb(245, 158, 11)"],
+body.theme-tactico [style*="background: #B45309"],
+body.theme-tactico [style*="background:#B45309"],
+body.theme-tactico [style*="background: #FBBF24"],
+body.theme-tactico [style*="background:#FBBF24"],
+body.theme-tactico [style*="background: #FCD34D"],
+body.theme-tactico [style*="background:#FCD34D"],
+body.theme-tactico [style*="background: #22C55E"],
+body.theme-tactico [style*="background:#22C55E"],
+body.theme-tactico [style*="background: #16A34A"],
+body.theme-tactico [style*="background:#16A34A"],
+body.theme-tactico [style*="background: #EF4444"],
+body.theme-tactico [style*="background:#EF4444"],
+body.theme-tactico [style*="background: #DC2626"],
+body.theme-tactico [style*="background:#DC2626"],
+body.theme-tactico [style*="background: #7C3AED"],
+body.theme-tactico [style*="background:#7C3AED"],
+body.theme-tactico [style*="background: #1D4ED8"],
+body.theme-tactico [style*="background:#1D4ED8"] {
+  color: #0a0e06 !important;
 }
 
-body.theme-tactico input,
-body.theme-tactico textarea,
-body.theme-tactico select {
-  background-color: #0d1209 !important;
-  color: #ffffff !important;
-  border: 1px solid #2a3a1a !important;
+body.theme-tactico [style*="linear-gradient"][style*="F59E0B"],
+body.theme-tactico [style*="linear-gradient"][style*="E8A020"],
+body.theme-tactico [style*="linear-gradient"][style*="B45309"] {
+  color: #0a0e06 !important;
 }
-body.theme-tactico input::placeholder,
-body.theme-tactico textarea::placeholder {
-  color: #4a6030 !important;
+
+body.theme-tactico [style*="94A3B8"],
+body.theme-tactico [style*="rgba(255,255,255,0.35)"],
+body.theme-tactico [style*="rgba(255,255,255,0.40)"],
+body.theme-tactico [style*="rgba(255,255,255,0.50)"],
+body.theme-tactico [style*="rgba(255,255,255,0.52)"] {
+  color: rgba(120,160,55,0.62) !important;
+}
+
+body.theme-tactico input, body.theme-tactico textarea, body.theme-tactico select {
+  background-color: #0d1509 !important;
+  color: #9ab870 !important;
+  border-color: rgba(120,160,55,0.22) !important;
+}
+body.theme-tactico input::placeholder, body.theme-tactico textarea::placeholder {
+  color: rgba(120,160,55,0.38) !important;
   opacity: 1 !important;
 }
-body.theme-tactico button {
-  background-color: #0d1a0a !important;
-  color: #8fd43a !important;
-  border-color: #3a5a1a !important;
+body.theme-tactico input:focus, body.theme-tactico textarea:focus {
+  border-color: rgba(120,160,55,0.55) !important;
+  box-shadow: 0 0 0 2px rgba(120,160,55,0.12) !important;
+}
+body.theme-tactico ::-webkit-scrollbar-thumb { background: rgba(120,160,55,0.22) !important; }
+body.theme-tactico ::-webkit-scrollbar-thumb:hover { background: rgba(120,160,55,0.45) !important; }
+body.theme-tactico ::selection { background: rgba(120,160,55,0.28); color: #0a0e06; }
+body.theme-tactico img, body.theme-tactico video,
+body.theme-tactico canvas, body.theme-tactico svg { filter: none !important; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMA CLARO — Corporativo Enterprise
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+body.theme-claro { filter: none; background-color: #F1F5F9 !important; }
+body.theme-claro img, body.theme-claro video, body.theme-claro canvas { filter: none; }
+
+body.theme-claro main { background: #F1F5F9 !important; }
+
+/* Topbar */
+body.theme-claro main > div:first-child {
+  background: rgba(255,255,255,0.97) !important;
+  border-bottom-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 1px 0 rgba(180,83,9,0.08), 0 2px 10px rgba(0,0,0,0.05) !important;
+}
+body.theme-claro main > div:first-child * { color: #0F172A !important; border-color: rgba(0,0,0,0.08) !important; }
+body.theme-claro main > div:first-child svg { stroke: #334155 !important; }
+body.theme-claro main > div:first-child input { background: #F8FAFC !important; color: #0F172A !important; border-color: rgba(0,0,0,0.10) !important; }
+body.theme-claro main > div:first-child input::placeholder { color: #94A3B8 !important; }
+
+/* Sidebar navy enterprise */
+body.theme-claro aside {
+  background: linear-gradient(180deg,#1E3A5F 0%,#162E4A 40%,#0F1E30 100%) !important;
+  border-right-color: rgba(255,255,255,0.06) !important;
+}
+body.theme-claro aside * { color: #E2E8F0 !important; }
+
+/* ── TEXTO: todo conteúdo principal → slate escuro ── */
+body.theme-claro main * { color: #1E293B !important; }
+
+/* ── TEXTO INLINE EXPLÍCITO: cores claras que some no fundo branco ──
+   Necessário porque inline styles têm especificidade alta mesmo contra !important
+   em algumas situações de cascata. Override redundante = segurança dupla.     */
+body.theme-claro main [style*="color: #F1F5F9"],
+body.theme-claro main [style*="color:#F1F5F9"],
+body.theme-claro main [style*="color: rgb(241, 245, 249)"],
+body.theme-claro main [style*="color: #F8FAFC"],
+body.theme-claro main [style*="color:#F8FAFC"],
+body.theme-claro main [style*="color: rgb(248, 250, 252)"],
+body.theme-claro main [style*="color: #E8EDF5"],
+body.theme-claro main [style*="color:#E8EDF5"],
+body.theme-claro main [style*="color: rgb(232, 237, 245)"],
+body.theme-claro main [style*="color: #E2E8F0"],
+body.theme-claro main [style*="color:#E2E8F0"],
+body.theme-claro main [style*="color: rgb(226, 232, 240)"],
+body.theme-claro main [style*="color: #CBD5E1"],
+body.theme-claro main [style*="color:#CBD5E1"],
+body.theme-claro main [style*="color: rgb(203, 213, 225)"],
+body.theme-claro main [style*="color: #FFFFFF"],
+body.theme-claro main [style*="color:#FFFFFF"],
+body.theme-claro main [style*="color: rgb(255, 255, 255)"],
+body.theme-claro main [style*="color: #FFF"],
+body.theme-claro main [style*="color:#FFF"] { color: #0F172A !important; }
+
+/* Texto secundário → slate médio */
+body.theme-claro main [style*="94A3B8"],
+body.theme-claro main [style*="CBD5E1"],
+body.theme-claro main [style*="rgba(255,255,255,0.35)"],
+body.theme-claro main [style*="rgba(255,255,255,0.40)"],
+body.theme-claro main [style*="rgba(255,255,255,0.50)"],
+body.theme-claro main [style*="rgba(255,255,255,0.52)"] { color: #64748B !important; }
+
+/* Acento gold → ambar escuro (legível no claro) */
+body.theme-claro main [style*="E8A020"],
+body.theme-claro main [style*="F59E0B"],
+body.theme-claro main [style*="B45309"] { color: #92400E !important; }
+
+/* Badges coloridas com bg claro: preservar texto escuro */
+body.theme-claro [style*="background: #E8A020"] *,
+body.theme-claro [style*="background:#E8A020"] *,
+body.theme-claro [style*="background: #F59E0B"] *,
+body.theme-claro [style*="background:#F59E0B"] *,
+body.theme-claro [style*="background: rgb(232, 160, 32)"] *,
+body.theme-claro [style*="background: rgb(245, 158, 11)"] * { color: #0F172A !important; }
+
+/* select option: componentes tem <style> interno hardcoded — override aqui */
+body.theme-claro select option { background: #FFFFFF !important; color: #0F172A !important; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BACKGROUNDS ESCUROS → CLAROS
+   Cada cor escura mapeada para seu equivalente claro.
+   Formato duplo rgb() (Chrome) + hex (Firefox/Edge)
+   Ordenado do mais escuro para o mais claro.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* #060D1C = rgb(6,13,28) — HitlDashboard o-card2 */
+body.theme-claro main [style*="rgb(6, 13, 28)"],
+body.theme-claro main [style*="6, 13, 28"],
+body.theme-claro main [style*="#060D1C"],
+body.theme-claro main [style*="060D1C"] {
+  background: #F8FAFC !important; border-color: rgba(0,0,0,0.07) !important;
 }
 
-body.theme-claro {
-  filter: none;
-  background-color: #ffffff;
-  color: #1a1a1a;
-}
-body.theme-claro img,
-body.theme-claro video,
-body.theme-claro canvas { filter: none; }
+/* #070D1A = rgb(7,13,26) — Grafoscopia bg */
+body.theme-claro main [style*="rgb(7, 13, 26)"],
+body.theme-claro main [style*="7, 13, 26"],
+body.theme-claro main [style*="#070D1A"],
+body.theme-claro main [style*="070D1A"] { background: #F1F5F9 !important; }
 
+/* #070B14 = rgb(7,11,20) — HitlDashboard bg */
+body.theme-claro main [style*="rgb(7, 11, 20)"],
+body.theme-claro main [style*="7, 11, 20"],
+body.theme-claro main [style*="#070B14"],
+body.theme-claro main [style*="070B14"] { background: #F1F5F9 !important; }
+
+/* #0A0E14 = rgb(10,14,20) — ControleGrupos */
+body.theme-claro main [style*="rgb(10, 14, 20)"],
+body.theme-claro main [style*="10, 14, 20"],
+body.theme-claro main [style*="#0A0E14"],
+body.theme-claro main [style*="0A0E14"] { background: #F1F5F9 !important; }
+
+/* #0A0F1C = rgb(10,15,28) — Extrato, SinaisFracos */
+body.theme-claro main [style*="rgb(10, 15, 28)"],
+body.theme-claro main [style*="10, 15, 28"],
+body.theme-claro main [style*="#0A0F1C"],
+body.theme-claro main [style*="0A0F1C"] { background: #F1F5F9 !important; }
+
+/* #0B1120 = rgb(11,17,32) — bg comum (Alertas, ChatRAG, Dashboard, Login...) */
+body.theme-claro main [style*="rgb(11, 17, 32)"],
+body.theme-claro main [style*="11, 17, 32"],
+body.theme-claro main [style*="#0B1120"],
+body.theme-claro main [style*="0B1120"] { background: #F1F5F9 !important; }
+
+/* #0B1420 = rgb(11,20,32) — Configuracoes inputs */
+body.theme-claro main [style*="rgb(11, 20, 32)"],
+body.theme-claro main [style*="11, 20, 32"],
+body.theme-claro main [style*="#0B1420"],
+body.theme-claro main [style*="0B1420"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.12) !important;
+}
+
+/* #0D1526 = rgb(13,21,38) — Grafoscopia surface, Agenda */
+body.theme-claro main [style*="rgb(13, 21, 38)"],
+body.theme-claro main [style*="13, 21, 38"],
+body.theme-claro main [style*="#0D1526"],
+body.theme-claro main [style*="0D1526"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #0D1424 = rgb(13,20,36) — HitlDashboard surface */
+body.theme-claro main [style*="rgb(13, 20, 36)"],
+body.theme-claro main [style*="13, 20, 36"],
+body.theme-claro main [style*="#0D1424"],
+body.theme-claro main [style*="0D1424"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #0E1627 = rgb(14,22,39) — HitlDashboard o-card */
+body.theme-claro main [style*="rgb(14, 22, 39)"],
+body.theme-claro main [style*="14, 22, 39"],
+body.theme-claro main [style*="#0E1627"],
+body.theme-claro main [style*="0E1627"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+}
+
+/* #0F172A = rgb(15,23,42) — ChatRAG, Noticias, ControleGrupos, Transcricao */
+body.theme-claro main [style*="rgb(15, 23, 42)"],
+body.theme-claro main [style*="15, 23, 42"],
+body.theme-claro main [style*="#0F172A"],
+body.theme-claro main [style*="0F172A"] { background: #F1F5F9 !important; }
+
+/* #111827 = rgb(17,24,39) — surface universal */
+body.theme-claro main [style*="rgb(17, 24, 39)"],
+body.theme-claro main [style*="17, 24, 39"],
+body.theme-claro main [style*="#111827"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #111E33 = rgb(17,30,51) — Grafoscopia surfaceUp, Agenda */
+body.theme-claro main [style*="rgb(17, 30, 51)"],
+body.theme-claro main [style*="17, 30, 51"],
+body.theme-claro main [style*="#111E33"],
+body.theme-claro main [style*="111E33"] {
+  background: #EEF2F7 !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #111B2E = rgb(17,27,46) — HitlDashboard surfaceUp */
+body.theme-claro main [style*="rgb(17, 27, 46)"],
+body.theme-claro main [style*="17, 27, 46"],
+body.theme-claro main [style*="#111B2E"],
+body.theme-claro main [style*="111B2E"] {
+  background: #F0F4F8 !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #050C18 = rgb(5,12,24) — Grafoscopia headerBg */
+body.theme-claro main [style*="rgb(5, 12, 24)"],
+body.theme-claro main [style*="5, 12, 24"],
+body.theme-claro main [style*="#050C18"],
+body.theme-claro main [style*="050C18"] {
+  background: #E2E8F0 !important; border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* #18223A = rgb(24,34,58) — LideresGerais hover/surface */
+body.theme-claro main [style*="rgb(24, 34, 58)"],
+body.theme-claro main [style*="24, 34, 58"],
+body.theme-claro main [style*="#18223A"],
+body.theme-claro main [style*="18223A"] {
+  background: #EEF2F7 !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #1A2236 = rgb(26,34,54) — surfaceUp ChatRAG, OsintPesquisa */
+body.theme-claro main [style*="rgb(26, 34, 54)"],
+body.theme-claro main [style*="26, 34, 54"],
+body.theme-claro main [style*="#1A2236"],
+body.theme-claro main [style*="1A2236"] {
+  background: #EEF2F7 !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* #162038 = rgb(22,32,56) — HitlDashboard surfaceHigh */
+body.theme-claro main [style*="rgb(22, 32, 56)"],
+body.theme-claro main [style*="22, 32, 56"],
+body.theme-claro main [style*="#162038"],
+body.theme-claro main [style*="162038"] {
+  background: #E8EFF8 !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* rgba com canais escuros (ex: rgba(11,17,32,...), rgba(7,11,20,...)) */
+body.theme-claro main [style*="rgba(6, 13, 28"],
+body.theme-claro main [style*="rgba(6,13,28"],
+body.theme-claro main [style*="rgba(7, 11, 20"],
+body.theme-claro main [style*="rgba(7,11,20"],
+body.theme-claro main [style*="rgba(7, 13, 26"],
+body.theme-claro main [style*="rgba(7,13,26"],
+body.theme-claro main [style*="rgba(10, 14, 20"],
+body.theme-claro main [style*="rgba(10,14,20"],
+body.theme-claro main [style*="rgba(10, 15, 28"],
+body.theme-claro main [style*="rgba(10,15,28"],
+body.theme-claro main [style*="rgba(11, 17, 32"],
+body.theme-claro main [style*="rgba(11,17,32"],
+body.theme-claro main [style*="rgba(13, 20, 36"],
+body.theme-claro main [style*="rgba(13,20,36"],
+body.theme-claro main [style*="rgba(13, 21, 38"],
+body.theme-claro main [style*="rgba(13,21,38"],
+body.theme-claro main [style*="rgba(14, 22, 39"],
+body.theme-claro main [style*="rgba(14,22,39"],
+body.theme-claro main [style*="rgba(15, 23, 42"],
+body.theme-claro main [style*="rgba(15,23,42"],
+body.theme-claro main [style*="rgba(17, 24, 39"],
+body.theme-claro main [style*="rgba(17,24,39"],
+body.theme-claro main [style*="rgba(22, 32, 56"],
+body.theme-claro main [style*="rgba(22,32,56"],
+body.theme-claro main [style*="rgba(24, 34, 58"],
+body.theme-claro main [style*="rgba(24,34,58"],
+body.theme-claro main [style*="rgba(26, 34, 54"],
+body.theme-claro main [style*="rgba(26,34,54"] {
+  background: #FFFFFF !important; border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* rgba semitransparente escuro (micro-overlays, badges variacao) */
+body.theme-claro main [style*="rgba(255,255,255,0.02)"],
+body.theme-claro main [style*="rgba(255,255,255,0.03)"],
+body.theme-claro main [style*="rgba(255,255,255,0.04)"],
+body.theme-claro main [style*="rgba(255,255,255,0.05)"],
+body.theme-claro main [style*="rgba(255,255,255,0.055)"],
+body.theme-claro main [style*="rgba(255,255,255,0.06)"] {
+  background: rgba(0,0,0,0.03) !important;
+  border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* Bordas brancas/quase-inv → slate sutil */
+body.theme-claro main [style*="rgba(255,255,255,0.07)"],
+body.theme-claro main [style*="rgba(255,255,255,0.08)"],
+body.theme-claro main [style*="rgba(255,255,255,0.10)"],
+body.theme-claro main [style*="rgba(255,255,255,0.13)"] {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* ── Inputs ── */
+body.theme-claro input, body.theme-claro textarea, body.theme-claro select {
+  background: #FFFFFF !important; color: #0F172A !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+body.theme-claro input::placeholder, body.theme-claro textarea::placeholder {
+  color: #94A3B8 !important; opacity: 1 !important;
+}
+body.theme-claro input:focus, body.theme-claro textarea:focus {
+  border-color: rgba(180,83,9,0.45) !important;
+  box-shadow: 0 0 0 2px rgba(180,83,9,0.10) !important;
+}
+
+/* ── Scrollbar ── */
+body.theme-claro ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14) !important; }
+body.theme-claro ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28) !important; }
+body.theme-claro ::selection { background: rgba(180,83,9,0.18); color: #0F172A; }
+body.theme-claro img, body.theme-claro video,
+body.theme-claro canvas, body.theme-claro svg { filter: none !important; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOPBAR POPUPS (busca, notificações, tema) — SEMPRE dark, imunes ao tema
+   Especificidade mais alta que as regras do topbar acima — ganham na cascata
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-claro main > div:first-child .topbar-popup {
+  background: rgba(10,16,28,0.99) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6) !important;
+}
+/* Texto base do popup: sempre claro */
+body.theme-claro main > div:first-child .topbar-popup,
+body.theme-claro main > div:first-child .topbar-popup * {
+  color: #E2E8F0 !important;
+}
+/* SVGs do popup: sempre claro */
+body.theme-claro main > div:first-child .topbar-popup svg {
+  stroke: #94A3B8 !important;
+}
+/* Bordas internas do popup */
+body.theme-claro main > div:first-child .topbar-popup [style*="border"],
+body.theme-claro main > div:first-child .topbar-popup [style*="borderBottom"],
+body.theme-claro main > div:first-child .topbar-popup [style*="borderTop"] {
+  border-color: rgba(255,255,255,0.07) !important;
+}
+/* Backgrounds internos do popup: não sobrescrever hover/swatch states */
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.04)"],
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.07)"] {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+/* Cores de acento: preservar no popup */
+body.theme-claro main > div:first-child .topbar-popup [style*="E8A020"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color: #E8A020"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color:#E8A020"] { color: #E8A020 !important; }
+body.theme-claro main > div:first-child .topbar-popup [style*="A78BFA"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color: #A78BFA"] { color: #A78BFA !important; }
+body.theme-claro main > div:first-child .topbar-popup [style*="22C55E"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color: #22C55E"] { color: #22C55E !important; }
+body.theme-claro main > div:first-child .topbar-popup [style*="60A5FA"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color: #60A5FA"] { color: #60A5FA !important; }
+body.theme-claro main > div:first-child .topbar-popup [style*="94A3B8"],
+body.theme-claro main > div:first-child .topbar-popup [style*="color: #94A3B8"] { color: #94A3B8 !important; }
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.35)"],
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.38)"],
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.40)"],
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.45)"],
+body.theme-claro main > div:first-child .topbar-popup [style*="rgba(255,255,255,0.50)"] {
+  color: rgba(255,255,255,0.45) !important;
+}
+/* Tático: mesma proteção para os popups */
+body.theme-tactico main > div:first-child .topbar-popup {
+  background: rgba(5,10,3,0.99) !important;
+  border-color: rgba(120,160,55,0.25) !important;
+}
+body.theme-tactico main > div:first-child .topbar-popup,
+body.theme-tactico main > div:first-child .topbar-popup * {
+  color: #9ab870 !important;
+}
+body.theme-tactico main > div:first-child .topbar-popup [style*="E8A020"],
+body.theme-tactico main > div:first-child .topbar-popup [style*="A78BFA"] { color: #9ab870 !important; }
+
+/* ── Sidebar chip hover glow ─────────────────────────────────────────────
+   O .nav-item button já cobre toda a área no collapsed.
+   O hover no chip clareia levemente sem conflitar com o active colorido.
+   ──────────────────────────────────────────────────────────────────────── */
+.sidebar-chip {
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s !important;
+}
+.nav-item:hover .sidebar-chip {
+  background: rgba(255,255,255,0.09) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: rgba(255,255,255,0.72) !important;
+  box-shadow: 0 0 10px rgba(255,255,255,0.04) !important;
+}
+/* Chip ativo no hover: intensifica o glow da cor — não clareia */
+.nav-item-active-glow:hover .sidebar-chip {
+  filter: brightness(1.15);
+  box-shadow: 0 0 14px var(--chip-glow, rgba(232,160,32,0.25)) !important;
+}
+
+/* ── Agent Bastos: Global Animations ──────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}

@@ -410,7 +410,7 @@ export default function GerenciarUsuarios() {
                       {u.username}
                     </div>
                     {u.active === false && (
-                      <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",
+                      <span style={{fontSize: 12,fontWeight:700,color:"#94A3B8",
                         fontFamily:MONO,letterSpacing:"0.06em"}}>INATIVO</span>
                     )}
                   </div>
@@ -426,14 +426,14 @@ export default function GerenciarUsuarios() {
                   {/* Módulos */}
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {u.modules.slice(0,5).map(m => (
-                      <span key={m} style={{fontSize:9,fontWeight:700,padding:"2px 7px",
+                      <span key={m} style={{fontSize: 11,fontWeight:700,padding:"2px 7px",
                         borderRadius:4,background:"rgba(255,255,255,0.06)",
                         color:C.textMid,fontFamily:MONO,letterSpacing:"0.04em"}}>
                         {m}
                       </span>
                     ))}
                     {u.modules.length > 5 && (
-                      <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",
+                      <span style={{fontSize: 11,fontWeight:700,padding:"2px 7px",
                         borderRadius:4,background:"rgba(255,255,255,0.04)",
                         color:C.textDim,fontFamily:MONO}}>
                         +{u.modules.length - 5}

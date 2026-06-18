@@ -183,7 +183,7 @@ export default function ListaNegra({ onNavigate }) {
                   fontFamily:MONO, textAlign:"center",
                   borderColor: ativo ? C.accent : "rgba(255,255,255,0.10)",
                   background: ativo ? C.accent : "transparent",
-                  color: ativo ? "#0B1120" : temRegistro ? C.textMid : "rgba(255,255,255,0.2)",
+                  color: ativo ? "#0B1120" : temRegistro ? C.textMid : "rgba(255,255,255,0.42)",
                   transition:"all 0.12s",
                   opacity: temRegistro ? 1 : 0.4,
                 }}>{l}</button>
@@ -415,7 +415,7 @@ export default function ListaNegra({ onNavigate }) {
         .ln-scroll::-webkit-scrollbar-track { background: transparent; }
         .ln-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius:6px; }
         .ln-scroll::-webkit-scrollbar-thumb:hover { background: rgba(232,160,32,0.4); }
-        input::placeholder { color: #64748B !important; }
+        input::placeholder { color: #94A3B8 !important; }
       `}</style>
     </div>
   )

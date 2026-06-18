@@ -356,10 +356,10 @@ export default function ControleGrupos({ onNavigate }) {
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <div style={{display:"flex",flexDirection:"column",gap:1}}>
-            <span style={{fontSize:11,fontWeight:600,color:"#475569",letterSpacing:"0.10em",textTransform:"uppercase",fontFamily:MONO}}>Controle de Grupos</span>
+            <span style={{fontSize:11,fontWeight:600,color:"#94A3B8",letterSpacing:"0.10em",textTransform:"uppercase",fontFamily:MONO}}>Controle de Grupos</span>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:17,fontWeight:800,color:"#F8FAFC",letterSpacing:"0.01em"}}>{NOMES_FULL[unit]}</span>
-              <span style={{fontSize:10,fontWeight:700,color:"#B45309",background:"rgba(180,83,9,0.12)",border:"1px solid rgba(180,83,9,0.35)",borderRadius:4,padding:"2px 7px",fontFamily:MONO,letterSpacing:"0.06em",textTransform:"uppercase"}}>{NOMES[unit]}</span>
+              <span style={{fontSize: 12,fontWeight:700,color:"#B45309",background:"rgba(180,83,9,0.12)",border:"1px solid rgba(180,83,9,0.35)",borderRadius:4,padding:"2px 7px",fontFamily:MONO,letterSpacing:"0.06em",textTransform:"uppercase"}}>{NOMES[unit]}</span>
             </div>
           </div>
         </div>
@@ -367,7 +367,7 @@ export default function ControleGrupos({ onNavigate }) {
           {erroApi && <span style={{fontSize:11.7,color:"#F87171",fontFamily:MONO,background:"rgba(239,68,68,0.10)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>offline — dados locais</span>}
           {salvando && <span style={{fontSize:11.7,color:"#4ADE80",fontFamily:MONO}}>salvando…</span>}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase"}}>Mês</span>
+            <span style={{fontSize: 12,fontWeight:700,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.08em",textTransform:"uppercase"}}>Mês</span>
             <input type="month" value={mes} onChange={e=>e.target.value && setMes(e.target.value)} title="Competência (mês) — meses novos copiam o anterior"
               style={{background:"#0B1120",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"5px 9px",fontSize:13,color:"#F1F5F9",fontFamily:MONO,outline:"none",colorScheme:"dark"}}/>
           </div>
@@ -405,7 +405,7 @@ export default function ControleGrupos({ onNavigate }) {
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
         <div style={{width:268,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.08)",display:"flex",flexDirection:"column",background:"rgba(13,21,38,0.75)",overflow:"hidden",boxShadow:"2px 0 12px rgba(0,0,0,0.4)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
           <div style={{padding:"14px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.06)",background:"rgba(10,14,20,0.6)",flexShrink:0}}>
-            <div style={{fontSize:13,fontWeight:800,color:"#64748B",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#94A3B8",letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:MONO,marginBottom:10}}>Grupos presentes</div>
             <div style={{display:"flex",flexDirection:"column",gap:4}}>
               {grups.map(g => { const c=CORES[g]||CORES["NEUTROS"]; return (
                 <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:"rgba(255,255,255,0.03)",border:`1px solid rgba(255,255,255,0.08)`,borderLeft:`3px solid ${c.dot}`}}>
@@ -431,7 +431,7 @@ export default function ControleGrupos({ onNavigate }) {
             })}
           </div>
           <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,0.06)",background:"rgba(10,14,20,0.6)",flexShrink:0}}>
-            <span style={{fontSize:13,color:"#475569",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
+            <span style={{fontSize:13,color:"#94A3B8",fontFamily:MONO}}>{Object.keys(pavs).length} locais mapeados</span>
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"14px",background:"#0F172A"}}>
@@ -458,7 +458,7 @@ export default function ControleGrupos({ onNavigate }) {
                   <div style={{width:isA?16:13,height:isA?16:13,borderRadius:"50%",background:c.dot,border:"2.5px solid #0F172A",boxShadow:isA?`0 0 0 3px ${c.dot}55,0 2px 10px rgba(0,0,0,0.4)`:"0 1px 5px rgba(0,0,0,0.4)",transition:"all 0.2s",position:"relative",zIndex:2,flexShrink:0}}/>
                   <div style={{marginTop:4,background:"rgba(10,14,20,0.88)",border:`1px solid ${c.dot}55`,borderRadius:4,padding:"3px 7px",whiteSpace:"nowrap",boxShadow:"0 1px 4px rgba(0,0,0,0.4)",textAlign:"center",zIndex:2,backdropFilter:"blur(6px)"}}>
                     <div style={{fontSize:11.7,fontWeight:700,color:"#F1F5F9",fontFamily:MONO,lineHeight:1.3}}>{p.l}</div>
-                    <div style={{fontSize:8,color:c.dot,fontFamily:MONO,fontWeight:700,lineHeight:1.3}}>{p.g}</div>
+                    <div style={{fontSize: 11,color:c.dot,fontFamily:MONO,fontWeight:700,lineHeight:1.3}}>{p.g}</div>
                   </div>
                   {isA && (
                     <div style={{position:"absolute",bottom:"calc(100% + 12px)",left:"50%",transform:"translateX(-50%)",background:"#0D1526",border:`2px solid ${c.dot}`,borderRadius:8,padding:"8px 14px",whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",zIndex:30,minWidth:150,backdropFilter:"blur(8px)"}}>

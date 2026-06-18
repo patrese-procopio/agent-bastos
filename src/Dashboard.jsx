@@ -14,8 +14,20 @@ const corDe = (i) => CORES[i % CORES.length]
 function BarraH({ valor, max, color }) {
   const pct = max > 0 ? Math.round((valor / max) * 100) : 0
   return (
-    <div style={{ height: 6, background: "#1A2236", borderRadius: 3, overflow: "hidden", flex: 1 }}>
-      <div style={{ height: "100%", width: pct + "%", background: color, borderRadius: 3, transition: "width 0.5s ease" }}/>
+    <div style={{ height: 10, background: "rgba(255,255,255,0.05)", borderRadius: 6, overflow: "visible", flex: 1, position: "relative" }}>
+      <div style={{
+        height: "100%", width: pct + "%", borderRadius: 6,
+        background: `linear-gradient(90deg, ${color}70 0%, ${color} 100%)`,
+        transition: "width 0.65s cubic-bezier(0.16,1,0.3,1)",
+        boxShadow: `0 0 10px ${color}55, 0 2px 4px rgba(0,0,0,0.3)`,
+        position: "relative"
+      }}>
+        <div style={{
+          position: "absolute", right: 0, top: 0, bottom: 0, width: 3,
+          borderRadius: 3, background: color,
+          boxShadow: `0 0 8px ${color}, 0 0 16px ${color}88`
+        }}/>
+      </div>
     </div>
   )
 }
@@ -36,11 +48,42 @@ function Sparkline({ values, color, width = 70, height = 22 }) {
 }
 
 function KpiCard({ titulo, valor, sub, cor, variacao }) {
+  const isNum = typeof valor === "number"
+  const [display, setDisplay] = useState(isNum ? 0 : valor)
+  const [hovered, setHovered] = useState(false)
+
+  useEffect(() => {
+    if (!isNum) { setDisplay(valor); return }
+    const start = performance.now()
+    const duration = 900
+    function update(now) {
+      const p = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setDisplay(Math.round(valor * eased))
+      if (p < 1) requestAnimationFrame(update)
+    }
+    requestAnimationFrame(update)
+  }, [valor, isNum])
+
   return (
-    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid " + cor, borderRadius: 10, padding: "14px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>{titulo}</div>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "#111827",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderTop: "3px solid " + cor,
+        borderRadius: 10,
+        padding: "14px 16px",
+        boxShadow: hovered
+          ? `0 0 22px ${cor}33, 0 4px 16px rgba(0,0,0,0.25)`
+          : "0 2px 6px rgba(0,0,0,0.05)",
+        transition: "box-shadow 0.35s ease",
+        cursor: "default"
+      }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>{titulo}</div>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-        <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{valor}</div>
+        <div style={{ fontSize: 32, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{display}</div>
         {variacao !== undefined && variacao !== null && (
           <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 7px", borderRadius: 20, background: variacao >= 0 ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)", border: "1px solid " + (variacao >= 0 ? "#16A34A55" : "#DC262655") }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={variacao >= 0 ? "#16A34A" : "#DC2626"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -160,19 +203,19 @@ export default function Dashboard() {
         <div>
           <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Dashboard de Produção</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-            <span style={{ fontSize: 11, color: "#64748B", fontFamily: MONO }}>AIPEN · Produção documental · {ano}</span>
-            <span style={{ fontSize: 9, fontWeight: 700, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, background: erro ? "rgba(220,38,38,0.12)" : "rgba(22,163,74,0.12)", color: erro ? "#DC2626" : "#16A34A", border: "1px solid " + (erro ? "#DC262655" : "#16A34A55") }}>{erro ? "OFFLINE" : "DADOS REAIS"}</span>
+            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO }}>AIPEN · Produção documental · {ano}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, background: erro ? "rgba(220,38,38,0.12)" : "rgba(22,163,74,0.12)", color: erro ? "#DC2626" : "#16A34A", border: "1px solid " + (erro ? "#DC262655" : "#16A34A55") }}>{erro ? "OFFLINE" : "DADOS REAIS"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 3 }}>
             {[2025, 2026].map(a => (
-              <button key={a} onClick={() => setAno(a)} style={{ padding: "3px 9px", borderRadius: 5, border: "1px solid", fontSize: 11, fontFamily: MONO, cursor: "pointer", background: ano === a ? "#E8A020" : "#111827", color: ano === a ? "#0B1120" : "#64748B", borderColor: ano === a ? "#E8A020" : "rgba(255,255,255,0.1)", fontWeight: ano === a ? 700 : 400 }}>{a}</button>
+              <button key={a} onClick={() => setAno(a)} style={{ padding: "3px 9px", borderRadius: 5, border: "1px solid", fontSize: 11, fontFamily: MONO, cursor: "pointer", background: ano === a ? "#E8A020" : "#111827", color: ano === a ? "#0B1120" : "#94A3B8", borderColor: ano === a ? "#E8A020" : "rgba(255,255,255,0.1)", fontWeight: ano === a ? 700 : 400 }}>{a}</button>
             ))}
           </div>
           <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
             {MESES.map((m, i) => (
-              <button key={i} onClick={() => setMes(i + 1)} style={{ padding: "3px 7px", borderRadius: 5, border: "1px solid", fontSize: 9, fontFamily: MONO, cursor: "pointer", background: mes === i + 1 ? "#0F172A" : "#111827", color: mes === i + 1 ? "#F1F5F9" : "#64748B", borderColor: mes === i + 1 ? "#475569" : "rgba(255,255,255,0.1)", fontWeight: mes === i + 1 ? 700 : 400 }}>{m}</button>
+              <button key={i} onClick={() => setMes(i + 1)} style={{ padding: "3px 7px", borderRadius: 5, border: "1px solid", fontSize: 11, fontFamily: MONO, cursor: "pointer", background: mes === i + 1 ? "#0F172A" : "#111827", color: mes === i + 1 ? "#F1F5F9" : "#94A3B8", borderColor: mes === i + 1 ? "#475569" : "rgba(255,255,255,0.1)", fontWeight: mes === i + 1 ? 700 : 400 }}>{m}</button>
             ))}
           </div>
         </div>
@@ -212,9 +255,9 @@ export default function Dashboard() {
                 {!semDados && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     {/* Ranking por núcleo */}
-                    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Por Núcleo — {MESES[mes - 1]}</div>
-                      {rankNucleo.length === 0 && <div style={{ color: "#64748B", fontFamily: MONO, fontSize: 12 }}>Sem lançamentos neste mês.</div>}
+                    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderLeft: "3px solid #60A5FA", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Por Núcleo — {MESES[mes - 1]}</div>
+                      {rankNucleo.length === 0 && <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 12 }}>Sem lançamentos neste mês.</div>}
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {rankNucleo.map(([nuc, total], i) => (
                           <div key={nuc} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -228,9 +271,9 @@ export default function Dashboard() {
                     </div>
 
                     {/* Por tipo */}
-                    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Por Tipo — {MESES[mes - 1]}</div>
-                      {rankTipoMes.length === 0 && <div style={{ color: "#64748B", fontFamily: MONO, fontSize: 12 }}>Sem lançamentos neste mês.</div>}
+                    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderLeft: "3px solid #A78BFA", borderRadius: 10, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Por Tipo — {MESES[mes - 1]}</div>
+                      {rankTipoMes.length === 0 && <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 12 }}>Sem lançamentos neste mês.</div>}
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {rankTipoMes.map(([cod, total], i) => (
                           <div key={cod} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -246,22 +289,48 @@ export default function Dashboard() {
 
                 {/* Evolução mensal */}
                 {!semDados && (
-                  <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Evolução Mensal — {ano}</div>
-                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 90, padding: "0 4px" }}>
+                  <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "18px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase" }}>Evolução Mensal — {ano}</div>
+                      <div style={{ fontSize: 12, color: "#E8A020", fontFamily: MONO, fontWeight: 700 }}>Total: {acumulado} docs</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 130, padding: "0 2px" }}>
                       {MESES.map((m, i) => {
                         const val = totalMesIdx(i + 1)
-                        const h = Math.max((val / maxMesEvol) * 76, 3)
+                        const hPct = maxMesEvol > 0 ? (val / maxMesEvol) : 0
+                        const h = Math.max(hPct * 104, val > 0 ? 6 : 2)
                         const sel = mes === i + 1
+                        const cor = sel ? "#E8A020" : CORES[i % CORES.length]
                         return (
-                          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                            <span style={{ fontSize: 9, color: sel ? "#E8A020" : "#94A3B8", fontFamily: MONO, fontWeight: sel ? 700 : 400 }}>{val}</span>
-                            <div style={{ width: "100%", height: h, background: sel ? "#E8A020" : "#334155", borderRadius: "3px 3px 0 0", transition: "height 0.4s" }}/>
-                            <span style={{ fontSize: 8, color: sel ? "#E8A020" : "#94A3B8", fontFamily: MONO, fontWeight: sel ? 700 : 400 }}>{m}</span>
+                          <div key={i} onClick={() => setMes(i + 1)}
+                            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                            <span style={{ fontSize: 11, color: sel ? "#E8A020" : val > 0 ? "#CBD5E1" : "rgba(255,255,255,0.25)",
+                              fontFamily: MONO, fontWeight: sel ? 800 : 500, transition: "color 0.2s" }}>{val > 0 ? val : ""}</span>
+                            <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
+                              <div style={{
+                                width: "100%", height: h,
+                                background: val > 0
+                                  ? `linear-gradient(180deg, ${cor}cc 0%, ${cor} 100%)`
+                                  : "rgba(255,255,255,0.05)",
+                                borderRadius: "4px 4px 0 0",
+                                transition: "height 0.5s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s",
+                                boxShadow: sel ? `0 0 16px ${cor}88, 0 -2px 8px ${cor}44` : val > 0 ? `0 0 8px ${cor}33` : "none",
+                                position: "relative", overflow: "hidden"
+                              }}>
+                                {val > 0 && <div style={{
+                                  position: "absolute", top: 0, left: 0, right: 0, height: "30%",
+                                  background: "linear-gradient(180deg,rgba(255,255,255,0.15) 0%,transparent 100%)",
+                                  borderRadius: "4px 4px 0 0"
+                                }}/>}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 11, color: sel ? "#E8A020" : "rgba(255,255,255,0.50)",
+                              fontFamily: MONO, fontWeight: sel ? 800 : 400, transition: "color 0.2s" }}>{m}</span>
                           </div>
                         )
                       })}
                     </div>
+                    <div style={{ marginTop: 10, height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 1 }}/>
                   </div>
                 )}
               </div>
@@ -279,16 +348,16 @@ export default function Dashboard() {
                     <div key={cod} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: "#F1F5F9" }}>{tiposNomes[cod] || cod}</div>
-                        <div style={{ fontSize: 10, color: "#64748B", fontFamily: MONO }}>{cod}</div>
+                        <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO }}>{cod}</div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                         <Sparkline values={serie} color="#60A5FA" width={90} height={22} />
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 8, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>{MESES[mes - 1]}</div>
+                          <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>{MESES[mes - 1]}</div>
                           <div style={{ fontSize: 20, fontWeight: 800, color: "#F1F5F9", fontFamily: MONO }}>{mesVal}</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 8, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>Anual</div>
+                          <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, textTransform: "uppercase" }}>Anual</div>
                           <div style={{ fontSize: 20, fontWeight: 800, color: "#60A5FA", fontFamily: MONO }}>{anoVal}</div>
                         </div>
                       </div>
@@ -305,10 +374,10 @@ export default function Dashboard() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase" }}>Lançamentos {ano} ({lancs.length})</span>
                   <button onClick={carregar} style={{ padding: "4px 10px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#94A3B8", fontSize: 12, fontFamily: MONO, cursor: "pointer" }}>↻ Atualizar</button>
                 </div>
-                {lancs.length === 0 && <div style={{ color: "#64748B", fontFamily: MONO, fontSize: 13, padding: 20, textAlign: "center" }}>Nenhum lançamento em {ano}.</div>}
+                {lancs.length === 0 && <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 13, padding: 20, textAlign: "center" }}>Nenhum lançamento em {ano}.</div>}
                 {lancs.map((d) => (
                   <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, color: "#E8A020", background: "rgba(232,160,32,0.1)", padding: "2px 7px", borderRadius: 4, width: 90, textAlign: "center", flexShrink: 0 }}>{d.tipo}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, color: "#E8A020", background: "rgba(232,160,32,0.1)", padding: "2px 7px", borderRadius: 4, width: 90, textAlign: "center", flexShrink: 0 }}>{d.tipo}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nome_arquivo}</div>
                       <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>{d.nucleo}{d.unidade ? " · " + d.unidade : ""} · {MESES[(d.mes || 1) - 1]}/{d.ano}</div>
@@ -409,9 +478,9 @@ function RadarRiscoTab() {
         {[["CRÍTICO","#F87171"],["ALTO","#FBBF24"],["MÉDIO","#60A5FA"],["BAIXO","#4ADE80"]].map(([key,color]) => (
           <div key={key} style={{ background:"#111827", border:`1px solid rgba(255,255,255,0.07)`,
             borderTop:`3px solid ${color}`, borderRadius:10, padding:"12px 16px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.1em", fontFamily:D_MONO, marginBottom:4 }}>{key}</div>
+            <div style={{ fontSize: 11, fontWeight:700, color, letterSpacing:"0.1em", fontFamily:D_MONO, marginBottom:4 }}>{key}</div>
             <div style={{ fontSize:28, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO, lineHeight:1 }}>{totais[key]||0}</div>
-            <div style={{ fontSize:10, color:"#64748B", marginTop:3 }}>entidades</div>
+            <div style={{ fontSize: 11, color:"#94A3B8", marginTop:3 }}>entidades</div>
           </div>
         ))}
       </div>
@@ -422,7 +491,7 @@ function RadarRiscoTab() {
           <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em", textTransform:"uppercase" }}>
             Ranking de Entidades
           </span>
-          <span style={{ fontSize:11, color:"#64748B", fontFamily:D_MONO }}>· {filtrados.length} registros</span>
+          <span style={{ fontSize:11, color:"#94A3B8", fontFamily:D_MONO }}>· {filtrados.length} registros</span>
           <div style={{ flex:1 }}/>
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Filtrar…"
             style={{ padding:"5px 10px", borderRadius:6, border:"1px solid rgba(255,255,255,0.1)",
@@ -430,17 +499,17 @@ function RadarRiscoTab() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div style={{ padding:"28px", textAlign:"center", color:"#64748B", fontSize:13, fontFamily:D_MONO }}>
+          <div style={{ padding:"28px", textAlign:"center", color:"#94A3B8", fontSize:13, fontFamily:D_MONO }}>
             Nenhuma entidade no radar ainda.
           </div>
         ) : filtrados.map((s,i) => {
-          const cor = SCORE_COLOR[s.classificacao] || "#64748B"
+          const cor = SCORE_COLOR[s.classificacao] || "#94A3B8"
           const pct = Math.min(100, s.score_atual || 0)
           return (
             <div key={s.entidade_id} style={{ padding:"12px 16px",
               borderBottom: i < filtrados.length-1 ? "1px solid rgba(255,255,255,0.04)" : "none",
               display:"flex", alignItems:"center", gap:12 }}>
-              <span style={{ fontSize:11, fontWeight:800, color:"#64748B", fontFamily:D_MONO, width:22, textAlign:"right", flexShrink:0 }}>#{i+1}</span>
+              <span style={{ fontSize:11, fontWeight:800, color:"#94A3B8", fontFamily:D_MONO, width:22, textAlign:"right", flexShrink:0 }}>#{i+1}</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13.5, fontWeight:700, color:"#F1F5F9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {s.entidade_nome}
@@ -455,7 +524,7 @@ function RadarRiscoTab() {
               <div style={{ textAlign:"right", width:44, flexShrink:0 }}>
                 <div style={{ fontSize:18, fontWeight:800, color:cor, fontFamily:D_MONO, lineHeight:1 }}>{pct.toFixed(0)}</div>
               </div>
-              <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4,
+              <span style={{ fontSize: 11, fontWeight:800, padding:"2px 8px", borderRadius:4,
                 background:`${cor}18`, color:cor, border:`1px solid ${cor}33`,
                 fontFamily:D_MONO, letterSpacing:"0.06em", flexShrink:0 }}>{s.classificacao}</span>
             </div>
@@ -512,7 +581,7 @@ function AutonomiTab() {
             style={{ transition:"stroke-dashoffset 0.8s ease" }}/>
           <text x={35} y={40} textAnchor="middle" fontSize={15} fontWeight={800} fill={cor} fontFamily={D_MONO}>{valor}%</text>
         </svg>
-        <div style={{ fontSize:10, color:"#94A3B8", fontFamily:D_MONO, letterSpacing:"0.08em", textAlign:"center" }}>{label}</div>
+        <div style={{ fontSize: 11, color:"#94A3B8", fontFamily:D_MONO, letterSpacing:"0.08em", textAlign:"center" }}>{label}</div>
       </div>
     )
   }
@@ -539,7 +608,7 @@ function AutonomiTab() {
         ].map(([titulo,valor,cor]) => (
           <div key={titulo} style={{ background:"#111827", border:"1px solid rgba(255,255,255,0.07)",
             borderTop:`3px solid ${cor}`, borderRadius:10, padding:"12px 16px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:"0.1em",
+            <div style={{ fontSize: 11, fontWeight:700, color:"#94A3B8", letterSpacing:"0.1em",
               fontFamily:D_MONO, marginBottom:4, textTransform:"uppercase" }}>{titulo}</div>
             <div style={{ fontSize:28, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO, lineHeight:1 }}>{valor}</div>
           </div>
@@ -562,7 +631,7 @@ function AutonomiTab() {
                 <div style={{ fontSize:13, fontWeight:600, color:"#F1F5F9", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {s.alvo_nome_norm || s.entidade || "—"}
                 </div>
-                <div style={{ fontSize:11, color:"#64748B", fontFamily:D_MONO }}>
+                <div style={{ fontSize:11, color:"#94A3B8", fontFamily:D_MONO }}>
                   {s.alvo_fonte || s.fonte || "—"} · {s.tipo_evento || "—"}
                 </div>
               </div>
@@ -570,7 +639,7 @@ function AutonomiTab() {
                 <div style={{ fontSize:12, fontWeight:800, color:"#EF4444", fontFamily:D_MONO }}>
                   {s.rejeicoes || s.total_rejeicoes || 0} rej.
                 </div>
-                <div style={{ fontSize:10, color:"#64748B", fontFamily:D_MONO }}>
+                <div style={{ fontSize: 11, color:"#94A3B8", fontFamily:D_MONO }}>
                   {s.total || s.total_decisoes || 0} total
                 </div>
               </div>
@@ -586,7 +655,7 @@ function AutonomiTab() {
           <div style={{ display:"flex", flexWrap:"wrap", gap:16 }}>
             {Object.entries(corrStats).map(([k,v]) => (
               <div key={k} style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                <div style={{ fontSize:10, color:"#64748B", fontFamily:D_MONO, textTransform:"uppercase" }}>
+                <div style={{ fontSize: 11, color:"#94A3B8", fontFamily:D_MONO, textTransform:"uppercase" }}>
                   {k.replace(/_/g," ")}
                 </div>
                 <div style={{ fontSize:20, fontWeight:800, color:"#F1F5F9", fontFamily:D_MONO }}>

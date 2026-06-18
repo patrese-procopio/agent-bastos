@@ -251,7 +251,7 @@ export default function Transcricao({ onNavigate }) {
               Transcrição
             </span>
           </div>
-          <span style={{ fontSize: 9, color: "#818CF8", fontWeight: 700, fontFamily: MONO, background: "rgba(129,140,248,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #C7D2FE" }}>
+          <span style={{ fontSize: 11, color: "#818CF8", fontWeight: 700, fontFamily: MONO, background: "rgba(129,140,248,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #C7D2FE" }}>
             Whisper
           </span>
         </div>
@@ -262,7 +262,7 @@ export default function Transcricao({ onNavigate }) {
           {stage === "idle" && (
             <div style={{ padding: "12px 12px 0" }}>
 
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>
                 Gravação
               </div>
               <button onClick={startRecording} style={S.actionBtn}>
@@ -272,13 +272,13 @@ export default function Transcricao({ onNavigate }) {
                 </svg>
                 <span style={{ fontSize: 14.3, fontWeight: 600, color: "#F87171" }}>Iniciar Gravação</span>
               </button>
-              <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginTop: 4, lineHeight: 1.4, paddingLeft: 2 }}>
+              <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 4, lineHeight: 1.4, paddingLeft: 2 }}>
                 Captura em WebM/Opus — ideal para Whisper
               </div>
 
               <div style={{ height: 1, background: "#E2E8F0", margin: "12px 0" }} />
 
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>
                 Upload de Arquivo
               </div>
               <div
@@ -298,10 +298,10 @@ export default function Transcricao({ onNavigate }) {
                   style={{ marginBottom: 6 }}>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                 </svg>
-                <div style={{ fontSize: 14.3, fontWeight: 600, color: isDragging ? "#3730A3" : "#475569" }}>
+                <div style={{ fontSize: 14.3, fontWeight: 600, color: isDragging ? "#3730A3" : "#94A3B8" }}>
                   {isDragging ? "Solte aqui" : "Arraste ou clique"}
                 </div>
-                <div style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 3 }}>
                   WAV · MP3 · M4A · OGG · FLAC
                 </div>
               </div>
@@ -333,7 +333,7 @@ export default function Transcricao({ onNavigate }) {
                 </svg>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#F87171", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Gravando</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#F87171", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Gravando</div>
                 <div style={{ fontFamily: MONO, fontSize: 24, fontWeight: 800, color: "#F87171" }}>{timer}</div>
               </div>
               <RecWave small />
@@ -360,7 +360,7 @@ export default function Transcricao({ onNavigate }) {
               <div style={{ width: "100%", height: 3, background: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
                 <div className="prog-bar" style={{ height: "100%", background: "linear-gradient(90deg,#3730A3,#6D28D9)", borderRadius: 2 }} />
               </div>
-              <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, textAlign: "center", lineHeight: 1.7 }}>
+              <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, textAlign: "center", lineHeight: 1.7 }}>
                 Whisper · Diarização<br/>Análise de inteligência
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function Transcricao({ onNavigate }) {
                 <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9", fontFamily: MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {audioFile?.name || result.filename}
                 </div>
-                <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, marginTop: 1 }}>
+                <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 1 }}>
                   {result.duration || "—"} · {result.segments?.length || 0} segmentos
                 </div>
               </div>
@@ -385,7 +385,7 @@ export default function Transcricao({ onNavigate }) {
               <div style={S.infoBox}>
                 <div style={S.infoLabel}>Laudo n.º</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: "#F1F5F9", fontFamily: MONO }}>{result.laudo_number}</div>
-                <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, marginTop: 1 }}>{result.date}</div>
+                <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 1 }}>{result.date}</div>
               </div>
 
               {/* Risco */}
@@ -399,7 +399,7 @@ export default function Transcricao({ onNavigate }) {
                 <div style={{ fontSize: 16.9, fontWeight: 800, color: risk(result.risk_level, "color"), fontFamily: MONO, letterSpacing: "0.06em" }}>
                   {result.risk_level}
                 </div>
-                <div style={{ fontSize: 9, color: "#475569", marginTop: 2, lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2, lineHeight: 1.4 }}>
                   {result.classification}
                 </div>
               </div>
@@ -410,7 +410,7 @@ export default function Transcricao({ onNavigate }) {
                 {result.speakers?.map(sp => (
                   <div key={sp.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 6, marginBottom: 4, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                     <span style={{ fontSize: 16.9, fontWeight: 800, color: "#E8A020", fontFamily: MONO, minWidth: 22 }}>{sp.id}</span>
-                    <span style={{ fontSize: 16.9, color: "#475569", lineHeight: 1.3 }}>{sp.label} — <strong>{sp.role}</strong></span>
+                    <span style={{ fontSize: 16.9, color: "#94A3B8", lineHeight: 1.3 }}>{sp.label} — <strong>{sp.role}</strong></span>
                   </div>
                 ))}
               </div>
@@ -470,9 +470,9 @@ export default function Transcricao({ onNavigate }) {
         <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#1A2236", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: stage === "done" ? "#16A34A" : "#3730A3", boxShadow: stage === "done" ? "0 0 5px rgba(22,163,74,0.7)" : "0 0 5px rgba(55,48,163,0.6)" }} />
-            <span style={{ fontSize: 9, color: "#475569", fontFamily: MONO }}>Whisper · Diarização automática</span>
+            <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>Whisper · Diarização automática</span>
           </div>
-          <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>WebM/Opus · WAV · MP3 · M4A</span>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>WebM/Opus · WAV · MP3 · M4A</span>
         </div>
       </aside>
 
@@ -491,7 +491,7 @@ export default function Transcricao({ onNavigate }) {
               <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>
                 {stage === "done" && result ? `Laudo n.º ${result.laudo_number}` : "Transcrição de Áudio"}
               </div>
-              <div style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, marginTop: 1 }}>
+              <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 1 }}>
                 {stage === "idle"       && "Aguardando entrada · Gravação ou upload"}
                 {stage === "recording"  && `Gravando · ${timer}`}
                 {stage === "processing" && "Processando · Whisper + Diarização + IA"}
@@ -533,7 +533,7 @@ export default function Transcricao({ onNavigate }) {
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
               <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Processando áudio...</div>
-              <div style={{ fontSize: 14.3, color: "#64748B", fontFamily: MONO, textAlign: "center", lineHeight: 1.8 }}>
+              <div style={{ fontSize: 14.3, color: "#94A3B8", fontFamily: MONO, textAlign: "center", lineHeight: 1.8 }}>
                 Transcrição com Whisper · Identificação de interlocutores<br />Análise de inteligência via IA
               </div>
             </div>
@@ -546,7 +546,7 @@ export default function Transcricao({ onNavigate }) {
               {/* Cabeçalho formal do laudo */}
               <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                 <div style={{ textAlign: "center", paddingBottom: 12, borderBottom: "2px solid #0F172A", marginBottom: 14 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "#64748B", marginBottom: 4, textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", color: "#94A3B8", marginBottom: 4, textTransform: "uppercase" }}>
                     Agent Bastos · Sistema de Inteligência
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#F1F5F9", letterSpacing: "0.04em" }}>
@@ -557,7 +557,7 @@ export default function Transcricao({ onNavigate }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                   {[["Laudo n.º", result.laudo_number, true], ["Data da Transcrição", result.date, false], ["Arquivo de Origem", result.filename, true]].map(([label, value, mono]) => (
                     <div key={label}>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>{label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>{label}</div>
                       <div style={{ fontSize: 15.6, fontWeight: 700, color: "#F1F5F9", fontFamily: mono ? MONO : SANS }}>{value}</div>
                     </div>
                   ))}
@@ -567,7 +567,7 @@ export default function Transcricao({ onNavigate }) {
               {/* Transcrição Segmentada */}
               <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                 <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#0B1120" }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#475569", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
                     Transcrição Segmentada
                   </span>
                 </div>
@@ -588,7 +588,7 @@ export default function Transcricao({ onNavigate }) {
               {/* Relatório Analítico */}
               <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                 <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#0B1120", textAlign: "center" }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#475569", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                     Relatório Analítico da Transcrição de Áudio
                   </span>
                 </div>
@@ -620,7 +620,7 @@ export default function Transcricao({ onNavigate }) {
 
                   {/* Resumo Analítico */}
                   <div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>Resumo Analítico</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>Resumo Analítico</div>
                     <div style={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: 6, padding: "12px 14px", background: "#0B1120", fontSize: 15.6, color: "#F1F5F9", lineHeight: 1.7 }}>
                       {result.summary}
                     </div>
@@ -628,7 +628,7 @@ export default function Transcricao({ onNavigate }) {
 
                   {/* Red Flags */}
                   <div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>Sinalizadores de Alerta (Red Flags)</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>Sinalizadores de Alerta (Red Flags)</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {result.red_flags?.map(rf => (
                         <div key={rf.id} className="flag-row"
@@ -647,7 +647,7 @@ export default function Transcricao({ onNavigate }) {
                           }}>{rf.id}</span>
                           <div>
                             <div style={{ fontSize: 15.6, fontWeight: 700, color: "#F1F5F9", marginBottom: 2 }}>{rf.title}</div>
-                            <div style={{ fontSize: 14.3, color: "#475569" }}>{rf.text}</div>
+                            <div style={{ fontSize: 14.3, color: "#94A3B8" }}>{rf.text}</div>
                           </div>
                         </div>
                       ))}
@@ -665,10 +665,10 @@ export default function Transcricao({ onNavigate }) {
                 <span style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>Agent Bastos · Intelligence Analysis Report</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {["PROTEGIDO", "RESERVADO", "USO INTERNO"].map(tag => (
-                    <span key={tag} style={{ fontSize: 8, fontWeight: 800, color: "#F1F5F9", fontFamily: MONO, background: "#F59E0B", borderRadius: 3, padding: "2px 7px", letterSpacing: "0.05em" }}>{tag}</span>
+                    <span key={tag} style={{ fontSize: 11, fontWeight: 800, color: "#F1F5F9", fontFamily: MONO, background: "#F59E0B", borderRadius: 3, padding: "2px 7px", letterSpacing: "0.05em" }}>{tag}</span>
                   ))}
                 </div>
-                <span style={{ fontSize: 9, color: "#64748B", fontFamily: MONO, textAlign: "right", lineHeight: 1.4 }}>
+                <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, textAlign: "right", lineHeight: 1.4 }}>
                   Processado via IA · Validação humana obrigatória · Reprodução proibida
                 </span>
               </div>
@@ -717,7 +717,7 @@ const S = {
   },
   ghostBtn: {
     width: "100%", padding: "7px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.07)",
-    background: "transparent", fontSize: 16.9, color: "#64748B", cursor: "pointer",
+    background: "transparent", fontSize: 16.9, color: "#94A3B8", cursor: "pointer",
     fontFamily: "'JetBrains Mono','Roboto Mono','Courier New',monospace",
     display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginBottom: 12,
   },
@@ -726,7 +726,7 @@ const S = {
     borderRadius: 8, marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
   },
   infoLabel: {
-    fontSize: 8, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em",
+    fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em",
     textTransform: "uppercase", fontFamily: "'JetBrains Mono','Roboto Mono','Courier New',monospace",
     marginBottom: 3,
   },

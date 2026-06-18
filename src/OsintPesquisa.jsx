@@ -117,7 +117,7 @@ const IcoGavel    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="
 const StatBadge = ({ label, value, accent=false }) => (
   <div style={{textAlign:"center",padding:"10px 16px",background:C.surfaceUp,borderRadius:8,border:`1px solid ${accent&&value>0?C.goldBorder:C.border}`,minWidth:80,flex:1}}>
     <div style={{fontSize:28,fontWeight:800,color:accent&&value>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{value}</div>
-    <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
+    <div style={{fontSize: 12,fontWeight:700,color:C.textDim,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
   </div>
 )
 
@@ -125,7 +125,7 @@ const StatBadge = ({ label, value, accent=false }) => (
 const Tabela = ({ cols, rows, gridCols }) => (
   <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
     <div style={{display:"grid",gridTemplateColumns:gridCols,background:"rgba(0,0,0,0.3)"}}>
-      {cols.map(c=><div key={c} style={{padding:"7px 12px",fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
+      {cols.map(c=><div key={c} style={{padding:"7px 12px",fontSize: 12,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO}}>{c}</div>)}
     </div>
     {rows.length===0
       ? <div style={{padding:"16px 12px",fontSize:11,color:C.textDim,fontStyle:"italic",fontFamily:MONO,background:C.surfaceMid}}>Nenhum registro encontrado</div>
@@ -313,7 +313,7 @@ export default function OsintPesquisa({ onNavigate }) {
           </div>
 
           <div style={{marginBottom:14}}>
-            <label style={{display:"block",fontSize:8,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
+            <label style={{display:"block",fontSize: 11,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {FONTES.map(f=>(
                 <div key={f.key} className="o-chip" style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,cursor:"default",transition:"all 0.12s"}}>
@@ -382,7 +382,7 @@ export default function OsintPesquisa({ onNavigate }) {
               <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
                 <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
                 {resultado.fontes_com_erro.map(f=>(
-                  <span key={f} style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
+                  <span key={f} style={{fontSize: 12,fontWeight:700,padding:"3px 8px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
                 ))}
               </div>
             )}
@@ -476,7 +476,7 @@ export default function OsintPesquisa({ onNavigate }) {
                       ].filter(e=>e.data).sort((a,b)=>b.data.localeCompare(a.data)).map((e,i)=>(
                         <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 12px",background:e.bg,border:`1px solid ${e.cor}20`,borderRadius:7,borderLeft:`3px solid ${e.cor}`}}>
                           <span style={{fontSize:12,fontWeight:700,color:e.cor,fontFamily:MONO,flexShrink:0,minWidth:90}}>{e.data}</span>
-                          <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:3,background:`${e.cor}22`,color:e.cor,fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
+                          <span style={{fontSize: 12,fontWeight:700,padding:"3px 8px",borderRadius:3,background:`${e.cor}22`,color:e.cor,fontFamily:MONO,flexShrink:0}}>{e.tipo}</span>
                           <span style={{fontSize:13,color:C.textMid,lineHeight:1.5}}>{e.desc}</span>
                         </div>
                       ))}
@@ -496,7 +496,7 @@ export default function OsintPesquisa({ onNavigate }) {
                               <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO}}>◈ NÓ CENTRAL</span>
                             </div>
                             <span style={{fontSize:16,fontWeight:700,color:C.text}}>{relatorio.graph.nodes.find(n=>n.is_subject)?.label}</span>
-                            <span style={{fontSize:9,color:C.textDim,fontFamily:MONO,marginLeft:"auto"}}>{relatorio.graph.nodes.length} nós · {relatorio.graph.edges.length} arestas</span>
+                            <span style={{fontSize: 11,color:C.textDim,fontFamily:MONO,marginLeft:"auto"}}>{relatorio.graph.nodes.length} nós · {relatorio.graph.edges.length} arestas</span>
                           </div>
                           <Tabela
                             cols={["Entidade","Tipo","Relação","Fonte"]}
@@ -572,12 +572,12 @@ export default function OsintPesquisa({ onNavigate }) {
                           <div style={{padding:"12px 14px",background:C.surface,borderRadius:8,border:`1px solid ${procResultado.is_criminal?"rgba(239,68,68,0.3)":C.border}`,borderLeft:`3px solid ${procResultado.is_criminal?C.red:C.gold}`}}>
                             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                               {procResultado.is_criminal && (
-                                <span style={{fontSize:10,fontWeight:800,padding:"3px 8px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",borderRadius:4,color:C.red,fontFamily:MONO,letterSpacing:"0.08em"}}>⚠ CRIMINAL</span>
+                                <span style={{fontSize: 12,fontWeight:800,padding:"3px 8px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",borderRadius:4,color:C.red,fontFamily:MONO,letterSpacing:"0.08em"}}>⚠ CRIMINAL</span>
                               )}
-                              <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:C.goldSoft,border:`1px solid ${C.goldBorder}`,borderRadius:4,color:C.gold,fontFamily:MONO}}>{procResultado.tribunal}</span>
-                              <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:4,color:C.textMid,fontFamily:MONO}}>{procResultado.grau}</span>
+                              <span style={{fontSize: 12,fontWeight:700,padding:"3px 8px",background:C.goldSoft,border:`1px solid ${C.goldBorder}`,borderRadius:4,color:C.gold,fontFamily:MONO}}>{procResultado.tribunal}</span>
+                              <span style={{fontSize: 12,fontWeight:700,padding:"3px 8px",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:4,color:C.textMid,fontFamily:MONO}}>{procResultado.grau}</span>
                               {procResultado.nivel_sigilo > 0 && (
-                                <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",background:"rgba(220,38,38,0.15)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:4,color:"#FCA5A5",fontFamily:MONO}}>SIGILO {procResultado.nivel_sigilo}</span>
+                                <span style={{fontSize: 12,fontWeight:700,padding:"3px 8px",background:"rgba(220,38,38,0.15)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:4,color:"#FCA5A5",fontFamily:MONO}}>SIGILO {procResultado.nivel_sigilo}</span>
                               )}
                             </div>
                             <div style={{fontSize:16,fontWeight:700,color:C.text,fontFamily:MONO,marginBottom:4}}>{procResultado.numero}</div>
@@ -588,15 +588,15 @@ export default function OsintPesquisa({ onNavigate }) {
                           {/* Metadados */}
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
                             <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
-                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Data de Ajuizamento</div>
+                              <div style={{fontSize: 12,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Data de Ajuizamento</div>
                               <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.data_ajuizamento||"—"}</div>
                             </div>
                             <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
-                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Última Atualização</div>
+                              <div style={{fontSize: 12,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Última Atualização</div>
                               <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.ultima_atualizacao||"—"}</div>
                             </div>
                             <div style={{padding:"10px 12px",background:C.surfaceUp,borderRadius:7,border:`1px solid ${C.border}`}}>
-                              <div style={{fontSize:10,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Movimentações</div>
+                              <div style={{fontSize: 12,fontWeight:700,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO,marginBottom:4}}>Movimentações</div>
                               <div style={{fontSize:13,color:C.text,fontFamily:MONO}}>{procResultado.movimentos?.length||0}</div>
                             </div>
                           </div>

@@ -390,7 +390,7 @@ export default function GrafoVinculos() {
                   <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: ativo ? C.gold : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.rotulo || a.nome || "?"}</span>
                   <span style={{ display: "block", fontSize: 11, color: C.textMid, fontFamily: MONO, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.faccao || "?"} ? {a.vinculos} v?nc.</span>
                 </span>
-                {a.origem !== "manual" && <span style={{ fontSize: 9, color: C.textDim, fontFamily: MONO }}>auto</span>}
+                {a.origem !== "manual" && <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>auto</span>}
               </button>
             )
           })}
@@ -488,10 +488,10 @@ export default function GrafoVinculos() {
               />
               {/* legenda */}
               <div style={{ position: "absolute", left: 12, bottom: 12, background: "rgba(17,24,39,0.82)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", backdropFilter: "blur(6px)", maxWidth: 220 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: C.textMid, letterSpacing: "0.1em", marginBottom: 6, fontFamily: MONO }}>LEGENDA</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.textMid, letterSpacing: "0.1em", marginBottom: 6, fontFamily: MONO }}>LEGENDA</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 8px" }}>
                   {CATEGORIAS.map(c => (
-                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: C.textMid }}>
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.textMid }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.cor, flexShrink: 0 }} />{c.label}
                     </div>
                   ))}
@@ -580,7 +580,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
       <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 26, fontFamily: EMOJI_FONT, lineHeight: 1 }}>{isNode ? (d.icone || iconePadrao(d.tipo)) : "──"}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: cor, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: cor, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>
             {isNode ? labelCategoria(d.tipo) : "V?nculo"}{isNode && d.alvo ? " ? ALVO" : ""}
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginTop: 2, wordBreak: "break-word" }}>
@@ -615,7 +615,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
         {/* metadados */}
         {Object.entries(det).filter(([k, v]) => !ocultar.has(k) && v != null && v !== "").length > 0 && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: C.textMid, letterSpacing: "0.1em", marginBottom: 8, fontFamily: MONO }}>METADADOS</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.textMid, letterSpacing: "0.1em", marginBottom: 8, fontFamily: MONO }}>METADADOS</div>
             {Object.entries(det).filter(([k, v]) => !ocultar.has(k) && v != null && v !== "").map(([k, v]) => (
               <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <span style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", fontFamily: MONO, flexShrink: 0 }}>{k.replace(/_/g, " ")}</span>
@@ -628,7 +628,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
         {/* timeline (pessoa) */}
         {movs && movs.length > 0 && (
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: "0.1em", marginBottom: 8, fontFamily: MONO }}>LINHA DO TEMPO ({movs.length})</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: "0.1em", marginBottom: 8, fontFamily: MONO }}>LINHA DO TEMPO ({movs.length})</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {movs.map((m, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, paddingBottom: 12, position: "relative" }}>
@@ -728,7 +728,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
             <div style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, maxHeight: 240, overflowY: "auto" }}>
               {grupos.map(g => (
                 <div key={g.grupo} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: corCategoria(g.tipo), letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, fontFamily: MONO }}>{g.grupo}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: corCategoria(g.tipo), letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, fontFamily: MONO }}>{g.grupo}</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {g.itens.map(it => (
                       <button key={it.e + it.n} className="gv-ico" title={it.n}
@@ -841,9 +841,8 @@ function Overlay({ children, onClose }) {
   )
 }
 function Lbl({ children, noMargin }) {
-  return <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}>{children}</div>
+  return <div style={{ fontSize: 11.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}>{children}</div>
 }
 function inp() {
   return { width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }
 }
-                                                                                                                                                                                                           

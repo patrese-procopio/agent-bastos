@@ -15,7 +15,7 @@ const C = {
   goldSoft:     "rgba(232,160,32,0.15)",
   text:         "#F1F5F9",
   textMid:      "#94A3B8",
-  textDim:      "rgba(255,255,255,0.30)",
+  textDim:      "rgba(255,255,255,0.52)",
   green:        "#22C55E",
   greenSoft:    "rgba(34,197,94,0.12)",
   red:          "#EF4444",
@@ -32,18 +32,32 @@ const C = {
 }
 
 const CSS = `
-  @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeSlideIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes pulse-oracle { 0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0)} 60%{box-shadow:0 0 0 6px rgba(124,58,237,0.18)} }
   @keyframes pulse-amber  { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0)} 60%{box-shadow:0 0 0 5px rgba(245,158,11,0.20)} }
   @keyframes spin         { to{transform:rotate(360deg)} }
   @keyframes glow-in      { from{opacity:0;filter:blur(8px)} to{opacity:1;filter:blur(0)} }
   @keyframes bar-grow     { from{width:0} to{width:var(--w)} }
-  .o-card   { animation: fadeSlideIn 0.22s ease forwards; }
-  .o-pending{ animation: pulse-amber 2.5s ease-in-out infinite; }
-  .o-spin   { animation: spin 0.9s linear infinite; }
+  @keyframes oracle-border{ to{transform:rotate(360deg)} }
+  @keyframes card-border-pulse { 0%,100%{box-shadow:0 0 8px var(--rc,rgba(245,158,11,0.3))} 50%{box-shadow:0 0 22px var(--rc,rgba(245,158,11,0.6))} }
+  .o-card     { animation: fadeSlideIn 0.22s ease forwards; }
+  .o-pending  { animation: card-border-pulse 2.8s ease-in-out infinite; }
+  .o-spin     { animation: spin 0.9s linear infinite; }
   .o-btn:hover { filter:brightness(1.15); transform:translateY(-1px); }
   .o-btn:active{ transform:scale(0.97); }
   .o-row:hover { background:rgba(255,255,255,0.025) !important; }
+  .oracle-icon-wrap { position:relative; display:inline-flex; }
+  .oracle-icon-wrap::before {
+    content:""; position:absolute; inset:-3px; border-radius:14px; z-index:-1;
+    background: conic-gradient(from 0deg, #7C3AED, #A78BFA, #22D3EE, #7C3AED);
+    animation: oracle-border 3s linear infinite;
+    opacity: 0.7;
+  }
+  .oracle-icon-wrap::after {
+    content:""; position:absolute; inset:0; border-radius:11px; z-index:0;
+    background: linear-gradient(135deg,#5B21B6,#7C3AED);
+  }
+  .oracle-icon-emoji { position:relative; z-index:1; font-size:22px; line-height:1; }
   ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.10);border-radius:4px}
 `
 
@@ -62,7 +76,7 @@ const SCORE_COLOR = {
   ALTO:    "#FBBF24",
   MÉDIO:   "#60A5FA",
   BAIXO:   "#4ADE80",
-  INATIVO: "#475569",
+  INATIVO: "#64748B",
 }
 
 const STATUS_CFG = {
@@ -145,7 +159,7 @@ function PainelCruzamento({ detalhes }) {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{h.nome}</span>
-                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:4,
+                    <span style={{ fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:4,
                       background:`${cor}18`, color:cor, border:`1px solid ${cor}44`,
                       fontFamily:MONO, letterSpacing:"0.05em" }}>
                       {h.fonte}
@@ -164,7 +178,7 @@ function PainelCruzamento({ detalhes }) {
       )}
       {summary && (
         <div style={{ padding:"8px 14px 10px", borderTop:hits.length?"1px solid rgba(255,255,255,0.06)":"none" }}>
-          <div style={{ fontSize:10, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em",
+          <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:"0.08em",
             fontFamily:MONO, marginBottom:4 }}>RESUMO DA TRANSCRIÇÃO</div>
           <p style={{ fontSize:12.5, color:"#CBD5E1", lineHeight:1.55, margin:0, fontStyle:"italic" }}>
             "{summary}"
@@ -191,7 +205,7 @@ function RiskRadar({ scores }) {
             RADAR DE RISCO · ENTIDADES MONITORADAS
           </span>
         </div>
-        <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+        <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
           {scores.length} entidade{scores.length!==1?"s":""}
         </span>
       </div>
@@ -216,7 +230,7 @@ function RiskRadar({ scores }) {
                     <span style={{ fontSize:12, fontWeight:800, color:cor, fontFamily:MONO }}>
                       {pct.toFixed(0)}
                     </span>
-                    <span style={{ fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:4,
+                    <span style={{ fontSize:11, fontWeight:800, padding:"2px 6px", borderRadius:4,
                       background:`${cor}18`, color:cor, border:`1px solid ${cor}33`,
                       fontFamily:MONO, letterSpacing:"0.06em" }}>
                       {s.classificacao}
@@ -368,7 +382,7 @@ function SubintModal({ hitl, onClose }) {
 
               <div style={{ padding:"10px 14px", borderRadius:9, background:"rgba(255,255,255,0.03)",
                 border:`1px solid ${C.border}`, marginBottom:20 }}>
-                <div style={{ fontSize:11, color:C.textDim, lineHeight:1.6 }}>
+                <div style={{ fontSize:12, color:C.textDim, lineHeight:1.6 }}>
                   O SUBINT é um documento técnico preliminar gerado por IA a partir de dados cruzados
                   do sistema. Serve como subsídio para elaboração do RELINT pelos analistas.
                   Tempo estimado: <span style={{color:C.textMid}}>15–30 segundos</span>.
@@ -750,10 +764,11 @@ export default function HitlDashboard() {
         <div style={{ height:56, display:"flex", alignItems:"center",
           justifyContent:"space-between", padding:"0 22px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-            <div style={{ width:42, height:42, borderRadius:11,
-              background:`linear-gradient(135deg,#5B21B6,#7C3AED)`,
-              display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
-              boxShadow:`0 0 18px rgba(124,58,237,0.5)` }}>🔮</div>
+            <div className="oracle-icon-wrap" style={{ width:42, height:42,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              boxShadow:`0 0 24px rgba(124,58,237,0.55)`, borderRadius:11 }}>
+              <span className="oracle-icon-emoji">🔮</span>
+            </div>
             <div>
               <div style={{ fontSize:19, fontWeight:800, letterSpacing:"-0.02em",
                 background:"linear-gradient(90deg,#F1F5F9 0%,#A78BFA 100%)",
@@ -804,7 +819,7 @@ export default function HitlDashboard() {
                 lineHeight:1 }}>
                 {st.value}
               </span>
-              <span style={{ fontSize:10, color:C.textDim, fontFamily:MONO,
+              <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO,
                 letterSpacing:"0.07em" }}>
                 {st.label}
               </span>
@@ -826,17 +841,19 @@ export default function HitlDashboard() {
             <button key={id} onClick={() => setAba(id)}
               style={{ display:"flex", alignItems:"center", gap:6,
                 padding:"8px 16px", borderRadius:"8px 8px 0 0", cursor:"pointer",
-                border:"1px solid", borderBottom:"none",
+                border:"1px solid", borderBottom: active ? `2px solid ${color}` : "none",
                 fontFamily:MONO, fontSize:12, fontWeight:active ? 800 : 600,
-                letterSpacing:"0.07em", transition:"all 0.15s",
+                letterSpacing:"0.07em", transition:"all 0.2s",
                 background: active ? C.bg : "transparent",
                 color:      active ? color : C.textDim,
                 borderColor: active ? C.border : "transparent",
+                boxShadow: active ? `0 2px 12px ${color}55, inset 0 -2px 8px ${color}22` : "none",
+                outline:"none",
               }}>
               <span>{icon}</span>
               <span>{label}</span>
               {badge != null && badge > 0 && (
-                <span style={{ fontSize:10, fontWeight:800, padding:"1px 6px",
+                <span style={{ fontSize:11, fontWeight:800, padding:"1px 6px",
                   borderRadius:10, background: active ? `${color}22` : "rgba(255,255,255,0.06)",
                   color: active ? color : C.textDim, border:`1px solid ${active ? color+"44" : "transparent"}` }}>
                   {badge}
@@ -896,7 +913,7 @@ export default function HitlDashboard() {
               letterSpacing:"0.12em", textTransform:"uppercase" }}>
               Aguardando Decisão
             </span>
-            <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+            <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
               · atualiza a cada 10s
             </span>
           </div>
@@ -917,8 +934,10 @@ export default function HitlDashboard() {
               return (
                 <div key={a.id} className="o-card o-pending"
                   style={{ borderRadius:12, border:`1px solid ${riscoC.border}`,
+                    borderLeft:`3px solid ${riscoC.color}`,
                     background:`linear-gradient(135deg,${riscoC.bg},rgba(255,255,255,0.01))`,
-                    overflow:"hidden", boxShadow:"0 4px 24px rgba(0,0,0,0.35)" }}>
+                    overflow:"hidden", boxShadow:"0 4px 24px rgba(0,0,0,0.35)",
+                    "--rc":`${riscoC.color}55` }}>
                   {/* Barra de countdown */}
                   <div style={{ height:3, background:"rgba(255,255,255,0.05)" }}>
                     <div style={{ height:"100%", width:`${100-prog}%`,
@@ -932,13 +951,13 @@ export default function HitlDashboard() {
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8,
                           marginBottom:5, flexWrap:"wrap" }}>
-                          <span style={{ fontSize:10, fontWeight:800, padding:"3px 10px",
+                          <span style={{ fontSize:11, fontWeight:800, padding:"3px 10px",
                             borderRadius:5, background:riscoC.bg, color:riscoC.color,
                             border:`1px solid ${riscoC.border}`, letterSpacing:"0.08em",
                             fontFamily:MONO }}>
                             ⚠ {riscoC.label}
                           </span>
-                          <span style={{ fontSize:10, fontWeight:700, padding:"3px 10px",
+                          <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px",
                             borderRadius:5, background:"rgba(255,255,255,0.06)",
                             color:C.textMid, fontFamily:MONO, letterSpacing:"0.05em" }}>
                             {a.tipo_evento?.replace(/_/g," ").toUpperCase()}
@@ -952,19 +971,19 @@ export default function HitlDashboard() {
                       <div style={{ textAlign:"right", flexShrink:0 }}>
                         <div style={{ fontSize:11, color:C.amber, fontWeight:700,
                           fontFamily:MONO, whiteSpace:"nowrap" }}>⏱ {rest}</div>
-                        <div style={{ fontSize:10, color:C.textDim, fontFamily:MONO,
+                        <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO,
                           marginTop:2 }}>{tempoAgo(a.criado_em)}</div>
                       </div>
                     </div>
 
                     <div style={{ display:"flex", gap:16, marginBottom:12, flexWrap:"wrap" }}>
-                      <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                      <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                         ID: <span style={{color:C.textMid}}>{a.id?.slice(0,8)}…</span>
                       </span>
-                      <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                      <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                         Op: <span style={{color:C.textMid}}>{a.operador}</span>
                       </span>
-                      <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                      <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                         {fmtDate(a.criado_em)}
                       </span>
                     </div>
@@ -1016,7 +1035,7 @@ export default function HitlDashboard() {
               letterSpacing:"0.12em", textTransform:"uppercase" }}>
               Histórico de Alertas
             </span>
-            <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+            <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
               · {historico.length} registro{historico.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -1053,14 +1072,14 @@ export default function HitlDashboard() {
                         maxWidth:300 }}>
                         {a.descricao}
                       </span>
-                      <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px",
+                      <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px",
                         borderRadius:4, background:riscoC.bg, color:riscoC.color,
                         border:`1px solid ${riscoC.border}`, fontFamily:MONO,
                         letterSpacing:"0.05em", flexShrink:0 }}>
                         {a.risco}
                       </span>
                       {a.tipo_evento === "transcricao_cruzamento" && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px",
+                        <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px",
                           borderRadius:4, background:"rgba(248,113,113,0.1)",
                           color:"#F87171", border:"1px solid rgba(248,113,113,0.3)",
                           fontFamily:MONO, flexShrink:0 }}>
@@ -1069,16 +1088,16 @@ export default function HitlDashboard() {
                       )}
                     </div>
                     <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-                      <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                      <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                         {fmtDate(a.criado_em)}
                       </span>
                       {a.resposta_por && (
-                        <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                        <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                           · <span style={{color:C.textMid}}>{a.resposta_por}</span>
                         </span>
                       )}
                       {a.respondido_em && (
-                        <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                        <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                           · {tempoAgo(a.respondido_em)}
                         </span>
                       )}
@@ -1086,7 +1105,7 @@ export default function HitlDashboard() {
                   </div>
 
                   {/* Badge de status */}
-                  <span style={{ fontSize:10, fontWeight:800, padding:"4px 10px",
+                  <span style={{ fontSize:11, fontWeight:800, padding:"4px 10px",
                     borderRadius:5, background:statusC.bg, color:statusC.color,
                     border:`1px solid ${statusC.color}44`, fontFamily:MONO,
                     letterSpacing:"0.07em", flexShrink:0 }}>
@@ -1127,7 +1146,7 @@ export default function HitlDashboard() {
                 letterSpacing:"0.12em", textTransform:"uppercase" }}>
                 Subsídios de Inteligência Gerados
               </span>
-              <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+              <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                 · {subints.length} documento{subints.length !== 1 ? "s" : ""}
               </span>
             </div>
@@ -1146,7 +1165,7 @@ export default function HitlDashboard() {
                       marginBottom:2 }}>
                       {s.entidade_nome}
                     </div>
-                    <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+                    <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                       {s.numero} · {s.origem} · {fmtDate(s.criado_em)}
                       {s.operador && <span> · {s.operador}</span>}
                     </div>
@@ -1344,7 +1363,7 @@ function SubintTab({ subints, onRefresh, onPreview }) {
               fontSize:18, boxShadow:"0 0 14px rgba(34,211,238,0.35)" }}>📄</div>
             <div>
               <div style={{ fontSize:15, fontWeight:800, color:C.text }}>Gerar SUBINT</div>
-              <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, marginTop:1 }}>
+              <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO, marginTop:1 }}>
                 Subsídio de Inteligência automatizado
               </div>
             </div>
@@ -1411,7 +1430,7 @@ function SubintTab({ subints, onRefresh, onPreview }) {
                 <div style={{ fontSize:13, fontWeight:700, color:C.cyan, fontFamily:MONO, marginBottom:5 }}>
                   {LOADING_MSGS[msgIdx]}
                 </div>
-                <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>{entidade} · {origem}</div>
+                <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>{entidade} · {origem}</div>
               </div>
               <div style={{ width:"100%", height:3, background:"rgba(255,255,255,0.06)", borderRadius:3, overflow:"hidden" }}>
                 <div style={{ height:"100%", background:C.cyan, borderRadius:3,
@@ -1468,7 +1487,7 @@ function SubintTab({ subints, onRefresh, onPreview }) {
               <span style={{ fontSize:12, fontWeight:800, color:C.cyan, letterSpacing:"0.1em", textTransform:"uppercase" }}>
                 Histórico
               </span>
-              <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+              <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
                 · {subints.length} doc{subints.length !== 1 ? "s" : ""}
               </span>
             </div>
@@ -1500,10 +1519,10 @@ function SubintTab({ subints, onRefresh, onPreview }) {
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:2 }}>
                       {s.entidade_nome}
                     </div>
-                    <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO, display:"flex", gap:8, flexWrap:"wrap" }}>
                       <span style={{ color:C.cyan, fontWeight:700 }}>{s.numero}</span>
                       <span>·</span>
-                      <span style={{ padding:"1px 6px", borderRadius:4, background:"rgba(255,255,255,0.05)", fontSize:10 }}>
+                      <span style={{ padding:"1px 6px", borderRadius:4, background:"rgba(255,255,255,0.05)", fontSize:11 }}>
                         {s.origem}
                       </span>
                       <span>·</span>
@@ -1548,12 +1567,12 @@ function RadarExpandido({ scores, onRefresh }) {
         {[["CRÍTICO","#F87171"],["ALTO","#FBBF24"],["MÉDIO","#60A5FA"],["BAIXO","#4ADE80"]].map(([key,color]) => (
           <div key={key} style={{ background:C.surface, border:`1px solid ${color}22`,
             borderTop:`3px solid ${color}`, borderRadius:10, padding:"12px 16px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.1em",
+            <div style={{ fontSize:11, fontWeight:700, color, letterSpacing:"0.1em",
               fontFamily:MONO, marginBottom:4 }}>{key}</div>
             <div style={{ fontSize:28, fontWeight:800, color:C.text, fontFamily:MONO, lineHeight:1 }}>
               {totais[key]||0}
             </div>
-            <div style={{ fontSize:10, color:C.textDim, marginTop:3 }}>entidades</div>
+            <div style={{ fontSize:12, color:C.textDim, marginTop:3 }}>entidades</div>
           </div>
         ))}
       </div>
@@ -1565,7 +1584,7 @@ function RadarExpandido({ scores, onRefresh }) {
             boxShadow:`0 0 8px ${C.oracleLight}88` }}/>
           <span style={{ fontSize:12, fontWeight:800, color:C.oracleLight,
             letterSpacing:"0.1em", textTransform:"uppercase" }}>Radar de Risco</span>
-          <span style={{ fontSize:11, color:C.textDim, fontFamily:MONO }}>
+          <span style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>
             · {filtrados.length} entidades
           </span>
           <div style={{ flex:1 }}/>
@@ -1599,7 +1618,7 @@ function RadarExpandido({ scores, onRefresh }) {
                   {s.entidade_nome}
                 </div>
                 {s.ultimo_evento && (
-                  <div style={{ fontSize:11, color:C.textDim, fontFamily:MONO, marginTop:2 }}>
+                  <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO, marginTop:2 }}>
                     Último evento: {fmtDate(s.ultimo_evento)}
                   </div>
                 )}
@@ -1614,9 +1633,9 @@ function RadarExpandido({ scores, onRefresh }) {
                 <div style={{ fontSize:20, fontWeight:800, color:cor, fontFamily:MONO, lineHeight:1 }}>
                   {pct.toFixed(0)}
                 </div>
-                <div style={{ fontSize:9, color:C.textDim, fontFamily:MONO }}>/ 100</div>
+                <div style={{ fontSize:12, color:C.textDim, fontFamily:MONO }}>/ 100</div>
               </div>
-              <span style={{ fontSize:10, fontWeight:800, padding:"3px 9px", borderRadius:5,
+              <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:5,
                 background:`${cor}18`, color:cor, border:`1px solid ${cor}33`,
                 fontFamily:MONO, letterSpacing:"0.07em", flexShrink:0 }}>
                 {s.classificacao}

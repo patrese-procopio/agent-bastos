@@ -92,7 +92,7 @@ function ModalRelatorio({ noticia, onClose }) {
         }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em" }}>{cat.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em" }}>{cat.label}</span>
               <span style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>{formatarData(noticia.atualizado)}</span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#F1F5F9" }}>{noticia.titulo}</div>
@@ -111,7 +111,7 @@ function ModalRelatorio({ noticia, onClose }) {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0, background: "#0B1120",
         }}>
-          <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>{noticia.arquivo}</span>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>{noticia.arquivo}</span>
           <button onClick={onClose} style={{ fontSize: 14.3, fontWeight: 700, padding: "6px 20px", background: "#0F172A", color: "#FFF", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: MONO }}>FECHAR</button>
         </div>
       </div>
@@ -150,14 +150,14 @@ function CardNoticia({ noticia, onClick, grande }) {
           {/* Badge categoria sobre a imagem */}
           <span style={{
             position: "absolute", top: 10, left: 10,
-            fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 4,
+            fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 4,
             background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em",
             backdropFilter: "blur(4px)",
           }}>{cat.label}</span>
           {/* Tempo sobre a imagem */}
           <span style={{
             position: "absolute", top: 10, right: 10,
-            fontSize: 9, color: "#FFF", fontFamily: MONO,
+            fontSize: 11, color: "#FFF", fontFamily: MONO,
             background: "rgba(0,0,0,0.4)", padding: "2px 7px", borderRadius: 4,
           }}>{tempoRelativo(noticia.atualizado)}</span>
         </div>
@@ -171,8 +171,8 @@ function CardNoticia({ noticia, onClick, grande }) {
         {/* Badge + tempo (só quando sem imagem) */}
         {imgError && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 4, background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em" }}>{cat.label}</span>
-            <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>{tempoRelativo(noticia.atualizado)}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 4, background: cat.bg, color: cat.cor, fontFamily: MONO, letterSpacing: "0.08em" }}>{cat.label}</span>
+            <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>{tempoRelativo(noticia.atualizado)}</span>
           </div>
         )}
 
@@ -185,7 +185,7 @@ function CardNoticia({ noticia, onClick, grande }) {
         </div>
 
         {/* Resumo */}
-        <div style={{ fontSize: grande ? 12 : 11.5, color: "#475569", lineHeight: 1.65, flex: 1 }}>
+        <div style={{ fontSize: grande ? 12 : 11.5, color: "#94A3B8", lineHeight: 1.65, flex: 1 }}>
           {extrairResumo(noticia.conteudo, grande ? 280 : 180)}
         </div>
 
@@ -194,7 +194,7 @@ function CardNoticia({ noticia, onClick, grande }) {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           paddingTop: 10, borderTop: "1px solid #1A2236", marginTop: 4, gap: 8,
         }}>
-          <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, flexShrink: 0 }}>
             {formatarData(noticia.atualizado)}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -205,7 +205,7 @@ function CardNoticia({ noticia, onClick, grande }) {
                 rel="noreferrer"
                 onClick={e => e.stopPropagation()}
                 style={{
-                  fontSize: 9, fontWeight: 700, color: "#60A5FA",
+                  fontSize: 11, fontWeight: 700, color: "#60A5FA",
                   fontFamily: MONO, letterSpacing: "0.05em",
                   display: "flex", alignItems: "center", gap: 4,
                   textDecoration: "none",
@@ -288,11 +288,11 @@ export default function Noticias({ onNavigate }) {
           </div>
           <div>
             <div style={{ fontSize: 16.9, fontWeight: 700, color: "#F1F5F9" }}>Notícias</div>
-            <div style={{ fontSize: 16.9, color: "#64748B", fontFamily: MONO }}>Monitor de Inteligência · Amazonas</div>
+            <div style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>Monitor de Inteligência · Amazonas</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {ultimaAtt && <span style={{ fontSize: 9, color: "#94A3B8", fontFamily: MONO }}>att {ultimaAtt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>}
+          {ultimaAtt && <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>att {ultimaAtt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>}
           <button onClick={buscarNoticias} disabled={loading} style={{
             fontSize: 16.9, fontWeight: 700, padding: "4px 12px",
             background: loading ? "#1A2236" : "#0F172A",
@@ -338,12 +338,12 @@ export default function Noticias({ onNavigate }) {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.14em", textTransform: "uppercase" }}>Relatórios Ativos</span>
-                <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 10, background: "#0F172A", color: "#FFF", fontFamily: MONO }}>{noticias.length}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.14em", textTransform: "uppercase" }}>Relatórios Ativos</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 10, background: "#0F172A", color: "#FFF", fontFamily: MONO }}>{noticias.length}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }} />
-                <span style={{ fontSize: 9, color: "#4ADE80", fontFamily: MONO, fontWeight: 600 }}>n8n conectado</span>
+                <span style={{ fontSize: 11, color: "#4ADE80", fontFamily: MONO, fontWeight: 600 }}>n8n conectado</span>
               </div>
             </div>
 

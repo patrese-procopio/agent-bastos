@@ -12,13 +12,17 @@ const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
 const GLOBAL_CSS = `
-  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
   @keyframes spin    { to{transform:rotate(360deg)} }
-  .cfg-enter  { animation: fadeIn 0.2s ease forwards; }
+  .cfg-enter  { animation: fadeIn 0.25s ease forwards; }
   .spin       { animation: spin 1s linear infinite; }
-  .cfg-input:focus { border-color: #B45309 !important; box-shadow: 0 0 0 3px rgba(180,83,9,0.1) !important; }
-  .cfg-row:hover  { background: #FFFBEB !important; }
-  ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
+  .cfg-input { background:#0B1420 !important; color:#F1F5F9 !important; }
+  .cfg-input::placeholder { color: rgba(255,255,255,0.28) !important; }
+  .cfg-input:focus { border-color: rgba(232,160,32,0.55) !important; box-shadow: 0 0 0 3px rgba(232,160,32,0.10) !important; outline:none !important; }
+  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
+  .cfg-tab-active { background: rgba(232,160,32,0.10) !important; color: #E8A020 !important; border-color: rgba(232,160,32,0.30) !important; }
+  .cfg-tab-inactive { background: transparent !important; color: rgba(255,255,255,0.45) !important; border-color: transparent !important; }
+  .cfg-tab-inactive:hover { color: #94A3B8 !important; background: rgba(255,255,255,0.04) !important; }
 `
 
 const NUCLEOS = {
@@ -55,7 +59,7 @@ function StatusBadge({ status }) {
 function Field({ label, value, onChange, placeholder, type="text", hint }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-      <label style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
+      <label style={{ fontSize:11, fontWeight:700, color:"#64748B", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
         {label}
       </label>
       <input
@@ -64,9 +68,12 @@ function Field({ label, value, onChange, placeholder, type="text", hint }) {
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className="cfg-input"
-        style={{ padding:"9px 12px", borderRadius:7, fontSize:15.6, color:"#F1F5F9", border:"1px solid rgba(255,255,255,0.07)", background:"#0B1120", outline:"none", fontFamily:"inherit", transition:"border-color 0.2s, box-shadow 0.2s" }}
+        style={{ padding:"10px 14px", borderRadius:8, fontSize:14, color:"#F1F5F9",
+          border:"1px solid rgba(255,255,255,0.09)", background:"#0B1420",
+          outline:"none", fontFamily:"inherit", transition:"border-color 0.2s, box-shadow 0.2s",
+          width:"100%", boxSizing:"border-box" }}
       />
-      {hint && <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>{hint}</span>}
+      {hint && <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontFamily:MONO, marginTop:2 }}>{hint}</span>}
     </div>
   )
 }
@@ -179,30 +186,34 @@ function AbaGeral({ tema, setTema }) {
             Tema da Interface
           </label>
           {[
-            { id:"dark",    label:"Padrão — Dark",       desc:"Interface escura com filtro de brilho. Ideal para uso geral.",               preview:"#0F172A", accent:"#94A3B8" },
-            { id:"tactico", label:"Tático — Operacional", desc:"Alto contraste militar. Verde operacional sobre fundo preto oliva.",         preview:"#080a06", accent:"#9fd44a" },
-            { id:"claro",   label:"Claro",                desc:"Interface clara para ambientes com muita luz.",                              preview:"#0B1120", accent:"#B45309" },
+            { id:"dark",    label:"Padrão — Dark",          desc:"Interface escura com acento gold. Ideal para uso contínuo em ambientes fechados.",   preview:"#0B1120", accent:"#E8A020" },
+            { id:"tactico", label:"Tático — Operacional",   desc:"Modo operacional. Verde lima sobre fundo oliva militar.",                               preview:"#070c05", accent:"#9fd44a" },
+            { id:"claro",   label:"Claro — Corporativo",    desc:"Interface clara enterprise. Sidebar navy escuro, conteúdo em branco.",                  preview:"#F1F5F9", accent:"#B45309" },
           ].map(t => {
             const isActive = tema === t.id
             return (
               <div key={t.id} onClick={() => setTema(t.id)} style={{
                 display:"flex", alignItems:"center", gap:12,
                 padding:"11px 14px", borderRadius:8, cursor:"pointer",
-                border: isActive ? "2px solid #B45309" : "1px solid rgba(255,255,255,0.07)",
-                background: isActive ? "#FFFBEB" : "#0B1120",
+                border: isActive ? "1px solid rgba(232,160,32,0.50)" : "1px solid rgba(255,255,255,0.07)",
+                background: isActive ? "rgba(232,160,32,0.08)" : "rgba(255,255,255,0.02)",
                 transition:"all 0.15s",
               }}>
-                <div style={{ width:32, height:32, borderRadius:6, flexShrink:0, background:t.preview, border:"1px solid rgba(255,255,255,0.07)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <div style={{ width:10, height:10, borderRadius:"50%", background:t.accent }}/>
+                <div style={{ width:36, height:36, borderRadius:7, flexShrink:0, background:t.preview,
+                  border: t.id==="claro" ? "1px solid rgba(0,0,0,0.10)" : "1px solid rgba(255,255,255,0.08)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow: isActive ? `0 0 10px ${t.accent}33` : "none" }}>
+                  <div style={{ width:10, height:10, borderRadius:"50%", background:t.accent,
+                    boxShadow: `0 0 6px ${t.accent}88` }}/>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:15.6, fontWeight:700, color:"#F1F5F9" }}>{t.label}</div>
-                  <div style={{ fontSize:13, color:"#94A3B8", marginTop:2 }}>{t.desc}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:"#E2E8F0" }}>{t.label}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:2 }}>{t.desc}</div>
                 </div>
-                <div style={{ width:16, height:16, borderRadius:"50%", flexShrink:0, border: isActive ? "2px solid #B45309" : "2px solid #CBD5E1", background: isActive ? "#B45309" : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", flexShrink:0, border: isActive ? "2px solid #E8A020" : "2px solid rgba(255,255,255,0.18)", background: isActive ? "#E8A020" : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {isActive && (
                     <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                      <polyline points="2,5 4,7 8,3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polyline points="2,5 4,7 8,3" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   )}
                 </div>
@@ -245,13 +256,15 @@ function AbaGeral({ tema, setTema }) {
 
       <div style={{ display:"flex", justifyContent:"flex-end" }}>
         <button onClick={salvar} style={{
-          padding:"9px 24px", borderRadius:7, border:"none", cursor:"pointer",
-          background: salvo ? "#16A34A" : "linear-gradient(135deg,#F59E0B,#B45309)",
-          color:"#FFF", fontSize:15.6, fontWeight:700,
-          boxShadow: salvo ? "0 4px 12px rgba(22,163,74,0.3)" : "0 4px 12px rgba(180,83,9,0.3)",
+          padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer",
+          background: salvo ? "rgba(34,197,94,0.15)" : "rgba(232,160,32,0.15)",
+          color: salvo ? "#4ADE80" : "#E8A020",
+          border: `1px solid ${salvo ? "rgba(34,197,94,0.35)" : "rgba(232,160,32,0.35)"}`,
+          fontSize:13, fontWeight:700, fontFamily:MONO, letterSpacing:"0.04em",
+          boxShadow: salvo ? "0 0 16px rgba(34,197,94,0.20)" : "0 0 16px rgba(232,160,32,0.15)",
           transition:"all 0.3s",
         }}>
-          {salvo ? "✓ Salvo!" : "Salvar Configurações"}
+          {salvo ? "✓ SALVO!" : "SALVAR CONFIGURAÇÕES"}
         </button>
       </div>
 
@@ -349,7 +362,7 @@ function AbaAgenda() {
                 padding:"5px 10px", borderRadius:5, fontSize:13, fontWeight:600,
                 border:"1px solid", cursor:"pointer", textAlign:"left", fontFamily:MONO, transition:"all 0.12s",
                 background: nucleoFiltro===n ? "#0F172A" : "transparent",
-                color:       nucleoFiltro===n ? "#FFF"    : "#475569",
+                color:       nucleoFiltro===n ? "#FFF"    : "#94A3B8",
                 borderColor: nucleoFiltro===n ? "#0F172A" : "#E2E8F0",
               }}>{n === "TODOS" ? "Todos os Núcleos" : n}</button>
             ))}
@@ -499,7 +512,7 @@ function AbaAgenda() {
                       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                     </svg>
                     <span style={{ fontSize:11.7, color:"#94A3B8", fontFamily:MONO }}>{formatTs(m.timestamp)}</span>
-                    <span style={{ fontSize:8, color:"#CBD5E1" }}>·</span>
+                    <span style={{ fontSize: 11, color:"#CBD5E1" }}>·</span>
                     <span style={{ fontSize:11.7, color:"#E8A020", fontFamily:MONO }}>🦉 Corujas, juntos somos mais.</span>
                   </div>
                 </div>
@@ -566,7 +579,7 @@ function AbaConexoes() {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.1em", textTransform:"uppercase" }}>Status dos Serviços</span>
         <button onClick={verificar} style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:6, border:"1px solid rgba(255,255,255,0.07)", background:"transparent", fontSize:13, fontWeight:600, color:"#94A3B8", cursor:"pointer", fontFamily:MONO }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round">
             <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
@@ -623,29 +636,35 @@ export default function Configuracoes({ onNavigate, tema, setTema }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, height:"100%", overflow:"hidden", background:"#0B1120" }}>
 
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px 0", borderBottom:"1px solid rgba(255,255,255,0.07)", background:"#111827", flexShrink:0 }}>
-        <div style={{ paddingBottom:12 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            <span style={{ fontSize:14, fontWeight:800, color:"#F1F5F9" }}>Configurações</span>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderBottom:"1px solid rgba(255,255,255,0.07)", background:"rgba(10,16,28,0.90)", flexShrink:0 }}>
+        <div>
+          <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:3 }}>
+            <div style={{ width:30, height:30, borderRadius:8,
+              background:"rgba(232,160,32,0.12)", border:"1px solid rgba(232,160,32,0.25)",
+              display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E8A020" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize:15, fontWeight:800, color:"#F1F5F9", letterSpacing:"-0.01em" }}>Configurações</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.40)", fontFamily:MONO, marginTop:1 }}>Agent Bastos · Sistema de Inteligência</div>
+            </div>
           </div>
-          <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>Agent Bastos · Sistema de Inteligência e Segurança</span>
         </div>
 
-        <div style={{ display:"flex", gap:2, alignSelf:"flex-end", paddingBottom:0 }}>
+        <div style={{ display:"flex", gap:4, alignSelf:"flex-end", paddingBottom:2 }}>
           {ABAS.map(a => (
-            <button key={a.id} onClick={() => setAba(a.id)} style={{
-              padding:"7px 16px", borderRadius:"6px 6px 0 0",
-              border:"1px solid", borderBottom:"none",
-              fontSize:14.3, fontWeight:600, cursor:"pointer", transition:"all 0.15s", fontFamily:"inherit",
-              background: aba===a.id ? "#0B1120"  : "transparent",
-              color:       aba===a.id ? "#0F172A"  : "#94A3B8",
-              borderColor: aba===a.id ? "#E2E8F0"  : "transparent",
-            }}>
-              <span style={{ marginRight:5 }}>{a.icon}</span>
+            <button key={a.id} onClick={() => setAba(a.id)}
+              className={aba===a.id ? "cfg-tab-active" : "cfg-tab-inactive"}
+              style={{
+                padding:"7px 16px", borderRadius:7,
+                border:"1px solid",
+                fontSize:13, fontWeight:700, cursor:"pointer", transition:"all 0.15s", fontFamily:MONO,
+                letterSpacing:"0.04em",
+              }}>
+              <span style={{ marginRight:6 }}>{a.icon}</span>
               {a.label}
             </button>
           ))}

@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react"
+import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
+import { SkeletonSidebarList, SkeletonListItem } from "./Skeleton"
 import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
@@ -350,7 +353,6 @@ function Monograma({ letra, cor }) {
 function CardLiderRua({ lider, onEditar, onDeletar }) {
   const cor    = corF(lider.faccao_nome || "")
   const corSt  = corS(lider.status)
-  const [conf, setConf] = useState(false)
   const inicial = (lider.vulgo || lider.nome || "?").trim()[0]?.toUpperCase() || "?"
 
   return (
@@ -420,20 +422,58 @@ function CardLiderRua({ lider, onEditar, onDeletar }) {
           style={{width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,
             background:"rgba(11,17,32,0.8)",cursor:"pointer",display:"flex",
             alignItems:"center",justifyContent:"center",fontSize:14,color:C.textMid}}>✎</button>
-        {conf
-          ? <button onClick={()=>onDeletar(lider.id)} style={{height:30,borderRadius:8,border:"none",
-              padding:"0 12px",background:"#DC2626",cursor:"pointer",fontSize:13,fontWeight:800,
-              color:"#FFF",fontFamily:MONO}}>excluir?</button>
-          : <button onClick={()=>setConf(true)} title="Excluir"
-              style={{width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,
-                background:"rgba(11,17,32,0.8)",cursor:"pointer",display:"flex",
-                alignItems:"center",justifyContent:"center",fontSize:14,color:"#F87171"}}>✕</button>}
+        <button onClick={()=>onDeletar(lider.id)} title="Excluir"
+          style={{width:30,height:30,borderRadius:8,border:"1px solid rgba(239,68,68,0.28)",
+            background:"rgba(239,68,68,0.07)",cursor:"pointer",display:"flex",
+            alignItems:"center",justifyContent:"center",color:"#F87171",transition:"all 0.15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.background="rgba(239,68,68,0.18)";e.currentTarget.style.borderColor="rgba(239,68,68,0.55)"}}
+          onMouseLeave={e=>{e.currentTarget.style.background="rgba(239,68,68,0.07)";e.currentTarget.style.borderColor="rgba(239,68,68,0.28)"}}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
       </div>
     </div>
   )
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
+// ── Export CSV LGPD-aware ─────────────────────────────────────────────────────
+function exportLideresCSV(faccoes, faccaoFiltro) {
+  const pool = faccaoFiltro
+    ? faccaoFiltro.lideres.map(l=>({...l, faccao_nome:faccaoFiltro.nome, faccao_sigla:faccaoFiltro.sigla}))
+    : faccoes.flatMap(f=>f.lideres.map(l=>({...l, faccao_nome:f.nome, faccao_sigla:f.sigla})))
+
+  const LGPD_WARNING = "DOCUMENTO RESTRITO · USO INTERNO · LGPD Art.7 I - Dados Sensíveis"
+  const headers = ["#","Vulgo","Cargo","Status","Facção","Sigla"]
+  const rows = pool.map((l,i)=>[
+    i+1,
+    `"${(l.vulgo||"").replace(/"/g,'""')}"`,
+    `"${(l.cargo||"").replace(/"/g,'""')}"`,
+    `"${(l.status||"").replace(/"/g,'""')}"`,
+    `"${(l.faccao_nome||"").replace(/"/g,'""')}"`,
+    `"${(l.faccao_sigla||"").replace(/"/g,'""')}"`,
+  ])
+
+  const csv = [
+    `"${LGPD_WARNING}"`,
+    `"Gerado em: ${new Date().toLocaleString("pt-BR")} · Agent Bastos v1.0"`,
+    "",
+    headers.join(","),
+    ...rows.map(r=>r.join(",")),
+  ].join("\n")
+
+  const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8;"})
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement("a")
+  const ts   = new Date().toISOString().slice(0,10)
+  a.href     = url
+  a.download = `lideres_${ts}_RESTRITO.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function LideresGerais({ onNavigate }) {
   const [faccoes,    setFaccoes]    = useState([])
   const [cargos,     setCargos]     = useState([])
@@ -442,9 +482,7 @@ export default function LideresGerais({ onNavigate }) {
   const [busca,      setBusca]      = useState("")
   const [faccaoSel,  setFaccaoSel]  = useState("todas")
   const [modal,      setModal]      = useState(null)
-  const [toast,      setToast]      = useState(null)
-
-  const toast$ = (msg, tipo="ok") => { setToast({msg,tipo}); setTimeout(()=>setToast(null),3200) }
+  // toast global via Toast.jsx
 
   async function carregar() {
     setLoading(true)
@@ -456,7 +494,7 @@ export default function LideresGerais({ onNavigate }) {
       setCargos(meta.cargos||[])
       setStatusList(meta.status||[])
       setFaccoes(dados.faccoes||[])
-    } catch { toast$("Erro ao carregar dados.","erro") }
+    } catch { toast.error("Erro ao carregar dados.") }
     finally { setLoading(false) }
   }
 
@@ -466,21 +504,21 @@ export default function LideresGerais({ onNavigate }) {
     try {
       const res = await api.delete(`/liderancas/rua/lideres/${id}`)
       if(!res.ok) throw new Error()
-      toast$("Líder removido."); carregar()
-    } catch { toast$("Erro ao remover líder.","erro") }
+      toast.success("Líder removido."); carregar()
+    } catch { toast.error("Erro ao remover líder.") }
   }
 
   async function deletarFaccao(id) {
     try {
       const res = await api.delete(`/liderancas/rua/faccoes/${id}`)
       if(!res.ok) throw new Error()
-      toast$("Grupo removido."); carregar()
+      toast.success("Grupo removido."); carregar()
       if(faccaoSel === id) setFaccaoSel("todas")
-    } catch { toast$("Erro ao remover grupo.","erro") }
+    } catch { toast.error("Erro ao remover grupo.") }
   }
 
-  function aoSalvarLider()  { toast$("Líder salvo!"); setModal(null); carregar() }
-  function aoSalvarFaccao() { toast$("Grupo criado!"); setModal(null); carregar() }
+  function aoSalvarLider()  { toast.success("Líder salvo!"); setModal(null); carregar() }
+  function aoSalvarFaccao() { toast.success("Grupo criado!"); setModal(null); carregar() }
 
   // Facção selecionada para exibir no main
   const faccaoAtual = faccaoSel === "todas" ? null : faccoes.find(f => f.id === faccaoSel)
@@ -576,9 +614,7 @@ export default function LideresGerais({ onNavigate }) {
           <div style={{height:1,background:C.border,margin:"6px 0 8px"}}/>
 
           {loading ? (
-            <div style={{textAlign:"center",padding:20,fontSize:14,color:C.textDim,fontFamily:MONO}}>
-              Carregando...
-            </div>
+            <SkeletonSidebarList items={6}/>
           ) : faccoes.map(f => {
             const cor    = corF(f.nome)
             const ativo  = faccaoSel === f.id
@@ -660,21 +696,49 @@ export default function LideresGerais({ onNavigate }) {
             </div>
           </div>
 
-          {/* Badge status sistema */}
-          <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 14px",
-            background:"rgba(22,163,74,0.08)",borderRadius:20,border:"1px solid rgba(22,163,74,0.25)"}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:"#16A34A",
-              boxShadow:"0 0 6px rgba(22,163,74,0.8)"}}/>
-            <span style={{fontSize:13,color:"#4ADE80",fontWeight:600}}>Sistema Ativo</span>
+          {/* Badge status sistema + botão export */}
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 14px",
+              background:"rgba(22,163,74,0.08)",borderRadius:20,border:"1px solid rgba(22,163,74,0.25)"}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:"#16A34A",
+                boxShadow:"0 0 6px rgba(22,163,74,0.8)"}}/>
+              <span style={{fontSize:13,color:"#4ADE80",fontWeight:600}}>Sistema Ativo</span>
+            </div>
+            <button
+              title="Exportar lista como CSV (LGPD — uso interno)"
+              onClick={()=>{
+                if (faccoes.length===0) { toast.warn("Nenhum dado para exportar."); return }
+                exportLideresCSV(faccoes, faccaoAtual)
+                toast.success(`${lideresFiltrados.length} líderes exportados · RESTRITO`)
+              }}
+              style={{
+                display:"flex",alignItems:"center",gap:7,
+                padding:"5px 13px",borderRadius:20,cursor:"pointer",
+                background:"rgba(232,160,32,0.08)",
+                border:"1px solid rgba(232,160,32,0.25)",
+                color:"#E8A020",fontSize:13,fontWeight:600,
+                transition:"all 0.18s"
+              }}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(232,160,32,0.16)";e.currentTarget.style.borderColor="rgba(232,160,32,0.45)"}}
+              onMouseLeave={e=>{e.currentTarget.style.background="rgba(232,160,32,0.08)";e.currentTarget.style.borderColor="rgba(232,160,32,0.25)"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E8A020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Exportar CSV
+            </button>
           </div>
         </div>
 
         {/* Corpo principal */}
         <div className="lg-scroll" style={{flex:1,overflowY:"auto",padding:"20px 22px"}}>
           {loading ? (
-            <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,gap:12}}>
-              <span className="lg-spin" style={{display:"inline-block",fontSize:22,color:C.accent}}>⟳</span>
-              <span style={{fontSize:15,color:C.textMid,fontFamily:MONO}}>Carregando líderes...</span>
+            <div style={{padding:"8px 0"}}>
+              {Array.from({length:6}).map((_,i)=>(
+                <SkeletonListItem key={i} avatarSize={52} lines={3} delay={i*0.07}
+                  style={{padding:"12px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}/>
+              ))}
             </div>
 
           ) : faccaoSel === "todas" ? (
@@ -776,18 +840,9 @@ export default function LideresGerais({ onNavigate }) {
           onFechar={()=>setModal(null)}/>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div style={{position:"fixed",bottom:24,right:24,padding:"12px 20px",borderRadius:8,
-          background:toast.tipo==="erro"?"#DC2626":C.surfaceUp,color:"#FFF",fontSize:15,fontWeight:700,
-          fontFamily:MONO,border:`1px solid ${C.border}`,zIndex:2000,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",
-          animation:"fadeUp .2s ease"}}>
-          {toast.tipo==="erro"?"✗ ":"✓ "}{toast.msg}
-        </div>
-      )}
+
 
       <style>{`
-        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         .lg-spin { animation: spin 1s linear infinite; }
         @keyframes spin { to{transform:rotate(360deg)} }
         select option { background: #111827; color:#F1F5F9; }

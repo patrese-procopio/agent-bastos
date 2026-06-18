@@ -79,7 +79,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
         <div>
           <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:5, flexWrap:"wrap"}}>
             <span style={{
-              fontSize:10, fontWeight:800, fontFamily:MONO,
+              fontSize: 12, fontWeight:800, fontFamily:MONO,
               color: isOSINT ? "#60A5FA" : "#94A3B8",
               background: isOSINT ? "rgba(96,165,250,0.12)" : "rgba(255,255,255,0.06)",
               border:`1px solid ${isOSINT ? "rgba(96,165,250,0.3)" : "rgba(255,255,255,0.1)"}`,
@@ -87,14 +87,14 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
             }}>{isOSINT ? "🔵 OSINT" : "🔴 TEMPO REAL"}</span>
 
             <span style={{
-              fontSize:10, fontWeight:700, fontFamily:MONO,
+              fontSize: 12, fontWeight:700, fontFamily:MONO,
               color:tc.color, background:tc.bg, border:`1px solid ${tc.border}`,
               padding:"2px 7px", borderRadius:4,
             }}>{tc.label}</span>
 
             {!isOSINT && (
               <span style={{
-                fontSize:10, fontWeight:800, fontFamily:MONO,
+                fontSize: 12, fontWeight:800, fontFamily:MONO,
                 color:r(alerta.risco,"color"), background:r(alerta.risco,"bg"),
                 border:`1px solid ${r(alerta.risco,"border")}`,
                 padding:"2px 7px", borderRadius:4, letterSpacing:"0.06em",
@@ -122,11 +122,11 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
           {/* Meta */}
           <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
             <span style={{fontSize:11, color:"#94A3B8", fontFamily:MONO}}>{alerta.fonte}</span>
-            <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+            <span style={{fontSize: 12, color:"rgba(255,255,255,0.2)"}}>·</span>
             <span style={{fontSize:11, color:"#94A3B8", fontFamily:MONO}}>{timeAgo(alerta.timestamp)} atrás</span>
             {alerta.termo_encontrado && (
               <>
-                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize: 12, color:"rgba(255,255,255,0.2)"}}>·</span>
                 <span style={{fontSize:11, fontFamily:MONO, color:"#E8A020", background:"rgba(232,160,32,0.12)", padding:"1px 6px", borderRadius:3}}>
                   "{alerta.termo_encontrado}"
                 </span>
@@ -134,7 +134,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
             )}
             {alerta.plataforma && (
               <>
-                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize: 12, color:"rgba(255,255,255,0.2)"}}>·</span>
                 <span style={{fontSize:11, fontFamily:MONO, color:"#60A5FA", background:"rgba(96,165,250,0.12)", padding:"1px 6px", borderRadius:3}}>
                   {alerta.plataforma}
                 </span>
@@ -142,8 +142,8 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
             )}
             {alerta.dork && (
               <>
-                <span style={{fontSize:10, color:"rgba(255,255,255,0.2)"}}>·</span>
-                <span style={{fontSize:10, fontFamily:MONO, color:"#A78BFA", background:"rgba(167,139,250,0.12)", padding:"1px 6px", borderRadius:3, maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"inline-block"}}>
+                <span style={{fontSize: 12, color:"rgba(255,255,255,0.2)"}}>·</span>
+                <span style={{fontSize: 12, fontFamily:MONO, color:"#A78BFA", background:"rgba(167,139,250,0.12)", padding:"1px 6px", borderRadius:3, maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"inline-block"}}>
                   {alerta.dork}
                 </span>
               </>
@@ -155,7 +155,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
             <div className="alert-enter" style={{marginTop:14, display:"flex", flexDirection:"column", gap:10}}>
               {alerta.analise_ia && (
                 <div style={{padding:"12px 16px", background:"rgba(232,160,32,0.08)", border:"1px solid rgba(232,160,32,0.25)", borderLeft:"3px solid #E8A020", borderRadius:8}}>
-                  <div style={{fontSize:10, fontWeight:700, color:"#E8A020", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:6}}>
+                  <div style={{fontSize: 12, fontWeight:700, color:"#E8A020", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:6}}>
                     ◈ Análise Tática — BASTOS-UNIT
                   </div>
                   <div style={{fontSize:14.3, color:"#F1F5F9", lineHeight:1.65}}>{alerta.analise_ia}</div>
@@ -310,7 +310,7 @@ export default function Alertas({ onNavigate }) {
             <span style={{fontSize:14.3,fontWeight:800,color:"#E8A020",letterSpacing:"0.1em",textTransform:"uppercase"}}>Alertas</span>
           </div>
           {naoLidos > 0 && (
-            <span style={{fontSize:10,color:"#F87171",fontWeight:800,fontFamily:MONO,background:"rgba(239,68,68,0.12)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>
+            <span style={{fontSize: 12,color:"#F87171",fontWeight:800,fontFamily:MONO,background:"rgba(239,68,68,0.12)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>
               {naoLidos} novos
             </span>
           )}

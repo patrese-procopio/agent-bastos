@@ -16,7 +16,7 @@ const C = {
   accentDim:   "rgba(194,106,26,0.12)",
   accentBorder:"rgba(194,106,26,0.35)",
   text:        "#E8EDF5",
-  textDim:     "#6B7A99",
+  textDim:     "#8B9CB8",
   textMid:     "#94A3B8",
   success:     "#10B981",
   warning:     "#F59E0B",
@@ -58,7 +58,7 @@ function Badge({ children, color, bg, border }) {
     <span style={{
       display: "inline-flex", alignItems: "center",
       background: bg, color, border: `1px solid ${border}`,
-      fontFamily: MONO, fontSize: 10, fontWeight: 700,
+      fontFamily: MONO, fontSize: 12, fontWeight: 700,
       padding: "3px 10px", borderRadius: 3,
       letterSpacing: "0.1em", whiteSpace: "nowrap",
     }}>{children}</span>
@@ -68,7 +68,7 @@ function Badge({ children, color, bg, border }) {
 function SectionLabel({ children, accent }) {
   return (
     <div style={{
-      fontFamily: MONO, fontSize: 10, fontWeight: 700,
+      fontFamily: MONO, fontSize: 12, fontWeight: 700,
       color: accent ? C.accent : C.textDim,
       letterSpacing: "0.18em", marginBottom: 10,
       display: "flex", alignItems: "center", gap: 8,
@@ -132,7 +132,7 @@ function Timeline({ eventos }) {
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: crit.color, fontSize: 13, fontWeight: 700 }}>{icone}</span>
-                  <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.12em" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 12, color: C.textDim, letterSpacing: "0.12em" }}>
                     {ev.tipo_evento}
                   </span>
                 </div>
@@ -140,7 +140,7 @@ function Timeline({ eventos }) {
                   <Badge color={crit.color} bg={crit.bg} border={`${crit.color}44`}>
                     {ev.criticidade}
                   </Badge>
-                  <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim }}>
+                  <span style={{ fontFamily: MONO, fontSize: 12, color: C.textDim }}>
                     {ev.data_isolada !== "DATA_INCERTA" ? ev.data_isolada : "⚠ INCERTA"}
                   </span>
                 </div>
@@ -151,7 +151,7 @@ function Timeline({ eventos }) {
               </p>
 
               {ev.data_texto_original && (
-                <p style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, margin: "0 0 10px 0", fontStyle: "italic" }}>
+                <p style={{ fontFamily: MONO, fontSize: 12, color: C.textDim, margin: "0 0 10px 0", fontStyle: "italic" }}>
                   "{ev.data_texto_original}"
                 </p>
               )}
@@ -160,21 +160,21 @@ function Timeline({ eventos }) {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {ev.entidades?.atores?.map((a, j) => (
                     <span key={`a${j}`} style={{
-                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      fontFamily: MONO, fontSize: 12, padding: "2px 8px", borderRadius: 3,
                       background: "rgba(239,68,68,0.1)", color: "#FCA5A5",
                       border: "1px solid rgba(239,68,68,0.25)",
                     }}>● {a}</span>
                   ))}
                   {ev.entidades?.locais?.map((l, j) => (
                     <span key={`l${j}`} style={{
-                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      fontFamily: MONO, fontSize: 12, padding: "2px 8px", borderRadius: 3,
                       background: "rgba(59,130,246,0.1)", color: "#93C5FD",
                       border: "1px solid rgba(59,130,246,0.25)",
                     }}>◎ {l}</span>
                   ))}
                   {ev.entidades?.organizacoes?.map((o, j) => (
                     <span key={`o${j}`} style={{
-                      fontFamily: MONO, fontSize: 10, padding: "2px 8px", borderRadius: 3,
+                      fontFamily: MONO, fontSize: 12, padding: "2px 8px", borderRadius: 3,
                       background: "rgba(16,185,129,0.1)", color: "#6EE7B7",
                       border: "1px solid rgba(16,185,129,0.25)",
                     }}>▲ {o}</span>
@@ -348,7 +348,7 @@ export default function Grafoscopia({ onNavigate }) {
             <span style={{ fontSize: 20 }}>🔬</span>
           </div>
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.2em" }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, color: C.textDim, letterSpacing: "0.2em" }}>
               AGENT BASTOS / FERRAMENTAS
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.text, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
@@ -359,12 +359,12 @@ export default function Grafoscopia({ onNavigate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.success }}/>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.1em" }}>
+            <span style={{ fontFamily: MONO, fontSize: 12, color: C.textDim, letterSpacing: "0.1em" }}>
               GEMINI 2.5 FLASH
             </span>
           </div>
           <div style={{ height: 28, width: 1, background: C.border }}/>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: C.textDim, letterSpacing: "0.1em" }}>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: C.textDim, letterSpacing: "0.1em" }}>
             TRANSCRIÇÃO FORENSE + CRONOLOGIA
           </span>
         </div>
@@ -401,7 +401,7 @@ export default function Grafoscopia({ onNavigate }) {
                   position: "absolute", bottom: 0, left: 0, right: 0,
                   background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
                   padding: "20px 12px 10px",
-                  fontFamily: MONO, fontSize: 10, color: C.textMid,
+                  fontFamily: MONO, fontSize: 12, color: C.textMid,
                 }}>
                   {arquivo?.name}
                 </div>
@@ -416,7 +416,7 @@ export default function Grafoscopia({ onNavigate }) {
                 <div style={{ fontFamily: MONO, fontSize: 11, color: C.textMid, lineHeight: 1.6 }}>
                   Arraste o documento<br/>ou clique para selecionar
                 </div>
-                <div style={{ marginTop: 10, fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.15em" }}>
+                <div style={{ marginTop: 10, fontFamily: MONO, fontSize: 11, color: C.textDim, letterSpacing: "0.15em" }}>
                   JPEG · PNG · WEBP · GIF
                 </div>
               </div>
@@ -427,7 +427,7 @@ export default function Grafoscopia({ onNavigate }) {
 
           {/* Tipo */}
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
               TIPO DE DOCUMENTO
             </div>
             <select value={tipoDoc} onChange={e => setTipoDoc(e.target.value)} style={{
@@ -441,7 +441,7 @@ export default function Grafoscopia({ onNavigate }) {
 
           {/* Contexto */}
           <div>
-            <div style={{ fontFamily: MONO, fontSize: 9, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, color: C.textDim, letterSpacing: "0.18em", marginBottom: 6 }}>
               CONTEXTO OPERACIONAL
               <span style={{ color: C.textDim, marginLeft: 6, fontWeight: 400 }}>/ OPCIONAL</span>
             </div>
@@ -479,7 +479,7 @@ export default function Grafoscopia({ onNavigate }) {
           {arquivo && (
             <button onClick={aoLimpar} style={{
               padding: "9px 0", background: "transparent", border: `1px solid ${C.border}`,
-              borderRadius: 4, fontFamily: MONO, fontSize: 10, color: C.textDim,
+              borderRadius: 4, fontFamily: MONO, fontSize: 12, color: C.textDim,
               cursor: "pointer", letterSpacing: "0.12em", transition: "border-color .2s",
             }}
               onMouseOver={e => e.currentTarget.style.borderColor = C.borderHover}
@@ -492,7 +492,7 @@ export default function Grafoscopia({ onNavigate }) {
             background: C.accentDim, border: `1px solid ${C.accentBorder}`,
             borderLeft: `3px solid ${C.accent}`, borderRadius: 4, padding: "12px 14px", marginTop: 4,
           }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, color: C.accent, letterSpacing: "0.18em", marginBottom: 8 }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, color: C.accent, letterSpacing: "0.18em", marginBottom: 8 }}>
               CAPACIDADES DO MÓDULO
             </div>
             {[
@@ -502,7 +502,7 @@ export default function Grafoscopia({ onNavigate }) {
               "Classificação de criticidade operacional",
             ].map((item, i) => (
               <div key={i} style={{
-                fontFamily: MONO, fontSize: 10, color: C.textMid,
+                fontFamily: MONO, fontSize: 12, color: C.textMid,
                 padding: "4px 0", lineHeight: 1.5,
                 borderBottom: i < 3 ? `1px solid ${C.border}` : "none",
                 display: "flex", gap: 8, alignItems: "flex-start",
@@ -532,7 +532,7 @@ export default function Grafoscopia({ onNavigate }) {
                 <div style={{ fontFamily: MONO, fontSize: 11, color: C.textMid, letterSpacing: "0.1em", marginBottom: 6 }}>
                   AGUARDANDO DOCUMENTO
                 </div>
-                <div style={{ fontFamily: MONO, fontSize: 10, color: C.textDim }}>
+                <div style={{ fontFamily: MONO, fontSize: 12, color: C.textDim }}>
                   Selecione uma imagem para iniciar a análise forense
                 </div>
               </div>
@@ -582,7 +582,7 @@ export default function Grafoscopia({ onNavigate }) {
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={exportarTxt} style={{
                     padding: "6px 14px", background: C.surface, border: `1px solid ${C.border}`,
-                    borderRadius: 4, fontFamily: MONO, fontSize: 10, color: C.textMid,
+                    borderRadius: 4, fontFamily: MONO, fontSize: 12, color: C.textMid,
                     cursor: "pointer", letterSpacing: "0.1em", transition: "all .2s",
                   }}
                     onMouseOver={e => { e.currentTarget.style.borderColor = C.borderHover; e.currentTarget.style.color = C.text }}
@@ -592,7 +592,7 @@ export default function Grafoscopia({ onNavigate }) {
                     padding: "6px 14px",
                     background: `linear-gradient(135deg, ${C.accent}, ${C.accentHover})`,
                     border: `1px solid ${C.accent}`, borderRadius: 4,
-                    fontFamily: MONO, fontSize: 10, color: "#fff",
+                    fontFamily: MONO, fontSize: 12, color: "#fff",
                     cursor: "pointer", letterSpacing: "0.1em", transition: "opacity .2s",
                   }}
                     onMouseOver={e => e.currentTarget.style.opacity = ".85"}
@@ -650,7 +650,7 @@ export default function Grafoscopia({ onNavigate }) {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <SectionLabel>LINHA DO TEMPO ANALÍTICA</SectionLabel>
                       <span style={{
-                        fontFamily: MONO, fontSize: 9, color: "#10B981",
+                        fontFamily: MONO, fontSize: 11, color: "#10B981",
                         background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
                         padding: "3px 10px", borderRadius: 3, letterSpacing: "0.1em",
                       }}>
@@ -713,7 +713,7 @@ export default function Grafoscopia({ onNavigate }) {
                 ].map(([k, v]) => v && (
                   <span key={k} style={{
                     background: C.surfaceUp, borderRadius: 3,
-                    padding: "3px 10px", fontFamily: MONO, fontSize: 9,
+                    padding: "3px 10px", fontFamily: MONO, fontSize: 11,
                     color: C.textDim, border: `1px solid ${C.border}`,
                   }}>
                     <span style={{ color: C.textMid, marginRight: 4 }}>{k}:</span>{v}
