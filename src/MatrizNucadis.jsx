@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
 import { C, MONO, SANS } from "./theme"
+import { SkeletonGrid, SkeletonLine } from "./Skeleton"
 
 /* ============================================================
    MATRIZ DE CALOR DOS NUCADIs
@@ -37,17 +38,37 @@ function heatRGB(ratio) {
   return a[1].map((v, i) => Math.round(v + (b[1][i] - v) * t))
 }
 
-export default function MatrizNucadis() {
-  const [dados, setDados] = useState(null)
-  const [aud, setAud]     = useState(null)
-  const [modo, setModo]   = useState("combinado")
+function MatrizSkeleton() {
+  return (
+    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <SkeletonGrid cols={4} rows={1} style={{ marginBottom: 8 }} />
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <SkeletonLine width={120} height={13} delay={i * 0.07} />
+          <SkeletonLine width="100%" height={22} delay={i * 0.07 + 0.04} style={{ borderRadius: 4 }} />
+          <SkeletonLine width={40} height={13} delay={i * 0.07 + 0.08} />
+        </div>
+      ))}
+    </div>
+  )
+}
 
-  const carregar = useCallback(async ()=>{
+export default function MatrizNucadis() {
+  const [dados,     setDados]     = useState(null)
+  const [aud,       setAud]       = useState(null)
+  const [modo,      setModo]      = useState("combinado")
+  const [loading,   setLoading]   = useState(true)
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
     try { const r=await api.get("/extrato/heatmap"); if(r.ok) setDados(await r.json()) } catch {}
     try { const r=await api.get("/extrato/auditoria/verificar"); if(r.ok) setAud(await r.json()) } catch {}
+    setLoading(false)
   },[])
   useEffect(()=>{ const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); return ()=>document.head.removeChild(s) },[])
   useEffect(()=>{ carregar() },[carregar])
+
+  if (loading) return <div style={S.page}><MatrizSkeleton /></div>
 
   const kpi = dados?.kpi || {total:0,processados:0,risco_alto:0,bloqueados:0}
   const unidades = dados?.por_unidade || []

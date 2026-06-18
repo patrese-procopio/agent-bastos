@@ -2,6 +2,7 @@
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
 import api from "./api"
+import { toast } from "./Toast"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 const CORES = {
@@ -330,7 +331,8 @@ export default function ControleGrupos({ onNavigate }) {
 
       doc.save(`mapa-controle-${unit.toLowerCase()}-${dados.atualizado}.pdf`)
     } catch (e) {
-      console.error("Erro ao exportar PDF:", e)
+      if (import.meta.env.DEV) console.error("Erro ao exportar PDF:", e)
+      toast.error("Falha ao gerar PDF. Tente novamente.")
     } finally {
       setExportando(false)
     }
@@ -447,7 +449,7 @@ export default function ControleGrupos({ onNavigate }) {
             ) : (
               <>
                 <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(0,0,0,0.35)",zIndex:0}}/>
-                <img ref={imgRef} src={imgSrc} alt={unit} onLoad={calcRect} onError={()=>{console.log("ERRO IMG:", imgSrc); setErr(e=>({...e,[unit]:true}))}} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}/>
+                <img ref={imgRef} src={imgSrc} alt={unit} onLoad={calcRect} onError={()=>setErr(e=>({...e,[unit]:true}))} style={{width:"100%",height:"100%",objectFit:"contain",display:"block",position:"relative",zIndex:1}}/>
               </>
             )}
             {!err[unit] && imgRect && Object.entries(pavs).map(([id,p]) => {

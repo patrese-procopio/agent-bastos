@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import api from "./api"
 import { C, MONO, SANS } from "./theme"
 import { toast } from "./Toast"
+import { SkeletonListItem } from "./Skeleton"
 
 /*
   DICIONÁRIO DE SINAIS FRACOS
@@ -47,12 +48,13 @@ const badge = (color, bg, border) => ({
 })
 
 export default function SinaisFracos() {
-  const [termos, setTermos] = useState([])
-  const [filtro, setFiltro] = useState("todos")
-  const [busca,  setBusca]  = useState("")
-  const [edit,   setEdit]   = useState(null)
+  const [termos,  setTermos]  = useState([])
+  const [filtro,  setFiltro]  = useState("todos")
+  const [busca,   setBusca]   = useState("")
+  const [edit,    setEdit]    = useState(null)
+  const [loading, setLoading] = useState(true)
   // [toast local removido — usa toast global de ./Toast]
-  const [busy,   setBusy]   = useState(false)
+  const [busy,    setBusy]    = useState(false)
 
   const aviso = (m, c) => {
     if (c === C.red)     return toast.error(m)
@@ -67,10 +69,12 @@ export default function SinaisFracos() {
   }, [])
 
   const carregar = useCallback(async () => {
+    setLoading(true)
     try {
       const r = await api.get("/extrato/lexico")
       if (r.ok) setTermos((await r.json()).termos || [])
     } catch {}
+    setLoading(false)
   }, [])
   useEffect(() => { carregar() }, [carregar])
 
@@ -288,13 +292,17 @@ export default function SinaisFracos() {
 
           {/* Linhas */}
           <div style={{border:`1px solid ${C.border}`,borderRadius:"0 0 8px 8px",overflow:"hidden"}}>
-            {lista.length === 0 && (
+            {loading && Array.from({length: 6}).map((_,i) => (
+              <SkeletonListItem key={i} delay={i * 0.07} lines={2}
+                style={{ padding:"12px 16px", borderBottom:`1px solid ${C.border}` }} />
+            ))}
+            {!loading && lista.length === 0 && (
               <div style={{padding:"32px",textAlign:"center",fontSize:14,
                 color:C.textDim,fontFamily:MONO}}>
                 Nenhum termo. Submeta extratos no Módulo Extrato para popular o léxico.
               </div>
             )}
-            {lista.map((t, i) => {
+            {!loading && lista.map((t, i) => {
               const nc     = NIVEL_COR[t.nivel] || NIVEL_COR["MÉDIO"]
               const sc     = STATUS_COR[t.status] || STATUS_COR.candidato
               const emEdicao = edit && edit.termo === t.termo

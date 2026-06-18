@@ -16,7 +16,7 @@ import { useState, useCallback, useEffect } from "react"
 let _push = null
 
 function pushToast(msg, type = "info", duration = 3500) {
-  if (!_push) { console.warn("[Toast] ToastContainer não montado ainda."); return }
+  if (!_push) { if (import.meta.env.DEV) console.warn("[Toast] ToastContainer não montado ainda."); return }
   _push({ id: Date.now() + Math.random(), msg, type, duration })
 }
 

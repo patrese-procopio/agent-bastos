@@ -23,7 +23,7 @@ const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-
 let _open = null
 
 export function confirm(config) {
-  if (!_open) { console.warn("[ConfirmModal] ConfirmModalContainer não montado."); return }
+  if (!_open) { if (import.meta.env.DEV) console.warn("[ConfirmModal] ConfirmModalContainer não montado."); return }
   _open(config)
 }
 
