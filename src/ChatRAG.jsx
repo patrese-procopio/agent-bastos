@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react"
 import api from "./api"
+import { toast } from "./Toast"
+
+const LLM_TIMEOUT_MS = 90_000  // 90s — margem para modelos locais em hardware modesto
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -91,8 +94,18 @@ export default function ChatRAG({ onNavigate }) {
     setFonteAtiva(null)
     setMessages(prev => [...prev, { role: "user", text: pergunta }])
     setLoading(true)
+
+    // Race entre a requisição e um timeout de LLM_TIMEOUT_MS
+    // Não cancela o fetch no servidor, mas desbloqueia a UI imediatamente
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("LLM_TIMEOUT")), LLM_TIMEOUT_MS)
+    )
+
     try {
-      const res = await api.post("/chat", { pergunta })
+      const res = await Promise.race([
+        api.post("/chat", { pergunta }),
+        timeoutPromise,
+      ])
       const data = await res.json()
       setMessages(prev => [...prev, {
         role: "bastos",
@@ -101,13 +114,13 @@ export default function ChatRAG({ onNavigate }) {
         fontes: data.fontes || []
       }])
       setFontes(data.fontes || [])
-    } catch {
-      setMessages(prev => [...prev, {
-        role: "bastos",
-        text: "FALHA: sem conexão com o backend.",
-        confianca: 0,
-        fontes: []
-      }])
+    } catch (e) {
+      const isTimeout = e?.message === "LLM_TIMEOUT"
+      const msg = isTimeout
+        ? "⏱ O modelo demorou mais de 90s. Pode estar sobrecarregado — tente novamente em instantes."
+        : "FALHA: sem conexão com o backend."
+      setMessages(prev => [...prev, { role: "bastos", text: msg, confianca: 0, fontes: [] }])
+      if (isTimeout) toast.warn("Timeout do modelo. Tente novamente.")
     } finally {
       setLoading(false)
     }

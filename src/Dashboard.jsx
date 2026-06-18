@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
@@ -189,8 +190,14 @@ export default function Dashboard() {
   async function excluir(id) {
     try {
       const res = await api.delete("/dashboard/lancar/" + id)
-      if (res && res.ok) await carregar()
-    } catch { /* ignora */ }
+      if (res?.ok) {
+        await carregar()
+      } else {
+        toast.error("Falha ao excluir lançamento. O registro foi mantido.")
+      }
+    } catch {
+      toast.error("Erro de conexão ao excluir lançamento.")
+    }
   }
 
   const TABS = [["geral", "Visão Geral"], ["documentos", "Por Documento"], ["lancamentos", "Lançamentos"], ["lancamento", "+ Lançamento"], ["radar", "📡 Radar de Risco"], ["autonomia", "⚡ Autonomia"]]

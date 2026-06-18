@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { jsPDF } from "jspdf"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -246,7 +247,7 @@ export default function InteligenciaGrupos({ onNavigate }) {
     api.get("/grupos/kpis")
       .then(r => r.json())
       .then(setKpis)
-      .catch(() => {})
+      .catch(() => toast.warn("KPIs indisponíveis. Verifique a conexão com o backend."))
       .finally(() => setLoading(false))
   }, [])
 
