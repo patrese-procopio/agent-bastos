@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -298,7 +299,7 @@ export default function GerenciarUsuarios() {
     try {
       await api.put(`/auth/usuarios/${u.username}`, { active: !u.active })
       await carregar()
-    } catch { alert("Erro ao alterar status.") }
+    } catch { toast.error("Falha ao alterar status do usuário.") }
   }
 
   async function deletar(username) {
@@ -306,7 +307,7 @@ export default function GerenciarUsuarios() {
       await api.delete(`/auth/usuarios/${username}`)
       setConfirmar(null)
       await carregar()
-    } catch { alert("Erro ao remover usuário.") }
+    } catch { toast.error("Falha ao remover usuário. Tente novamente.") }
   }
 
   // Contadores por perfil
@@ -498,9 +499,4 @@ export default function GerenciarUsuarios() {
         <ModalConfirmar
           username={confirmar}
           onClose={() => setConfirmar(null)}
-          onConfirm={() => deletar(confirmar)}
-        />
-      )}
-    </div>
-  )
-}
+         

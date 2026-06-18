@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO    = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS    = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -111,7 +112,7 @@ function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }
       a.href     = URL.createObjectURL(blob)
       a.download = tipo==="geral" ? `liderancas_geral_${comp}.pdf` : `liderancas_${unidade}_${comp}.pdf`
       a.click()
-    } catch(e) { alert("Erro: "+e.message) }
+    } catch { toast.error("Falha ao exportar relatório. Tente novamente.") }
     finally { setBaixando(false) }
   }
 
@@ -758,8 +759,4 @@ export default function LiderancasUnidade({ onNavigate }) {
         .lu-tab:hover  { border-color: rgba(232,160,32,0.4) !important; }
         .lu-scroll::-webkit-scrollbar{width:8px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
         .lu-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:6px}
-        .lu-scroll::-webkit-scrollbar-thumb:hover{background:rgba(232,160,32,0.4)}
-      `}</style>
-    </div>
-  )
-}
+        .lu-scroll::-webkit-scrollbar-thumb:hover{ba

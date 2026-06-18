@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -294,7 +295,7 @@ function SubintModal({ hitl, onClose }) {
       a.click()
       URL.revokeObjectURL(url)
     } catch(e) {
-      alert(`Falha ao baixar ${formato.toUpperCase()}. Tente novamente.`)
+      toast.error(`Falha ao baixar ${formato.toUpperCase()}. Tente novamente.`)
     } finally {
       setBaixando(false)
     }
@@ -522,7 +523,7 @@ function SubintPreviewModal({ subintId, onClose }) {
       a.download = `SUBINT_${(doc?.numero || subintId.slice(0, 8)).replace(/\//g, "-")}.${formato}`
       a.click()
       URL.revokeObjectURL(url)
-    } catch { alert(`Falha ao baixar ${formato.toUpperCase()}.`) }
+    } catch { toast.error(`Falha ao baixar ${formato.toUpperCase()}.`) }
     finally { setBaixando(false) }
   }
 
@@ -737,7 +738,7 @@ export default function HitlDashboard() {
       await carregar()
       await carregarScores()
     } catch {
-      alert("Falha ao registrar decisão. Tente novamente.")
+      toast.error("Falha ao registrar decisão. Tente novamente.")
     } finally {
       setAcao(prev => ({ ...prev, [id]: null }))
       setConfirmModal(null)
@@ -1283,7 +1284,7 @@ function SubintDownloadBtns({ id, numero }) {
       a.download = `SUBINT_${(numero||id.slice(0,8)).replace(/\//g,"-")}.${formato}`
       a.click()
       URL.revokeObjectURL(url)
-    } catch { alert(`Falha ao baixar ${formato.toUpperCase()}.`) }
+    } catch { toast.error(`Falha ao baixar ${formato.toUpperCase()}.`) }
     finally { set(false) }
   }
 
@@ -1640,10 +1641,4 @@ function RadarExpandido({ scores, onRefresh }) {
                 fontFamily:MONO, letterSpacing:"0.07em", flexShrink:0 }}>
                 {s.classificacao}
               </span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
+            </div

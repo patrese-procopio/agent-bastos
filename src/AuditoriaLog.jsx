@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
+import { toast } from "./Toast"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -110,7 +111,7 @@ export default function AuditoriaLog() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      alert(`Erro ao exportar ${tipo.toUpperCase()}.`)
+      toast.error(`Falha ao exportar ${tipo.toUpperCase()}. Tente novamente.`)
     } finally { setExportando(null) }
   }
 
@@ -327,9 +328,4 @@ export default function AuditoriaLog() {
                 opacity:currentPage>=totalPages?0.4:1}}>
               Próximo →
             </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+  

@@ -60,6 +60,8 @@ async function request(method, path, body = null) {
       localStorage.removeItem("ab_access_token")
       localStorage.removeItem("ab_refresh_token")
       localStorage.removeItem("ab_user")
+      // Notifica o React root para deslogar sem reload de página
+      window.dispatchEvent(new CustomEvent("ab:logout"))
       return res
     }
   }
@@ -82,10 +84,4 @@ const api = {
     form.append("password", password)
     return fetch(`${BASE}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form,
-    })
-  },
-}
-
-export default api
+   

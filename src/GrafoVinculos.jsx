@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import ForceGraph2D from "react-force-graph-2d"
 import api from "./api"
+import { confirm } from "./ConfirmModal"
 import {
   GALERIA, CATEGORIAS, corCategoria, labelCategoria, iconePadrao,
 } from "./iconesGrafo"
@@ -245,15 +246,22 @@ export default function GrafoVinculos() {
     fgRef.current?.refresh?.()
     aviso("Foto removida.", C.textMid)
   }
-  async function excluirNo(id) {
-    if (!window.confirm("Excluir este nó e seus vínculos?")) return
-    const r = await api.delete(`/grafo/no/${id}`)
-    if (!r.ok) { aviso("Falha ao excluir.", C.red); return }
-    setGraph(g => ({
-      nodes: g.nodes.filter(n => n.id !== id),
-      links: g.links.filter(l => (l.source.id || l.source) !== id && (l.target.id || l.target) !== id),
-    }))
-    setSel(null); aviso("Nó removido.", C.textMid)
+  function excluirNo(id) {
+    confirm({
+      title: "Excluir nó",
+      description: "Isso removerá o nó e todos os vínculos associados do grafo. Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir",
+      destructive: true,
+      onConfirm: async () => {
+        const r = await api.delete(`/grafo/no/${id}`)
+        if (!r.ok) { aviso("Falha ao excluir.", C.red); return }
+        setGraph(g => ({
+          nodes: g.nodes.filter(n => n.id !== id),
+          links: g.links.filter(l => (l.source.id || l.source) !== id && (l.target.id || l.target) !== id),
+        }))
+        setSel(null); aviso("Nó removido.", C.textMid)
+      },
+    })
   }
   async function excluirAresta(id) {
     const r = await api.delete(`/grafo/aresta/${id}`)
@@ -841,8 +849,4 @@ function Overlay({ children, onClose }) {
   )
 }
 function Lbl({ children, noMargin }) {
-  return <div style={{ fontSize: 11.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}>{children}</div>
-}
-function inp() {
-  return { width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }
-}
+  return <div style={{ fontSize: 11.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}

@@ -488,6 +488,13 @@ export default function App() {
     setUser(null)
   }
 
+  // ── Logout automático quando token expira (api.js dispara 'ab:logout') ──
+  useEffect(() => {
+    function onSessionExpired() { setUser(null) }
+    window.addEventListener("ab:logout", onSessionExpired)
+    return () => window.removeEventListener("ab:logout", onSessionExpired)
+  }, [])  // setUser é estável — [] é seguro aqui
+
   // ── openTab: abre nova aba ou foca a existente ─────────────────────────
   function openTab(label) {
     setTabs(prev => {
@@ -2016,13 +2023,4 @@ function PoliciesModal({onClose}) {
           </div>
         </div>
         <div style={{padding:"14px 30px",borderTop:`1px solid ${C.border}`,background:"#0F172A",
-          display:"flex",justifyContent:"flex-end",flexShrink:0}}>
-          <button onClick={onClose} style={{padding:"10px 28px",background:C.gold,color:"#F1F5F9",
-            border:"none",borderRadius:8,fontSize:13,fontWeight:800,cursor:"pointer",letterSpacing:"0.02em"}}>
-            Fechar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+          disp
