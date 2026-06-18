@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
 import { C, MONO, SANS } from "./theme"
+import { toast } from "./Toast"
 
 /*
   DICIONÁRIO DE SINAIS FRACOS
@@ -50,10 +51,15 @@ export default function SinaisFracos() {
   const [filtro, setFiltro] = useState("todos")
   const [busca,  setBusca]  = useState("")
   const [edit,   setEdit]   = useState(null)
-  const [toast,  setToast]  = useState(null)
+  // [toast local removido — usa toast global de ./Toast]
   const [busy,   setBusy]   = useState(false)
 
-  const aviso = (m, c=C.gold) => { setToast({m,c}); setTimeout(()=>setToast(null), 2800) }
+  const aviso = (m, c) => {
+    if (c === C.red)     return toast.error(m)
+    if (c === C.green)   return toast.success(m)
+    if (c === C.textMid) return toast.info(m)
+    toast.warn(m)
+  }
 
   useEffect(() => {
     const s = document.createElement("style"); s.textContent = CSS
@@ -415,15 +421,6 @@ export default function SinaisFracos() {
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{position:"fixed",bottom:26,left:"50%",transform:"translateX(-50%)",
-          background:"#0A0F1C",border:`1px solid ${toast.c}`,borderRadius:10,
-          padding:"12px 22px",fontSize:14,fontWeight:700,fontFamily:MONO,
-          zIndex:9999,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",color:toast.c}}>
-          {toast.m}
-        </div>
-      )}
     </div>
   )
 }

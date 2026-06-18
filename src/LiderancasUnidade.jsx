@@ -539,7 +539,7 @@ export default function LiderancasUnidade({ onNavigate }) {
   const [modal,       setModal]       = useState(null)
   const [modalPDF,    setModalPDF]    = useState(false)
   const [busca,       setBusca]       = useState("")
-  const [toast,       setToast]       = useState(null)
+  // [toast local removido — usa toast global de ./Toast]
   const [compAtual,   setCompAtual]   = useState("")
 
   // ── FIX: guard contra null/undefined ──────────────────────────────────────
@@ -547,7 +547,7 @@ export default function LiderancasUnidade({ onNavigate }) {
     Object.entries(estrutura||{}).map(([k,v])=>[k,v.label])
   )
 
-  const toast$ = (msg,tipo="ok") => { setToast({msg,tipo}); setTimeout(()=>setToast(null),3000) }
+  const toast$ = (msg, tipo="ok") => tipo === "ok" ? toast.success(msg) : toast.error(msg)
 
   async function carregarEstrutura() {
     try {
@@ -738,14 +738,6 @@ export default function LiderancasUnidade({ onNavigate }) {
           competencia={competencia||compAtual} competencias={competencias} onFechar={()=>setModalPDF(false)}/>
       )}
 
-      {toast && (
-        <div style={{position:"fixed",bottom:24,right:24,padding:"10px 18px",borderRadius:4,
-          background:toast.tipo==="erro"?"#DC2626":C.surfaceUp,color:"#FFF",fontSize:13,fontWeight:700,
-          fontFamily:MONO,border:`1px solid ${C.border}`,zIndex:2000,animation:"fadeUp .2s ease"}}>
-          {toast.tipo==="erro"?"✗ ":"✓ "}{toast.msg}
-        </div>
-      )}
-
       <style>{`
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
@@ -759,4 +751,8 @@ export default function LiderancasUnidade({ onNavigate }) {
         .lu-tab:hover  { border-color: rgba(232,160,32,0.4) !important; }
         .lu-scroll::-webkit-scrollbar{width:8px} .lu-scroll::-webkit-scrollbar-track{background:transparent}
         .lu-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:6px}
-        .lu-scroll::-webkit-scrollbar-thumb:hover{ba
+        .lu-scroll::-webkit-scrollbar-thumb:hover{background:rgba(232,160,32,0.4)}
+      `}</style>
+    </div>
+  )
+}

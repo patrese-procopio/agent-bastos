@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import ForceGraph2D from "react-force-graph-2d"
 import api from "./api"
 import { confirm } from "./ConfirmModal"
+import { toast } from "./Toast"
 import {
   GALERIA, CATEGORIAS, corCategoria, labelCategoria, iconePadrao,
 } from "./iconesGrafo"
@@ -50,7 +51,7 @@ export default function GrafoVinculos() {
   const [edit, setEdit]         = useState(false)
   const [linking, setLinking]   = useState(null)        // {sourceId} enquanto conecta
   const [modal, setModal]       = useState(null)        // 'novoNo' | 'editNo' | 'editLink' | 'novoAlvo'
-  const [toast, setToast]       = useState(null)
+  // [toast local removido — usa toast global de ./Toast]
   const [carregando, setCarreg] = useState(false)
   const [busy, setBusy]         = useState(false)
   const [dim, setDim]           = useState({ w: 800, h: 600 })
@@ -75,7 +76,13 @@ export default function GrafoVinculos() {
     ro.observe(wrapRef.current); return () => ro.disconnect()
   }, [])
 
-  const aviso = (msg, cor = C.gold) => { setToast({ msg, cor }); setTimeout(() => setToast(null), 2600) }
+  // aviso() substituído por toast global — mapeia cor → tipo
+  const aviso = (msg, cor) => {
+    if (cor === C.red)   return toast.error(msg)
+    if (cor === C.green) return toast.success(msg)
+    if (cor === C.textMid || cor === C.oracleLight) return toast.info(msg)
+    toast.warn(msg)
+  }
 
   /* Carrega meta + alvos */
   const carregarAlvos = useCallback(async () => {
@@ -548,7 +555,6 @@ export default function GrafoVinculos() {
           onSalvar={async (rotulo, direcionada) => { setModal(null); await atualizarAresta(modal.data.id, { rotulo, direcionada }) }} />
       )}
 
-      {toast && <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: C.surfaceUp, border: `1px solid ${toast.cor}55`, color: toast.cor, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: MONO, zIndex: 2000, boxShadow: "0 8px 30px rgba(0,0,0,0.5)" }}>{toast.msg}</div>}
     </div>
   )
 }
@@ -849,4 +855,8 @@ function Overlay({ children, onClose }) {
   )
 }
 function Lbl({ children, noMargin }) {
-  return <div style={{ fontSize: 11.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}
+  return <div style={{ fontSize: 11.5, fontWeight: 700, color: C.textDim, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, marginBottom: noMargin ? 0 : 6 }}>{children}</div>
+}
+function inp() {
+  return { width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", fontSize: 13, color: C.text, outline: "none", fontFamily: MONO, caretColor: C.gold }
+}

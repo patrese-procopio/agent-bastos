@@ -34,8 +34,6 @@ const POLLING_MS = 60_000
 const GLOBAL_CSS = `
   @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
   @keyframes calSlide { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes toastIn { from{opacity:0;transform:translateX(72px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(72px)} }
   @keyframes badgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.35)} 70%{box-shadow:0 0 0 6px rgba(220,38,38,0)} }
   @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
   @keyframes overlayIn { from{opacity:0} to{opacity:1} }
@@ -43,8 +41,7 @@ const GLOBAL_CSS = `
   .cal-in { animation: calSlide 0.2s ease forwards; }
   .ag-row:hover { background: rgba(255,255,255,0.04) !important; }
   .badge-pendente { animation: badgePulse 2s ease infinite; }
-  .toast-in { animation: toastIn 0.28s cubic-bezier(.22,1,.36,1) forwards; }
-  .toast-out { animation: toastOut 0.22s ease forwards; }
+  /* .ag-toast-in / .ag-toast-out definidos em index.css */
   .modal-overlay { animation: overlayIn 0.18s ease forwards; }
   .modal-box { animation: modalIn 0.22s cubic-bezier(.22,1,.36,1) forwards; }
   .btn-lancar { display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#B45309,#92400E);color:#FFF;font-size:13px;font-weight:700;font-family:'JetBrains Mono','Roboto Mono','Courier New',monospace;letter-spacing:0.04em;transition:all 0.15s ease;box-shadow:0 2px 8px rgba(180,83,9,0.35); }
@@ -210,7 +207,7 @@ function Toast({ missao, onCiencia, onFechar }) {
   function fechar() { setSaindo(true); setTimeout(onFechar,220) }
   function acusarCiencia() { onCiencia(missao); fechar() }
   return (
-    <div className={saindo?"toast-out":"toast-in"} style={{ position:"fixed",bottom:24,right:24,zIndex:9999,width:330,background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",overflow:"hidden" }}>
+    <div className={saindo?"ag-toast-out":"ag-toast-in"} style={{ position:"fixed",bottom:24,right:24,zIndex:9999,width:330,background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",overflow:"hidden" }}>
       <div style={{ height:3,background:"linear-gradient(90deg,#B45309,#EAB308)",width:"100%" }}/>
       <div style={{ padding:"14px 16px" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>

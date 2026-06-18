@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
 import { C, MONO, SANS, RISK_COLORS } from "./theme"
+import { toast } from "./Toast"
 
 /*
   MÓDULO EXTRATO — submissão, RAE e fusão de homônimos
@@ -272,7 +273,7 @@ export default function Extrato({ onNavigate }) {
   const [sel,    setSel]    = useState(null)
   const [selId,  setSelId]  = useState(null)
   const [busy,   setBusy]   = useState(false)
-  const [toast,  setToast]  = useState(null)
+  // [toast local removido — usa toast global de ./Toast]
   const [cand,   setCand]   = useState([])
 
   const [form, setForm] = useState({
@@ -281,7 +282,11 @@ export default function Extrato({ onNavigate }) {
     topicos:"", corpo:"", classificacao:"reservado", nucleos_destino:"",
   })
 
-  const aviso = (msg, cor=C.gold) => { setToast({msg,cor}); setTimeout(()=>setToast(null), 3200) }
+  const aviso = (msg, cor) => {
+    if (cor === C.red)   return toast.error(msg)
+    if (cor === C.green) return toast.success(msg)
+    toast.warn(msg)
+  }
   const set   = (k,v) => setForm(f=>({...f,[k]:v}))
 
   useEffect(() => {
@@ -709,16 +714,6 @@ export default function Extrato({ onNavigate }) {
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{position:"fixed",bottom:26,left:"50%",transform:"translateX(-50%)",
-          background:"#0A0F1C",border:`1px solid ${toast.cor}`,borderRadius:10,
-          padding:"12px 22px",fontSize:14,fontWeight:700,fontFamily:MONO,
-          zIndex:9999,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",
-          maxWidth:"80%",textAlign:"center",color:toast.cor}}>
-          {toast.msg}
-        </div>
-      )}
     </div>
   )
 }
