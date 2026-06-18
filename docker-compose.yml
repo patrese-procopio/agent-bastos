@@ -85,7 +85,9 @@ services:
       # Chave de criptografia das credenciais salvas no n8n.
       # Gere com: openssl rand -hex 24
       # NUNCA deixe o valor padrão em produção.
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-TROQUE_ESTA_CHAVE_openssl_rand_hex_24}
+      - N8N_ENCRYPTION_KEY=3tQuKu+32vGMllGsXTGHNswqPEVWv0sP
+      # Windows: NTFS não suporta chmod Unix — desativa checagem de permissão
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
       # Desativa telemetria e personalização (privacidade operacional)
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PERSONALIZATION_ENABLED=false
@@ -97,7 +99,8 @@ services:
       # Em produção com domínio: https://n8n.seap.am.gov.br/
       - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678/}
     volumes:
-      - n8n_data:/home/node/.n8n
+      # Bind mount na pasta n8n existente — preserva todos os workflows e credenciais
+      - C:\Users\Administrador\.n8n:/home/node/.n8n
     networks:
       - bastos_net
     healthcheck:
@@ -171,5 +174,5 @@ volumes:
   bastos_chroma:   # Base vetorial ChromaDB (doutrinas, extratos indexados)
   bastos_db:       # SQLite: auth.db, liderancas.db, dashboard.db, grupos.db
   bastos_logs:     # Logs de auditoria cifrados com Fernet (LGPD Art.37)
-  n8n_data:        # Workflows, credenciais e execuções do n8n
+  # n8n_data removido — usando bind mount em C:\Users\Administrador\.n8n
   evolution_data:  # Sessão WhatsApp autenticada (evita novo QR a cada restart)
