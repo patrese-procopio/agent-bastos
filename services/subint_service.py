@@ -589,7 +589,11 @@ def listar_subints(limite: int = 50) -> list[dict]:
 
 def obter_bytes(subint_id: str, formato: str) -> Optional[bytes]:
     """Retorna os bytes binários do PDF ou DOCX para um SUBINT."""
-    col = "pdf_bytes" if formato == "pdf" else "docx_bytes"
+    _COLUNAS_VALIDAS = {"pdf": "pdf_bytes", "docx": "docx_bytes"}
+    col = _COLUNAS_VALIDAS.get(formato)
+    if not col:
+        logger.error("[subint] Formato inválido: %s", formato)
+        return None
     try:
         with _conn() as con:
             row = con.execute(

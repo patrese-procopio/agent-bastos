@@ -35,7 +35,7 @@ services:
     container_name: agent-bastos-api
     env_file: .env
     ports:
-      - "8000:8000"         # Electron conecta aqui no host
+      - "127.0.0.1:8000:8000"   # só loopback — Electron conecta, rede externa não
     volumes:
       # ── Persistência de dados (volumes nomeados) ───────────────────────────
       - bastos_chroma:/app/data/chroma_db    # base vetorial (963+ chunks)
@@ -77,15 +77,14 @@ services:
     image: n8nio/n8n:latest
     container_name: agent-bastos-n8n
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"   # painel n8n só acessível no host local
     environment:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       # Chave de criptografia das credenciais salvas no n8n.
-      # Gere com: openssl rand -hex 24
-      # NUNCA deixe o valor padrão em produção.
-      - N8N_ENCRYPTION_KEY=3tQuKu+32vGMllGsXTGHNswqPEVWv0sP
+      # Valor lido do .env — NUNCA hardcode aqui.
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       # Windows: NTFS não suporta chmod Unix — desativa checagem de permissão
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
       # Desativa telemetria e personalização (privacidade operacional)
@@ -122,7 +121,7 @@ services:
     image: atendai/evolution-api:v1.8.7
     container_name: agent-bastos-evolution
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"   # Evolution API só acessível no host local
     environment:
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-bastos_evo_key_TROQUE}
