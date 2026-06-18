@@ -9,21 +9,28 @@ Rotas registradas:
   GET    /agenda/missoes                        → lista missões recentes
   PATCH  /agenda/missoes/{missao_id}/ciencia    → núcleo acusa ciência
 
-Nota de segurança:
-  A senha do chefe é verificada via SHA-256. A hash está hardcoded aqui
-  por enquanto — em produção deve vir de variável de ambiente.
-  TODO: mover _SENHA_CHEFE_HASH para .env
+Segurança:
+  Senha do chefe verificada com bcrypt (rounds=12).
+  Hash armazenado em CHEFE_PASSWORD_HASH no .env — nunca no código.
+  Para gerar um novo hash: python -c "from passlib.context import CryptContext;
+    c=CryptContext(schemes=['bcrypt']); print(c.hash('SUA_SENHA'))"
 """
 
-import hashlib
+import os
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from passlib.context import CryptContext
 from pydantic import BaseModel
+
 from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["agenda"])
 
-_SENHA_CHEFE_HASH = hashlib.sha256(b"aipen2025").hexdigest()
+# bcrypt com rounds=12 — padrão de mercado para senhas operacionais
+_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Hash lido do .env. Se não configurado em produção, recusa todos os logins.
+_CHEFE_HASH = os.getenv("CHEFE_PASSWORD_HASH", "")
 
 
 # ─── Modelos ─────────────────────────────────────────────────────────────────
@@ -45,7 +52,13 @@ class CienciaRequest(BaseModel):
 
 @router.post("/agenda/login")
 def agenda_login(req: AgendaLoginRequest):
-    ok = hashlib.sha256(req.senha.encode()).hexdigest() == _SENHA_CHEFE_HASH
+    # Sem hash configurado = sistema mal configurado → rejeita por segurança
+    if not _CHEFE_HASH:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Autenticação do chefe não configurada. Contate o administrador.",
+        )
+    ok = _pwd_ctx.verify(req.senha, _CHEFE_HASH)
     return {"ok": ok}
 
 

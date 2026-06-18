@@ -30,6 +30,7 @@ from pydantic import BaseModel
 if "/app" not in sys.path:
     sys.path.insert(0, "/app")
 
+from dependencies import require_module
 from modules.osint.collectors import build_collectors, run_collectors_parallel
 from modules.osint.enrichment import OsintEnrichment
 from modules.osint.lgpd_gate import LgpdGate, LgpdViolationError
@@ -42,6 +43,11 @@ from modules.osint.models import (
 )
 
 router = APIRouter(prefix="/osint", tags=["OSINT — Inteligência de Pessoas"])
+
+# Guard de autenticação aplicado em todos os endpoints deste router.
+# require_module("osint") verifica JWT válido + permissão de módulo.
+# Se o token for inválido → 401. Se o usuário não tiver acesso → 403.
+_GATE = require_module("osint")
 
 # Instâncias reutilizadas entre requests
 _gate = LgpdGate()
@@ -120,7 +126,8 @@ class PesquisarResponse(BaseModel):
     **Tempo médio:** 5-15 segundos (depende das fontes ativas)
     """,
 )
-async def pesquisar(body: PesquisarRequest, request: Request) -> PesquisarResponse:
+async def pesquisar(body: PesquisarRequest, request: Request,
+                    user: dict = Depends(_GATE)) -> PesquisarResponse:
     start = time.monotonic()
 
     # Monta OsintRequest interno
@@ -198,7 +205,7 @@ async def pesquisar(body: PesquisarRequest, request: Request) -> PesquisarRespon
     summary="Busca relatório completo por ID",
     description="Retorna o relatório completo incluindo grafo de vínculos e dados brutos.",
 )
-async def get_relatorio(report_id: str) -> dict:
+async def get_relatorio(report_id: str, user: dict = Depends(_GATE)) -> dict:
     report = _report_cache.get(report_id)
     if not report:
         raise HTTPException(
@@ -213,7 +220,7 @@ async def get_relatorio(report_id: str) -> dict:
     summary="Lista audit log LGPD",
     description="Retorna os últimos registros do audit log. Acesso restrito ao operador.",
 )
-async def get_auditoria(limit: int = 50) -> dict:
+async def get_auditoria(limit: int = 50, user: dict = Depends(_GATE)) -> dict:
     audit_path = Path("logs/osint_audit.jsonl")
     if not audit_path.exists():
         return {"registros": [], "total": 0}
@@ -241,7 +248,7 @@ async def get_auditoria(limit: int = 50) -> dict:
     summary="Health check das fontes OSINT",
     description="Verifica disponibilidade de cada fonte e configuração de variáveis.",
 )
-async def get_status() -> dict:
+async def get_status(user: dict = Depends(_GATE)) -> dict:
     import os
 
     fontes = {
@@ -296,7 +303,7 @@ async def get_status() -> dict:
     description="Gera e retorna o PDF do relatório. Requer que o relatório já tenha sido gerado via POST /pesquisar.",
     response_class=None,
 )
-async def download_pdf(report_id: str):
+async def download_pdf(report_id: str, user: dict = Depends(_GATE)):
     from fastapi.responses import Response
     from modules.osint.report_gen import OsintReportGenerator
 

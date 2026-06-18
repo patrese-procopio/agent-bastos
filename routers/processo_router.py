@@ -9,9 +9,10 @@ Endpoints:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from dependencies import require_module
 from modules.osint.collectors.datajud_processo import (
     DataJudProcessoService,
     ProcessoDetalhado,
@@ -19,6 +20,9 @@ from modules.osint.collectors.datajud_processo import (
 )
 
 router = APIRouter(prefix="/osint", tags=["OSINT — Processo por número"])
+
+# Mesmo guard do router OSINT principal — JWT válido + módulo "osint" liberado
+_GATE = require_module("osint")
 
 
 # ─────────────────────────────────────────────
@@ -37,6 +41,7 @@ router = APIRouter(prefix="/osint", tags=["OSINT — Processo por número"])
 async def consultar_processo(
     numero: str,
     tribunal: str | None = None,
+    user: dict = Depends(_GATE),
 ) -> ProcessoDetalhado | ProcessoNaoEncontrado:
     """
     Consulta um processo pelo número CNJ.
@@ -65,6 +70,7 @@ class LoteRequest(BaseModel):
 )
 async def consultar_lote(
     payload: LoteRequest,
+    user: dict = Depends(_GATE),
 ) -> list[ProcessoDetalhado | ProcessoNaoEncontrado]:
     """Consulta até 10 processos em paralelo."""
     if len(payload.numeros) > 10:
