@@ -1950,6 +1950,13 @@ function PoliciesModal({onClose}) {
 
   function renderTexto(txt) { return txt.replace("{empresa}",data.empresa) }
 
+  function saveEmpresa() {
+    const novo = { ...data, empresa: editEmpresa }
+    setData(novo)
+    localStorage.setItem("ab_policies", JSON.stringify(novo))
+    setEditing(false)
+  }
+
   return (
     <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(7,10,20,0.82)",
       display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}
@@ -2023,4 +2030,13 @@ function PoliciesModal({onClose}) {
           </div>
         </div>
         <div style={{padding:"14px 30px",borderTop:`1px solid ${C.border}`,background:"#0F172A",
-          disp
+          display:"flex",justifyContent:"flex-end",flexShrink:0}}>
+          <button onClick={onClose} style={{padding:"10px 28px",background:C.gold,color:"#F1F5F9",
+            border:"none",borderRadius:8,fontSize:13,fontWeight:800,cursor:"pointer",letterSpacing:"0.02em"}}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
