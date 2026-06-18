@@ -325,7 +325,7 @@ export default function Agenda({ onNavigate }) {
       ]
       setMissoes(mock); return mock
     }
-  }, [BACKEND])
+  }, [])
 
   useEffect(() => { carregarMissoes().finally(() => setLoading(false)) }, [carregarMissoes])
 
@@ -338,7 +338,7 @@ export default function Agenda({ onNavigate }) {
       }
     }
     const id = setInterval(verificar, POLLING_MS); return () => clearInterval(id)
-  }, [BACKEND, carregarMissoes])
+  }, [carregarMissoes])
 
   async function acusarCiencia(missao) {
     try { await api.patch(`/agenda/missoes/${missao.id}/ciencia`, {nucleo:missao.nucleo}) } catch {}
