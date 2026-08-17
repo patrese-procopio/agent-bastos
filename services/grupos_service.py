@@ -17,7 +17,8 @@ from datetime import datetime
 from contextlib import contextmanager
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH  = os.path.join(BASE_DIR, "data", "grupos", "grupos_ocupacao.db")
+from config.paths import DB_GRUPOS
+DB_PATH  = str(DB_GRUPOS)
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # ── Estrutura física padrão (unidades → pavilhões + posição no mapa) ───────────

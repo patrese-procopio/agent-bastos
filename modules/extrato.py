@@ -33,8 +33,8 @@ from contextlib import contextmanager
 from modules import grafo, lexico
 from services import llm_extracao
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH  = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
+from config.paths import DB_EXTRATO
+DB_PATH  = str(DB_EXTRATO)
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # Piso de risco: presença destes termos no extrato força risk_score >= 8.

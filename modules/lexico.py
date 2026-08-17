@@ -21,8 +21,8 @@ import unicodedata
 from datetime import datetime, timezone, timedelta
 from contextlib import contextmanager
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH  = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
+from config.paths import DB_EXTRATO
+DB_PATH  = str(DB_EXTRATO)
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # Palavras que, no significado traduzido, indicam ameaça grave → nível ALTO

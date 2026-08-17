@@ -38,12 +38,12 @@ from typing import Any
 
 logger = logging.getLogger("bastos.briefing")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from config.paths import DB_AUTH, DB_EXTRATO, DB_ALERTAS, DATA_DIR
 
-_AUTH_DB    = os.path.join(BASE_DIR, "data", "auth.db")
-_EXTRATO_DB = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
-_ALERTAS_DB = os.path.join(BASE_DIR, "data", "alertas.db")
-_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
+_AUTH_DB    = str(DB_AUTH)
+_EXTRATO_DB = str(DB_EXTRATO)
+_ALERTAS_DB = str(DB_ALERTAS)
+_RELATORIOS = str(DATA_DIR / "relatorios")
 
 N8N_WEBHOOK_BRIEFING = os.getenv("N8N_WEBHOOK_BRIEFING", "")
 

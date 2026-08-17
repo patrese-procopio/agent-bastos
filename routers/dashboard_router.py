@@ -35,8 +35,8 @@ from dependencies import get_current_user, require_module
 
 router = APIRouter(tags=["dashboard"])
 
-# Banco SQLite — caminho relativo à raiz do projeto
-DB_PATH = Path(__file__).parent.parent / "dashboard_bastos.db"
+from config.paths import DB_DASHBOARD
+DB_PATH = DB_DASHBOARD
 
 
 # ─── Helper de conexão ────────────────────────────────────────────────────────

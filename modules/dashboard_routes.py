@@ -4,7 +4,8 @@ from datetime import datetime
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-DB_PATH = Path(__file__).parent.parent / "dashboard_bastos.db"
+from config.paths import DB_DASHBOARD
+DB_PATH = DB_DASHBOARD
 
 def _db():
     conn = sqlite3.connect(str(DB_PATH))

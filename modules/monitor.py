@@ -27,9 +27,10 @@ from xml.etree import ElementTree as ET
 socket.setdefaulttimeout(5)
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ALVOS_PATH  = os.path.join(BASE_DIR, "data", "alvos.json")
-ALERTAS_RT  = os.path.join(BASE_DIR, "data", "relatorios", "alertas.json")
-ALERTAS_OST = os.path.join(BASE_DIR, "data", "relatorios", "alertas_osint.json")
+from config.paths import FILE_ALVOS, FILE_ALERTAS_RT, FILE_ALERTAS_OSINT
+ALVOS_PATH  = str(FILE_ALVOS)
+ALERTAS_RT  = str(FILE_ALERTAS_RT)
+ALERTAS_OST = str(FILE_ALERTAS_OSINT)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -70,7 +70,7 @@ DELTA_EVENTO: dict[str, float] = {
 def _db_path() -> str:
     return os.getenv(
         "AUTH_DB",
-        os.path.join(os.path.dirname(__file__), "..", "data", "auth.db"),
+        __import__("config.paths", fromlist=["DB_AUTH"]).DB_AUTH,
     )
 
 

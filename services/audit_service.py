@@ -31,16 +31,14 @@ from typing import Optional
 
 _log = logging.getLogger("bastos.audit")
 
-_DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "audit.db"
-)
+from config.paths import DB_AUDIT
+_DB_PATH = str(DB_AUDIT)
 
 
 # ── DB ────────────────────────────────────────────────────────────────────────
 
 def _conn() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
+    DB_AUDIT.parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(_DB_PATH, check_same_thread=False)
     c.execute("PRAGMA journal_mode=WAL")
     return c

@@ -24,10 +24,9 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
-# Constantes de caminho - calculadas no nível do módulo (não tem efeito colateral)
-BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-DOCS_DIR   = os.path.join(BASE_DIR, "..", "data", "doutrina")
-CHROMA_DIR = os.path.join(BASE_DIR, "..", "data", "chroma_db")
+from config.paths import DIR_DOUTRINA, DIR_CHROMA
+DOCS_DIR   = str(DIR_DOUTRINA)
+CHROMA_DIR = str(DIR_CHROMA)
 
 # Configuração do chunking - exposta como constante para facilitar tuning
 CHUNK_SIZE    = 800

@@ -44,13 +44,10 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("bastos.correlacao")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from config.paths import BASE_DIR, DB_AUTH, DB_EXTRATO, DB_LIDERANCAS, DATA_DIR
 
-# BD central (mesmo arquivo que HITL usa — uma trilha de auditoria unificada)
-_DB_PATH = os.path.join(BASE_DIR, "data", "auth.db")
-
-# BD de extratos (fonte dos textos históricos)
-_EXTRATO_DB = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
+_DB_PATH    = str(DB_AUTH)
+_EXTRATO_DB = str(DB_EXTRATO)
 
 # Stop words para tokenização
 _STOP = {
@@ -164,7 +161,7 @@ def _carregar_corpus() -> list[dict]:
 
     # 1. alvos.json
     try:
-        path = os.path.join(BASE_DIR, "data", "alvos.json")
+        path = str(DATA_DIR / "alvos.json")
         with open(path, encoding="utf-8") as f:
             for a in json.load(f):
                 if a.get("tipo") == "termo":
@@ -177,7 +174,7 @@ def _carregar_corpus() -> list[dict]:
 
     # 2. liderancas.db — pavilhão
     try:
-        db = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
+        db = str(DB_LIDERANCAS)
         if os.path.exists(db):
             con = sqlite3.connect(db, timeout=5)
             con.row_factory = sqlite3.Row
@@ -195,7 +192,7 @@ def _carregar_corpus() -> list[dict]:
 
     # 3. liderancas.db — rua
     try:
-        db = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
+        db = str(DB_LIDERANCAS)
         if os.path.exists(db):
             con = sqlite3.connect(db, timeout=5)
             con.row_factory = sqlite3.Row
@@ -218,7 +215,7 @@ def _carregar_corpus() -> list[dict]:
 
     # 4. extrato_entidades
     try:
-        db = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
+        db = str(DB_EXTRATO)
         if os.path.exists(db):
             con = sqlite3.connect(db, timeout=5)
             con.row_factory = sqlite3.Row

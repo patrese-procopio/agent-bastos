@@ -36,7 +36,8 @@ from modules.monitor import (
 )
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CANAIS_PATH = os.path.join(BASE_DIR, "data", "telegram_canais.json")
+from config.paths import FILE_TELEGRAM_CANAIS
+CANAIS_PATH = str(FILE_TELEGRAM_CANAIS)
 
 # Limites para controlar custo/tempo e evitar FloodWait do Telegram
 _TG_POR_TERMO        = 5    # máx de mensagens por (canal × alvo nominado)

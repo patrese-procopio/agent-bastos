@@ -17,9 +17,9 @@ import uuid
 from datetime import datetime, timezone
 from contextlib import contextmanager
 
-BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH   = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
-FOTOS_DIR = os.path.join(BASE_DIR, "data", "liderancas", "fotos")
+from config.paths import DB_LIDERANCAS, DATA_DIR
+DB_PATH   = str(DB_LIDERANCAS)
+FOTOS_DIR = str(DATA_DIR / "liderancas" / "fotos")
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 os.makedirs(FOTOS_DIR, exist_ok=True)

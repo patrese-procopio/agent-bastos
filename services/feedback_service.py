@@ -41,7 +41,8 @@ from datetime import datetime, timezone
 logger = logging.getLogger("bastos.feedback")
 
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DB_PATH  = os.path.join(BASE_DIR, "data", "auth.db")
+from config.paths import DB_AUTH
+_DB_PATH  = str(DB_AUTH)
 
 # Configuração de supressão (sobrescrita por .env)
 _MIN_AMOSTRAS = int(os.getenv("FEEDBACK_MIN_AMOSTRAS", "3"))

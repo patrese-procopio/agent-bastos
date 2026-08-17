@@ -28,7 +28,8 @@ from datetime import datetime, timedelta
 # ─── Caminhos ────────────────────────────────────────────────────────────────
 
 BASE_DIR         = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PASTA_RELATORIOS = os.path.join(BASE_DIR, "data", "relatorios")
+from config.paths import DIR_RELATORIOS
+PASTA_RELATORIOS = str(DIR_RELATORIOS)
 
 ALERTAS_PATH       = os.path.join(PASTA_RELATORIOS, "alertas.json")
 ALERTAS_OSINT_PATH = os.path.join(PASTA_RELATORIOS, "alertas_osint.json")

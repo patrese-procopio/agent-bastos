@@ -68,7 +68,7 @@ def _tokens(nome_norm: str) -> list:
 # -- Fontes de dados ----------------------------------------------------------
 
 def _carregar_alvos() -> list:
-    path = os.path.join(BASE_DIR, "data", "alvos.json")
+    path = str(__import__("config.paths", fromlist=["FILE_ALVOS"]).FILE_ALVOS)
     try:
         with open(path, encoding="utf-8") as f:
             alvos = json.load(f)
@@ -95,7 +95,7 @@ def _carregar_alvos() -> list:
 
 
 def _carregar_lideres() -> list:
-    db_path = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
+    db_path = str(__import__("config.paths", fromlist=["DB_LIDERANCAS"]).DB_LIDERANCAS)
     if not os.path.exists(db_path):
         return []
 
@@ -149,7 +149,7 @@ def _carregar_lideres() -> list:
 
 
 def _carregar_entidades_extrato() -> list:
-    db_path = os.path.join(BASE_DIR, "data", "extrato", "extrato.db")
+    db_path = str(__import__("config.paths", fromlist=["DB_EXTRATO"]).DB_EXTRATO)
     if not os.path.exists(db_path):
         return []
 

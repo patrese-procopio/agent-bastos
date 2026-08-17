@@ -33,7 +33,8 @@ router = APIRouter(tags=["inteligencia"])
 
 BASE_DIR             = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _HISTORICO_FOLDER_ID = "1-hQE2t9P7Kpk31V5oKCUoylM03nCNhT_"
-_SNAPSHOTS_DIR       = os.path.join(BASE_DIR, "data", "snapshots")
+from config.paths import DIR_SNAPSHOTS
+_SNAPSHOTS_DIR       = str(DIR_SNAPSHOTS)
 os.makedirs(_SNAPSHOTS_DIR, exist_ok=True)
 
 

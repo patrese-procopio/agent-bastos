@@ -34,12 +34,13 @@ import unicodedata
 from datetime import datetime, timezone
 from contextlib import contextmanager
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH  = os.path.join(BASE_DIR, "data", "grafo", "grafo_vinculos.db")
-LIDER_DB = os.path.join(BASE_DIR, "data", "liderancas", "liderancas.db")
-CHROMA_DIR    = os.path.join(BASE_DIR, "data", "chroma_db")
-INDICE_DOCS   = os.path.join(BASE_DIR, "indice_documentos.json")
-FOTOS_DIR     = os.path.join(BASE_DIR, "data", "grafo", "fotos")
+from config.paths import BASE_DIR, DB_GRAFO, DB_LIDERANCAS, DATA_DIR
+
+DB_PATH  = str(DB_GRAFO)
+LIDER_DB = str(DB_LIDERANCAS)
+CHROMA_DIR  = str(DATA_DIR / "chroma_db")
+INDICE_DOCS = str(BASE_DIR / "indice_documentos.json")
+FOTOS_DIR   = str(DATA_DIR / "grafo" / "fotos")
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 os.makedirs(FOTOS_DIR, exist_ok=True)

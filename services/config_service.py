@@ -23,7 +23,8 @@ import os
 import json
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(BASE_DIR, "data", "config.json")
+from config.paths import FILE_CONFIG
+CONFIG_PATH = str(FILE_CONFIG)
 ENV_PATH    = os.path.join(BASE_DIR, ".env")
 
 GERAIS_DEFAULT = {

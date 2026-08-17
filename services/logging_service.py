@@ -32,7 +32,8 @@ from typing import Any
 # Caminhos e limites
 # ----------------------------------------------------------------------------
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_LOG_DIR = os.path.join(_BASE_DIR, "data", "logs")
+from config.paths import DIR_LOGS
+_LOG_DIR = str(DIR_LOGS)
 
 _MAX_BYTES_MAIN  = 10 * 1024 * 1024   # 10 MB
 _MAX_BYTES_ERR   = 5  * 1024 * 1024
