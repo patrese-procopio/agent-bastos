@@ -1,366 +1,26 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react"
+import { useState, useEffect, useRef } from "react"
 import logoImg from "./assets/logo.webp"
 // Imports estáticos — necessários antes/durante auth ou sempre presentes no shell
-import ErrorBoundary from "./ErrorBoundary"
 import Login from "./Login"
 import api from "./api"
-import { getUser, clearSession } from "./authStore"
-import AnimatedNumber from "./AnimatedNumber"
+import { AuthProvider, useAuth } from "./AuthContext"
+import AppRouter from "./AppRouter"
 import { ToastContainer } from "./Toast"
 import { ConfirmModalContainer } from "./ConfirmModal"
+import { MONO, SANS, C, GLOBAL_CSS, S } from "./shellTheme"
+import { NAV_GROUPS_ALL, buildNavGroups } from "./navConfig"
 
-// Lazy imports — cada módulo vira chunk separado, carregado só na primeira navegação
-const ChatRAG          = lazy(() => import("./ChatRAG"))
-const Dashboard        = lazy(() => import("./Dashboard"))
-const Transcricao      = lazy(() => import("./Transcricao"))
-const Alertas          = lazy(() => import("./Alertas"))
-const Noticias         = lazy(() => import("./Noticias"))
-const Referencias      = lazy(() => import("./Referencias"))
-const Configuracoes    = lazy(() => import("./Configuracoes"))
-const Agenda           = lazy(() => import("./Agenda"))
-const ListaNegra       = lazy(() => import("./ListaNegra"))
-const OsintPesquisa    = lazy(() => import("./OsintPesquisa"))
-const Grafoscopia      = lazy(() => import("./Grafoscopia"))
-const ControleGrupos   = lazy(() => import("./ControleGrupos"))
-// InteligenciaGrupos movido para dentro de ControleGrupos (lazy interno)
-const LiderancasUnidade  = lazy(() => import("./LiderancasUnidade"))
-const GrafoVinculos    = lazy(() => import("./GrafoVinculos"))
-const Extrato          = lazy(() => import("./Extrato"))
-const InteligenciaPreditiva = lazy(() => import("./InteligenciaPreditiva"))
-// LideresGerais movido para dentro de LiderancasUnidade (lazy interno)
-const HitlDashboard    = lazy(() => import("./HitlDashboard"))
-const OperacoesDrone   = lazy(() => import("./OperacoesDrone"))
-// GerenciarUsuarios e AuditoriaLog movidos para dentro de Configuracoes (admin tabs)
-
-// Mapeamento: label do nav → módulo necessário no JWT
-// Se module === null → sempre visível para qualquer usuário autenticado
-const NAV_PERMISSIONS = {
-  "Painel":                  null,
-  "Alertas":                 "alertas",
-  "ORÁCULO":                 "hitl",
-  "Controle de Grupos":      "grupos",
-  // "Inteligência de Grupos" movido para aba interna do Controle de Grupos
-  "Lideranças por Unidade":  "liderancas",
-  // "Líderes Gerais" movido para aba interna de Lideranças por Unidade
-  "Análise de Vínculo":      "vinculo",
-  "Extrato":                 "extrato",
-  "Lista Negra":             "lista_negra",
-  "Chat RAG":                "chat_rag",
-  "OSINT Pessoas":           "osint",
-  "Inteligência Preditiva":  ["sinais_fracos", "matrix_nucadis"],  // OR — basta ter um dos módulos
-  "Referências":             "referencias",
-  "Agenda de Missão":        "agenda",
-  "Dashboard":               "dashboard",
-  "Transcrição":             "transcricao",
-  "Análise Grafoscópica":    "grafoscopia",
-  "Notícias":                "noticias",
-  "Operações Drone":         "drone",
-}
-
-const NAV_GROUPS_ALL = [
-  { title: "PRINCIPAL", items: [
-    { label: "Painel",                  color: "#F59E0B" },
-    { label: "Alertas",                 color: "#F87171", pulse: true },
-    { label: "ORÁCULO",                  color: "#A78BFA", pulse: true },
-    { label: "Controle de Grupos",      color: "#F87171" },
-    // "Inteligência de Grupos" movido para aba interna do Controle de Grupos
-    { label: "Lideranças por Unidade",  color: "#F87171" },
-    // "Líderes Gerais" movido para aba interna de Lideranças por Unidade
-    { label: "Análise de Vínculo",      color: "#38BDF8" },
-    { label: "Extrato",                 color: "#E8A020" },
-    { label: "Lista Negra",             color: "#94A3B8" },
-  ]},
-  { title: "INTELIGÊNCIA", items: [
-    { label: "Chat RAG",        color: "#1D4ED8" },
-    { label: "OSINT Pessoas",   color: "#B45309" },
-    { label: "Inteligência Preditiva", color: "#FBBF24" },
-    { label: "Referências",           color: "#C4B5FD" },
-    { label: "Agenda de Missão",color: "#F59E0B", badge: "2" },
-  ]},
-  { title: "FERRAMENTAS", items: [
-    { label: "Dashboard",             color: "#34D399" },
-    { label: "Transcrição",           color: "#818CF8" },
-    { label: "Análise Grafoscópica",  color: "#FBBF24" },
-    { label: "Notícias",              color: "#FB923C" },
-    { label: "Operações Drone",       color: "#22D3EE" },
-  ]},
-]
-
-function buildNavGroups(modules = []) {
-  return NAV_GROUPS_ALL.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      const mod = NAV_PERMISSIONS[item.label]
-      if (mod === null || mod === undefined) return true
-      // Suporte a OR: array de módulos — basta ter ao menos um
-      if (Array.isArray(mod)) return mod.some(m => modules.includes(m))
-      return modules.includes(mod)
-    }),
-  })).filter(group => group.items.length > 0)
-}
-
-const NEWS = [
-  { title: "Acordo bilateral entre Brasil e Argentina avança em questões de defesa", source: "Defesa Net", time: "2h", category: "Defesa", accent: "#60A5FA", img: "https://picsum.photos/seed/defesa/400/200" },
-  { title: "Nova tecnologia de vigilância apresentada no Fórum de Segurança Regional", source: "Valor Econômico", time: "4h", category: "Tecnologia", accent: "#A78BFA", img: "https://picsum.photos/seed/tech2/400/200" },
-  { title: "Operação conjunta desmantela rede de tráfico no Amazonas", source: "G1 AM", time: "6h", category: "Operação", accent: "#FB923C", img: "https://picsum.photos/seed/op2/400/200" },
-  { title: "Reforço nas fronteiras: medidas estratégicas anunciadas pelo governo federal", source: "Agência Brasil", time: "8h", category: "Segurança", accent: "#34D399", img: "https://picsum.photos/seed/seg2/400/200" },
-]
-
-const REFS = [
-  { label: "Relatórios operacionais",  color: "#A78BFA", query: "Liste os relatórios operacionais disponíveis na base doutrinária." },
-  { label: "Documentos históricos",    color: "#A78BFA", query: "Quais documentos históricos estão catalogados no sistema?" },
-  { label: "Arquivos de inteligência", color: "#60A5FA", query: "Apresente os arquivos de inteligência disponíveis." },
-  { label: "Busca por período",        color: "#60A5FA", query: "Pesquise documentos produzidos no último mês." },
-  { label: "Drive institucional",      color: "#34D399", query: "Liste o conteúdo do drive institucional." },
-]
-
-// Decodifica o payload do JWT sem verificar assinatura (o backend verifica em cada chamada)
-function decodeJwt(token) {
-  try {
-    return JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")))
-  } catch { return null }
-}
-
-// Deriva os dados de usuário a partir de um access token (sempre fresco,
-// nunca lido de storage — Missão 33: access_token vive só em memória).
-function userFromToken(token) {
-  if (!token) return null
-  const p = decodeJwt(token)
-  if (!p?.sub) return null
-  return { username: p.sub, level: p.level || "analista", modules: p.modules || [] }
-}
-
-const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
-const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
-
-const DOT_GRID = `url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.9' fill='%23FFFFFF' fill-opacity='0.04'/%3E%3C/svg%3E")`
-
-// Referencia CSS custom properties — permite trocar tema sem tocar nos componentes
-const C = {
-  bg:        "var(--ab-bg)",
-  surface:   "var(--ab-surface)",
-  surfaceUp: "var(--ab-surface2)",
-  border:    "var(--ab-border)",
-  borderUp:  "var(--ab-border-up)",
-  gold:      "#E8A020",
-  goldSoft:  "rgba(232,160,32,0.15)",
-  text:      "var(--ab-text)",
-  textMid:   "var(--ab-text-mid)",
-  textDim:   "var(--ab-text-dim)",
-}
-
-const GLOBAL_CSS = `
-  /* ── CSS Custom Properties por tema ──────────────────────────────────── */
-  :root {
-    --ab-bg:         #0B1120;
-    --ab-surface:    #111827;
-    --ab-surface2:   #1A2236;
-    --ab-border:     rgba(255,255,255,0.07);
-    --ab-border-up:  rgba(255,255,255,0.13);
-    --ab-text:       #F1F5F9;
-    --ab-text-mid:   #94A3B8;
-    --ab-text-dim:   rgba(255,255,255,0.35);
-  }
-  /* Tema Tático */
-  body.theme-tactico {
-    --ab-bg:         #070c05;
-    --ab-surface:    #0c1309;
-    --ab-surface2:   #111f0c;
-    --ab-border:     rgba(130,170,60,0.12);
-    --ab-border-up:  rgba(130,170,60,0.22);
-    --ab-text:       #b8d890;
-    --ab-text-mid:   rgba(140,185,85,0.68);
-    --ab-text-dim:   rgba(130,170,60,0.42);
-  }
-  /* Tema Claro */
-  body.theme-claro {
-    --ab-bg:         #F1F5F9;
-    --ab-surface:    #FFFFFF;
-    --ab-surface2:   #F8FAFC;
-    --ab-border:     rgba(0,0,0,0.08);
-    --ab-border-up:  rgba(0,0,0,0.14);
-    --ab-text:       #0F172A;
-    --ab-text-mid:   #64748B;
-    --ab-text-dim:   rgba(0,0,0,0.35);
-  }
-
-  * { box-sizing: border-box; }
-  body { background: var(--ab-bg); }
-
-  /* ── Seleção de texto ──────────────────────────────────────────────── */
-  ::selection { background: rgba(232,160,32,0.28); color: #F1F5F9; }
-
-  /* ── Scrollbar premium ─────────────────────────────────────────────── */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(232,160,32,0.22); border-radius: 99px; transition: background 0.2s; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(232,160,32,0.55); }
-
-  /* ── Inputs ────────────────────────────────────────────────────────── */
-  input, textarea { caret-color: ${C.gold}; transition: box-shadow 0.2s, border-color 0.2s; }
-  input::placeholder, textarea::placeholder { color: var(--ab-text-dim) !important; font-weight: 500 !important; opacity:1 !important; }
-  input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 2px rgba(232,160,32,0.22) !important; border-color: rgba(232,160,32,0.55) !important; }
-
-  /* ── Keyframes ─────────────────────────────────────────────────────── */
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 5px 1px rgba(22,163,74,0.5); }
-    50%       { box-shadow: 0 0 14px 4px rgba(22,163,74,0.9); }
-  }
-  @keyframes amber-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232,160,32,0); }
-    50%       { box-shadow: 0 0 0 5px rgba(232,160,32,0.14); }
-  }
-  @keyframes screenIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0);    }
-  }
-  @keyframes logoOrbit {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-  @keyframes goldShimmer {
-    0%   { background-position: -300% center; }
-    100% { background-position:  300% center; }
-  }
-  @keyframes navBarGrow {
-    from { height: 0; opacity: 0; }
-    to   { height: 60%; opacity: 1; }
-  }
-  @keyframes ticker-scroll {
-    0%   { transform: translateX(60%); }
-    100% { transform: translateX(-120%); }
-  }
-  @keyframes breathe {
-    0%,100% { opacity:0.5; transform:scale(1); }
-    50%     { opacity:1;   transform:scale(1.05); }
-  }
-  @keyframes scan-line {
-    0%   { transform: translateY(-100%); }
-    100% { transform: translateY(200vh); }
-  }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateX(-50%) translateY(18px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
-  }
-  @keyframes toastProgress {
-    from { width: 100%; }
-    to   { width: 0%; }
-  }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes dotPulseRed {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); transform: scale(1); }
-    50%       { box-shadow: 0 0 0 5px rgba(248,113,113,0.2); transform: scale(1.15); }
-  }
-  @keyframes dot-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.6; transform: scale(0.85); }
-  }
-
-  /* ── Classes utilitárias ───────────────────────────────────────────── */
-  .chip-dot-pulse  { animation: pulse-glow 2.4s ease-in-out infinite; }
-  .alert-dot-pulse { animation: dotPulseRed 2s ease-in-out infinite; }
-  .screen-enter    { animation: screenIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .fade-up         { animation: fadeUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .toast-anim      { animation: toastIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-  /* ── Logo orbital ring ─────────────────────────────────────────────── */
-  .logo-ring-orbit {
-    position: absolute; inset: -5px; border-radius: 50%;
-    border: 1.5px dashed rgba(245,158,11,0.4);
-    animation: logoOrbit 12s linear infinite;
-    pointer-events: none;
-  }
-
-  /* ── Group label shimmer ───────────────────────────────────────────── */
-  .group-label-shimmer {
-    background: linear-gradient(90deg, #E8A020 0%, #FDE68A 35%, #E8A020 55%, #B45309 100%);
-    background-size: 300% auto;
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: goldShimmer 4s linear infinite;
-  }
-
-  /* ── Nav item ──────────────────────────────────────────────────────── */
-  .nav-item { position: relative; overflow: hidden; }
-  .nav-item::before {
-    content: ''; position: absolute; inset: 0; opacity: 0;
-    background: radial-gradient(ellipse at left center, rgba(232,160,32,0.14) 0%, transparent 70%);
-    transition: opacity 0.25s ease; pointer-events: none;
-  }
-  .nav-item::after {
-    content: '›'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    font-size: 14px; line-height:1; color: transparent;
-    transition: color 0.18s ease, right 0.18s ease; pointer-events: none;
-  }
-  .nav-item:hover::before { opacity: 1; }
-  .nav-item:hover { background: rgba(232,160,32,0.09) !important; border-left-color: rgba(232,160,32,0.65) !important; }
-  .nav-item:hover::after { color: rgba(232,160,32,0.65); right: 9px; }
-  .nav-item:active { transform: scale(0.981); transition: transform 0.07s ease; }
-  .nav-item-active-glow { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09), 0 2px 12px rgba(0,0,0,0.25) !important; }
-
-  /* ── News / ref cards ──────────────────────────────────────────────── */
-  .news-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow:hidden; cursor:pointer; transition: all 0.22s cubic-bezier(0.16,1,0.3,1); backdrop-filter: blur(8px); }
-  .news-card:hover { background: rgba(255,255,255,0.075); border-color: rgba(232,160,32,0.28); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.38); }
-  .ref-btn { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; transition: all 0.18s ease; }
-  .ref-btn:hover { background: ${C.goldSoft} !important; border-color: rgba(232,160,32,0.4) !important; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
-  .config-btn:hover { background: rgba(255,255,255,0.07) !important; }
-
-  /* ── Toast ─────────────────────────────────────────────────────────── */
-  .toast-progress {
-    position: absolute; bottom: 0; left: 0; height: 2px; border-radius: 0 0 8px 8px;
-    animation: toastProgress 2.6s linear forwards;
-  }
-`
-
-const OwlBlueprint = () => (
-  <svg width="520" height="180" viewBox="0 0 520 180" fill="none" xmlns="http://www.w3.org/2000/svg" style={{opacity:0.07}}>
-    <text x="260" y="44" textAnchor="middle" fontFamily={SANS} fontSize="40" fontWeight="800" letterSpacing="5" fill="#FFFFFF">AGENTE AUTÔNOMO</text>
-    <line x1="80" y1="58" x2="440" y2="58" stroke="#FFFFFF" strokeWidth="0.6" strokeDasharray="4 6"/>
-    <text x="260" y="95" textAnchor="middle" fontFamily={SANS} fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">Sistema de Inteligência</text>
-    <text x="260" y="126" textAnchor="middle" fontFamily={SANS} fontSize="18" fontWeight="700" letterSpacing="2" fill="#E8A020">&amp;</text>
-    <text x="260" y="158" textAnchor="middle" fontFamily={SANS} fontSize="22" fontWeight="300" letterSpacing="6" fill="#FFFFFF">Segurança Corporativa</text>
-  </svg>
-)
-
-const GearIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg>
-)
-function tempoH(ts) { const d = Math.floor((Date.now()/1000 - ts)/3600); return d + "h" }
-
-function LiveClock({ showSeconds = false }) {
-  const [t, setT] = useState(new Date())
-  useEffect(() => {
-    const id = setInterval(() => setT(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  const opts = showSeconds
-    ? {hour:"2-digit",minute:"2-digit",second:"2-digit"}
-    : {hour:"2-digit",minute:"2-digit"}
-  return <>{t.toLocaleTimeString("pt-BR", opts)}</>
-}
-
-export default function App() {
+function AppShell() {
+  const { user, authChecking, login, logout } = useAuth()
   // ── Sistema de abas ─────────────────────────────────────────────────────
   const [tabs, setTabs]               = useState([{id:"t-init", label:"Painel", color:"#F59E0B"}])
   const [activeTabId, setActiveTabId] = useState("t-init")
   const active = tabs.find(t=>t.id===activeTabId)?.label ?? "Painel"
-  // user começa null — o access_token vive só em memória (Missão 33) e não
-  // sobrevive a um reload de página. `authChecking` segura a tela de login
-  // até tentarmos reidratar a sessão via refresh_token (useEffect abaixo).
-  const [user, setUser]                 = useState(null)
-  const [authChecking, setAuthChecking] = useState(true)
   const [backendStatus, setBackendStatus] = useState("checking") // "online" | "offline" | "checking"
   const [message, setMessage]           = useState("")
   const [focused, setFocused]           = useState(false)
   const [chatHistory, setChatHistory]   = useState([])
   const [loading, setLoading]           = useState(false)
-  const [liveNews, setLiveNews]         = useState([])
   const [showPolicies, setShowPolicies] = useState(false)
   const [tema, setTema]                 = useState(() => localStorage.getItem("ab_tema") || "dark")
   const [showSearch, setShowSearch]         = useState(false)
@@ -381,25 +41,6 @@ export default function App() {
   const chatEndRef                      = useRef(null)
   const searchInputRef                  = useRef(null)
 
-  // ── Reidratação de sessão no boot (Missão 33) ───────────────────────────
-  // Sem isso, todo F5/reload derrubaria o usuário — o access_token some da
-  // memória, mas o refresh_token continua no sessionStorage. Uma tentativa
-  // silenciosa de refresh evita pedir login de novo sem reabrir o app.
-  useEffect(() => {
-    let cancelado = false
-    ;(async () => {
-      const ok = await api.restoreSession()
-      if (cancelado) return
-      if (ok) {
-        // O usuário salvo (username/level/modules) sobrevive no sessionStorage
-        // só como cache de exibição — quem decide permissão é sempre o backend.
-        setUser(getUser())
-      }
-      setAuthChecking(false)
-    })()
-    return () => { cancelado = true }
-  }, [])
-
   useEffect(() => {
     document.body.classList.remove("dark-mode","theme-tactico","theme-claro")
     if (tema === "tactico") document.body.classList.add("theme-tactico")
@@ -417,14 +58,6 @@ export default function App() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior:"smooth" })
   }, [chatHistory, loading])
-
-  useEffect(() => {
-    if (!user) return
-    api.get("/noticias")
-      .then(r => r?.json())
-      .then(d => { if (d?.noticias?.length > 0) setLiveNews(d.noticias) })
-      .catch(() => {})
-  }, [user])
 
   // Atalhos de teclado globais
   useEffect(() => {
@@ -530,23 +163,6 @@ export default function App() {
     }).finally(()=>setHomeKpisLoading(false))
   }, [active, user])
 
-  function handleLogin(data) {
-    // Tokens já foram guardados pelo Login.jsx via authStore (memória + sessionStorage).
-    setUser({ username: data.username, level: data.level, modules: data.modules || [] })
-  }
-
-  function handleLogout() {
-    clearSession()
-    setUser(null)
-  }
-
-  // ── Logout automático quando token expira (api.js dispara 'ab:logout') ──
-  useEffect(() => {
-    function onSessionExpired() { setUser(null) }
-    window.addEventListener("ab:logout", onSessionExpired)
-    return () => window.removeEventListener("ab:logout", onSessionExpired)
-  }, [])  // setUser é estável — [] é seguro aqui
-
   // ── Timeout de sessão por inatividade ────────────────────────────────────
   // Fluxo: 15 min sem atividade → modal de aviso → 60s contagem → logout automático
   const IDLE_MS    = 15 * 60 * 1000  // 15 minutos sem atividade
@@ -592,7 +208,7 @@ export default function App() {
       setIdleCount(prev => {
         if (prev <= 1) {
           clearInterval(countTimer.current)
-          handleLogout()
+          logout()
           return 0
         }
         return prev - 1
@@ -682,18 +298,9 @@ export default function App() {
   // Enquanto tenta reidratar a sessão (refresh silencioso), não mostra login —
   // evita o "flash" de tela de login em todo reload de página com sessão válida.
   if (authChecking) return null
-  if (!user) return <Login onLogin={handleLogin} />
+  if (!user) return <Login onLogin={login} />
 
-  const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
   const NAV_GROUPS = buildNavGroups(user?.modules || [])
-
-  const newsToShow = liveNews.length > 0
-    ? liveNews.slice(0,4).map((n,i)=>({
-        title: n.titulo, source:"n8n", time: tempoH(n.atualizado),
-        category:"Intel", accent:"#FB923C",
-        img: n.imagem||`https://picsum.photos/seed/n${i}/400/200`,
-      }))
-    : NEWS
 
   return (
     <div style={S.app}>
@@ -748,7 +355,7 @@ export default function App() {
 
             {/* Botões */}
             <div style={{display:"flex", gap:10, width:"100%"}}>
-              <button onClick={handleLogout} style={{
+              <button onClick={logout} style={{
                 flex:1, padding:"11px 0", borderRadius:9, cursor:"pointer",
                 background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)",
                 color:"#94A3B8", fontWeight:700, fontSize:14,
@@ -1457,7 +1064,7 @@ export default function App() {
                   {/* Encerrar Sessão */}
                   <div style={{padding:"8px 10px 10px"}}>
                     <button
-                      onClick={()=>{setShowProfileMenu(false);handleLogout()}}
+                      onClick={()=>{setShowProfileMenu(false);logout()}}
                       style={{
                         width:"100%",display:"flex",alignItems:"center",gap:10,
                         padding:"9px 10px",borderRadius:8,cursor:"pointer",
@@ -1654,629 +1261,35 @@ export default function App() {
           </button>
         </div>
 
-        <Suspense fallback={
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",color:"#94A3B8",fontSize:14}}>
-            Carregando módulo...
-          </div>
-        }>
-        <div key={active} className="screen-enter" style={{display:"contents"}}>
-        {active==="Chat RAG"               && <ErrorBoundary modulo="Chat RAG"><ChatRAG      onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Dashboard"              && <ErrorBoundary modulo="Dashboard"><Dashboard    onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Transcrição"            && <ErrorBoundary modulo="Transcrição"><Transcricao  onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Análise Grafoscópica"   && <ErrorBoundary modulo="Análise Grafoscópica"><Grafoscopia  onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Alertas"                && <ErrorBoundary modulo="Alertas"><Alertas      onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Notícias"               && <ErrorBoundary modulo="Notícias"><Noticias     onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Referências"            && <ErrorBoundary modulo="Referências"><Referencias  onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Configurações"          && <ErrorBoundary modulo="Configurações"><Configuracoes onNavigate={openTab} tema={tema} setTema={setTema} user={user}/></ErrorBoundary>}
-        {active==="Controle de Grupos"     && <ErrorBoundary modulo="Controle de Grupos"><ControleGrupos onNavigate={openTab}/></ErrorBoundary>}
-        {/* Inteligência de Grupos agora é aba interna do Controle de Grupos */}
-        {active==="Lideranças por Unidade" && <ErrorBoundary modulo="Lideranças por Unidade"><LiderancasUnidade onNavigate={openTab}/></ErrorBoundary>}
-        {/* Líderes Gerais agora é aba interna de Lideranças por Unidade */}
-        {active==="Análise de Vínculo"     && <ErrorBoundary modulo="Análise de Vínculo"><GrafoVinculos onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Extrato"                && <ErrorBoundary modulo="Extrato"><Extrato      onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Inteligência Preditiva"  && <ErrorBoundary modulo="Inteligência Preditiva"><InteligenciaPreditiva onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Agenda de Missão"       && <ErrorBoundary modulo="Agenda de Missão"><Agenda       onNavigate={openTab}/></ErrorBoundary>}
-        {active === "Lista Negra"          && <ErrorBoundary modulo="Lista Negra"><ListaNegra     onNavigate={openTab} /></ErrorBoundary>}
-        {active === "OSINT Pessoas"        && <ErrorBoundary modulo="OSINT Pessoas"><OsintPesquisa  onNavigate={openTab} /></ErrorBoundary>}
-        {active === "ORÁCULO"              && <ErrorBoundary modulo="ORÁCULO"><HitlDashboard         onNavigate={openTab} /></ErrorBoundary>}
-        {active === "Operações Drone"      && <ErrorBoundary modulo="Operações Drone"><OperacoesDrone onNavigate={openTab} /></ErrorBoundary>}
-        {/* Gerenciar Usuários e Auditoria movidos para Configurações (abas admin) */}
 
-        {active==="Painel" && (
-          <>
-            <header style={S.topbar}>
-              <div style={{display:"flex",alignItems:"center"}}>
-                <div style={S.wc}>
-                  <button style={{...S.wb,background:"#FF5F57"}} onClick={()=>window.electronAPI?.close()}/>
-                  <button style={{...S.wb,background:"#FEBC2E"}} onClick={()=>window.electronAPI?.minimize()}/>
-                  <button style={{...S.wb,background:"#28C840"}} onClick={()=>window.electronAPI?.maximize()}/>
-                </div>
-                <div>
-                  <div style={S.ttitle}>Painel Principal</div>
-                  <div style={S.tsub}>
-                    <span style={{color:C.gold,fontWeight:700}}>◈</span> {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})} · Manaus, AM
-                  </div>
-                </div>
-              </div>
-              <div style={S.chip}>
-                <div className="chip-dot-pulse" style={S.chipDot}/>
-                <span style={S.chipText}>Sistema Operacional</span>
-              </div>
-            </header>
-
-            <div style={S.body}>
-              {/* ── Animated intel ticker ── */}
-              <div style={{
-                background:"rgba(220,38,38,0.05)",
-                borderTop:"1px solid rgba(220,38,38,0.18)",
-                borderBottom:"1px solid rgba(220,38,38,0.10)",
-                padding:"5px 0", overflow:"hidden", flexShrink:0, position:"relative",
-              }}>
-                <div style={{display:"flex",alignItems:"center"}}>
-                  <div style={{
-                    padding:"0 12px", borderRight:"1px solid rgba(220,38,38,0.25)",
-                    display:"flex",alignItems:"center",gap:6, flexShrink:0,
-                  }}>
-                    <span style={{width:6,height:6,borderRadius:"50%",background:"#EF4444",
-                      display:"inline-block",animation:"amber-pulse 1.5s infinite"}}/>
-                    <span style={{fontSize:9,fontWeight:900,color:"#EF4444",fontFamily:MONO,letterSpacing:"0.16em"}}>INTEL</span>
-                  </div>
-                  <div style={{flex:1,overflow:"hidden"}}>
-                    <div style={{animation:"ticker-scroll 52s linear infinite",display:"inline-block",whiteSpace:"nowrap",paddingLeft:16}}>
-                      <span style={{fontSize:12,color:"#FCA5A5",fontFamily:MONO,fontWeight:500}}>
-                        ⚠ Movimentação detectada na região de fronteira norte — verificar imediatamente
-                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
-                        🔵 Análise doutrinária concluída — {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})} — aguardando revisão
-                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
-                        ⚡ Nova entrada no banco de dados — classificação em andamento
-                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
-                        ◎ Grupo monitorado com variação ≥20% — análise prioritária solicitada
-                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
-                        AIPEN · SEAP-AM · {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}
-                      </span>
-                    </div>
-                  </div>
-                  <span style={{fontSize:10,color:"rgba(252,165,165,0.4)",fontFamily:MONO,padding:"0 12px",flexShrink:0}}>há 12 min</span>
-                </div>
-              </div>
-
-              {/* ── 2-col layout: KPIs | chat ── */}
-              <div style={{flex:1, display:"flex", gap:14, minHeight:0, overflow:"hidden"}}>
-
-              {/* LEFT: status + KPIs + drill-down */}
-              <div style={{width:"44%", flexShrink:0, display:"flex", flexDirection:"column", gap:10, overflowY:"auto"}}>
-
-              {/* System status card */}
-              <div style={{
-                background:"rgba(22,163,74,0.05)",
-                border:"1px solid rgba(22,163,74,0.14)",
-                borderRadius:10, padding:"9px 14px",
-                display:"flex", alignItems:"center", justifyContent:"space-between",
-              }}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",background:"#16A34A",
-                    boxShadow:"0 0 8px #16A34A",animation:"pulse-glow 2s infinite",flexShrink:0}}/>
-                  <span style={{fontSize:11,fontWeight:700,color:"#4ADE80",letterSpacing:"0.08em",fontFamily:MONO}}>SISTEMA OPERACIONAL</span>
-                </div>
-                <span style={{fontSize:10,color:"rgba(74,222,128,0.45)",fontFamily:MONO}}>
-                  <LiveClock showSeconds={true}/> · Manaus, AM
-                </span>
-              </div>
-
-              {/* ── KPI Cards ─────────────────────────────────────────── */}
-              {(()=>{
-                const kpiDefs = homeKpis ? [
-                  {
-                    id:"alertas", label:"Alertas Ativos", icon:"🔔",
-                    value: homeKpis.alertas, color:"#F87171",
-                    sub: `${homeKpis.alertasCriticos} críticos`,
-                    subColor:"#FCA5A5",
-                    detail: homeKpis.hist6,
-                    detailLabel:"Histórico 6 meses",
-                  },
-                  {
-                    id:"grupos", label:"Grupos Monitorados", icon:"◎",
-                    value: homeKpis.gruposAtivos, color:"#A78BFA",
-                    sub: `${homeKpis.variacoes} variação ≥20%`,
-                    subColor: homeKpis.variacoes > 0 ? "#F87171" : "#34D399",
-                    detail: homeKpis.hist6,
-                    detailLabel:"Movimentação histórica",
-                  },
-                  {
-                    id:"docsMes", label:"Docs do Mês", icon:"📄",
-                    value: homeKpis.docsMes, color:"#38BDF8",
-                    sub: homeKpis.variacaoPct >= 0
-                      ? `+${homeKpis.variacaoPct}% vs mês ant.`
-                      : `${homeKpis.variacaoPct}% vs mês ant.`,
-                    subColor: homeKpis.variacaoPct >= 0 ? "#34D399" : "#F87171",
-                    detail: homeKpis.porTipo?.map(t=>t.total) || [],
-                    detailLabel: "Por tipo de documento",
-                  },
-                  {
-                    id:"docsAno", label:"Acumulado Ano", icon:"📊",
-                    value: homeKpis.docsAno, color:"#34D399",
-                    sub: `Média ${homeKpis.docsAno > 0 && homeKpis.meses?.length > 0 ? Math.round(homeKpis.docsAno / homeKpis.meses.length) : 0}/mês`,
-                    subColor:"#6EE7B7",
-                    detail: homeKpis.hist6,
-                    detailLabel:"Produção acumulada",
-                  },
-                ] : [{},{},{},{}]
-
-                return (
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                    {kpiDefs.map((kpi,i)=>{
-                      const isExp = expandedKpi === kpi.id
-                      const isLoading = homeKpisLoading || !homeKpis
-                      return (
-                        <div key={kpi.id||i}
-                          onClick={()=>kpi.id && setExpandedKpi(isExp ? null : kpi.id)}
-                          style={{
-                            background: isExp
-                              ? `rgba(255,255,255,0.06)`
-                              : "rgba(255,255,255,0.025)",
-                            border: `1px solid ${isExp ? (kpi.color||"#60A5FA")+"44" : "rgba(255,255,255,0.06)"}`,
-                            borderTop: `2px solid ${kpi.color||"#60A5FA"}`,
-                            borderRadius:12, padding:"16px 16px",
-                            cursor: kpi.id ? "pointer" : "default",
-                            transition:"all 0.25s",
-                            transform: isExp ? "translateY(-2px)" : "none",
-                            boxShadow: isExp
-                              ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px ${kpi.color||"#60A5FA"}22`
-                              : `0 2px 12px rgba(0,0,0,0.15)`,
-                            backdropFilter:"blur(12px)",
-                            WebkitBackdropFilter:"blur(12px)",
-                            position:"relative", overflow:"hidden",
-                          }}>
-                          {/* Ambient glow */}
-                          <div style={{position:"absolute",top:-16,right:-16,width:72,height:72,
-                            borderRadius:"50%",background:`${kpi.color||"#60A5FA"}18`,
-                            filter:"blur(18px)",pointerEvents:"none"}}/>
-                          {isLoading ? (
-                            /* Skeleton */
-                            <div>
-                              <div style={{height:10,borderRadius:4,background:"rgba(255,255,255,0.08)",marginBottom:8,width:"60%"}}/>
-                              <div style={{height:28,borderRadius:4,background:"rgba(255,255,255,0.05)",marginBottom:6,width:"40%"}}/>
-                              <div style={{height:8,borderRadius:4,background:"rgba(255,255,255,0.05)",width:"70%"}}/>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                                <span style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.45)",
-                                  letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:MONO}}>
-                                  {kpi.label}
-                                </span>
-                                <span style={{fontSize:14}}>{kpi.icon}</span>
-                              </div>
-                              <div style={{fontSize:38,fontWeight:900,color:kpi.color,
-                                fontFamily:MONO,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6,
-                                textShadow:`0 0 24px ${kpi.color||"#60A5FA"}44`}}>
-                                <AnimatedNumber value={kpi.value||0} duration={900}/>
-                              </div>
-                              <div style={{fontSize:11,color:kpi.subColor||"rgba(255,255,255,0.40)",
-                                fontFamily:MONO,fontWeight:600}}>
-                                {kpi.sub}
-                              </div>
-                              {/* Sparkline inline SVG */}
-                              {kpi.detail?.length > 1 && (
-                                <div style={{marginTop:10}}>
-                                  {(()=>{
-                                    const d = kpi.detail
-                                    const mx = Math.max(...d,1)
-                                    const W = 120, H = 24, n = d.length
-                                    const pts = d.map((v,i)=>`${(i/(n-1))*W},${H-(v/mx)*H}`)
-                                    return (
-                                      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
-                                        <polyline
-                                          points={pts.join(" ")}
-                                          fill="none"
-                                          stroke={kpi.color}
-                                          strokeWidth="1.5"
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          opacity="0.7"
-                                        />
-                                        {/* dot no último ponto */}
-                                        <circle
-                                          cx={(n-1)/(n-1)*W}
-                                          cy={H-(d[n-1]/mx)*H}
-                                          r="2.5"
-                                          fill={kpi.color}
-                                        />
-                                      </svg>
-                                    )
-                                  })()}
-                                </div>
-                              )}
-                              {/* Expand indicator */}
-                              {kpi.id && (
-                                <div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}>
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-                                    stroke={isExp?kpi.color:"rgba(255,255,255,0.20)"}
-                                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                    style={{transform:isExp?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>
-                                    <polyline points="6 9 12 15 18 9"/>
-                                  </svg>
-                                  <span style={{fontSize:9,color:isExp?kpi.color:"rgba(255,255,255,0.18)",
-                                    fontFamily:MONO,fontWeight:700,letterSpacing:"0.06em"}}>
-                                    {isExp?"RECOLHER":"DETALHAR"}
-                                  </span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
-
-              {/* ── Drill-down panel ───────────────────────────────────── */}
-              {expandedKpi && homeKpis && (()=>{
-                const defs = {
-                  alertas: {
-                    title:"Distribuição de Alertas",
-                    rows: [
-                      {label:"Total de alertas", value:homeKpis.alertas, color:"#F87171"},
-                      {label:"Nível crítico/alto", value:homeKpis.alertasCriticos, color:"#EF4444"},
-                      {label:"Outros", value:homeKpis.alertas-homeKpis.alertasCriticos, color:"#94A3B8"},
-                    ]
-                  },
-                  grupos: {
-                    title:"Monitoramento de Grupos",
-                    rows: [
-                      {label:"Grupos ativos", value:homeKpis.gruposAtivos, color:"#A78BFA"},
-                      {label:"Variações ≥20%", value:homeKpis.variacoes, color:"#F87171"},
-                    ]
-                  },
-                  docsMes: {
-                    title:"Produção por Tipo",
-                    rows: (homeKpis.porTipo||[]).map(t=>({label:t.codigo||t.nome, value:t.total, color:"#38BDF8"}))
-                  },
-                  docsAno: {
-                    title:"Resumo Anual",
-                    rows: [
-                      {label:"Total acumulado", value:homeKpis.docsAno, color:"#34D399"},
-                      {label:"Média mensal", value: homeKpis.meses?.length > 0 ? Math.round(homeKpis.docsAno/homeKpis.meses.length) : 0, color:"#6EE7B7"},
-                    ]
-                  },
-                }
-                const d = defs[expandedKpi]
-                if (!d) return null
-                const maxVal = Math.max(...d.rows.map(r=>r.value),1)
-                return (
-                  <div style={{
-                    borderRadius:10,padding:"14px 16px",marginBottom:12,
-                    background:"rgba(255,255,255,0.04)",
-                    border:"1px solid rgba(255,255,255,0.09)",
-                    animation:"screenIn 0.2s cubic-bezier(0.16,1,0.3,1) both"
-                  }}>
-                    <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.45)",
-                      letterSpacing:"0.10em",textTransform:"uppercase",fontFamily:MONO,marginBottom:12}}>
-                      {d.title}
-                    </div>
-                    {d.rows.map((row,i)=>(
-                      <div key={i} style={{marginBottom:8}}>
-                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                          <span style={{fontSize:11,color:"rgba(255,255,255,0.55)",fontFamily:MONO}}>{row.label}</span>
-                          <span style={{fontSize:11,fontWeight:700,color:row.color,fontFamily:MONO}}>
-                            <AnimatedNumber value={row.value}/>
-                          </span>
-                        </div>
-                        <div style={{height:4,borderRadius:2,background:"rgba(255,255,255,0.06)"}}>
-                          <div style={{
-                            height:"100%",borderRadius:2,
-                            width: `${(row.value/maxVal)*100}%`,
-                            background:row.color,
-                            transition:"width 0.8s cubic-bezier(0.16,1,0.3,1)"
-                          }}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
-
-              </div>{/* /left col */}
-
-              {/* RIGHT: refs bar + chat */}
-              <div style={{flex:1, display:"flex", flexDirection:"column", gap:10, minWidth:0, overflow:"hidden"}}>
-
-              {/* ── Unified intel chat card ── */}
-              <div style={{
-                flex:1, display:"flex", flexDirection:"column",
-                background:"rgba(255,255,255,0.02)",
-                border:"1px solid rgba(255,255,255,0.07)",
-                borderRadius:14,
-                overflow:"hidden",
-                backdropFilter:"blur(16px)",
-                WebkitBackdropFilter:"blur(16px)",
-                boxShadow:"0 4px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)",
-              }}>
-
-                {/* Card header */}
-                <div style={{
-                  padding:"10px 16px",
-                  borderBottom:"1px solid rgba(255,255,255,0.06)",
-                  display:"flex", alignItems:"center", justifyContent:"space-between",
-                  flexShrink:0,
-                  background:"rgba(232,160,32,0.03)",
-                }}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",
-                      boxShadow:"0 0 8px #E8A020",animation:"amber-pulse 2.5s infinite",flexShrink:0}}/>
-                    <span style={{fontSize:11,fontWeight:800,color:C.gold,letterSpacing:"0.14em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
-                    <span style={{fontSize:10,color:"rgba(232,160,32,0.4)",fontFamily:MONO}}>· Sistema Pronto</span>
-                  </div>
-                  <div style={{display:"flex",gap:5}}>
-                    {REFS.slice(0,3).map((r,i)=>(
-                      <button key={i}
-                        onClick={()=>enviarPergunta(r.query)}
-                        style={{
-                          padding:"3px 9px", borderRadius:5,
-                          background:"rgba(255,255,255,0.03)",
-                          border:`1px solid rgba(255,255,255,0.07)`,
-                          color:r.color, fontSize:10.5, fontWeight:600, cursor:"pointer",
-                          display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
-                          fontFamily:MONO, letterSpacing:"0.03em",
-                          transition:"all 0.15s",
-                        }}
-                        onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.borderColor=r.color+"55"}}
-                        onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"}}>
-                        <span style={{width:4,height:4,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Chat messages area */}
-                <div style={{flex:1, position:"relative", overflow:"hidden", minHeight:0}}>
-                  {/* Scanline overlay — efeito tela tática */}
-                  <div style={{
-                    position:"absolute", inset:0, pointerEvents:"none", zIndex:10,
-                    backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px)",
-                  }}/>
-                  {/* RESERVADO watermark */}
-                  <div style={{
-                    position:"absolute", inset:0, display:"flex",
-                    alignItems:"center", justifyContent:"center",
-                    pointerEvents:"none", overflow:"hidden", zIndex:1,
-                  }}>
-                    <span style={{
-                      fontSize:58, fontWeight:900, color:"rgba(255,255,255,0.016)",
-                      fontFamily:MONO, letterSpacing:"0.28em",
-                      transform:"rotate(-28deg)", userSelect:"none", whiteSpace:"nowrap",
-                    }}>RESERVADO</span>
-                  </div>
-                  {chatHistory.length===0 && (
-                    <div style={{
-                      position:"absolute", inset:0,
-                      display:"flex", flexDirection:"column",
-                      alignItems:"center", justifyContent:"center",
-                      gap:18, pointerEvents:"none", userSelect:"none",
-                    }}>
-                      {/* Animated ring */}
-                      <div style={{position:"relative", width:80, height:80}}>
-                        <div style={{
-                          position:"absolute", inset:0,
-                          borderRadius:"50%",
-                          border:"1px solid rgba(232,160,32,0.15)",
-                          animation:"breathe 4s ease-in-out infinite",
-                        }}/>
-                        <div style={{
-                          position:"absolute", inset:8,
-                          borderRadius:"50%",
-                          border:"1px solid rgba(232,160,32,0.25)",
-                          animation:"breathe 4s ease-in-out infinite 0.3s",
-                        }}/>
-                        <div style={{
-                          position:"absolute", inset:16,
-                          borderRadius:"50%",
-                          background:"rgba(232,160,32,0.06)",
-                          border:"1.5px solid rgba(232,160,32,0.4)",
-                          boxShadow:"0 0 30px rgba(232,160,32,0.12)",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          animation:"breathe 4s ease-in-out infinite 0.6s",
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="#E8A020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                        </div>
-                      </div>
-                      <div style={{textAlign:"center"}}>
-                        <p style={{fontSize:15,color:"rgba(255,255,255,0.25)",fontWeight:700,margin:0,letterSpacing:"0.06em"}}>
-                          AGUARDANDO CONSULTA
-                        </p>
-                        <p style={{fontSize:11,color:"rgba(255,255,255,0.12)",fontFamily:MONO,marginTop:6,letterSpacing:"0.04em"}}>
-                          Doutrina · Análise · Referências
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {chatHistory.length>0 && (
-                    <>
-                      <div style={S.chatFadeMask}/>
-                      <div style={S.chatMessages}>
-                        {chatHistory.map((m,i)=>(
-                          <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"80%",position:"relative",zIndex:3}}>
-                            <div style={{
-                              background: m.role==="user"
-                                ? "linear-gradient(135deg,#1E3A5F,#0F2840)"
-                                : "rgba(255,255,255,0.04)",
-                              borderRadius:10,
-                              padding:"11px 15px",
-                              fontSize:15.5,
-                              color: m.role==="user"?"#FFFFFF":C.text,
-                              lineHeight:1.65,
-                              boxShadow: m.role==="user"?"0 4px 20px rgba(0,0,0,0.4)":"0 2px 12px rgba(0,0,0,0.2)",
-                              backdropFilter:"blur(8px)",
-                              border: m.role==="bastos"?"1px solid rgba(232,160,32,0.15)":"none",
-                              borderLeft: m.role==="bastos"?"2px solid #E8A020":"none",
-                            }}>
-                              {m.role==="bastos"&&(
-                                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                                  <span style={{fontSize:10,color:C.gold,fontWeight:800,letterSpacing:"0.12em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
-                                  <span style={{fontSize:10,color:C.textMid,fontFamily:MONO}}>· {now}</span>
-                                </div>
-                              )}
-                              {m.text}
-                            </div>
-                          </div>
-                        ))}
-                        {loading&&(
-                          <div style={{alignSelf:"flex-start",fontSize:12,color:C.textMid,fontFamily:MONO,
-                            display:"flex",alignItems:"center",gap:8,zIndex:3,position:"relative"}}>
-                            <span style={{width:5,height:5,borderRadius:"50%",background:C.gold,display:"inline-block",
-                              animation:"amber-pulse 1.5s ease-in-out infinite"}}/>
-                            processando consulta doutrinária...
-                          </div>
-                        )}
-                        <div ref={chatEndRef}/>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>{/* /unified chat card */}
-              </div>{/* /right col */}
-              </div>{/* /2-col wrapper */}
-            </div>{/* /S.body */}
-
-            <div style={{...S.chatBar,...(focused?S.chatBarFocused:{})}}>
-              <div style={S.chatRow}>
-                <div style={S.chatIconWrap}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                </div>
-                <input
-                  style={{...S.chatIn,...(focused?{borderColor:C.gold,boxShadow:`0 0 0 3px ${C.goldSoft}`}:{})}}
-                  value={message}
-                  onChange={e=>setMessage(e.target.value)}
-                  onKeyDown={handleKey}
-                  onFocus={()=>setFocused(true)}
-                  onBlur={()=>setFocused(false)}
-                  placeholder="Pergunte ao Agent Bastos — doutrina, análise, referências…"
-                />
-                <button style={{...S.sendBtn,...(loading?{opacity:0.4,cursor:"not-allowed"}:{})}}
-                  onClick={enviarPergunta} disabled={loading}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                  </svg>
-                </button>
-              </div>
-              <p style={S.chatHint}>
-                <span style={{color:C.gold,fontWeight:700,letterSpacing:"0.04em"}}>↵ Pressione Enter</span>
-                <span style={{color:"rgba(255,255,255,0.45)"}}> para enviar</span>
-              </p>
-            </div>
-          </>
-        )}
-
-       {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
-           "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
-           "Lideranças por Unidade","Análise de Vínculo","Análise Grafoscópica",
-           "Extrato","Inteligência Preditiva","OSINT Pessoas","ORÁCULO",
-           "Operações Drone"].includes(active) && (
-          <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
-            <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
-            <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>
-          </div>
-        )}
-        </div>{/* /screen-enter */}
-        </Suspense>
+        <AppRouter
+          active={active}
+          onNavigate={openTab}
+          tema={tema}
+          setTema={setTema}
+          user={user}
+          painelProps={{
+            homeKpis, homeKpisLoading, expandedKpi, setExpandedKpi,
+            chatHistory, loading, message, setMessage, focused, setFocused,
+            chatEndRef, enviarPergunta, handleKey,
+          }}
+        />
       </main>
 
       {showPolicies && <PoliciesModal onClose={()=>setShowPolicies(false)}/>}
     </div>
   )
 }
-const S = {
-  app:{display:"flex",height:"100vh",background:C.bg,overflow:"hidden",fontFamily:SANS,position:"relative",color:C.text},
-  dotGrid:{position:"fixed",inset:0,backgroundImage:DOT_GRID,backgroundSize:"28px 28px",pointerEvents:"none",zIndex:0},
-  sidebar:{
-    background:"linear-gradient(180deg,#0D3F74 0%,#0A3362 35%,#071F42 75%,#050E20 100%)",
-    borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",
-    flexShrink:0,height:"100vh",position:"relative",zIndex:10,overflow:"hidden",
-    boxShadow:"4px 0 32px rgba(0,0,0,0.45), inset -1px 0 0 rgba(255,255,255,0.04)",
-    backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",
-    transition:"width 0.22s cubic-bezier(0.16,1,0.3,1)"},
-  logoArea:{padding:"14px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.08)",
-    display:"flex",flexDirection:"column",alignItems:"center",gap:10,flexShrink:0,
-    background:"rgba(0,0,0,0.12)"},
-  logoRing:{width:50,height:50,borderRadius:"50%",border:"2px solid rgba(245,158,11,0.9)",
-    overflow:"hidden",flexShrink:0,background:"rgba(245,158,11,0.12)",position:"relative",
-    boxShadow:"0 0 20px rgba(245,158,11,0.4), 0 0 40px rgba(245,158,11,0.12), 0 3px 10px rgba(0,0,0,0.4)"},
-  logoText:{display:"flex",flexDirection:"column",alignItems:"center",gap:2},
-  logoName:{fontSize:14,fontWeight:800,color:"#FFFFFF",letterSpacing:"0.01em",textAlign:"center"},
-  logoTagline:{fontSize:11,color:"#F59E0B",letterSpacing:"0.18em",textTransform:"uppercase",fontWeight:700,textAlign:"center"},
-  nav:{padding:"3px 8px 0",flexShrink:0},
-  groupLabel:{display:"flex",alignItems:"center",gap:7,fontSize:14.3,fontWeight:900,color:"#E8A020",
-    letterSpacing:"0.03em",padding:"0 10px 2px",marginBottom:2,textTransform:"uppercase",
-    textShadow:"0 1px 4px rgba(0,0,0,0.7),0 -1px 0 rgba(255,200,50,0.2)"},
-  groupLabelBar:{display:"inline-block",width:3,height:13,background:"#E8A020",borderRadius:2,
-    flexShrink:0,boxShadow:"0 0 6px rgba(232,160,32,0.5)"},
-  ni:{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",paddingRight:28,
-    borderRadius:7,cursor:"pointer",marginBottom:3,border:"none",background:"transparent",
-    width:"100%",textAlign:"left",transition:"all 0.12s ease"},
-  sidebarFooter:{padding:"0 12px 12px",flexShrink:0},
-  footerDivider:{height:1,background:"linear-gradient(90deg,transparent,rgba(245,158,11,0.4),transparent)",marginBottom:10},
-  configBtn:{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",cursor:"pointer",
-    border:"none",background:"transparent",width:"100%",textAlign:"left",borderRadius:7,
-    transition:"background 0.12s",marginBottom:4},
-  policyBtn:{display:"block",width:"100%",textAlign:"center",fontSize:11,color:"#F59E0B",
-    background:"transparent",border:"none",cursor:"pointer",padding:"4px 0",fontWeight:600,
-    letterSpacing:"0.04em",opacity:0.85},
-  copyright:{fontSize:11,color:"#FFFFFF",textAlign:"center",padding:"5px 0 0",lineHeight:1.5,fontWeight:500,opacity:0.75},
-  main:{flex:1,display:"flex",flexDirection:"column",minWidth:0,height:"100vh",position:"relative",zIndex:10,background:C.bg},
-  topbar:{height:52,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",
-    justifyContent:"space-between",padding:"0 22px",background:C.surface,flexShrink:0,
-    boxShadow:"0 1px 0 rgba(232,160,32,0.08)"},
-  wc:{display:"flex",gap:6,alignItems:"center",marginRight:14},
-  wb:{width:12,height:12,borderRadius:"50%",border:"none",cursor:"pointer",flexShrink:0},
-  ttitle:{fontSize:17,fontWeight:700,color:C.text,letterSpacing:"-0.01em"},
-  tsub:{fontSize:13,color:C.textMid,marginTop:2,fontFamily:MONO},
-  chip:{display:"flex",alignItems:"center",gap:6,padding:"5px 14px",
-    background:"rgba(22,163,74,0.1)",borderRadius:20,border:"1px solid rgba(22,163,74,0.3)"},
-  chipDot:{width:7,height:7,borderRadius:"50%",background:"#16A34A",flexShrink:0},
-  chipText:{fontSize:13,color:"#4ADE80",fontWeight:600},
-  body:{flex:1,overflow:"hidden",padding:"12px 22px 14px",display:"flex",flexDirection:"column",gap:10},
-  alert:{background:"rgba(220,38,38,0.08)",borderRadius:10,padding:"10px 16px",
-    display:"flex",alignItems:"center",justifyContent:"space-between",
-    border:"1px solid rgba(220,38,38,0.25)",boxShadow:"0 2px 12px rgba(220,38,38,0.1)",
-    flexShrink:0,backdropFilter:"blur(8px)"},
-  alertBadge:{fontSize:11,fontWeight:700,padding:"3px 10px",background:"#DC2626",color:"#FFFFFF",
-    borderRadius:5,letterSpacing:"0.06em",whiteSpace:"nowrap",flexShrink:0,fontFamily:MONO},
-  alertText:{fontSize:15.6,color:"#FCA5A5",lineHeight:1.4,marginLeft:12,fontWeight:600},
-  alertTime:{fontSize:13,color:"rgba(252,165,165,0.6)",whiteSpace:"nowrap",marginLeft:12,flexShrink:0,fontFamily:MONO},
-  secHeader:{display:"flex",alignItems:"center",gap:8,marginBottom:8},
-  secBar:{display:"inline-block",width:3,height:16,background:C.gold,borderRadius:2,flexShrink:0,boxShadow:`0 0 8px ${C.gold}88`},
-  secLabel:{fontSize:11.7,fontWeight:800,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",margin:0},
-  refsBar:{display:"flex",alignItems:"center",gap:12,background:"rgba(255,255,255,0.03)",
-    border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",flexShrink:0,overflow:"hidden",backdropFilter:"blur(8px)"},
-  refsBarLeft:{display:"flex",alignItems:"center",gap:8,paddingRight:12,borderRight:`1px solid ${C.border}`,flexShrink:0},
-  chatArea:{flex:1,background:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`,
-    borderRadius:10,position:"relative",overflow:"hidden",minHeight:60,backdropFilter:"blur(8px)"},
-  emptyState:{position:"absolute",inset:0,display:"flex",flexDirection:"column",
-    alignItems:"center",justifyContent:"center",pointerEvents:"none",userSelect:"none"},
-  emptyText:{fontSize:15.6,color:"rgba(255,255,255,0.35)",fontWeight:600,marginTop:10,letterSpacing:"0.04em"},
-  emptySubtext:{fontSize:13,color:"rgba(255,255,255,0.18)",fontFamily:MONO,marginTop:4},
-  chatFadeMask:{position:"absolute",top:0,left:0,right:0,height:28,
-    background:`linear-gradient(to bottom,${C.bg},transparent)`,zIndex:2,pointerEvents:"none"},
-  chatMessages:{padding:"14px 16px 10px",display:"flex",flexDirection:"column",gap:10,height:"100%",overflowY:"auto"},
-  chatBar:{borderTop:`1px solid ${C.border}`,background:C.surface,padding:"10px 22px 12px",flexShrink:0},
-  chatBarFocused:{background:C.surfaceUp},
-  chatRow:{display:"flex",gap:10,alignItems:"center"},
-  chatIconWrap:{width:38,height:38,borderRadius:8,background:`${C.goldSoft}`,
-    border:`1px solid rgba(232,160,32,0.25)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
-  chatIn:{flex:1,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,
-    borderRadius:8,padding:"11px 16px",fontSize:16.9,color:C.text,outline:"none",fontFamily:SANS,
-    transition:"border-color 0.2s,box-shadow 0.2s"},
-  sendBtn:{width:40,height:40,background:`linear-gradient(135deg,#F59E0B,#B45309)`,
-    border:"none",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",
-    cursor:"pointer",flexShrink:0,boxShadow:"0 4px 14px rgba(180,83,9,0.4)",transition:"opacity 0.2s"},
-  chatHint:{fontSize:13,color:C.textDim,textAlign:"center",marginTop:7,letterSpacing:"0.03em",fontWeight:500,fontFamily:MONO},
+
+// App — ponto de entrada. Só monta o AuthProvider e delega tudo pro
+// AppShell, que lê a sessão via useAuth() em vez de gerenciá-la direto
+// (Missão 34: extração de AuthContext/AppRouter do antigo "God Component").
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell/>
+    </AuthProvider>
+  )
 }
 
 const POLICY_DEFAULT = {
