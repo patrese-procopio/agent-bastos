@@ -14,6 +14,7 @@
 ![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=for-the-badge&logo=databricks&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=electron&logoColor=white)
+[![CI](https://github.com/patrese-procopio/agent-bastos/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/patrese-procopio/agent-bastos/actions/workflows/ci.yml)
 
 ![JWT](https://img.shields.io/badge/Auth-JWT%20%2B%20RBAC-000000?style=flat-square)
 ![Encryption](https://img.shields.io/badge/Logs-Fernet%20AES--128-green?style=flat-square)
@@ -234,9 +235,9 @@ agent-bastos/
 - [x] Blacklist JWT persistente em SQLite
 - [x] Gestão de usuários com RBAC via API
 - [x] Rotação automática de logs criptografados
-- [ ] Containerização (Docker)
+- [x] Containerização (Docker)
 - [ ] Busca híbrida no RAG (vetorial + keyword) com reranking
-- [ ] CI/CD com GitHub Actions
+- [x] CI/CD com GitHub Actions
 - [ ] Cobertura de testes ampliada
 
 ---

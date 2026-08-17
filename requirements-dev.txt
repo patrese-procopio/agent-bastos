@@ -1,0 +1,7 @@
+# Dependencias extras para desenvolvimento local (rodar a suite de testes
+# na sua maquina). O CI (.github/workflows/ci.yml) NAO usa este arquivo -- ele
+# instala uma lista propria e enxuta, sem libs pesadas de ML (torch,
+# chromadb, sentence-transformers), porque a suite de testes mocka a camada
+# de servico e nao precisa delas rodando de verdade.
+-r requirements.txt
+pytest==9.1.1
