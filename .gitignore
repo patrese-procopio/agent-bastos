@@ -72,3 +72,11 @@ auth.db
 
 rag_teste.txt
 teste_rag.txt
+
+# ─── Pacotes de deploy/build gerados (não versionar — GBs de binário) ────────
+deploy_package/
+update_package_v1.1.0/
+SNAPSHOT_*.tar.gz
+
+# ─── Auditoria operacional (LGPD — nunca sai da máquina local) ──────────────
+*.jsonl
