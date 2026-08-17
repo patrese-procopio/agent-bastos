@@ -2,14 +2,18 @@
 from dotenv import load_dotenv
 from datasets import Dataset
 from ragas.metrics import Faithfulness, AnswerRelevancy, ContextPrecision, ContextRecall
-from ragas import evaluate
+from ragas import evaluate, RunConfig
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from groq import Groq
+from groq import Groq, RateLimitError
+import time
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config.settings import GROQ_MODEL_CHAT, GROQ_MODEL_JUDGE
 
 load_dotenv()
 
-ROOT_DIR    = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROMA_DIR  = os.path.join(ROOT_DIR, "data", "chroma_db")
 REPORT_PATH = os.path.join(ROOT_DIR, "data", "relatorios", "ragas_report.json")
 
@@ -110,7 +114,7 @@ def recuperar_chunks(pergunta, top_k=6):
     return [doc.page_content for doc in docs]
 
 
-def gerar_resposta(pergunta, contexto):
+def gerar_resposta(pergunta, contexto, max_tentativas=5):
     ctx = "\n\n".join([f"[TRECHO {i+1}]\n{c}" for i, c in enumerate(contexto)])
     prompt = (
         "Voce e o BASTOS-UNIT, analista de inteligencia penitenciaria da SEAP/AM. "
@@ -119,13 +123,23 @@ def gerar_resposta(pergunta, contexto):
         f"### PERGUNTA\n{pergunta}\n\n"
         "### RESPOSTA:"
     )
-    r = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-        max_tokens=768,
-    )
-    return r.choices[0].message.content
+    # Free tier da Groq limita TPM (tokens por minuto) — com poucas perguntas
+    # ja da pra estourar. Backoff respeitando o "retry-after" que a propria
+    # API devolve, em vez de um sleep fixo no escuro.
+    for tentativa in range(1, max_tentativas + 1):
+        try:
+            r = groq_client.chat.completions.create(
+                model=GROQ_MODEL_CHAT,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=768,
+            )
+            return r.choices[0].message.content
+        except RateLimitError as e:
+            espera = float(e.response.headers.get("retry-after", 15)) + 1
+            print(f"  [rate limit] tentativa {tentativa}/{max_tentativas} — aguardando {espera:.1f}s...")
+            time.sleep(espera)
+    raise RuntimeError(f"Rate limit persistente apos {max_tentativas} tentativas.")
 
 
 questions, answers, contexts, ground_truths = [], [], [], []
@@ -146,9 +160,10 @@ from ragas.embeddings import LangchainEmbeddingsWrapper
 from langchain_groq import ChatGroq
 
 llm_av = LangchainLLMWrapper(ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model=GROQ_MODEL_JUDGE,
     api_key=os.getenv("GROQ_API_KEY"),
     temperature=0,
+    max_tokens=1536,
 ))
 emb_av = LangchainEmbeddingsWrapper(
     HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
@@ -163,10 +178,10 @@ dataset = Dataset.from_dict({
 
 resultado = evaluate(
     dataset=dataset,
-    metrics=[Faithfulness(), AnswerRelevancy(), ContextPrecision(), ContextRecall()],
+    metrics=[Faithfulness(), AnswerRelevancy(strictness=1), ContextPrecision(), ContextRecall()],
     llm=llm_av,
     embeddings=emb_av,
-    run_config={"max_workers": 1, "timeout": 120},
+    run_config=RunConfig(max_workers=1, timeout=180),
 )
 
 df     = resultado.to_pandas()

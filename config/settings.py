@@ -22,6 +22,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # aposentar um modelo (ja aconteceu com llama-3.3-70b-versatile em 16/08/2026
 # -- ver https://console.groq.com/docs/deprecations).
 GROQ_MODEL_CHAT = os.getenv("GROQ_MODEL_CHAT", "openai/gpt-oss-120b")
+# Modelo mais leve para papeis de alto volume/baixa criatividade (juiz de
+# avaliacao RAGAS, classificacoes simples). Sem overhead de raciocinio do
+# gpt-oss-120b -- consome uma fracao dos tokens para a mesma tarefa, o que
+# importa muito no free tier (limite diario de 200k tokens).
+GROQ_MODEL_JUDGE = os.getenv("GROQ_MODEL_JUDGE", "llama-3.1-8b-instant")
 
 # DeepSeek (API OpenAI-compatible — https://platform.deepseek.com)
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
