@@ -15,7 +15,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import getpass
 import socket
 from datetime import datetime, timezone
-from config.settings import GROQ_MODEL_CHAT
+from config.settings import GROQ_MODEL_CHAT, RAG_HYBRID_SEARCH
+from modules.hybrid_retriever import HybridRetriever
 
 load_dotenv()
 
@@ -46,6 +47,12 @@ _embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 print("[*] Conectando ao ChromaDB...")
 _db = Chroma(persist_directory=CHROMA_DIR, embedding_function=_embeddings)
 print(f"[+] ChromaDB carregado: {_db._collection.count()} chunks indexados.")
+
+# Missao 35: busca hibrida (vetorial + BM25 + reranking) atras de uma flag —
+# so instancia (e so entao carrega o cross-encoder) se estiver ligada.
+_hybrid_retriever = HybridRetriever(_db) if RAG_HYBRID_SEARCH else None
+if RAG_HYBRID_SEARCH:
+    print("[+] Busca hibrida ATIVA (RAG_HYBRID_SEARCH=true).")
 
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not _GROQ_API_KEY:
@@ -136,7 +143,13 @@ def _buscar_doutrina_com_score(pergunta: str, top_k: int = 6):
     """
     Busca os top_k chunks mais proximos e retorna junto com o score.
     top_k=6 para ter margem de filtragem — so os acima do SCORE_MINIMO sao usados.
+
+    Com RAG_HYBRID_SEARCH=true, delega para o HybridRetriever (vetorial +
+    BM25 + rerank) em vez da busca puramente vetorial do Chroma — mesma
+    assinatura de retorno, entao o resto do pipeline nao muda uma linha.
     """
+    if _hybrid_retriever is not None:
+        return _hybrid_retriever.buscar(pergunta, top_k=top_k)
     return _db.similarity_search_with_relevance_scores(pergunta, k=top_k)
 
 

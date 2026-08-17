@@ -28,6 +28,12 @@ GROQ_MODEL_CHAT = os.getenv("GROQ_MODEL_CHAT", "openai/gpt-oss-120b")
 # importa muito no free tier (limite diario de 200k tokens).
 GROQ_MODEL_JUDGE = os.getenv("GROQ_MODEL_JUDGE", "llama-3.1-8b-instant")
 
+# Missao 35: busca hibrida (vetorial + BM25 + reranking) no RAG.
+# Comeca desligada ate o ganho de Context Recall ser medido via
+# scripts/avaliar_rag.py -- nao trocar o retriever de producao as
+# cegas sem numero real comparando antes/depois.
+RAG_HYBRID_SEARCH = os.getenv("RAG_HYBRID_SEARCH", "false").lower() == "true"
+
 # DeepSeek (API OpenAI-compatible — https://platform.deepseek.com)
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
