@@ -44,15 +44,28 @@
 - Corrigidos 2 pontos em `GrafoVinculos.jsx` que faziam `fetch` direto lendo `localStorage.getItem('ab_access_token')` (bypass do `api.js` — teriam quebrado silenciosamente com a mudança).
 - Testado e funcional em 17/08/2026.
 
+### Missão 34 — Refatorar App.jsx (God Component)
+- Escopo enxuto: extraídos `AuthContext.jsx` (sessão), `Painel.jsx` (tela inicial, que antes vivia inline — única das 20+ telas sem arquivo próprio) e `AppRouter.jsx` (mapeamento tela→componente, antes 19 blocos condicionais soltos).
+- `App.jsx` caiu de 2394 para 1407 linhas (-41%).
+- Limpeza: removido código morto (`NEWS`/`liveNews`/`newsToShow` — polling sem uso; `decodeJwt`/`userFromToken` — órfãos desde a Missão 33).
+- Sidebar/Topbar (tabs, busca, notificações, tema, idle-timeout) ficaram de fora — ver Missão 34b.
+- Testado e funcional em 17/08/2026.
+
+### Fix não planejado — Modelo Groq descomissionado
+- A Groq desativou `llama-3.3-70b-versatile` em 16/08/2026, quebrando Chat RAG, resumo de transcrição e o monitor de notícias (404 `model_not_found`).
+- Migrado para `openai/gpt-oss-120b` (modelo de produção, não preview), centralizado em `GROQ_MODEL_CHAT` (`config/settings.py`) em vez de string repetida em 3 arquivos.
+- Testado e funcional em 17/08/2026.
+
 ---
 
 ## 🎯 Próximas candidatas
 
 Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.md`, `README.md` e `AUDIT.md` — não são ideias novas, são itens que o próprio projeto já sinalizou como faltando.
 
-### Missão 34 — Refatorar App.jsx (God Component)
-- Extrair `AuthContext`, `AppRouter`, `Layout` — hoje App.jsx concentra autenticação, navegação e renderização dos 20+ módulos.
-- Prioridade média — não trava o sistema, mas pesa em qualquer code review técnico.
+### Missão 34b — Extrair Layout (Sidebar/Topbar) do App.jsx
+- Continuação da Missão 34: sidebar, topbar (busca Ctrl+K, notificações, seletor de tema, avatar), tab bar e timeout de sessão por inatividade ainda vivem dentro do `App.jsx`.
+- Mais arriscado que a Missão 34 original — muito estado compartilhado entre esses widgets (ex: `showSearch` fecha `showNotifications`, `focusMode` esconde topbar inteira). Fazer com ambiente de build local disponível pra testar a cada extração.
+- Prioridade: baixa — não pesa tanto quanto Painel/AppRouter pesavam numa review técnica.
 
 ### Missão 35 — Busca híbrida no RAG
 - Vetorial + keyword com reranking (item já listado no roadmap do `README.md`).
@@ -80,4 +93,4 @@ Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.m
 
 ---
 
-*Atualizado em 17/08/2026 — Missões 25 a 33 e Inteligência Preditiva confirmadas funcionais em teste manual.*
+*Atualizado em 17/08/2026 — Missões 25 a 34 (escopo enxuto), Inteligência Preditiva e fix do modelo Groq confirmados funcionais em teste manual.*
