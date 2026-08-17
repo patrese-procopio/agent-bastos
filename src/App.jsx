@@ -4,6 +4,7 @@ import logoImg from "./assets/logo.webp"
 import ErrorBoundary from "./ErrorBoundary"
 import Login from "./Login"
 import api from "./api"
+import { getUser, clearSession } from "./authStore"
 import AnimatedNumber from "./AnimatedNumber"
 import { ToastContainer } from "./Toast"
 import { ConfirmModalContainer } from "./ConfirmModal"
@@ -120,9 +121,9 @@ function decodeJwt(token) {
   } catch { return null }
 }
 
-// Lê o usuário atual a partir do access token armazenado (sempre fresco)
-function userFromStorage() {
-  const token = localStorage.getItem("ab_access_token")
+// Deriva os dados de usuário a partir de um access token (sempre fresco,
+// nunca lido de storage — Missão 33: access_token vive só em memória).
+function userFromToken(token) {
   if (!token) return null
   const p = decodeJwt(token)
   if (!p?.sub) return null
@@ -349,7 +350,11 @@ export default function App() {
   const [tabs, setTabs]               = useState([{id:"t-init", label:"Painel", color:"#F59E0B"}])
   const [activeTabId, setActiveTabId] = useState("t-init")
   const active = tabs.find(t=>t.id===activeTabId)?.label ?? "Painel"
-  const [user, setUser]                 = useState(() => userFromStorage())
+  // user começa null — o access_token vive só em memória (Missão 33) e não
+  // sobrevive a um reload de página. `authChecking` segura a tela de login
+  // até tentarmos reidratar a sessão via refresh_token (useEffect abaixo).
+  const [user, setUser]                 = useState(null)
+  const [authChecking, setAuthChecking] = useState(true)
   const [backendStatus, setBackendStatus] = useState("checking") // "online" | "offline" | "checking"
   const [message, setMessage]           = useState("")
   const [focused, setFocused]           = useState(false)
@@ -375,6 +380,25 @@ export default function App() {
   const pendingGRef                         = useRef(null)
   const chatEndRef                      = useRef(null)
   const searchInputRef                  = useRef(null)
+
+  // ── Reidratação de sessão no boot (Missão 33) ───────────────────────────
+  // Sem isso, todo F5/reload derrubaria o usuário — o access_token some da
+  // memória, mas o refresh_token continua no sessionStorage. Uma tentativa
+  // silenciosa de refresh evita pedir login de novo sem reabrir o app.
+  useEffect(() => {
+    let cancelado = false
+    ;(async () => {
+      const ok = await api.restoreSession()
+      if (cancelado) return
+      if (ok) {
+        // O usuário salvo (username/level/modules) sobrevive no sessionStorage
+        // só como cache de exibição — quem decide permissão é sempre o backend.
+        setUser(getUser())
+      }
+      setAuthChecking(false)
+    })()
+    return () => { cancelado = true }
+  }, [])
 
   useEffect(() => {
     document.body.classList.remove("dark-mode","theme-tactico","theme-claro")
@@ -507,15 +531,12 @@ export default function App() {
   }, [active, user])
 
   function handleLogin(data) {
-    // Remove cache stale — módulos sempre lidos do JWT via userFromStorage()
-    localStorage.removeItem("ab_user")
+    // Tokens já foram guardados pelo Login.jsx via authStore (memória + sessionStorage).
     setUser({ username: data.username, level: data.level, modules: data.modules || [] })
   }
 
   function handleLogout() {
-    localStorage.removeItem("ab_access_token")
-    localStorage.removeItem("ab_refresh_token")
-    localStorage.removeItem("ab_user")
+    clearSession()
     setUser(null)
   }
 
@@ -658,6 +679,9 @@ export default function App() {
   }
 
   // ← AQUI — depois de todos os hooks e funções
+  // Enquanto tenta reidratar a sessão (refresh silencioso), não mostra login —
+  // evita o "flash" de tela de login em todo reload de página com sessão válida.
+  if (authChecking) return null
   if (!user) return <Login onLogin={handleLogin} />
 
   const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})

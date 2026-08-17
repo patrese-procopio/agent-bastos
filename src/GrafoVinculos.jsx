@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { jsPDF } from "jspdf"
 import ForceGraph2D from "react-force-graph-2d"
 import api from "./api"
+import { getAccessToken } from "./authStore"
 import { confirm } from "./ConfirmModal"
 import { toast } from "./Toast"
 const IMG_BASE = import.meta.env.DEV ? "/api-proxy" : "http://127.0.0.1:8000/api"
@@ -525,7 +526,7 @@ export default function GrafoVinculos() {
     if (!url || imgCache.has(url)) return
     imgCache.set(url, "loading")
     try {
-      const token = localStorage.getItem("ab_access_token") || ""
+      const token = getAccessToken() || ""
       const fullUrl = `${IMG_BASE}${url.replace(/^\/api/, "")}`
       const resp = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
       if (!resp.ok) throw new Error(resp.status)
@@ -1364,7 +1365,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
   const [fotoSrc, setFotoSrc] = useState(null)
   useEffect(() => {
     if (!det.foto_url) { setFotoSrc(null); return }
-    const token = localStorage.getItem("ab_access_token") || ""
+    const token = getAccessToken() || ""
     const fullUrl = `${IMG_BASE}${det.foto_url.replace(/^\/api/, "")}`
     let cancelled = false
     fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })

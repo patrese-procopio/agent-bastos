@@ -1,5 +1,6 @@
 import { useState } from "react"
 import api from "./api"
+import { setTokens, setUser } from "./authStore"
 import logoImg from "./assets/logo.webp"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
@@ -23,13 +24,13 @@ export default function Login({ onLogin }) {
         setError(data.detail || "Credenciais inválidas")
         return
       }
-      localStorage.setItem("ab_access_token",  data.access_token)
-      localStorage.setItem("ab_refresh_token", data.refresh_token)
-      localStorage.setItem("ab_user", JSON.stringify({
+      // access_token só em memória; refresh_token em sessionStorage (Missão 33)
+      setTokens(data.access_token, data.refresh_token)
+      setUser({
         username: data.username,
         level:    data.level,
         modules:  data.modules,
-      }))
+      })
       onLogin(data)
     } catch {
       setError("Sem conexão com o servidor")

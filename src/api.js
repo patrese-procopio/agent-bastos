@@ -1,9 +1,11 @@
+import { getAccessToken, getRefreshToken, setTokens, clearSession } from "./authStore"
+
 // Em dev: Vite proxeia /api-proxy → http://localhost:8000/api
 // Em produção (Electron packaged): sem proxy, vai direto para a API local
 const BASE = import.meta.env.DEV ? "/api-proxy" : "http://127.0.0.1:8000/api"
 
 function getToken() {
-  return localStorage.getItem("ab_access_token")
+  return getAccessToken()
 }
 
 function headers(extra = {}) {
@@ -16,7 +18,7 @@ function headers(extra = {}) {
 }
 
 async function tryRefresh() {
-  const refresh = localStorage.getItem("ab_refresh_token")
+  const refresh = getRefreshToken()
   if (!refresh) return false
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
@@ -26,8 +28,7 @@ async function tryRefresh() {
     })
     if (!res.ok) return false
     const data = await res.json()
-    localStorage.setItem("ab_access_token", data.access_token)
-    if (data.refresh_token) localStorage.setItem("ab_refresh_token", data.refresh_token)
+    setTokens(data.access_token, data.refresh_token)
     return true
   } catch { return false }
 }
@@ -59,9 +60,7 @@ async function request(method, path, body = null) {
       res = await fetch(`${BASE}${path}`, retryOpts)
     }
     if (res.status === 401) {
-      localStorage.removeItem("ab_access_token")
-      localStorage.removeItem("ab_refresh_token")
-      localStorage.removeItem("ab_user")
+      clearSession()
       // Notifica o React root para deslogar sem reload de página
       window.dispatchEvent(new CustomEvent("ab:logout"))
       return res
@@ -90,6 +89,11 @@ const api = {
       body: form,
     })
   },
+
+  // Tenta renovar a sessão a partir do refresh_token salvo (sessionStorage).
+  // Usado no boot do App — o access_token vive só em memória, então some a
+  // cada reload de página; isso reidrata a sessão sem pedir login de novo.
+  restoreSession: () => tryRefresh(),
 }
 
 export default api
