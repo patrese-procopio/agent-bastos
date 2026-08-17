@@ -1,33 +1,35 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import logoImg from "./assets/logo.webp"
+// Imports estáticos — necessários antes/durante auth ou sempre presentes no shell
 import ErrorBoundary from "./ErrorBoundary"
-import ChatRAG from "./ChatRAG"
-import Dashboard from "./Dashboard"
-import Transcricao from "./Transcricao"
-import Alertas from "./Alertas"
-import Noticias from "./Noticias"
-import Referencias from "./Referencias"
-import Configuracoes from "./Configuracoes"
-import Agenda from "./Agenda"
-import ListaNegra from "./ListaNegra"
-import OsintPesquisa from "./OsintPesquisa"
-import Grafoscopia from "./Grafoscopia"
-import ControleGrupos from "./ControleGrupos"
-import InteligenciaGrupos from "./InteligenciaGrupos"
-import LiderancasUnidade from "./LiderancasUnidade"
-import GrafoVinculos from "./GrafoVinculos"
-import Extrato from "./Extrato"
-import SinaisFracos from "./SinaisFracos"
-import MatrizNucadis from "./MatrizNucadis"
 import Login from "./Login"
 import api from "./api"
-import LideresGerais from "./LideresGerais"
-import HitlDashboard from "./HitlDashboard"
-import GerenciarUsuarios from "./GerenciarUsuarios"
-import AuditoriaLog from "./AuditoriaLog"
 import AnimatedNumber from "./AnimatedNumber"
 import { ToastContainer } from "./Toast"
 import { ConfirmModalContainer } from "./ConfirmModal"
+
+// Lazy imports — cada módulo vira chunk separado, carregado só na primeira navegação
+const ChatRAG          = lazy(() => import("./ChatRAG"))
+const Dashboard        = lazy(() => import("./Dashboard"))
+const Transcricao      = lazy(() => import("./Transcricao"))
+const Alertas          = lazy(() => import("./Alertas"))
+const Noticias         = lazy(() => import("./Noticias"))
+const Referencias      = lazy(() => import("./Referencias"))
+const Configuracoes    = lazy(() => import("./Configuracoes"))
+const Agenda           = lazy(() => import("./Agenda"))
+const ListaNegra       = lazy(() => import("./ListaNegra"))
+const OsintPesquisa    = lazy(() => import("./OsintPesquisa"))
+const Grafoscopia      = lazy(() => import("./Grafoscopia"))
+const ControleGrupos   = lazy(() => import("./ControleGrupos"))
+// InteligenciaGrupos movido para dentro de ControleGrupos (lazy interno)
+const LiderancasUnidade  = lazy(() => import("./LiderancasUnidade"))
+const GrafoVinculos    = lazy(() => import("./GrafoVinculos"))
+const Extrato          = lazy(() => import("./Extrato"))
+const InteligenciaPreditiva = lazy(() => import("./InteligenciaPreditiva"))
+// LideresGerais movido para dentro de LiderancasUnidade (lazy interno)
+const HitlDashboard    = lazy(() => import("./HitlDashboard"))
+const OperacoesDrone   = lazy(() => import("./OperacoesDrone"))
+// GerenciarUsuarios e AuditoriaLog movidos para dentro de Configuracoes (admin tabs)
 
 // Mapeamento: label do nav → módulo necessário no JWT
 // Se module === null → sempre visível para qualquer usuário autenticado
@@ -36,24 +38,22 @@ const NAV_PERMISSIONS = {
   "Alertas":                 "alertas",
   "ORÁCULO":                 "hitl",
   "Controle de Grupos":      "grupos",
-  "Inteligência de Grupos":  "inteligencia_grupos",
+  // "Inteligência de Grupos" movido para aba interna do Controle de Grupos
   "Lideranças por Unidade":  "liderancas",
-  "Líderes Gerais":          "liderancas",
+  // "Líderes Gerais" movido para aba interna de Lideranças por Unidade
   "Análise de Vínculo":      "vinculo",
   "Extrato":                 "extrato",
   "Lista Negra":             "lista_negra",
   "Chat RAG":                "chat_rag",
   "OSINT Pessoas":           "osint",
-  "Sinais Fracos":           "sinais_fracos",
+  "Inteligência Preditiva":  ["sinais_fracos", "matrix_nucadis"],  // OR — basta ter um dos módulos
   "Referências":             "referencias",
   "Agenda de Missão":        "agenda",
   "Dashboard":               "dashboard",
-  "Matriz NUCADIs":          "matrix_nucadis",
   "Transcrição":             "transcricao",
   "Análise Grafoscópica":    "grafoscopia",
   "Notícias":                "noticias",
-  "Gerenciar Usuários":      "usuarios",
-  "Auditoria":               "auditoria",
+  "Operações Drone":         "drone",
 }
 
 const NAV_GROUPS_ALL = [
@@ -62,9 +62,9 @@ const NAV_GROUPS_ALL = [
     { label: "Alertas",                 color: "#F87171", pulse: true },
     { label: "ORÁCULO",                  color: "#A78BFA", pulse: true },
     { label: "Controle de Grupos",      color: "#F87171" },
-    { label: "Inteligência de Grupos",  color: "#A78BFA" },
+    // "Inteligência de Grupos" movido para aba interna do Controle de Grupos
     { label: "Lideranças por Unidade",  color: "#F87171" },
-    { label: "Líderes Gerais",          color: "#F97316" },
+    // "Líderes Gerais" movido para aba interna de Lideranças por Unidade
     { label: "Análise de Vínculo",      color: "#38BDF8" },
     { label: "Extrato",                 color: "#E8A020" },
     { label: "Lista Negra",             color: "#94A3B8" },
@@ -72,18 +72,16 @@ const NAV_GROUPS_ALL = [
   { title: "INTELIGÊNCIA", items: [
     { label: "Chat RAG",        color: "#1D4ED8" },
     { label: "OSINT Pessoas",   color: "#B45309" },
-    { label: "Sinais Fracos",   color: "#FBBF24" },
-    { label: "Referências",     color: "#C4B5FD" },
+    { label: "Inteligência Preditiva", color: "#FBBF24" },
+    { label: "Referências",           color: "#C4B5FD" },
     { label: "Agenda de Missão",color: "#F59E0B", badge: "2" },
   ]},
   { title: "FERRAMENTAS", items: [
     { label: "Dashboard",             color: "#34D399" },
-    { label: "Matriz NUCADIs",        color: "#F472B6" },
     { label: "Transcrição",           color: "#818CF8" },
     { label: "Análise Grafoscópica",  color: "#FBBF24" },
     { label: "Notícias",              color: "#FB923C" },
-    { label: "Gerenciar Usuários",    color: "#60A5FA" },
-    { label: "Auditoria",             color: "#A78BFA" },
+    { label: "Operações Drone",       color: "#22D3EE" },
   ]},
 ]
 
@@ -92,7 +90,10 @@ function buildNavGroups(modules = []) {
     ...group,
     items: group.items.filter(item => {
       const mod = NAV_PERMISSIONS[item.label]
-      return mod === null || mod === undefined || modules.includes(mod)
+      if (mod === null || mod === undefined) return true
+      // Suporte a OR: array de módulos — basta ter ao menos um
+      if (Array.isArray(mod)) return mod.some(m => modules.includes(m))
+      return modules.includes(mod)
     }),
   })).filter(group => group.items.length > 0)
 }
@@ -105,11 +106,11 @@ const NEWS = [
 ]
 
 const REFS = [
-  { label: "Relatórios operacionais", color: "#A78BFA" },
-  { label: "Documentos históricos", color: "#A78BFA" },
-  { label: "Arquivos de inteligência", color: "#60A5FA" },
-  { label: "Busca por período", color: "#60A5FA" },
-  { label: "Drive institucional", color: "#34D399" },
+  { label: "Relatórios operacionais",  color: "#A78BFA", query: "Liste os relatórios operacionais disponíveis na base doutrinária." },
+  { label: "Documentos históricos",    color: "#A78BFA", query: "Quais documentos históricos estão catalogados no sistema?" },
+  { label: "Arquivos de inteligência", color: "#60A5FA", query: "Apresente os arquivos de inteligência disponíveis." },
+  { label: "Busca por período",        color: "#60A5FA", query: "Pesquise documentos produzidos no último mês." },
+  { label: "Drive institucional",      color: "#34D399", query: "Liste o conteúdo do drive institucional." },
 ]
 
 // Decodifica o payload do JWT sem verificar assinatura (o backend verifica em cada chamada)
@@ -224,6 +225,18 @@ const GLOBAL_CSS = `
     from { height: 0; opacity: 0; }
     to   { height: 60%; opacity: 1; }
   }
+  @keyframes ticker-scroll {
+    0%   { transform: translateX(60%); }
+    100% { transform: translateX(-120%); }
+  }
+  @keyframes breathe {
+    0%,100% { opacity:0.5; transform:scale(1); }
+    50%     { opacity:1;   transform:scale(1.05); }
+  }
+  @keyframes scan-line {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(200vh); }
+  }
   @keyframes toastIn {
     from { opacity: 0; transform: translateX(-50%) translateY(18px); }
     to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
@@ -239,6 +252,10 @@ const GLOBAL_CSS = `
   @keyframes dotPulseRed {
     0%, 100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); transform: scale(1); }
     50%       { box-shadow: 0 0 0 5px rgba(248,113,113,0.2); transform: scale(1.15); }
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(0.85); }
   }
 
   /* ── Classes utilitárias ───────────────────────────────────────────── */
@@ -314,12 +331,26 @@ const GearIcon = () => (
   </svg>
 )
 function tempoH(ts) { const d = Math.floor((Date.now()/1000 - ts)/3600); return d + "h" }
+
+function LiveClock({ showSeconds = false }) {
+  const [t, setT] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setT(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const opts = showSeconds
+    ? {hour:"2-digit",minute:"2-digit",second:"2-digit"}
+    : {hour:"2-digit",minute:"2-digit"}
+  return <>{t.toLocaleTimeString("pt-BR", opts)}</>
+}
+
 export default function App() {
   // ── Sistema de abas ─────────────────────────────────────────────────────
   const [tabs, setTabs]               = useState([{id:"t-init", label:"Painel", color:"#F59E0B"}])
   const [activeTabId, setActiveTabId] = useState("t-init")
   const active = tabs.find(t=>t.id===activeTabId)?.label ?? "Painel"
   const [user, setUser]                 = useState(() => userFromStorage())
+  const [backendStatus, setBackendStatus] = useState("checking") // "online" | "offline" | "checking"
   const [message, setMessage]           = useState("")
   const [focused, setFocused]           = useState(false)
   const [chatHistory, setChatHistory]   = useState([])
@@ -495,6 +526,86 @@ export default function App() {
     return () => window.removeEventListener("ab:logout", onSessionExpired)
   }, [])  // setUser é estável — [] é seguro aqui
 
+  // ── Timeout de sessão por inatividade ────────────────────────────────────
+  // Fluxo: 15 min sem atividade → modal de aviso → 60s contagem → logout automático
+  const IDLE_MS    = 15 * 60 * 1000  // 15 minutos sem atividade
+  const WARNING_S  = 60              // segundos de aviso antes do logout
+  const [idleWarning, setIdleWarning] = useState(false)
+  const [idleCount,   setIdleCount]   = useState(WARNING_S)
+  const idleTimer  = useRef(null)
+  const countTimer = useRef(null)
+
+  useEffect(() => {
+    if (!user) return
+
+    function startWarning() {
+      setIdleWarning(true)
+    }
+
+    function scheduleIdle() {
+      clearTimeout(idleTimer.current)
+      idleTimer.current = setTimeout(startWarning, IDLE_MS)
+    }
+
+    function onActivity() {
+      // Ignora atividade enquanto o aviso está visível — evita reset acidental
+      setIdleWarning(prev => { if (!prev) scheduleIdle(); return prev })
+    }
+
+    const EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"]
+    EVENTS.forEach(ev => window.addEventListener(ev, onActivity, { passive: true }))
+    scheduleIdle()
+
+    return () => {
+      EVENTS.forEach(ev => window.removeEventListener(ev, onActivity))
+      clearTimeout(idleTimer.current)
+      clearInterval(countTimer.current)
+    }
+  }, [user])  // eslint-disable-line
+
+  // Contagem regressiva quando aviso está ativo
+  useEffect(() => {
+    if (!idleWarning) return
+    setIdleCount(WARNING_S)
+    countTimer.current = setInterval(() => {
+      setIdleCount(prev => {
+        if (prev <= 1) {
+          clearInterval(countTimer.current)
+          handleLogout()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(countTimer.current)
+  }, [idleWarning])  // eslint-disable-line
+
+  function continuarSessao() {
+    setIdleWarning(false)
+    clearInterval(countTimer.current)
+    clearTimeout(idleTimer.current)
+    idleTimer.current = setTimeout(() => setIdleWarning(true), IDLE_MS)
+  }
+
+  // ── Status do backend — polling a cada 30s ───────────────────────────────
+  // /health fica na raiz do FastAPI (fora do prefixo /api).
+  // Backend sempre roda local (localhost:8000), tanto em dev quanto em prod Electron.
+  useEffect(() => {
+    async function ping() {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/health", {
+          signal: AbortSignal.timeout(4000),
+        })
+        setBackendStatus(res.ok ? "online" : "offline")
+      } catch {
+        setBackendStatus("offline")
+      }
+    }
+    ping()
+    const interval = setInterval(ping, 30_000)
+    return () => clearInterval(interval)
+  }, [])
+
   // ── openTab: abre nova aba ou foca a existente ─────────────────────────
   function openTab(label) {
     setTabs(prev => {
@@ -527,8 +638,8 @@ export default function App() {
     })
   }
 
-  async function enviarPergunta() {
-    const pergunta = message.trim()
+  async function enviarPergunta(customText) {
+    const pergunta = (typeof customText === "string" ? customText : message).trim()
     if (!pergunta || loading) return
     setMessage("")
     setChatHistory(prev=>[...prev,{role:"user",text:pergunta}])
@@ -565,6 +676,75 @@ export default function App() {
       <div style={S.dotGrid}/>
       <ToastContainer/>
       <ConfirmModalContainer/>
+
+      {/* ── Modal de aviso de inatividade ─────────────────────────────── */}
+      {idleWarning && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:9999,
+          background:"rgba(7,10,20,0.92)", backdropFilter:"blur(8px)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }}>
+          <div style={{
+            background:"#111827", borderRadius:16, width:"min(420px,92vw)",
+            padding:"36px 32px", border:"1px solid rgba(232,160,32,0.25)",
+            boxShadow:"0 32px 80px rgba(0,0,0,0.7)",
+            display:"flex", flexDirection:"column", alignItems:"center", gap:20,
+          }}>
+            {/* Ícone */}
+            <div style={{
+              width:56, height:56, borderRadius:"50%",
+              background:"rgba(232,160,32,0.1)", border:"1px solid rgba(232,160,32,0.3)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="#E8A020" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+
+            {/* Texto */}
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:17, fontWeight:800, color:"#F1F5F9", marginBottom:8}}>
+                Sessão por expirar
+              </div>
+              <div style={{fontSize:14, color:"#94A3B8", lineHeight:1.6}}>
+                Inatividade detectada. Sua sessão será encerrada automaticamente em
+              </div>
+            </div>
+
+            {/* Contagem regressiva */}
+            <div style={{
+              fontSize:48, fontWeight:900, color:"#E8A020",
+              fontFamily:"'JetBrains Mono',monospace", lineHeight:1,
+              textShadow:"0 0 30px rgba(232,160,32,0.4)",
+            }}>
+              {String(idleCount).padStart(2,"0")}s
+            </div>
+
+            {/* Botões */}
+            <div style={{display:"flex", gap:10, width:"100%"}}>
+              <button onClick={handleLogout} style={{
+                flex:1, padding:"11px 0", borderRadius:9, cursor:"pointer",
+                background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)",
+                color:"#94A3B8", fontWeight:700, fontSize:14,
+                fontFamily:"'JetBrains Mono',monospace",
+              }}>
+                Sair agora
+              </button>
+              <button onClick={continuarSessao} style={{
+                flex:2, padding:"11px 0", borderRadius:9, cursor:"pointer", border:"none",
+                background:"linear-gradient(135deg,#E8A020,#B45309)",
+                color:"#FFF", fontWeight:800, fontSize:14,
+                fontFamily:"'JetBrains Mono',monospace",
+                boxShadow:"0 4px 14px rgba(180,83,9,0.35)",
+              }}>
+                Continuar sessão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <aside style={{...S.sidebar, width: focusMode ? 0 : (sidebarCollapsed ? 60 : 240), transition:"width 0.28s cubic-bezier(0.4,0,0.2,1)"}}>
         <div style={{...S.logoArea, padding: sidebarCollapsed ? "10px 8px" : "14px 16px 12px"}}>
@@ -1302,6 +1482,39 @@ export default function App() {
               </svg>
             </button>
 
+            {/* ── Indicador de status do backend ── */}
+            {(() => {
+              const cfg = {
+                online:   { color:"#22C55E", label:"Backend Online",  pulse:true  },
+                offline:  { color:"#EF4444", label:"Backend Offline", pulse:false },
+                checking: { color:"#F59E0B", label:"Verificando...",  pulse:true  },
+              }[backendStatus]
+              return (
+                <div title={cfg.label} style={{
+                  display:"flex", alignItems:"center", gap:6,
+                  padding:"4px 10px", borderRadius:20,
+                  background:`${cfg.color}11`,
+                  border:`1px solid ${cfg.color}33`,
+                  marginLeft:6, flexShrink:0, cursor:"default",
+                }}>
+                  <span style={{
+                    width:7, height:7, borderRadius:"50%",
+                    background:cfg.color,
+                    boxShadow:`0 0 6px ${cfg.color}99`,
+                    display:"inline-block", flexShrink:0,
+                    animation: cfg.pulse ? "dot-pulse 2s ease-in-out infinite" : "none",
+                  }}/>
+                  <span style={{
+                    fontSize:10, fontWeight:700, color:cfg.color,
+                    fontFamily:MONO, letterSpacing:"0.06em",
+                    display: backendStatus === "online" ? "none" : "inline",
+                  }}>
+                    {backendStatus === "offline" ? "OFFLINE" : "..."}
+                  </span>
+                </div>
+              )
+            })()}
+
             {/* ── Controles de janela — extremo direito ── */}
             <div style={{display:"flex",alignItems:"center",gap:1,marginLeft:8,flexShrink:0}}>
               {/* Minimizar */}
@@ -1417,6 +1630,11 @@ export default function App() {
           </button>
         </div>
 
+        <Suspense fallback={
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",color:"#94A3B8",fontSize:14}}>
+            Carregando módulo...
+          </div>
+        }>
         <div key={active} className="screen-enter" style={{display:"contents"}}>
         {active==="Chat RAG"               && <ErrorBoundary modulo="Chat RAG"><ChatRAG      onNavigate={openTab}/></ErrorBoundary>}
         {active==="Dashboard"              && <ErrorBoundary modulo="Dashboard"><Dashboard    onNavigate={openTab}/></ErrorBoundary>}
@@ -1425,21 +1643,20 @@ export default function App() {
         {active==="Alertas"                && <ErrorBoundary modulo="Alertas"><Alertas      onNavigate={openTab}/></ErrorBoundary>}
         {active==="Notícias"               && <ErrorBoundary modulo="Notícias"><Noticias     onNavigate={openTab}/></ErrorBoundary>}
         {active==="Referências"            && <ErrorBoundary modulo="Referências"><Referencias  onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Configurações"          && <ErrorBoundary modulo="Configurações"><Configuracoes onNavigate={openTab} tema={tema} setTema={setTema}/></ErrorBoundary>}
+        {active==="Configurações"          && <ErrorBoundary modulo="Configurações"><Configuracoes onNavigate={openTab} tema={tema} setTema={setTema} user={user}/></ErrorBoundary>}
         {active==="Controle de Grupos"     && <ErrorBoundary modulo="Controle de Grupos"><ControleGrupos onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Inteligência de Grupos" && <ErrorBoundary modulo="Inteligência de Grupos"><InteligenciaGrupos onNavigate={openTab}/></ErrorBoundary>}
+        {/* Inteligência de Grupos agora é aba interna do Controle de Grupos */}
         {active==="Lideranças por Unidade" && <ErrorBoundary modulo="Lideranças por Unidade"><LiderancasUnidade onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Líderes Gerais"         && <ErrorBoundary modulo="Líderes Gerais"><LideresGerais    onNavigate={openTab}/></ErrorBoundary>}
+        {/* Líderes Gerais agora é aba interna de Lideranças por Unidade */}
         {active==="Análise de Vínculo"     && <ErrorBoundary modulo="Análise de Vínculo"><GrafoVinculos onNavigate={openTab}/></ErrorBoundary>}
         {active==="Extrato"                && <ErrorBoundary modulo="Extrato"><Extrato      onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Sinais Fracos"          && <ErrorBoundary modulo="Sinais Fracos"><SinaisFracos onNavigate={openTab}/></ErrorBoundary>}
-        {active==="Matriz NUCADIs"         && <ErrorBoundary modulo="Matriz NUCADIs"><MatrizNucadis onNavigate={openTab}/></ErrorBoundary>}
+        {active==="Inteligência Preditiva"  && <ErrorBoundary modulo="Inteligência Preditiva"><InteligenciaPreditiva onNavigate={openTab}/></ErrorBoundary>}
         {active==="Agenda de Missão"       && <ErrorBoundary modulo="Agenda de Missão"><Agenda       onNavigate={openTab}/></ErrorBoundary>}
         {active === "Lista Negra"          && <ErrorBoundary modulo="Lista Negra"><ListaNegra     onNavigate={openTab} /></ErrorBoundary>}
         {active === "OSINT Pessoas"        && <ErrorBoundary modulo="OSINT Pessoas"><OsintPesquisa  onNavigate={openTab} /></ErrorBoundary>}
         {active === "ORÁCULO"              && <ErrorBoundary modulo="ORÁCULO"><HitlDashboard         onNavigate={openTab} /></ErrorBoundary>}
-        {active === "Gerenciar Usuários"   && <ErrorBoundary modulo="Gerenciar Usuários"><GerenciarUsuarios onNavigate={openTab} /></ErrorBoundary>}
-        {active === "Auditoria"            && <ErrorBoundary modulo="Auditoria"><AuditoriaLog onNavigate={openTab} /></ErrorBoundary>}
+        {active === "Operações Drone"      && <ErrorBoundary modulo="Operações Drone"><OperacoesDrone onNavigate={openTab} /></ErrorBoundary>}
+        {/* Gerenciar Usuários e Auditoria movidos para Configurações (abas admin) */}
 
         {active==="Painel" && (
           <>
@@ -1464,12 +1681,62 @@ export default function App() {
             </header>
 
             <div style={S.body}>
-              <div style={S.alert}>
-                <div style={{display:"flex",alignItems:"center",gap:12,flex:1,minWidth:0}}>
-                  <span style={S.alertBadge}>⚠ ALERTA</span>
-                  <p style={S.alertText}>Movimentação detectada na região de fronteira norte — verificar imediatamente</p>
+              {/* ── Animated intel ticker ── */}
+              <div style={{
+                background:"rgba(220,38,38,0.05)",
+                borderTop:"1px solid rgba(220,38,38,0.18)",
+                borderBottom:"1px solid rgba(220,38,38,0.10)",
+                padding:"5px 0", overflow:"hidden", flexShrink:0, position:"relative",
+              }}>
+                <div style={{display:"flex",alignItems:"center"}}>
+                  <div style={{
+                    padding:"0 12px", borderRight:"1px solid rgba(220,38,38,0.25)",
+                    display:"flex",alignItems:"center",gap:6, flexShrink:0,
+                  }}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:"#EF4444",
+                      display:"inline-block",animation:"amber-pulse 1.5s infinite"}}/>
+                    <span style={{fontSize:9,fontWeight:900,color:"#EF4444",fontFamily:MONO,letterSpacing:"0.16em"}}>INTEL</span>
+                  </div>
+                  <div style={{flex:1,overflow:"hidden"}}>
+                    <div style={{animation:"ticker-scroll 52s linear infinite",display:"inline-block",whiteSpace:"nowrap",paddingLeft:16}}>
+                      <span style={{fontSize:12,color:"#FCA5A5",fontFamily:MONO,fontWeight:500}}>
+                        ⚠ Movimentação detectada na região de fronteira norte — verificar imediatamente
+                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+                        🔵 Análise doutrinária concluída — {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})} — aguardando revisão
+                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+                        ⚡ Nova entrada no banco de dados — classificação em andamento
+                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+                        ◎ Grupo monitorado com variação ≥20% — análise prioritária solicitada
+                        &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+                        AIPEN · SEAP-AM · {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{fontSize:10,color:"rgba(252,165,165,0.4)",fontFamily:MONO,padding:"0 12px",flexShrink:0}}>há 12 min</span>
                 </div>
-                <span style={S.alertTime}>há 12 min</span>
+              </div>
+
+              {/* ── 2-col layout: KPIs | chat ── */}
+              <div style={{flex:1, display:"flex", gap:14, minHeight:0, overflow:"hidden"}}>
+
+              {/* LEFT: status + KPIs + drill-down */}
+              <div style={{width:"44%", flexShrink:0, display:"flex", flexDirection:"column", gap:10, overflowY:"auto"}}>
+
+              {/* System status card */}
+              <div style={{
+                background:"rgba(22,163,74,0.05)",
+                border:"1px solid rgba(22,163,74,0.14)",
+                borderRadius:10, padding:"9px 14px",
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:"#16A34A",
+                    boxShadow:"0 0 8px #16A34A",animation:"pulse-glow 2s infinite",flexShrink:0}}/>
+                  <span style={{fontSize:11,fontWeight:700,color:"#4ADE80",letterSpacing:"0.08em",fontFamily:MONO}}>SISTEMA OPERACIONAL</span>
+                </div>
+                <span style={{fontSize:10,color:"rgba(74,222,128,0.45)",fontFamily:MONO}}>
+                  <LiveClock showSeconds={true}/> · Manaus, AM
+                </span>
               </div>
 
               {/* ── KPI Cards ─────────────────────────────────────────── */}
@@ -1512,7 +1779,7 @@ export default function App() {
                 ] : [{},{},{},{}]
 
                 return (
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     {kpiDefs.map((kpi,i)=>{
                       const isExp = expandedKpi === kpi.id
                       const isLoading = homeKpisLoading || !homeKpis
@@ -1521,17 +1788,25 @@ export default function App() {
                           onClick={()=>kpi.id && setExpandedKpi(isExp ? null : kpi.id)}
                           style={{
                             background: isExp
-                              ? `linear-gradient(135deg,rgba(${kpi.color?parseInt(kpi.color.slice(1,3),16):100},${kpi.color?parseInt(kpi.color.slice(3,5),16):100},${kpi.color?parseInt(kpi.color.slice(5,7),16):100},0.12) 0%,rgba(255,255,255,0.04) 100%)`
-                              : "rgba(255,255,255,0.04)",
-                            border: isExp
-                              ? `1px solid ${kpi.color||"rgba(255,255,255,0.10)"}55`
-                              : "1px solid rgba(255,255,255,0.07)",
-                            borderRadius:10,padding:"14px 16px",
+                              ? `rgba(255,255,255,0.06)`
+                              : "rgba(255,255,255,0.025)",
+                            border: `1px solid ${isExp ? (kpi.color||"#60A5FA")+"44" : "rgba(255,255,255,0.06)"}`,
+                            borderTop: `2px solid ${kpi.color||"#60A5FA"}`,
+                            borderRadius:12, padding:"16px 16px",
                             cursor: kpi.id ? "pointer" : "default",
-                            transition:"all 0.22s",
-                            transform: isExp ? "translateY(-1px)" : "none",
-                            boxShadow: isExp ? `0 8px 24px rgba(0,0,0,0.3)` : "none",
+                            transition:"all 0.25s",
+                            transform: isExp ? "translateY(-2px)" : "none",
+                            boxShadow: isExp
+                              ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px ${kpi.color||"#60A5FA"}22`
+                              : `0 2px 12px rgba(0,0,0,0.15)`,
+                            backdropFilter:"blur(12px)",
+                            WebkitBackdropFilter:"blur(12px)",
+                            position:"relative", overflow:"hidden",
                           }}>
+                          {/* Ambient glow */}
+                          <div style={{position:"absolute",top:-16,right:-16,width:72,height:72,
+                            borderRadius:"50%",background:`${kpi.color||"#60A5FA"}18`,
+                            filter:"blur(18px)",pointerEvents:"none"}}/>
                           {isLoading ? (
                             /* Skeleton */
                             <div>
@@ -1548,8 +1823,9 @@ export default function App() {
                                 </span>
                                 <span style={{fontSize:14}}>{kpi.icon}</span>
                               </div>
-                              <div style={{fontSize:28,fontWeight:800,color:kpi.color,
-                                fontFamily:MONO,letterSpacing:"-0.02em",lineHeight:1,marginBottom:5}}>
+                              <div style={{fontSize:38,fontWeight:900,color:kpi.color,
+                                fontFamily:MONO,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6,
+                                textShadow:`0 0 24px ${kpi.color||"#60A5FA"}44`}}>
                                 <AnimatedNumber value={kpi.value||0} duration={900}/>
                               </div>
                               <div style={{fontSize:11,color:kpi.subColor||"rgba(255,255,255,0.40)",
@@ -1677,121 +1953,171 @@ export default function App() {
                 )
               })()}
 
-              <section>
-                <div style={S.secHeader}>
-                  <span style={S.secBar}/>
-                  <h2 style={S.secLabel}>Notícias em Destaque</h2>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-                  {newsToShow.map((n,i)=>(
-                    <div key={i} className="news-card">
-                      <div style={{position:"relative",height:68,overflow:"hidden",background:"rgba(255,255,255,0.03)"}}>
-                        <img src={n.img} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.85}}
-                          onError={e=>{e.target.style.display="none"}}/>
-                        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.7))"}}/>
-                        <span style={{position:"absolute",top:7,right:7,fontSize:11,fontWeight:700,
-                          padding:"2px 8px",borderRadius:4,fontFamily:MONO,
-                          background:`${n.accent}22`,color:n.accent,
-                          border:`1px solid ${n.accent}44`,backdropFilter:"blur(4px)"}}>
-                          {n.category}
-                        </span>
-                      </div>
-                      <div style={{padding:"10px 12px 12px"}}>
-                        <p style={{fontSize:13.7,color:C.text,lineHeight:1.5,fontWeight:500,marginBottom:6}}>
-                          {n.title}
-                        </p>
-                        <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                          <span style={{fontSize:11,color:n.accent,fontWeight:700,fontFamily:MONO}}>{n.source}</span>
-                          <span style={{fontSize:11,color:C.textDim}}>·</span>
-                          <span style={{fontSize:11,color:C.textMid,fontFamily:MONO}}>{n.time}</span>
-                        </div>
-                      </div>
-                      <div style={{height:2,background:`linear-gradient(90deg,${n.accent},transparent)`}}/>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              </div>{/* /left col */}
 
-              <div style={S.refsBar}>
-                <div style={S.refsBarLeft}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                  </svg>
-                  <span style={{fontSize:11.7,fontWeight:800,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
-                    Consulta de Referências
-                  </span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
-                  {REFS.map((r,i)=>(
-                    <button key={i} className="ref-btn" style={{
-                      display:"flex",alignItems:"center",gap:6,
-                      padding:"6px 12px",borderRadius:7,
-                      cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
-                    }}>
-                      <span style={{width:6,height:6,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                      <span style={{fontSize:13,color:r.color,fontWeight:600}}>{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <span style={{fontSize:14,color:C.textMid,flexShrink:0}}>›</span>
-              </div>
+              {/* RIGHT: refs bar + chat */}
+              <div style={{flex:1, display:"flex", flexDirection:"column", gap:10, minWidth:0, overflow:"hidden"}}>
 
-              <div style={S.chatArea}>
-                {chatHistory.length===0 && (
-                  <div style={S.emptyState}>
-                    <OwlBlueprint/>
-                    <p style={S.emptyText}>Aguardando diretrizes...</p>
-                    <p style={S.emptySubtext}>Inicie uma análise de inteligência</p>
+              {/* ── Unified intel chat card ── */}
+              <div style={{
+                flex:1, display:"flex", flexDirection:"column",
+                background:"rgba(255,255,255,0.02)",
+                border:"1px solid rgba(255,255,255,0.07)",
+                borderRadius:14,
+                overflow:"hidden",
+                backdropFilter:"blur(16px)",
+                WebkitBackdropFilter:"blur(16px)",
+                boxShadow:"0 4px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)",
+              }}>
+
+                {/* Card header */}
+                <div style={{
+                  padding:"10px 16px",
+                  borderBottom:"1px solid rgba(255,255,255,0.06)",
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  flexShrink:0,
+                  background:"rgba(232,160,32,0.03)",
+                }}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",
+                      boxShadow:"0 0 8px #E8A020",animation:"amber-pulse 2.5s infinite",flexShrink:0}}/>
+                    <span style={{fontSize:11,fontWeight:800,color:C.gold,letterSpacing:"0.14em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
+                    <span style={{fontSize:10,color:"rgba(232,160,32,0.4)",fontFamily:MONO}}>· Sistema Pronto</span>
                   </div>
-                )}
-                {chatHistory.length>0 && (
-                  <>
-                    <div style={S.chatFadeMask}/>
-                    <div style={S.chatMessages}>
-                      {chatHistory.map((m,i)=>(
-                        <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"72%",position:"relative",zIndex:3}}>
-                          <div style={{
-                            background: m.role==="user"
-                              ? "linear-gradient(135deg,#1E3A5F,#0F2840)"
-                              : "rgba(255,255,255,0.05)",
-                            borderRadius:8,
-                            padding:"12px 16px",
-                            fontSize:16.9,
-                            color: m.role==="user"?"#FFFFFF":C.text,
-                            lineHeight:1.65,
-                            boxShadow: m.role==="user"
-                              ?"0 4px 20px rgba(0,0,0,0.4)"
-                              :"0 2px 12px rgba(0,0,0,0.2)",
-                            backdropFilter:"blur(8px)",
-                            border: m.role==="bastos"
-                              ?"1px solid rgba(232,160,32,0.2)"
-                              :"none",
-                            borderLeft: m.role==="bastos"?"3px solid #E8A020":"none",
-                          }}>
-                            {m.role==="bastos"&&(
-                              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                                <span style={{fontSize:11.7,color:C.gold,fontWeight:700,letterSpacing:"0.12em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
-                                <span style={{fontSize:11,color:C.textMid,fontFamily:MONO}}>· {now}</span>
-                              </div>
-                            )}
-                            {m.text}
-                          </div>
+                  <div style={{display:"flex",gap:5}}>
+                    {REFS.slice(0,3).map((r,i)=>(
+                      <button key={i}
+                        onClick={()=>enviarPergunta(r.query)}
+                        style={{
+                          padding:"3px 9px", borderRadius:5,
+                          background:"rgba(255,255,255,0.03)",
+                          border:`1px solid rgba(255,255,255,0.07)`,
+                          color:r.color, fontSize:10.5, fontWeight:600, cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
+                          fontFamily:MONO, letterSpacing:"0.03em",
+                          transition:"all 0.15s",
+                        }}
+                        onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.borderColor=r.color+"55"}}
+                        onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"}}>
+                        <span style={{width:4,height:4,borderRadius:"50%",background:r.color,flexShrink:0}}/>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chat messages area */}
+                <div style={{flex:1, position:"relative", overflow:"hidden", minHeight:0}}>
+                  {/* Scanline overlay — efeito tela tática */}
+                  <div style={{
+                    position:"absolute", inset:0, pointerEvents:"none", zIndex:10,
+                    backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px)",
+                  }}/>
+                  {/* RESERVADO watermark */}
+                  <div style={{
+                    position:"absolute", inset:0, display:"flex",
+                    alignItems:"center", justifyContent:"center",
+                    pointerEvents:"none", overflow:"hidden", zIndex:1,
+                  }}>
+                    <span style={{
+                      fontSize:58, fontWeight:900, color:"rgba(255,255,255,0.016)",
+                      fontFamily:MONO, letterSpacing:"0.28em",
+                      transform:"rotate(-28deg)", userSelect:"none", whiteSpace:"nowrap",
+                    }}>RESERVADO</span>
+                  </div>
+                  {chatHistory.length===0 && (
+                    <div style={{
+                      position:"absolute", inset:0,
+                      display:"flex", flexDirection:"column",
+                      alignItems:"center", justifyContent:"center",
+                      gap:18, pointerEvents:"none", userSelect:"none",
+                    }}>
+                      {/* Animated ring */}
+                      <div style={{position:"relative", width:80, height:80}}>
+                        <div style={{
+                          position:"absolute", inset:0,
+                          borderRadius:"50%",
+                          border:"1px solid rgba(232,160,32,0.15)",
+                          animation:"breathe 4s ease-in-out infinite",
+                        }}/>
+                        <div style={{
+                          position:"absolute", inset:8,
+                          borderRadius:"50%",
+                          border:"1px solid rgba(232,160,32,0.25)",
+                          animation:"breathe 4s ease-in-out infinite 0.3s",
+                        }}/>
+                        <div style={{
+                          position:"absolute", inset:16,
+                          borderRadius:"50%",
+                          background:"rgba(232,160,32,0.06)",
+                          border:"1.5px solid rgba(232,160,32,0.4)",
+                          boxShadow:"0 0 30px rgba(232,160,32,0.12)",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          animation:"breathe 4s ease-in-out infinite 0.6s",
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="#E8A020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
                         </div>
-                      ))}
-                      {loading&&(
-                        <div style={{alignSelf:"flex-start",fontSize:13,color:C.textMid,fontFamily:MONO,
-                          display:"flex",alignItems:"center",gap:8,zIndex:3,position:"relative"}}>
-                          <span style={{width:5,height:5,borderRadius:"50%",background:C.gold,display:"inline-block",
-                            animation:"amber-pulse 1.5s ease-in-out infinite"}}/>
-                          processando consulta doutrinária...
-                        </div>
-                      )}
-                      <div ref={chatEndRef}/>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <p style={{fontSize:15,color:"rgba(255,255,255,0.25)",fontWeight:700,margin:0,letterSpacing:"0.06em"}}>
+                          AGUARDANDO CONSULTA
+                        </p>
+                        <p style={{fontSize:11,color:"rgba(255,255,255,0.12)",fontFamily:MONO,marginTop:6,letterSpacing:"0.04em"}}>
+                          Doutrina · Análise · Referências
+                        </p>
+                      </div>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
+                  )}
+                  {chatHistory.length>0 && (
+                    <>
+                      <div style={S.chatFadeMask}/>
+                      <div style={S.chatMessages}>
+                        {chatHistory.map((m,i)=>(
+                          <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"80%",position:"relative",zIndex:3}}>
+                            <div style={{
+                              background: m.role==="user"
+                                ? "linear-gradient(135deg,#1E3A5F,#0F2840)"
+                                : "rgba(255,255,255,0.04)",
+                              borderRadius:10,
+                              padding:"11px 15px",
+                              fontSize:15.5,
+                              color: m.role==="user"?"#FFFFFF":C.text,
+                              lineHeight:1.65,
+                              boxShadow: m.role==="user"?"0 4px 20px rgba(0,0,0,0.4)":"0 2px 12px rgba(0,0,0,0.2)",
+                              backdropFilter:"blur(8px)",
+                              border: m.role==="bastos"?"1px solid rgba(232,160,32,0.15)":"none",
+                              borderLeft: m.role==="bastos"?"2px solid #E8A020":"none",
+                            }}>
+                              {m.role==="bastos"&&(
+                                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                                  <span style={{fontSize:10,color:C.gold,fontWeight:800,letterSpacing:"0.12em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
+                                  <span style={{fontSize:10,color:C.textMid,fontFamily:MONO}}>· {now}</span>
+                                </div>
+                              )}
+                              {m.text}
+                            </div>
+                          </div>
+                        ))}
+                        {loading&&(
+                          <div style={{alignSelf:"flex-start",fontSize:12,color:C.textMid,fontFamily:MONO,
+                            display:"flex",alignItems:"center",gap:8,zIndex:3,position:"relative"}}>
+                            <span style={{width:5,height:5,borderRadius:"50%",background:C.gold,display:"inline-block",
+                              animation:"amber-pulse 1.5s ease-in-out infinite"}}/>
+                            processando consulta doutrinária...
+                          </div>
+                        )}
+                        <div ref={chatEndRef}/>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>{/* /unified chat card */}
+              </div>{/* /right col */}
+              </div>{/* /2-col wrapper */}
+            </div>{/* /S.body */}
 
             <div style={{...S.chatBar,...(focused?S.chatBarFocused:{})}}>
               <div style={S.chatRow}>
@@ -1826,14 +2152,16 @@ export default function App() {
 
        {!["Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
            "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
-           "Inteligência de Grupos","Lideranças por Unidade","Líderes Gerais","Análise de Vínculo","Análise Grafoscópica",
-           "Extrato","Sinais Fracos","Matriz NUCADIs","OSINT Pessoas","ORÁCULO","Gerenciar Usuários","Auditoria"].includes(active) && (
+           "Lideranças por Unidade","Análise de Vínculo","Análise Grafoscópica",
+           "Extrato","Inteligência Preditiva","OSINT Pessoas","ORÁCULO",
+           "Operações Drone"].includes(active) && (
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
             <div style={{fontSize:17,fontWeight:700,color:C.text}}>{active}</div>
             <div style={{fontSize:13,color:C.textMid,fontFamily:MONO}}>Em desenvolvimento</div>
           </div>
         )}
         </div>{/* /screen-enter */}
+        </Suspense>
       </main>
 
       {showPolicies && <PoliciesModal onClose={()=>setShowPolicies(false)}/>}
@@ -1889,7 +2217,7 @@ const S = {
     background:"rgba(22,163,74,0.1)",borderRadius:20,border:"1px solid rgba(22,163,74,0.3)"},
   chipDot:{width:7,height:7,borderRadius:"50%",background:"#16A34A",flexShrink:0},
   chipText:{fontSize:13,color:"#4ADE80",fontWeight:600},
-  body:{flex:1,overflow:"hidden",padding:"14px 22px",display:"flex",flexDirection:"column",gap:10},
+  body:{flex:1,overflow:"hidden",padding:"12px 22px 14px",display:"flex",flexDirection:"column",gap:10},
   alert:{background:"rgba(220,38,38,0.08)",borderRadius:10,padding:"10px 16px",
     display:"flex",alignItems:"center",justifyContent:"space-between",
     border:"1px solid rgba(220,38,38,0.25)",boxShadow:"0 2px 12px rgba(220,38,38,0.1)",
