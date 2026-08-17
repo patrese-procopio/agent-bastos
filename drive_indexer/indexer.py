@@ -14,10 +14,10 @@ from .auth import get_drive_service
 from .crawler import crawlear_pasta_ano
 from .parser import parsear_nome_arquivo, DocumentoMetadata
 
-# â”€â”€â”€ CONFIGURAÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ CONFIGURAÃ‡ÃƒO â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 # IDs das pastas de cada ano no Google Drive
 # Para pegar o ID: abre a pasta no Drive, o ID Ã© o trecho final da URL
-# Ex: drive.google.com/drive/folders/1ABC...XYZ â†’ ID = 1ABC...XYZ
+# Ex: drive.google.com/drive/folders/1ABC...XYZ â†' ID = 1ABC...XYZ
 
 PASTAS_ANOS = {
     "2015": "1e7AMjEf2baG4-c8MXdCQd5kd5YqferKb",
@@ -30,11 +30,11 @@ PASTAS_ANOS = {
     
 
 OUTPUT_PATH = Path(__file__).parent.parent / "indice_documentos.json"
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
 def formatar_data(iso_string: str) -> str:
-    """Converte '2019-08-09T14:23:00.000Z' â†’ '09/08/2019'"""
+    """Converte '2019-08-09T14:23:00.000Z' â†' '09/08/2019'"""
     try:
         dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
         return dt.strftime("%d/%m/%Y")
@@ -47,7 +47,7 @@ def construir_indice() -> dict:
     FunÃ§Ã£o principal: autentica, coleta e parseia todos os documentos.
     Retorna o Ã­ndice completo como dicionÃ¡rio.
     """
-    print("ðŸ” Autenticando com o Google Drive...")
+    print("ðŸ" Autenticando com o Google Drive...")
     service = get_drive_service()
     print("âœ… Autenticado com sucesso.\n")
 
@@ -60,10 +60,10 @@ def construir_indice() -> dict:
 
     for ano, folder_id in PASTAS_ANOS.items():
         if "COLE_AQUI" in folder_id:
-            print(f"âš ï¸  Pasta {ano} sem ID configurado â€” pulando.")
+            print(f"âš ï¸  Pasta {ano} sem ID configurado â€" pulando.")
             continue
 
-        print(f"ðŸ“‚ Crawleando {ano}...")
+        print(f"ðŸ"‚ Crawleando {ano}...")
         arquivos_brutos = crawlear_pasta_ano(service, folder_id, ano)
         print(f"   {len(arquivos_brutos)} arquivos encontrados.")
 
@@ -74,7 +74,7 @@ def construir_indice() -> dict:
                 mes_pasta=arq.get("mes")
             )
 
-            # Arquivo temporÃ¡rio do Word â€” ignora
+            # Arquivo temporÃ¡rio do Word â€" ignora
             if metadata is None:
                 continue
 
@@ -108,7 +108,7 @@ def salvar_indice():
     )
 
     print(f"\nâœ… Ãndice salvo em: {OUTPUT_PATH}")
-    print(f"ðŸ“Š Total: {indice['total_documentos']} documentos")
+    print(f"ðŸ"Š Total: {indice['total_documentos']} documentos")
     print(f"âš ï¸  NÃ£o classificados: {indice['nao_classificados']}")
 
 

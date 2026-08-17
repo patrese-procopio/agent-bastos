@@ -32,6 +32,7 @@ FROM python:3.11-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 \
         curl \
+        gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # "builder" agora bate com o AS builder do estágio 1
@@ -46,12 +47,10 @@ WORKDIR /app
 
 COPY . .
 
-# mkdir e chown juntos num único RUN — menos layers, mais limpo
-RUN mkdir -p /app/data /app/logs \
-    && chown -R bastos:bastos /app/data /app/logs
+# mkdir antecipado — chown real acontece no entrypoint (volume montado)
+RUN mkdir -p /app/data /app/logs
 
-USER bastos
-
+# Sem USER aqui — o entrypoint roda como root, corrige permissões e cai para bastos via gosu
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
