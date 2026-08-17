@@ -1,0 +1,63 @@
+{
+  // ─────────────────────────────────────────────────────────────
+  // Agent Bastos — Workspace unificado (backend + frontend)
+  // Abra ESTE arquivo no VS Code: File > Open Workspace from File
+  // (ou clique duplo nele). As duas pastas aparecem juntas.
+  //
+  // Para subir o sistema: Ctrl+Shift+P > "Run Task" > "▶ Subir tudo"
+  // ─────────────────────────────────────────────────────────────
+  "folders": [
+    { "name": "🐍 Backend (Agent_Bastos)", "path": "." },
+    { "name": "⚡ Frontend (agent-bastos-app)", "path": "../agent-bastos-app" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:🐍 Backend (Agent_Bastos)}\\.venv\\Scripts\\python.exe",
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "1 · Backend (FastAPI :8000)",
+        "type": "shell",
+        "command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }; .venv\\Scripts\\python.exe -X utf8 startup.py",
+        "options": { "cwd": "${workspaceFolder:🐍 Backend (Agent_Bastos)}" },
+        "isBackground": true,
+        "presentation": { "panel": "dedicated", "group": "dev" },
+        "problemMatcher": []
+      },
+      {
+        "label": "2 · Frontend (Vite :5174)",
+        "type": "shell",
+        "command": "npm run dev",
+        "options": { "cwd": "${workspaceFolder:⚡ Frontend (agent-bastos-app)}" },
+        "isBackground": true,
+        "presentation": { "panel": "dedicated", "group": "dev" },
+        "problemMatcher": []
+      },
+      {
+        "label": "▶ Subir tudo (backend + frontend)",
+        "dependsOn": ["1 · Backend (FastAPI :8000)", "2 · Frontend (Vite :5174)"],
+        "dependsOrder": "parallel",
+        "group": { "kind": "build", "isDefault": true },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧪 Testes do backend (pytest)",
+        "type": "shell",
+        "command": ".venv\\Scripts\\python.exe -m pytest tests/ -q",
+        "options": { "cwd": "${workspaceFolder:🐍 Backend (Agent_Bastos)}" },
+        "presentation": { "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📦 Gerar instalador (npm run dist)",
+        "type": "shell",
+        "command": "npm run dist",
+        "options": { "cwd": "${workspaceFolder:⚡ Frontend (agent-bastos-app)}" },
+        "presentation": { "panel": "dedicated" },
+        "problemMatcher": []
+      }
+    ]
+  }
+}
