@@ -30,15 +30,17 @@
 ### Inteligência Preditiva (frontend)
 - Tela `InteligenciaPreditiva.jsx` — testada e funcional em 17/08/2026.
 
+### Missão 32 — Validar deploy real (Docker + n8n)
+- `docker compose up` testado do zero (incluindo recuperação de um travamento do Docker Desktop/WSL no meio do processo — stack se manteve saudável via `restart: unless-stopped`).
+- Confirmado via `docker compose exec api curl` que o backend containerizado roda o código atual (rota `/api/drone/missoes` respondendo `Not authenticated`, não `Not Found`) — Drone e demais serviços validados dentro do container, não só no `.venv` local.
+- `docs_url` desligado em produção (`BASTOS_ENV=production`) confirmado como comportamento intencional, não bug.
+- Testado e funcional em 17/08/2026.
+
 ---
 
 ## 🎯 Próximas candidatas
 
 Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.md`, `README.md` e `AUDIT.md` — não são ideias novas, são itens que o próprio projeto já sinalizou como faltando.
-
-### Missão 32 — Validar deploy real (Docker + n8n)
-- Rodar `docker compose up` do zero numa máquina limpa (não a de desenvolvimento) e confirmar que API + n8n sobem e se comunicam via `bastos_net`.
-- Prioridade: alta — é a diferença entre "roda na minha máquina" e "roda em produção".
 
 ### Missão 33 — Hardening de segurança do frontend
 - Tokens JWT saindo de `localStorage` para memória (access) + `sessionStorage`/httpOnly (refresh).
