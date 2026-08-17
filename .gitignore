@@ -6,3 +6,5 @@ dist-electron/
 dist-installer/
 build/logo pra trabalhar.png
 build/gerar_ico.py
+
+_to_delete/
