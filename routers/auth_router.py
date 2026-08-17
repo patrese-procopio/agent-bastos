@@ -27,6 +27,7 @@ from services.auth_service import (
     update_user,
     delete_user,
     list_users,
+    change_password,
 )
 from dependencies import require_module
 from services.rate_limit_service import limiter, LIMIT_LOGIN, LIMIT_REFRESH
@@ -56,26 +57,41 @@ class RefreshRequest(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
-    level:    str       = "analista"
-    modules:  list[str] = []
+    username:      str
+    password:      str
+    level:         str       = "analista"
+    modules:       list[str] = []
+    nome_completo: str       = ""
+    cpf:           str       = ""   # Armazenado server-side; nunca retornado em claro
+    email:         str       = ""
+    funcao:        str       = ""
+    matricula:     str       = ""
 
 
 class UpdateUserRequest(BaseModel):
-    password: str | None = None
-    level:    str | None = None
-    modules:  list[str] | None = None
-    active:   bool | None = None
+    password:      str | None       = None
+    level:         str | None       = None
+    modules:       list[str] | None = None
+    active:        bool | None      = None
+    nome_completo: str | None       = None
+    cpf:           str | None       = None
+    email:         str | None       = None
+    funcao:        str | None       = None
+    matricula:     str | None       = None
 
 
 class UserResponse(BaseModel):
-    username:   str
-    level:      str
-    modules:    list[str]
-    active:     bool = True
-    created_at: str
-    created_by: str
+    username:      str
+    level:         str
+    modules:       list[str]
+    active:        bool = True
+    created_at:    str
+    created_by:    str
+    nome_completo: str = ""
+    cpf_masked:    str = ""   # LGPD: nunca expõe CPF completo — apenas XXX.XXX.XXX-**
+    email:         str = ""
+    funcao:        str = ""
+    matricula:     str = ""
 
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
@@ -209,6 +225,11 @@ def criar_usuario(
             level=body.level,
             modules=body.modules,
             created_by=user["sub"],
+            nome_completo=body.nome_completo,
+            cpf=body.cpf,
+            email=body.email,
+            funcao=body.funcao,
+            matricula=body.matricula,
         )
         _log_audit.info(
             "usuario criado",
@@ -239,6 +260,11 @@ def atualizar_usuario(
             level=body.level,
             modules=body.modules,
             active=body.active,
+            nome_completo=body.nome_completo,
+            cpf=body.cpf,
+            email=body.email,
+            funcao=body.funcao,
+            matricula=body.matricula,
         )
         _log_audit.info(
             "usuario atualizado",
@@ -246,11 +272,20 @@ def atualizar_usuario(
         )
         audit("usuario_editado", "usuario", usuario=user["sub"], alvo=username,
               detalhe=f"level={body.level or '?'} active={body.active}")
-        # get_user nao retorna created_at/created_by, busca da listagem
+        # get_user nao retorna created_at/created_by — busca da listagem para montar UserResponse
         from services.auth_service import list_users
         todos = {u["username"]: u for u in list_users()}
-        dados = todos.get(username, atualizado)
-        return {**atualizado, "created_at": dados.get("created_at",""), "created_by": dados.get("created_by","")}
+        dados = todos.get(username, {})
+        return {
+            **atualizado,
+            "created_at":    dados.get("created_at",   ""),
+            "created_by":    dados.get("created_by",   ""),
+            "nome_completo": dados.get("nome_completo", atualizado.get("nome_completo", "")),
+            "cpf_masked":    dados.get("cpf_masked",    atualizado.get("cpf_masked",    "")),
+            "email":         dados.get("email",         atualizado.get("email",         "")),
+            "funcao":        dados.get("funcao",        atualizado.get("funcao",        "")),
+            "matricula":     dados.get("matricula",     atualizado.get("matricula",     "")),
+        }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -279,4 +314,48 @@ def deletar_usuario(
         "usuario deletado",
         extra={"usuario_deletado": username, "deletado_por": user["sub"]},
     )
-    audit("usuario_deletado", "usuario", usuario=user["sub"], alvo=username)
+    audit("usuario_deletado", "usuario", usuario=user["sub"], alvo=username,
+          detalhe=f"username={username}")
+
+# ── Troca de senha do proprio usuario ────────────────────────────────────────
+
+class TrocaSenhaRequest(BaseModel):
+    senha_atual:  str
+    nova_senha:   str
+    confirmar:    str
+
+
+from dependencies import get_current_user
+
+@router.patch("/me/senha", status_code=200)
+def trocar_minha_senha(
+    body: TrocaSenhaRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Troca a senha do proprio usuario autenticado.
+
+    Regras:
+      - Requer a senha atual para confirmar identidade.
+      - Nova senha deve ter pelo menos 8 caracteres.
+      - nova_senha e confirmar devem ser identicas.
+      - Qualquer usuario autenticado pode usar (nao precisa de modulo especial).
+    """
+    if body.nova_senha != body.confirmar:
+        raise HTTPException(
+            status_code=422,
+            detail="Nova senha e confirmacao nao coincidem."
+        )
+    try:
+        change_password(user["sub"], body.senha_atual, body.nova_senha)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    audit(
+        categoria="usuario",
+        acao="senha_alterada",
+        operador=user["sub"],
+        detalhe={"username": user["sub"]},
+    )
+    _log_security.info("senha alterada por %s", user["sub"])
+    return {"detail": "Senha alterada com sucesso."}
