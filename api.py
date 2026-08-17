@@ -45,6 +45,7 @@ from routers.briefing_router    import router as briefing_router
 from routers.feedback_router    import router as feedback_router
 from routers.risco_score_router import router as risco_score_router
 from routers.subint_router      import router as subint_router
+from routers.drone_router       import router as drone_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -148,6 +149,7 @@ app.include_router(briefing_router,    prefix="/api")  # Boletim Diário de Inte
 app.include_router(feedback_router,    prefix="/api")  # Feedback Loop de Correlação (Missão 25)
 app.include_router(risco_score_router, prefix="/api")  # Score de Risco Dinâmico (Missão 28)
 app.include_router(subint_router,      prefix="/api")  # SUBINT Automatizado (Missão 29)
+app.include_router(drone_router,       prefix="/api")  # Operações Drone (Missão 31)
 
 # ── Health endpoint ───────────────────────────────────────────────────────────
 # Endpoint dedicado para HEALTHCHECK do Docker — não expõe informações da API.
