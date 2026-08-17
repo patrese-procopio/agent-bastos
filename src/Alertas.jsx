@@ -110,7 +110,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
           </div>
 
           {/* Título */}
-          <div style={{fontSize:15.6, fontWeight:alerta.lido?400:600, color:"#F1F5F9", marginBottom:5, lineHeight:1.4}}>
+          <div style={{fontSize:13, fontWeight:alerta.lido?400:600, color:"#F1F5F9", marginBottom:5, lineHeight:1.4}}>
             {alerta.titulo}
           </div>
 
@@ -158,7 +158,7 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
                   <div style={{fontSize: 12, fontWeight:700, color:"#E8A020", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:6}}>
                     ◈ Análise Tática — BASTOS-UNIT
                   </div>
-                  <div style={{fontSize:14.3, color:"#F1F5F9", lineHeight:1.65}}>{alerta.analise_ia}</div>
+                  <div style={{fontSize:13, color:"#F1F5F9", lineHeight:1.65}}>{alerta.analise_ia}</div>
                 </div>
               )}
               <div style={{display:"flex", gap:8}}>
@@ -297,7 +297,30 @@ export default function Alertas({ onNavigate }) {
   const totalRT    = realtimeAlertas.length
 
   return (
-    <div style={S.page}>
+    <div style={{ display:"flex", flexDirection:"column", flex:1, height:"100%", overflow:"hidden" }}>
+
+      {/* ══ TOPBAR ════════════════════════════════════════════════════════════ */}
+      <div style={S.topbar}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+            <div style={{ width:12, height:12, borderRadius:"50%", background:"#FF5F57" }} />
+            <div style={{ width:12, height:12, borderRadius:"50%", background:"#FEBC2E" }} />
+            <div style={{ width:12, height:12, borderRadius:"50%", background:"#28C840" }} />
+          </div>
+          <div style={{ width:1, height:16, background:"rgba(255,255,255,0.12)", margin:"0 4px" }} />
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:"#F1F5F9", letterSpacing:"0.03em" }}>Alertas</div>
+            <div style={{ fontSize:11, color:"#94A3B8", fontFamily:MONO, letterSpacing:"0.06em" }}>BASTOS-UNIT · OSINT Monitor · Telegram · Realtime</div>
+          </div>
+        </div>
+        {naoLidos > 0 && (
+          <span style={{ fontSize:11, color:"#F87171", fontWeight:800, fontFamily:MONO, background:"rgba(239,68,68,0.15)", padding:"3px 10px", borderRadius:4, border:"1px solid rgba(239,68,68,0.35)", letterSpacing:"0.06em" }}>
+            {naoLidos} NÃO LIDOS
+          </span>
+        )}
+      </div>
+
+      <div style={S.page}>
 
       {/* ══ ASIDE ══════════════════════════════════════════════════════════ */}
       <aside style={S.aside}>
@@ -307,7 +330,7 @@ export default function Alertas({ onNavigate }) {
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span style={{fontSize:14.3,fontWeight:800,color:"#E8A020",letterSpacing:"0.1em",textTransform:"uppercase"}}>Alertas</span>
+            <span style={{fontSize:12,fontWeight:800,color:"#E8A020",letterSpacing:"0.1em",textTransform:"uppercase"}}>Alertas</span>
           </div>
           {naoLidos > 0 && (
             <span style={{fontSize: 12,color:"#F87171",fontWeight:800,fontFamily:MONO,background:"rgba(239,68,68,0.12)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,0.3)"}}>
@@ -440,8 +463,8 @@ export default function Alertas({ onNavigate }) {
             <div className={altoRisco>0?"alert-pulse":""} style={{width:9,height:9,borderRadius:"50%",flexShrink:0,
               background:altoRisco>0?"#EF4444":loading?"#94A3B8":"#4ADE80"}}/>
             <div>
-              <div style={{fontSize:16.9,fontWeight:700,color:"#F1F5F9"}}>Central de Alertas OSINT</div>
-              <div style={{fontSize:11.7,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9"}}>Central de Alertas OSINT</div>
+              <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
                 {loading ? "Carregando..." : `${filtrados.length} alertas · ${naoLidos} não lidos · 🔴 ${totalRT} · 🔵 ${totalOSINT} OSINT`}
               </div>
             </div>
@@ -465,7 +488,7 @@ export default function Alertas({ onNavigate }) {
               <svg className="spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
-              <span style={{fontSize:15.6,color:"#94A3B8",fontFamily:MONO}}>Carregando alertas...</span>
+              <span style={{fontSize:13,color:"#94A3B8",fontFamily:MONO}}>Carregando alertas...</span>
             </div>
           )}
           {!loading && erro && (
@@ -506,18 +529,20 @@ export default function Alertas({ onNavigate }) {
           )}
         </div>
       </div>
+      </div>
     </div>
   )
 }
 
 const S = {
-  page:{display:"flex",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0B1120"},
+  topbar:{height:48,flexShrink:0,background:"#0F172A",borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 14px"},
+  page:{display:"flex",flex:1,minWidth:0,minHeight:0,overflow:"hidden",background:"#0B1120"},
   aside:{width:268,flexShrink:0,background:"#111827",borderRight:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"},
   asideHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0},
   main:{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0B1120"},
   mainHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px",borderBottom:"1px solid rgba(255,255,255,0.07)",background:"#111827",flexShrink:0},
   mainBody:{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"},
-  filterLabel:{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.32)",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO,marginBottom:6},
+  filterLabel:{fontSize:11,fontWeight:700,color:"#64748B",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO,marginBottom:6},
   filterBtn:{width:"100%",padding:"7px 10px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:MONO,transition:"all 0.12s",textAlign:"left"},
   actionBtn:{width:"100%",padding:"9px",borderRadius:7,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",fontSize:13,color:"#94A3B8",cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6},
 }

@@ -1641,4 +1641,10 @@ function RadarExpandido({ scores, onRefresh }) {
                 fontFamily:MONO, letterSpacing:"0.07em", flexShrink:0 }}>
                 {s.classificacao}
               </span>
-            </div
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

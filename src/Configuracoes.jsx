@@ -1,12 +1,16 @@
 /**
  * Configuracoes.jsx — Agent Bastos
- * Tela de configurações com 2 abas:
- *   1. Geral    — identidade da agência, backend URL, tema
- *   2. Conexões — status dos serviços (backend, Firebase, n8n)
+ * Tela de configurações com abas:
+ *   Geral | Agenda | Conexões | Usuários* | Auditoria*
+ *   (* visíveis apenas para o perfil admin)
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense } from "react"
 import api from "./api"
+
+// Abas admin — lazy-loaded para não inflar o chunk de Configuracoes
+const GerenciarUsuarios = lazy(() => import("./GerenciarUsuarios"))
+const AuditoriaLog      = lazy(() => import("./AuditoriaLog"))
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -103,7 +107,7 @@ const CHAVE_LABELS = {
   TELEGRAM_API_HASH: "Telegram API Hash",
 }
 
-function AbaGeral({ tema, setTema }) {
+function AbaGeral({ tema, setTema, user }) {
   const stored = JSON.parse(localStorage.getItem("ab_config") || "{}")
   const [agencia,    setAgencia]    = useState(stored.agencia    || "AIPEN — Assessoria de Inteligência Penitenciária")
   const [estado,     setEstado]     = useState(stored.estado     || "AM")
@@ -174,79 +178,73 @@ function AbaGeral({ tema, setTema }) {
         <Field label="URL do n8n (Automações)" value={n8nUrl} onChange={setN8nUrl} placeholder="http://localhost:5678" hint="Endereço do n8n para integrações e alertas automáticos."/>
       </Section>
 
-      <Section title="Aparência" icon={
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-        </svg>
-      }>
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          <label style={{ fontSize:13, fontWeight:700, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:MONO }}>
-            Tema da Interface
-          </label>
-          {[
-            { id:"dark",    label:"Padrão — Dark",          desc:"Interface escura com acento gold. Ideal para uso contínuo em ambientes fechados.",   preview:"#0B1120", accent:"#E8A020" },
-            { id:"tactico", label:"Tático — Operacional",   desc:"Modo operacional. Verde lima sobre fundo oliva militar.",                               preview:"#070c05", accent:"#9fd44a" },
-            { id:"claro",   label:"Claro — Corporativo",    desc:"Interface clara enterprise. Sidebar navy escuro, conteúdo em branco.",                  preview:"#F1F5F9", accent:"#B45309" },
-          ].map(t => {
-            const isActive = tema === t.id
-            return (
-              <div key={t.id} onClick={() => setTema(t.id)} style={{
-                display:"flex", alignItems:"center", gap:12,
-                padding:"11px 14px", borderRadius:8, cursor:"pointer",
-                border: isActive ? "1px solid rgba(232,160,32,0.50)" : "1px solid rgba(255,255,255,0.07)",
-                background: isActive ? "rgba(232,160,32,0.08)" : "rgba(255,255,255,0.02)",
-                transition:"all 0.15s",
-              }}>
-                <div style={{ width:36, height:36, borderRadius:7, flexShrink:0, background:t.preview,
-                  border: t.id==="claro" ? "1px solid rgba(0,0,0,0.10)" : "1px solid rgba(255,255,255,0.08)",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  boxShadow: isActive ? `0 0 10px ${t.accent}33` : "none" }}>
-                  <div style={{ width:10, height:10, borderRadius:"50%", background:t.accent,
-                    boxShadow: `0 0 6px ${t.accent}88` }}/>
+      {/* ── Chaves de API — visível apenas para admin (LGPD) ──────────── */}
+      {user?.level === "admin" && (
+        <Section title="Chaves de API" icon={
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        }>
+          {/* Status em barra de rolagem — exibe apenas 3 chars (LGPD art. 46) */}
+          <div style={{ fontSize:12, color:"#94A3B8", fontFamily:MONO, lineHeight:1.6, marginBottom:8,
+            padding:"6px 10px", background:"rgba(232,160,32,0.06)", borderRadius:5,
+            border:"1px solid rgba(232,160,32,0.15)" }}>
+            🔒 Exibição restrita ao perfil <strong style={{color:"#E8A020"}}>admin</strong>. Apenas 3 caracteres visíveis — conformidade LGPD art. 46.
+          </div>
+          <div style={{ maxHeight:220, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
+            {Object.keys(CHAVE_LABELS).map(k => {
+              const st = chavesStatus[k] || {}
+              const preview = st.configurada && st.preview
+                ? st.preview.substring(0, 3) + "•••••••••"
+                : "—"
+              return (
+                <div key={k} style={{
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  padding:"8px 12px", background:"rgba(255,255,255,0.03)",
+                  borderRadius:7, border:"1px solid rgba(255,255,255,0.07)",
+                }}>
+                  <span style={{ fontSize:11.7, fontWeight:700, color:"#64748B",
+                    letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
+                    {CHAVE_LABELS[k]}
+                  </span>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
+                      background: st.configurada ? "#22C55E" : "#EF4444",
+                      boxShadow: st.configurada ? "0 0 5px rgba(34,197,94,0.6)" : "none" }}/>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#F1F5F9", fontFamily:MONO,
+                      letterSpacing:"0.06em" }}>
+                      {preview}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:"#E2E8F0" }}>{t.label}</div>
-                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:2 }}>{t.desc}</div>
-                </div>
-                <div style={{ width:16, height:16, borderRadius:"50%", flexShrink:0, border: isActive ? "2px solid #E8A020" : "2px solid rgba(255,255,255,0.18)", background: isActive ? "#E8A020" : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  {isActive && (
-                    <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                      <polyline points="2,5 4,7 8,3" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Section>
+              )
+            })}
+          </div>
 
-      <Section title="Chaves de API" icon={
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-      }>
-        <div style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO, lineHeight:1.6, marginBottom:2 }}>
-          Persistidas no servidor (.env). Por segurança, só os últimos dígitos aparecem — deixe em branco para manter a chave atual.
-        </div>
-        {Object.keys(CHAVE_LABELS).map(k => {
-          const st = chavesStatus[k] || {}
-          return (
-            <Field
-              key={k}
-              label={CHAVE_LABELS[k]}
-              type="password"
-              value={chavesInput[k] || ""}
-              onChange={v => setChavesInput(s => ({ ...s, [k]: v }))}
-              placeholder={st.configurada ? `Configurada (${st.preview}) — digite para trocar` : "Não configurada"}
-              hint={st.configurada ? "✓ Configurada no servidor" : "Vazia — cole a chave para definir"}
-            />
-          )
-        })}
-      </Section>
+          {/* Inputs de atualização — também admin-only */}
+          <div style={{ marginTop:12, padding:"12px 14px",
+            background:"rgba(255,255,255,0.02)", borderRadius:8,
+            border:"1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8",
+              letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO, marginBottom:10 }}>
+              Atualizar Chaves — deixe em branco para manter a atual
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {Object.keys(CHAVE_LABELS).map(k => (
+                <Field
+                  key={k}
+                  label={CHAVE_LABELS[k]}
+                  type="password"
+                  value={chavesInput[k] || ""}
+                  onChange={v => setChavesInput(s => ({ ...s, [k]: v }))}
+                  placeholder={chavesStatus[k]?.configurada ? "Digite para atualizar..." : "Não configurada — cole a chave"}
+                />
+              ))}
+            </div>
+          </div>
+        </Section>
+      )}
 
       {erro && (
         <div style={{ padding:"9px 14px", background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:7 }}>
@@ -266,6 +264,41 @@ function AbaGeral({ tema, setTema }) {
         }}>
           {salvo ? "✓ SALVO!" : "SALVAR CONFIGURAÇÕES"}
         </button>
+      </div>
+
+      {/* ── Sobre o Sistema ─────────────────────────────────────────────── */}
+      <div style={{
+        marginTop:8, padding:"16px 18px", borderRadius:10,
+        background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.07)",
+      }}>
+        <div style={{ fontSize:11, fontWeight:800, color:"#64748B", letterSpacing:"0.12em",
+          textTransform:"uppercase", fontFamily:MONO, marginBottom:14 }}>
+          Sobre o Sistema
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          {[
+            { label:"Aplicação",  value:"Agent Bastos" },
+            { label:"Versão",     value:`v${__APP_VERSION__}` },
+            { label:"Build",      value:new Date(__BUILD_DATE__).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric" }) },
+            { label:"Plataforma", value:window.navigator.platform || "Windows" },
+            { label:"Ambiente",   value:"Electron · FastAPI · ChromaDB" },
+            { label:"RAG Model",  value:"multilingual-e5-small" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{
+              display:"flex", flexDirection:"column", gap:3,
+              padding:"10px 12px", borderRadius:8,
+              background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)",
+            }}>
+              <span style={{ fontSize:10, fontWeight:700, color:"#64748B",
+                letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO }}>
+                {label}
+              </span>
+              <span style={{ fontSize:13, fontWeight:700, color:"#F1F5F9", fontFamily:MONO }}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
     </div>
@@ -616,14 +649,145 @@ function AbaConexoes() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ABA MINHA CONTA — troca de senha do próprio usuário
+// ═══════════════════════════════════════════════════════════════════════════════
+function AbaConta({ user }) {
+  const [senhaAtual,  setSenhaAtual]  = useState("")
+  const [novaSenha,   setNovaSenha]   = useState("")
+  const [confirmar,   setConfirmar]   = useState("")
+  const [loading,     setLoading]     = useState(false)
+  const [msg,         setMsg]         = useState(null)  // { tipo:"ok"|"erro", texto }
+
+  async function trocarSenha(e) {
+    e.preventDefault()
+    setMsg(null)
+    if (novaSenha !== confirmar) {
+      setMsg({ tipo:"erro", texto:"Nova senha e confirmação não coincidem." })
+      return
+    }
+    if (novaSenha.length < 8) {
+      setMsg({ tipo:"erro", texto:"A nova senha deve ter pelo menos 8 caracteres." })
+      return
+    }
+    setLoading(true)
+    try {
+      const r = await api.patch("/auth/me/senha", {
+        senha_atual: senhaAtual,
+        nova_senha:  novaSenha,
+        confirmar:   confirmar,
+      })
+      const d = await r?.json()
+      if (r?.ok) {
+        setMsg({ tipo:"ok", texto:"Senha alterada com sucesso!" })
+        setSenhaAtual(""); setNovaSenha(""); setConfirmar("")
+      } else {
+        setMsg({ tipo:"erro", texto: d?.detail || "Erro ao alterar senha." })
+      }
+    } catch {
+      setMsg({ tipo:"erro", texto:"Erro de comunicação com o servidor." })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const campo = (label, val, setVal, placeholder = "••••••••") => (
+    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+      <label style={{ fontSize:11, fontWeight:600, color:"#94A3B8", textTransform:"uppercase", letterSpacing:"0.08em" }}>{label}</label>
+      <input
+        type="password" value={val}
+        onChange={e => setVal(e.target.value)}
+        placeholder={placeholder}
+        style={{ background:"#0F172A", border:"1px solid #1E293B", borderRadius:8, padding:"9px 12px",
+          color:"#F1F5F9", fontSize:13, fontFamily:"inherit", outline:"none" }}
+      />
+    </div>
+  )
+
+  return (
+    <div className="cfg-enter" style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:420 }}>
+      {/* Cabeçalho do perfil */}
+      <div style={{ display:"flex", alignItems:"center", gap:14, padding:"16px 18px",
+        background:"linear-gradient(135deg,#0F172A,#1E293B)", border:"1px solid #1E293B", borderRadius:12 }}>
+        <div style={{ width:44, height:44, borderRadius:"50%", background:"#1E3A5F",
+          display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
+          {user?.level === "admin" ? "🛡" : "👤"}
+        </div>
+        <div>
+          <div style={{ fontSize:15, fontWeight:700, color:"#F1F5F9" }}>{user?.nome || user?.sub || "—"}</div>
+          <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>
+            {user?.sub}{" · "}
+            <span style={{ color: user?.level === "admin" ? "#E8A020" : "#60A5FA", fontWeight:600 }}>
+              {user?.level || "analista"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Formulário */}
+      <div style={{ padding:"20px 22px", background:"#0F172A", border:"1px solid #1E293B", borderRadius:12 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#E8A020", marginBottom:18, display:"flex", alignItems:"center", gap:8 }}>
+          🔑 Alterar Senha
+        </div>
+        <form onSubmit={trocarSenha} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {campo("Senha Atual", senhaAtual, setSenhaAtual)}
+          {campo("Nova Senha", novaSenha, setNovaSenha)}
+          {campo("Confirmar Nova Senha", confirmar, setConfirmar)}
+
+          {msg && (
+            <div style={{ padding:"9px 12px", borderRadius:8, fontSize:12, fontWeight:600,
+              background: msg.tipo === "ok" ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
+              border: `1px solid ${msg.tipo === "ok" ? "rgba(74,222,128,0.25)" : "rgba(248,113,113,0.25)"}`,
+              color: msg.tipo === "ok" ? "#4ADE80" : "#F87171" }}>
+              {msg.tipo === "ok" ? "✓ " : "✕ "}{msg.texto}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading || !senhaAtual || !novaSenha || !confirmar}
+            style={{ marginTop:4, padding:"10px 0", borderRadius:8, border:"none",
+              background: loading ? "#1E293B" : "#1D4ED8", color:"#FFF",
+              fontSize:13, fontWeight:700, cursor: loading ? "default" : "pointer",
+              opacity: (!senhaAtual || !novaSenha || !confirmar) ? 0.5 : 1 }}>
+            {loading ? "Alterando..." : "Alterar Senha"}
+          </button>
+        </form>
+      </div>
+
+      <div style={{ fontSize:11, color:"#475569", lineHeight:1.6 }}>
+        A senha deve ter pelo menos 8 caracteres. Por segurança, a sessão atual permanece ativa após a troca.
+      </div>
+    </div>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
-const ABAS = [
-  { id:"geral",    label:"Geral",    icon:"⚙" },
-  { id:"conexoes", label:"Conexões", icon:"🔗" },
+const ABAS_BASE = [
+  { id:"geral",    label:"Geral",       icon:"⚙"  },
+  { id:"conexoes", label:"Conexões",    icon:"🔗" },
+  { id:"conta",    label:"Minha Conta", icon:"🔑" },
+]
+const ABAS_ADMIN = [
+  { id:"usuarios",  label:"Usuários",  icon:"👥" },
+  { id:"auditoria", label:"Auditoria", icon:"🛡" },
 ]
 
-export default function Configuracoes({ onNavigate, tema, setTema }) {
+function TabSpinner() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, gap:10 }}>
+      <svg style={{ animation:"spin 1s linear infinite" }} width="16" height="16"
+        viewBox="0 0 24 24" fill="none" stroke="#E8A020" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      </svg>
+      <span style={{ fontSize:13, color:"#94A3B8", fontFamily:MONO }}>Carregando...</span>
+    </div>
+  )
+}
+
+export default function Configuracoes({ onNavigate, tema, setTema, user }) {
+  const isAdmin = user?.level === "admin"
+  const abas = isAdmin ? [...ABAS_BASE, ...ABAS_ADMIN] : ABAS_BASE
   const [aba, setAba] = useState("geral")
 
   useEffect(() => {
@@ -636,44 +800,40 @@ export default function Configuracoes({ onNavigate, tema, setTema }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, height:"100%", overflow:"hidden", background:"#0B1120" }}>
 
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderBottom:"1px solid rgba(255,255,255,0.07)", background:"rgba(10,16,28,0.90)", flexShrink:0 }}>
-        <div>
-          <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:3 }}>
-            <div style={{ width:30, height:30, borderRadius:8,
-              background:"rgba(232,160,32,0.12)", border:"1px solid rgba(232,160,32,0.25)",
-              display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E8A020" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize:15, fontWeight:800, color:"#F1F5F9", letterSpacing:"-0.01em" }}>Configurações</div>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,0.40)", fontFamily:MONO, marginTop:1 }}>Agent Bastos · Sistema de Inteligência</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display:"flex", gap:4, alignSelf:"flex-end", paddingBottom:2 }}>
-          {ABAS.map(a => (
-            <button key={a.id} onClick={() => setAba(a.id)}
-              className={aba===a.id ? "cfg-tab-active" : "cfg-tab-inactive"}
-              style={{
-                padding:"7px 16px", borderRadius:7,
-                border:"1px solid",
-                fontSize:13, fontWeight:700, cursor:"pointer", transition:"all 0.15s", fontFamily:MONO,
-                letterSpacing:"0.04em",
-              }}>
-              <span style={{ marginRight:6 }}>{a.icon}</span>
-              {a.label}
-            </button>
-          ))}
+      {/* Topbar */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 20px", borderBottom:"1px solid #1E293B", background:"#0B1120", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8A020" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          <span style={{ fontSize:14, fontWeight:700, color:"#F1F5F9", letterSpacing:"0.05em" }}>CONFIGURAÇÕES</span>
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div style={{ display:"flex", gap:4, padding:"10px 20px 0", borderBottom:"1px solid #1E293B", background:"#0B1120", flexShrink:0 }}>
+        {abas.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)}
+            className={aba === a.id ? "cfg-tab-active" : "cfg-tab-inactive"}
+            style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px",
+              borderRadius:"8px 8px 0 0", border:"1px solid transparent",
+              fontSize:12, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>
+            <span style={{ fontSize:14 }}>{a.icon}</span>{a.label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ flex:1, overflowY:"auto", padding:"20px", display:"flex", flexDirection:"column" }}>
-        {aba === "geral"    && <AbaGeral tema={tema} setTema={setTema}/>}
+        {aba === "geral"    && <AbaGeral tema={tema} setTema={setTema} user={user}/>}
         {aba === "conexoes" && <AbaConexoes/>}
+        {aba === "conta"    && <AbaConta user={user}/>}
+        {/* Abas admin — lazy-loaded dentro de Suspense */}
+        {isAdmin && (
+          <Suspense fallback={<TabSpinner />}>
+            {aba === "usuarios"  && <div style={{ flex:1, display:"flex", flexDirection:"column" }}><GerenciarUsuarios onNavigate={onNavigate}/></div>}
+            {aba === "auditoria" && <div style={{ flex:1, display:"flex", flexDirection:"column" }}><AuditoriaLog      onNavigate={onNavigate}/></div>}
+          </Suspense>
+        )}
       </div>
 
     </div>

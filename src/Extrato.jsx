@@ -380,8 +380,25 @@ export default function Extrato({ onNavigate }) {
   const abaAtual      = ABAS.find(a => a.id === tab)
 
   return (
-    <div style={{display:"flex",flex:1,minWidth:0,height:"100%",overflow:"hidden",
-      background:C.bg,fontFamily:SANS,color:C.text}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:C.bg,fontFamily:SANS,color:C.text}}>
+
+      {/* ══ TOPBAR ══════════════════════════════════════════════════════════ */}
+      <div style={{height:48,flexShrink:0,background:"#0F172A",borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",padding:"0 14px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#FF5F57"}}/>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#FEBC2E"}}/>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#28C840"}}/>
+          </div>
+          <div style={{width:1,height:16,background:"rgba(255,255,255,0.12)",margin:"0 4px"}}/>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:"#F1F5F9",letterSpacing:"0.03em"}}>Extrato i2</div>
+            <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.06em"}}>BASTOS-UNIT · Extração de Inteligência · Análise i2</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",flex:1,minWidth:0,overflow:"hidden"}}>
 
       {/* ── ASIDE ──────────────────────────────────────────────────────────── */}
       <aside style={{
@@ -714,6 +731,7 @@ export default function Extrato({ onNavigate }) {
         </div>
       </div>
 
+      </div>
     </div>
   )
 }

@@ -167,22 +167,80 @@ export default function ChatRAG({ onNavigate }) {
   const ultimaBastos = messages.filter(m => m.role === "bastos").at(-1)
 
   return (
-    <div style={S.page}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", fontFamily: SANS, background: "#0B1120" }}>
+
+      {/* Topbar — padrão igual ao Noticias */}
+      <header style={{
+        height: 48, borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 20px", background: "#0F172A",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button style={{ width: 12, height: 12, borderRadius: "50%", background: "#FF5F57", border: "none", cursor: "pointer" }} onClick={() => window.electronAPI?.close()} />
+            <button style={{ width: 12, height: 12, borderRadius: "50%", background: "#FEBC2E", border: "none", cursor: "pointer" }} onClick={() => window.electronAPI?.minimize()} />
+            <button style={{ width: 12, height: 12, borderRadius: "50%", background: "#28C840", border: "none", cursor: "pointer" }} onClick={() => window.electronAPI?.maximize()} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9", letterSpacing: "0.02em" }}>Chat RAG</div>
+            <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 1 }}>BASTOS-UNIT · Doutrina Nacional · LLaMA 70b</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>{messages.length} mensagens</span>
+          <button
+            onClick={exportar}
+            disabled={messages.length === 0}
+            style={{
+              fontSize: 10, fontWeight: 700, padding: "5px 12px", fontFamily: MONO,
+              letterSpacing: "0.06em", borderRadius: 6, cursor: messages.length === 0 ? "not-allowed" : "pointer",
+              background: messages.length === 0 ? "#1E293B" : "rgba(96,165,250,0.08)",
+              color: messages.length === 0 ? "#64748B" : "#60A5FA",
+              border: "1px solid " + (messages.length === 0 ? "rgba(255,255,255,0.04)" : "rgba(96,165,250,0.2)"),
+              display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s",
+              opacity: messages.length === 0 ? 0.5 : 1,
+            }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            EXPORTAR
+          </button>
+          <button
+            onClick={limpar}
+            disabled={messages.length === 0}
+            style={{
+              fontSize: 10, fontWeight: 700, padding: "5px 12px", fontFamily: MONO,
+              letterSpacing: "0.06em", borderRadius: 6, cursor: messages.length === 0 ? "not-allowed" : "pointer",
+              background: messages.length === 0 ? "#1E293B" : "rgba(239,68,68,0.08)",
+              color: messages.length === 0 ? "#64748B" : "#F87171",
+              border: "1px solid " + (messages.length === 0 ? "rgba(255,255,255,0.04)" : "rgba(239,68,68,0.2)"),
+              display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s",
+              opacity: messages.length === 0 ? 0.5 : 1,
+            }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+            LIMPAR
+          </button>
+        </div>
+      </header>
+
+      {/* Layout aside + chat */}
+      <div style={S.page}>
 
       {/* PAINEL DE FONTES */}
       <aside style={S.aside}>
         <div style={S.asideHeader}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-            <span style={{ fontSize: 16.9, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            <div style={{ width: 3, height: 16, borderRadius: 2, background: "linear-gradient(to bottom, #A78BFA, #6D28D9)" }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#CBD5E1", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>
               Base Doutrinária
             </span>
           </div>
-          <span style={{ fontSize: 11, color: "#E8A020", fontWeight: 700, fontFamily: MONO, background: "rgba(232,160,32,0.12)", padding: "2px 6px", borderRadius: 4, border: "1px solid #FDE68A" }}>
-            710 chunks
+          <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700, fontFamily: MONO, background: "rgba(245,158,11,0.1)", padding: "2px 8px", borderRadius: 20, border: "1px solid rgba(245,158,11,0.2)" }}>
+            963 chunks
           </span>
         </div>
 
@@ -213,56 +271,55 @@ export default function ChatRAG({ onNavigate }) {
               <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8, fontFamily: MONO }}>
                 Trechos Utilizados
               </div>
-              {fontes.map((f, i) => (
+              {fontes.map((f, i) => {
+                const ativa = fonteAtiva && fonteAtiva.id === f.id
+                return (
                 <div
                   key={i}
                   className="fonte-item"
-                  onClick={() => setFonteAtiva(fonteAtiva && fonteAtiva.id === f.id ? null : f)}
+                  onClick={() => setFonteAtiva(ativa ? null : f)}
                   style={{
                     padding: "10px 12px",
-                    background: fonteAtiva && fonteAtiva.id === f.id ? "#FFFBEB" : "#111827",
-                    border: "1px solid",
-                    borderColor: fonteAtiva && fonteAtiva.id === f.id ? "rgba(180,83,9,0.4)" : "#E2E8F0",
-                    borderRadius: 8,
-                    marginBottom: 6,
-                    cursor: "pointer",
+                    background: ativa ? "rgba(245,158,11,0.07)" : "#111827",
+                    border: `1px solid ${ativa ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.07)"}`,
+                    borderLeft: `2px solid ${ativa ? "#F59E0B" : "rgba(167,139,250,0.4)"}`,
+                    borderRadius: 8, marginBottom: 6, cursor: "pointer",
                     transition: "all 0.15s",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, background: "rgba(167,139,250,0.12)", color: "#A78BFA", padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>
                         T{f.id}
                       </span>
-                      <span style={{ fontSize: 16.9, fontWeight: 600, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#CBD5E1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {f.fonte.replace(".txt", "").replace(".pdf", "").replace(/_/g, " ")}
                       </span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, flexShrink: 0, color: scoreColor(f.score) }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, flexShrink: 0, color: scoreColor(f.score) }}>
                       {f.score}%
                     </span>
                   </div>
                   <div style={{ height: 3, background: "#1A2236", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: f.score + "%", background: scoreColor(f.score), borderRadius: 2 }}/>
+                    <div style={{ height: "100%", width: f.score + "%", background: scoreColor(f.score), borderRadius: 2, transition: "width 0.5s ease" }}/>
                   </div>
-                  {fonteAtiva && fonteAtiva.id === f.id && (
-                    <div style={{ marginTop: 8, padding: "8px", background: "#0B1120", borderRadius: 5, border: "1px solid rgba(255,255,255,0.07)" }}>
-                      <p style={{ fontSize: 16.9, color: "#94A3B8", lineHeight: 1.55, fontFamily: MONO, margin: 0 }}>
+                  {ativa && (
+                    <div style={{ marginTop: 8, padding: "8px 10px", background: "#0B1120", borderRadius: 5, border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <p style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.6, fontFamily: MONO, margin: 0 }}>
                         "{f.trecho}..."
                       </p>
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 16px", gap: 8 }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <p style={{ fontSize: 14.3, color: "#94A3B8", textAlign: "center", lineHeight: 1.5, fontFamily: MONO, margin: 0 }}>
-                As fontes aparecem aqui após cada consulta
+              <p style={{ fontSize: 12, color: "#CBD5E1", textAlign: "center", lineHeight: 1.6, fontFamily: MONO, margin: 0 }}>
+                Fontes aparecem após cada consulta
               </p>
             </div>
           )}
@@ -272,7 +329,7 @@ export default function ChatRAG({ onNavigate }) {
         <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#1A2236", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#16A34A", boxShadow: "0 0 5px rgba(22,163,74,0.7)" }}/>
-            <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>ChromaDB · 710 chunks</span>
+            <span style={{ fontSize: 12, color: "#CBD5E1", fontFamily: MONO, fontWeight: 600 }}>ChromaDB · 963 chunks</span>
           </div>
           <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>multilingual-e5-small</span>
         </div>
@@ -281,55 +338,30 @@ export default function ChatRAG({ onNavigate }) {
       {/* ÁREA DE CHAT */}
       <div style={S.chatArea}>
 
-        {/* Header */}
-        <div style={S.chatHeader}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div className="live-dot" style={{ width: 9, height: 9, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
-          <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#F8FAFC" }}>Chat RAG</div>
-          <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO, marginTop: 2 }}>
-          BASTOS-UNIT · Doutrina Nacional · LLaMA 70b
+        {/* Barra de status do chat */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)",
+          background: "#0D1526", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div className="live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }}/>
+            <span style={{ fontSize: 11, color: "#22C55E", fontFamily: MONO, fontWeight: 700 }}>RAG ATIVO</span>
+            <span style={{ fontSize: 11, color: "#64748B", fontFamily: MONO }}>·</span>
+            <span style={{ fontSize: 11, color: "#CBD5E1", fontFamily: MONO }}>963 chunks indexados</span>
           </div>
-          </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO }}>{messages.length} mensagens</span>
-            <button
-              onClick={exportar}
-              disabled={messages.length === 0}
-              style={{ ...S.headerBtn, opacity: messages.length === 0 ? 0.4 : 1, cursor: messages.length === 0 ? "not-allowed" : "pointer" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Exportar
-            </button>
-            <button
-              onClick={limpar}
-              disabled={messages.length === 0}
-              style={{ ...S.headerBtn, color: "#F87171", borderColor: "rgba(220,38,38,0.2)", background: "rgba(220,38,38,0.04)", opacity: messages.length === 0 ? 0.4 : 1, cursor: messages.length === 0 ? "not-allowed" : "pointer" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14H6L5 6"/>
-                <path d="M10 11v6"/><path d="M14 11v6"/>
-              </svg>
-              Limpar
-            </button>
-          </div>
+          <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>multilingual-e5-small · LLaMA 70b</span>
         </div>
 
         {/* Mensagens */}
         <div style={S.messages}>
           {messages.length === 0 && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 8, padding: "40px", minHeight: "200px" }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.2" strokeLinecap="round">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 10, padding: "40px", minHeight: "200px" }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1E3A5F" strokeWidth="0.9" strokeLinecap="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <p style={{ fontSize: 16.9, color: "#94A3B8", fontWeight: 500, margin: "6px 0 2px" }}>Consulte a base doutrinária</p>
-              <p style={{ fontSize: 14.3, color: "#CBD5E1", fontFamily: MONO, margin: 0 }}>Faça uma pergunta para iniciar a análise</p>
+              <span style={{ fontSize: 14, color: "#CBD5E1", fontWeight: 600 }}>Consulte a base doutrinária</span>
+              <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO }}>Faça uma pergunta para iniciar a análise RAG</span>
             </div>
           )}
 
@@ -411,7 +443,7 @@ export default function ChatRAG({ onNavigate }) {
                 <div className="dot2" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
                 <div className="dot3" style={{ width: 5, height: 5, borderRadius: "50%", background: "#B45309" }}/>
               </div>
-              <span style={{ fontSize: 16.9, color: "#94A3B8", fontFamily: MONO }}>consultando doutrina...</span>
+              <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>consultando doutrina...</span>
             </div>
           )}
 
@@ -453,20 +485,19 @@ export default function ChatRAG({ onNavigate }) {
           </p>
         </div>
       </div>
+      </div>{/* fecha layout aside+chat */}
     </div>
   )
 }
 
 const S = {
-  page: { display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden" },
-  aside: { width: 268, flexShrink: 0, background: "#0B1120", borderRight: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" },
+  page: { display: "flex", flex: 1, minWidth: 0, overflow: "hidden" },
+  aside: { width: 260, flexShrink: 0, background: "#0B1120", borderRight: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", overflow: "hidden" },
   asideHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 },
-  confiancaBox: { margin: "10px 12px", padding: "10px 12px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", flexShrink: 0 },
-  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0F172A", minHeight: 0 },
-  chatHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.15)" },
-  headerBtn: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "#CBD5E1", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" },
+  confiancaBox: { margin: "10px 12px", padding: "10px 12px", background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, flexShrink: 0 },
+  chatArea: { display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden", background: "#0F172A" },
   messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 },
-  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0, boxShadow: "0 -1px 3px rgba(0,0,0,0.15)" },
-  input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 15, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", "--placeholder": "rgba(255,255,255,0.65)" },
+  inputArea: { padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "#0D1526", flexShrink: 0 },
+  input: { flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "11px 14px", fontSize: 14, color: "#F1F5F9", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s" },
   sendBtn: { width: 36, height: 36, background: "linear-gradient(135deg,#F59E0B,#B45309)", border: "none", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(180,83,9,0.3)", transition: "opacity 0.2s" },
 }

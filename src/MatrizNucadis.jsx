@@ -61,8 +61,10 @@ export default function MatrizNucadis() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
-    try { const r=await api.get("/extrato/heatmap"); if(r.ok) setDados(await r.json()) } catch {}
-    try { const r=await api.get("/extrato/auditoria/verificar"); if(r.ok) setAud(await r.json()) } catch {}
+    try { const r=await api.get("/extrato/heatmap"); if(r.ok) setDados(await r.json()) }
+    catch(e) { if (import.meta.env.DEV) console.warn("[MatrizNucadis] heatmap:", e) }
+    try { const r=await api.get("/extrato/auditoria/verificar"); if(r.ok) setAud(await r.json()) }
+    catch(e) { if (import.meta.env.DEV) console.warn("[MatrizNucadis] auditoria/verificar:", e) }
     setLoading(false)
   },[])
   useEffect(()=>{ const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); return ()=>document.head.removeChild(s) },[])

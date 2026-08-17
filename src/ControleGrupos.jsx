@@ -1,4 +1,7 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react"
+﻿import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react"
+
+// Inteligência de Grupos agora vive como aba interna — lazy-loaded on demand
+const InteligenciaGrupos = lazy(() => import("./InteligenciaGrupos"))
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
 import api from "./api"
@@ -103,6 +106,7 @@ const CSS = `
 `
 
 export default function ControleGrupos({ onNavigate }) {
+  const [view, setView]             = useState("grupos")   // "grupos" | "inteligencia"
   const [unit, setUnit]             = useState("CDPM1")
   const [pav, setPav]               = useState(null)
   const [err, setErr]               = useState({})
@@ -134,7 +138,9 @@ export default function ControleGrupos({ onNavigate }) {
   }, [mes])
 
   useEffect(() => {
-    api.get("/grupos/catalogo").then(r => r?.json()).then(d => { if (d?.grupos?.length) setGrupos(d.grupos) }).catch(() => {})
+    api.get("/grupos/catalogo").then(r => r?.json()).then(d => { if (d?.grupos?.length) setGrupos(d.grupos) }).catch(e => {
+      if (import.meta.env.DEV) console.warn("[ControleGrupos] catálogo de grupos:", e)
+    })
   }, [])
 
   // Salva o grupo de um pavilhão no mês atual (otimista + persiste no SQLite)
@@ -147,7 +153,9 @@ export default function ControleGrupos({ onNavigate }) {
     })
     try {
       await api.post("/grupos/ocupacao", { ano_mes: mes, unidade, pavilhao_id: pavId, grupo })
-    } catch {}
+    } catch(e) {
+      if (import.meta.env.DEV) console.warn("[ControleGrupos] salvarGrupo falhou:", e)
+    }
     finally { setSalvando(false) }
   }
 
@@ -175,7 +183,8 @@ export default function ControleGrupos({ onNavigate }) {
 
   const ud     = dados.unidades[unit]
   const pavs   = ud?.pavs || {}
-  const imgSrc = ud?.img ? `/unidades/${ud.img}` : null
+  // Em produção Electron (file://), caminhos absolutos falham — usa relativo
+  const imgSrc = ud?.img ? `./unidades/${ud.img}` : null
   const grups  = [...new Set(Object.values(pavs).map(p => p.g))]
 
   // ── Exportação PDF ─────────────────────────────────────────────────────────
@@ -338,6 +347,41 @@ export default function ControleGrupos({ onNavigate }) {
     }
   }
 
+  // ── Aba Inteligência de Grupos — full-screen com breadcrumb para voltar ────
+  if (view === "inteligencia") return (
+    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:"#0F172A"}}>
+      {/* Breadcrumb */}
+      <div style={{height:36,display:"flex",alignItems:"center",gap:8,padding:"0 16px",
+        borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(15,23,42,0.97)",flexShrink:0}}>
+        <button onClick={() => setView("grupos")} style={{
+          display:"flex",alignItems:"center",gap:5,
+          background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",
+          borderRadius:6,padding:"3px 10px",cursor:"pointer",
+          fontSize:12,color:"#94A3B8",fontFamily:MONO,fontWeight:600,
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Controle de Grupos
+        </button>
+        <span style={{fontSize:12,color:"rgba(255,255,255,0.25)",fontFamily:MONO}}>/</span>
+        <span style={{fontSize:12,color:"#A78BFA",fontFamily:MONO,fontWeight:700,letterSpacing:"0.04em"}}>
+          Inteligência de Grupos
+        </span>
+      </div>
+      <Suspense fallback={
+        <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",gap:10}}>
+          <svg style={{animation:"spin 1s linear infinite"}} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <span style={{fontSize:14,color:"#94A3B8",fontFamily:MONO}}>Carregando módulo...</span>
+        </div>
+      }>
+        <InteligenciaGrupos onNavigate={onNavigate}/>
+      </Suspense>
+    </div>
+  )
+
   if (carregando) return (
     <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"#0A0E14"}}>
       <svg className="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
@@ -385,6 +429,23 @@ export default function ControleGrupos({ onNavigate }) {
             }}
           >
             {exportando ? "GERANDO..." : "↓ EXPORTAR PDF"}
+          </button>
+          {/* Botão de acesso à Inteligência de Grupos */}
+          <button onClick={() => setView("inteligencia")} style={{
+            display:"flex",alignItems:"center",gap:6,
+            padding:"5px 12px",borderRadius:7,cursor:"pointer",
+            background:"rgba(167,139,250,0.12)",
+            border:"1px solid rgba(167,139,250,0.35)",
+            color:"#A78BFA",fontSize:13,fontWeight:700,fontFamily:MONO,
+            letterSpacing:"0.04em",transition:"all 0.15s",
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/>
+              <line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/>
+              <line x1="18" y1="12" x2="22" y2="12"/>
+            </svg>
+            Inteligência de Grupos
           </button>
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:20}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:"#16A34A",boxShadow:"0 0 5px rgba(22,163,74,0.7)"}}/>

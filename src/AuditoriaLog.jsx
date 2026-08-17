@@ -328,4 +328,9 @@ export default function AuditoriaLog() {
                 opacity:currentPage>=totalPages?0.4:1}}>
               Próximo →
             </button>
-  
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
