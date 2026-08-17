@@ -17,6 +17,11 @@ FIREBASE_KEY_PATH = os.getenv("FIREBASE_KEY_PATH", "serviceAccountKey.json")
 
 # Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Modelo de chat do Groq usado no RAG, monitor e transcricao. Centralizado
+# aqui para nao depender de find-and-replace em 3 arquivos quando a Groq
+# aposentar um modelo (ja aconteceu com llama-3.3-70b-versatile em 16/08/2026
+# -- ver https://console.groq.com/docs/deprecations).
+GROQ_MODEL_CHAT = os.getenv("GROQ_MODEL_CHAT", "openai/gpt-oss-120b")
 
 # DeepSeek (API OpenAI-compatible — https://platform.deepseek.com)
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")

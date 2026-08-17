@@ -7,6 +7,7 @@ Rotas HTTP de transcrição de áudio, exportação de laudos e grafoscopia.
 import io
 import json
 import os
+from config.settings import GROQ_MODEL_CHAT
 import re
 import tempfile
 import wave
@@ -193,7 +194,7 @@ async def transcribe(
         )
 
         completion = groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL_CHAT,
             messages=[{"role": "user", "content": analysis_prompt}],
             temperature=0.1,
             max_tokens=3000,

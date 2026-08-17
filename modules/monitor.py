@@ -121,7 +121,7 @@ def _analisar_ia(titulo: str, resumo: str, alvo_nome: str) -> dict | None:
     """
     try:
         from groq import Groq
-        from config.settings import GROQ_API_KEY
+        from config.settings import GROQ_API_KEY, GROQ_MODEL_CHAT
         if not GROQ_API_KEY:
             return None
         client = Groq(api_key=GROQ_API_KEY)
@@ -131,7 +131,7 @@ def _analisar_ia(titulo: str, resumo: str, alvo_nome: str) -> dict | None:
             f"Resumo: {resumo}"
         )
         resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL_CHAT,
             messages=[
                 {"role": "system", "content": _IA_SYS},
                 {"role": "user", "content": user},

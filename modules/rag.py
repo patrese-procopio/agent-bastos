@@ -15,6 +15,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import getpass
 import socket
 from datetime import datetime, timezone
+from config.settings import GROQ_MODEL_CHAT
 
 load_dotenv()
 
@@ -242,7 +243,7 @@ def conversar_com_fontes(pergunta: str) -> dict:
 
     try:
         completion = _groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL_CHAT,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=1500,
