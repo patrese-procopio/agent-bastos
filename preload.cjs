@@ -24,4 +24,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Caminho do log — exibido na tela de Configurações para facilitar suporte
   getLogPath:  () => ipcRenderer.invoke("get-log-path"),
+
+  // Diálogo nativo "Selecionar pasta" (Operações Drone: importação do cartão SD)
+  selecionarPasta: (titulo) => ipcRenderer.invoke("selecionar-pasta", titulo),
 });

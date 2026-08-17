@@ -117,8 +117,8 @@ app.on("ready", () => {
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",   // unsafe-inline necessário para Vite HMR em dev
             "style-src 'self' 'unsafe-inline'",
-            "connect-src 'self' http://127.0.0.1:8000 ws://localhost:5174",
-            "img-src 'self' data: blob: http://127.0.0.1:8000",
+            "connect-src 'self' http://127.0.0.1:8000 http://127.0.0.1:5678 http://127.0.0.1:8080 http://localhost:5678 http://localhost:8080 ws://localhost:5174",
+            "img-src 'self' data: blob: https: http://127.0.0.1:8000 http://127.0.0.1:5678 http://127.0.0.1:8080",
             "font-src 'self' data:",
             "object-src 'none'",
             "base-uri 'self'",
@@ -360,52 +360,65 @@ function createWindow() {
   });
 }
 
+// ─── Quick API check (sem bloquear no Docker) ────────────────────────────────
+// Tenta bater no /health com timeout curto.
+// Se a API já está no ar (iniciada via npm run backend), pula o Docker inteiro.
+function checkApiQuick(timeoutMs = 2500) {
+  return new Promise((resolve) => {
+    const req = http.get("http://127.0.0.1:8000/health", (res) => {
+      resolve(res.statusCode < 500);
+    });
+    req.on("error", () => resolve(false));
+    req.setTimeout(timeoutMs, () => { req.destroy(); resolve(false); });
+  });
+}
+
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   createSplash();
   await new Promise((r) => setTimeout(r, 400));
 
   try {
-    setSplash("VERIFICANDO DOCKER...", 10, 0);
-    const dockerOk = await checkDockerRunning();
-    log.info("Docker status:", dockerOk ? "OK" : "NÃO ENCONTRADO");
+    // 1. Verifica primeiro se a API já está no ar (backend Python via npm run backend)
+    setSplash("VERIFICANDO SERVICOS...", 10, 0);
+    const apiJaRodando = await checkApiQuick();
 
-    if (!dockerOk) {
-      log.warn("Docker não está rodando — abrindo em modo degradado");
-      const { response } = await dialog.showMessageBox({
-        type: "warning",
-        title: "Agent Bastos — Docker não encontrado",
-        message:
-          "O Docker Desktop não está rodando.\n\nInicie o Docker Desktop e reabra o Agent Bastos para ativar todas as funcionalidades.",
-        buttons: ["Continuar mesmo assim", "Fechar"],
-        defaultId: 0,
-      });
-      if (response === 1) {
-        log.info("Usuário escolheu fechar — encerrando");
-        app.quit();
-        return;
-      }
+    if (apiJaRodando) {
+      // Backend Python já está rodando — pula Docker completamente
+      log.info("API respondendo — backend já ativo, pulando Docker");
+      setSplash("BACKEND CONECTADO", 85, 2);
+      await new Promise((r) => setTimeout(r, 600));
+
     } else {
-      // Tenta subir os containers. Se falhar (ex: pasta não encontrada),
-      // loga o erro mas continua — os containers podem já estar rodando.
-      try {
-        await startDockerStack();
-      } catch (dockerErr) {
-        log.warn("docker compose up falhou, verificando se API já está no ar:", dockerErr.message);
+      // API não respondeu — tenta via Docker
+      setSplash("VERIFICANDO DOCKER...", 20, 1);
+      const dockerOk = await checkDockerRunning();
+      log.info("Docker status:", dockerOk ? "OK" : "NAO ENCONTRADO");
+
+      if (dockerOk) {
+        try {
+          await startDockerStack();
+        } catch (dockerErr) {
+          log.warn("docker compose up falhou:", dockerErr.message);
+        }
+        setSplash("CONECTANDO A API...", 50, 2);
+        await waitForApi();
+      } else {
+        // Sem Docker e sem API — avisa e abre em modo offline
+        log.warn("Docker e API indisponiveis — modo offline");
+        setSplash("SEM BACKEND — MODO OFFLINE", 85, 2);
+        await new Promise((r) => setTimeout(r, 1200));
       }
-      // Sempre aguarda a API — independente de o compose ter rodado ou não.
-      setSplash("CONECTANDO À API...", 50, 2);
-      await waitForApi();
     }
   } catch (err) {
     log.error("Erro no startup:", err.message);
-    setSplash("ERRO NA INICIALIZAÇÃO — ABRINDO EM MODO OFFLINE", 90, 2);
+    setSplash("ERRO NA INICIALIZACAO — MODO OFFLINE", 90, 2);
     await new Promise((r) => setTimeout(r, 1500));
   }
 
   setSplash("CARREGANDO INTERFACE...", 95, 3);
   if (isDev) {
-    await waitForVite().catch(() => log.warn("Vite não respondeu — carregando assim mesmo"));
+    await waitForVite().catch(() => log.warn("Vite nao respondeu — carregando assim mesmo"));
   }
   createWindow();
 });
@@ -462,4 +475,16 @@ ipcMain.handle("send-message", (_event, msg) => {
 ipcMain.handle("get-log-path", () => {
   // Permite que o frontend exiba o caminho do log para o usuário em Configurações
   return log.transports.file.getFile().path;
+});
+
+ipcMain.handle("selecionar-pasta", async (_event, titulo) => {
+  // Diálogo nativo do SO para escolher pasta (Operações Drone: cartão SD).
+  // Roda no processo MAIN — o renderer nunca toca o filesystem diretamente.
+  log.debug("IPC: selecionar-pasta");
+  const resultado = await dialog.showOpenDialog(mainWindow, {
+    title: titulo || "Selecionar pasta",
+    properties: ["openDirectory"],
+  });
+  if (resultado.canceled || resultado.filePaths.length === 0) return null;
+  return resultado.filePaths[0];
 });
