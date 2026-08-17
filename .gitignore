@@ -80,3 +80,4 @@ SNAPSHOT_*.tar.gz
 
 # ─── Auditoria operacional (LGPD — nunca sai da máquina local) ──────────────
 *.jsonl
+_to_delete/
