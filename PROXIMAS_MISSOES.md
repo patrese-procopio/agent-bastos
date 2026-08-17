@@ -56,6 +56,14 @@
 - Migrado para `openai/gpt-oss-120b` (modelo de produção, não preview), centralizado em `GROQ_MODEL_CHAT` (`config/settings.py`) em vez de string repetida em 3 arquivos.
 - Testado e funcional em 17/08/2026.
 
+### Missão 36 — CI/CD com GitHub Actions
+- Investigação em 17/08/2026 revelou que o backend já tinha CI funcional desde 19/05/2026 (`.github/workflows/ci.yml`, commits `dfeca47`/`ccd4646`/`b7dd684`) — pytest rodando a cada push/PR na `main`, 67 testes reais hoje (a lista de deps do CI já vem enxuta de propósito, sem `torch`/`chromadb`/`sentence-transformers`, porque a suite mocka a camada de serviço).
+- O que realmente faltava era doc drift: o badge de CI tinha sido dropado silenciosamente numa reescrita antiga do `README.md`, e o Roadmap continuava marcando `CI/CD` e `Containerização (Docker)` como pendentes mesmo já entregues (Docker validado na Missão 32). Corrigido: badge restaurado, checklist atualizado, `requirements-dev.txt` criado (conveniência de dev local, documentado que o CI não depende dele).
+- Trabalho novo de verdade: frontend (`agent-bastos-app`) nunca teve CI — adicionado `.github/workflows/ci.yml` rodando `npm ci` + `npm run build` a cada push/PR na `master`, como smoke test até a Missão 37 trazer testes de verdade.
+- Quase repeti aqui o mesmo erro da Missão 34 (sobrescrever arquivo já existente sem checar `git status` antes) — pego a tempo ao ver `M` em vez de `??` no `git status` do `ci.yml` do backend.
+- Achado não resolvido: `tests/test_pipeline_transcricao.py` tem 285 linhas mas zero funções `test_*` — pytest coleta silenciosamente 0 testes ali. Vira item pra Missão 37.
+- Testado: workflow do backend restaurado idêntico ao HEAD (diff zero). Workflow novo do frontend ainda não verificado rodando de verdade — falta o usuário dar push e conferir a aba Actions do GitHub.
+
 ---
 
 ## 🎯 Próximas candidatas
@@ -67,13 +75,12 @@ Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.m
 - Mais arriscado que a Missão 34 original — muito estado compartilhado entre esses widgets (ex: `showSearch` fecha `showNotifications`, `focusMode` esconde topbar inteira). Fazer com ambiente de build local disponível pra testar a cada extração.
 - Prioridade: baixa — não pesa tanto quanto Painel/AppRouter pesavam numa review técnica.
 
-### Missão 35 — Busca híbrida no RAG
+### Missão 35 — Busca híbrida no RAG (🔄 em andamento)
 - Vetorial + keyword com reranking (item já listado no roadmap do `README.md`).
 - Ganho de Context Recall, que ficou marcado como "em otimização" no `ARCHITECTURE.md` (ADR-006).
-
-### Missão 36 — CI/CD com GitHub Actions
-- Rodar pytest + build do frontend a cada push, badge de status no README.
-- Prioridade de portfólio: alta — sinaliza prática de engenharia sem precisar explicar em entrevista.
+- Código implementado em 17/08/2026: `modules/hybrid_retriever.py` (BM25 + fusão RRF k=60 + reranking com cross-encoder multilingue `mmarco-mMiniLMv2-L12-H384-v1`), atrás da flag `RAG_HYBRID_SEARCH` (default `false`) — não altera o caminho de produção atual.
+- Faltando: medir Context Recall antes/depois com `scripts/avaliar_rag.py` (RAGAS). Bloqueado pela cota diária gratuita da Groq (200k tokens/dia) — as duas primeiras tentativas de medição pós-reset ainda bateram no limite. Retomar quando a cota resetar de novo.
+- Ao concluir: recalibrar `SCORE_MINIMO_DOUTRINA` se necessário (score do cross-encoder é sigmoid, não é diretamente comparável ao cosseno atual) e registrar ADR-008 no `ARCHITECTURE.md` com os números reais.
 
 ### Missão 37 — Cobertura de testes do frontend
 - Vitest para `api.js` (mock de fetch) e `Login.jsx` (comportamento de formulário) — zero testes hoje no frontend.
@@ -93,4 +100,4 @@ Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.m
 
 ---
 
-*Atualizado em 17/08/2026 — Missões 25 a 34 (escopo enxuto), Inteligência Preditiva e fix do modelo Groq confirmados funcionais em teste manual.*
+*Atualizado em 17/08/2026 — Missões 25 a 34 (escopo enxuto), Inteligência Preditiva e fix do modelo Groq confirmados funcionais em teste manual. Missão 36 (CI/CD) concluída — em boa parte doc drift corrigido, CI novo no frontend. Missão 35 (busca híbrida) implementada, medição RAGAS pendente por cota da Groq.*
