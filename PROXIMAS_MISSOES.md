@@ -36,16 +36,19 @@
 - `docs_url` desligado em produção (`BASTOS_ENV=production`) confirmado como comportamento intencional, não bug.
 - Testado e funcional em 17/08/2026.
 
+### Missão 33 — Hardening de segurança do frontend
+- `access_token` movido para memória (variável de módulo em `src/authStore.js`) — nunca mais toca disco.
+- `refresh_token` movido de `localStorage` para `sessionStorage` — sobrevive a um F5, mas some ao fechar a janela do Electron.
+- Reidratação de sessão no boot do `App.jsx` via refresh silencioso, pra reload de página não derrubar o usuário logado.
+- CSP no `electron.cjs` — já estava implementado antes desta missão (achado ao investigar, não uma tarefa nova).
+- Corrigidos 2 pontos em `GrafoVinculos.jsx` que faziam `fetch` direto lendo `localStorage.getItem('ab_access_token')` (bypass do `api.js` — teriam quebrado silenciosamente com a mudança).
+- Testado e funcional em 17/08/2026.
+
 ---
 
 ## 🎯 Próximas candidatas
 
 Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.md`, `README.md` e `AUDIT.md` — não são ideias novas, são itens que o próprio projeto já sinalizou como faltando.
-
-### Missão 33 — Hardening de segurança do frontend
-- Tokens JWT saindo de `localStorage` para memória (access) + `sessionStorage`/httpOnly (refresh).
-- CSP no `electron.cjs`.
-- Origem: `agent_bastos_levantamento_frontend.md`, seção de vulnerabilidades.
 
 ### Missão 34 — Refatorar App.jsx (God Component)
 - Extrair `AuthContext`, `AppRouter`, `Layout` — hoje App.jsx concentra autenticação, navegação e renderização dos 20+ módulos.
@@ -62,6 +65,11 @@ Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.m
 ### Missão 37 — Cobertura de testes do frontend
 - Vitest para `api.js` (mock de fetch) e `Login.jsx` (comportamento de formulário) — zero testes hoje no frontend.
 
+### Missão 38 — Sincronizar dados entre deploy local e Docker
+- Descoberto em 17/08/2026: o volume nomeado `bastos_db` (usado pelo `docker compose`) é um banco **separado** do `data/auth.db` local usado pelo `.venv`. O registro do admin no volume Docker ficou 8 semanas sem o módulo `drone`, mesmo com o código já atualizado — porque dados não se propagam pelos bind mounts, só código.
+- Avaliar: script de migração/seed que sincroniza `modules` de usuários entre os dois bancos, ou documentar claramente no README que são bancos independentes e qual é a fonte de verdade em cada ambiente.
+- Prioridade: média — não trava nada, mas já causou um "cadê meu módulo novo" real numa sessão de teste.
+
 ---
 
 ## Notas de arquitetura
@@ -72,4 +80,4 @@ Puxadas de pendências já documentadas em `agent_bastos_levantamento_frontend.m
 
 ---
 
-*Atualizado em 17/08/2026 — Missões 25 a 31 e Inteligência Preditiva confirmadas funcionais em teste manual.*
+*Atualizado em 17/08/2026 — Missões 25 a 33 e Inteligência Preditiva confirmadas funcionais em teste manual.*
