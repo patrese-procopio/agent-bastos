@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import api from "./api"
 import { toast } from "./Toast"
+
+// Líderes Gerais agora vive como aba interna — lazy-loaded on demand
+const LideresGerais = lazy(() => import("./LideresGerais"))
 
 const MONO    = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS    = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -528,6 +531,7 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
 
 // ── Principal ─────────────────────────────────────────────────────────────────
 export default function LiderancasUnidade({ onNavigate }) {
+  const [view,        setView]        = useState("unidade")  // "unidade" | "gerais"
   const [unidade,     setUnidade]     = useState("CDPM1")
   const [competencia, setCompetencia] = useState("")
   const [competencias,setCompetencias]= useState([])
@@ -617,6 +621,41 @@ export default function LiderancasUnidade({ onNavigate }) {
 
   const dadosFiltrados = filtrar(dados)
 
+  // ── Aba Líderes Gerais — full-screen com breadcrumb para voltar ─────────────
+  if (view === "gerais") return (
+    <div style={{display:"flex",flexDirection:"column",flex:1,minWidth:0,height:"100%",overflow:"hidden",background:C.bg}}>
+      {/* Breadcrumb */}
+      <div style={{height:36,display:"flex",alignItems:"center",gap:8,padding:"0 16px",
+        borderBottom:`1px solid ${C.border}`,background:C.surfaceUp,flexShrink:0}}>
+        <button onClick={() => setView("unidade")} style={{
+          display:"flex",alignItems:"center",gap:5,
+          background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,
+          borderRadius:6,padding:"3px 10px",cursor:"pointer",
+          fontSize:12,color:C.textMid,fontFamily:MONO,fontWeight:600,
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.textMid} strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Lideranças por Unidade
+        </button>
+        <span style={{fontSize:12,color:"rgba(255,255,255,0.25)",fontFamily:MONO}}>/</span>
+        <span style={{fontSize:12,color:"#A78BFA",fontFamily:MONO,fontWeight:700,letterSpacing:"0.04em"}}>
+          Líderes Gerais
+        </span>
+      </div>
+      <Suspense fallback={
+        <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center",gap:10}}>
+          <svg style={{animation:"spin 1s linear infinite"}} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <span style={{fontSize:14,color:C.textMid,fontFamily:MONO}}>Carregando módulo...</span>
+        </div>
+      }>
+        <LideresGerais onNavigate={onNavigate}/>
+      </Suspense>
+    </div>
+  )
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:C.bg,fontFamily:SANS,overflow:"hidden"}}>
 
@@ -667,6 +706,23 @@ export default function LiderancasUnidade({ onNavigate }) {
             background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
             color:"#FFF",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>
             + Novo líder
+          </button>
+          {/* Acesso a Líderes Gerais */}
+          <button onClick={() => setView("gerais")} style={{
+            display:"flex",alignItems:"center",gap:6,
+            padding:"7px 12px",borderRadius:4,cursor:"pointer",
+            background:"rgba(167,139,250,0.12)",
+            border:"1px solid rgba(167,139,250,0.35)",
+            color:"#A78BFA",fontSize:12,fontWeight:700,fontFamily:MONO,
+            letterSpacing:"0.04em",transition:"all 0.15s",
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Líderes Gerais
           </button>
         </div>
       </div>

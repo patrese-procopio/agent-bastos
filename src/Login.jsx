@@ -43,7 +43,30 @@ export default function Login({ onLogin }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       height: "100vh", background: "#0B1120", fontFamily: SANS,
       backgroundImage: `url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.9' fill='%23FFFFFF' fill-opacity='0.04'/%3E%3C/svg%3E")`,
+      position: "relative",
     }}>
+
+      {/* ── Controles de janela — canto superior direito ── */}
+      <div style={{
+        position: "absolute", top: 12, right: 14,
+        display: "flex", gap: 8, WebkitAppRegion: "no-drag",
+      }}>
+        {[
+          { color: "#FF5F57", title: "Fechar",    action: () => window.electronAPI?.close()    },
+          { color: "#FEBC2E", title: "Minimizar", action: () => window.electronAPI?.minimize() },
+          { color: "#28C840", title: "Maximizar", action: () => window.electronAPI?.maximize() },
+        ].map(btn => (
+          <button key={btn.title} title={btn.title} onClick={btn.action} style={{
+            width: 13, height: 13, borderRadius: "50%",
+            background: btn.color, border: "none", cursor: "pointer",
+            boxShadow: `0 0 6px ${btn.color}88`,
+            transition: "transform 0.1s, filter 0.1s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.2)"}
+            onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
+          />
+        ))}
+      </div>
       <div style={{
         width: 400, background: "#111827",
         border: "1px solid rgba(255,255,255,0.08)",

@@ -1,4 +1,6 @@
-const BASE = "/api-proxy"
+// Em dev: Vite proxeia /api-proxy → http://localhost:8000/api
+// Em produção (Electron packaged): sem proxy, vai direto para a API local
+const BASE = import.meta.env.DEV ? "/api-proxy" : "http://127.0.0.1:8000/api"
 
 function getToken() {
   return localStorage.getItem("ab_access_token")
@@ -84,4 +86,10 @@ const api = {
     form.append("password", password)
     return fetch(`${BASE}/auth/login`, {
       method: "POST",
-   
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form,
+    })
+  },
+}
+
+export default api

@@ -260,21 +260,24 @@ export default function OsintPesquisa({ onNavigate }) {
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:C.bg,overflow:"hidden",fontFamily:SANS,color:C.text}}>
 
       {/* ── TOPBAR ── */}
-      <header style={{height:44,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",background:C.surface,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{display:"flex",gap:5,marginRight:4}}>
-            {["#FF5F57","#FEBC2E","#28C840"].map(c=><div key={c} style={{width:11,height:11,borderRadius:"50%",background:c}}/>)}
+      <div style={{height:48,flexShrink:0,background:"#0F172A",borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 14px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#FF5F57"}}/>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#FEBC2E"}}/>
+            <div style={{width:12,height:12,borderRadius:"50%",background:"#28C840"}}/>
           </div>
+          <div style={{width:1,height:16,background:"rgba(255,255,255,0.12)",margin:"0 4px"}}/>
           <div>
-            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Pesquisa OSINT</div>
-            <div style={{fontSize:11,color:C.textMid,fontFamily:MONO,marginTop:1}}>Inteligência de Pessoas · Fontes Públicas</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#F1F5F9",letterSpacing:"0.03em"}}>OSINT Pessoas</div>
+            <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,letterSpacing:"0.06em"}}>BASTOS-UNIT · Inteligência de Pessoas · Fontes Públicas</div>
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",background:"rgba(74,222,128,0.08)",borderRadius:20,border:"1px solid rgba(74,222,128,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:"rgba(74,222,128,0.08)",borderRadius:4,border:"1px solid rgba(74,222,128,0.25)"}}>
           <div className="o-glow" style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>
-          <span style={{fontSize:11,color:C.green,fontWeight:600,fontFamily:MONO}}>LGPD · Art. 37</span>
+          <span style={{fontSize:11,color:C.green,fontWeight:700,fontFamily:MONO,letterSpacing:"0.06em"}}>LGPD · Art. 37</span>
         </div>
-      </header>
+      </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14}}>
 
