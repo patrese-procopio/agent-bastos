@@ -16,6 +16,10 @@ set FRONT=http://127.0.0.1:5174
 
 REM [0/4] Libera portas de instancias anteriores (evita conflito)
 echo  [0/4] Liberando portas 8000 / 5174 ...
+REM Se o container Docker "agent-bastos-api" estiver de pe, ele SEGURA a 8000
+REM pelo com.docker.backend.exe (servico protegido: taskkill nao mata). Precisa
+REM parar pelo docker antes de tentar taskkill. Se docker nao existir, ignora.
+where docker >nul 2>&1 && docker stop agent-bastos-api >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000 " ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5174 " ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
 
