@@ -7,6 +7,7 @@
 
 import { useState, useEffect, lazy, Suspense } from "react"
 import api from "./api"
+import { setBackendUrl as saveBackendUrl, pingBackend, relaunchApp } from "./backendConfig"
 
 // Abas admin — lazy-loaded para não inflar o chunk de Configuracoes
 const GerenciarUsuarios = lazy(() => import("./GerenciarUsuarios"))
@@ -112,11 +113,15 @@ function AbaGeral({ tema, setTema, user }) {
   const [agencia,    setAgencia]    = useState(stored.agencia    || "AIPEN — Assessoria de Inteligência Penitenciária")
   const [estado,     setEstado]     = useState(stored.estado     || "AM")
   const [backendUrl, setBackendUrl] = useState(stored.backendUrl || "http://127.0.0.1:8000")
+  const [backendUrlOriginal] = useState(stored.backendUrl || "http://127.0.0.1:8000")
   const [n8nUrl,     setN8nUrl]     = useState(stored.n8nUrl     || "http://localhost:5678")
   const [chavesStatus, setChavesStatus] = useState({})   // { KEY: { configurada, preview } }
   const [chavesInput,  setChavesInput]  = useState({})   // { KEY: "valor digitado" }
   const [salvo,      setSalvo]      = useState(false)
   const [erro,       setErro]       = useState("")
+  const [testeBackend, setTesteBackend] = useState(null) // {ok, dados|erro} | null
+  const [testandoBackend, setTestandoBackend] = useState(false)
+  const [precisaReiniciar, setPrecisaReiniciar] = useState(false)
 
   // Carrega config do servidor (fallback: mantém o que veio do localStorage)
   useEffect(() => {
@@ -132,6 +137,19 @@ function AbaGeral({ tema, setTema, user }) {
     }).catch(() => { setErro("Não foi possível carregar as configurações do servidor.") })
     return () => { vivo = false }
   }, [])
+
+  async function testarBackend() {
+    setTesteBackend(null)
+    const clean = backendUrl.trim().replace(/\/+$/, "")
+    if (!/^https?:\/\//.test(clean)) {
+      setTesteBackend({ ok: false, erro: "URL precisa comecar com http:// ou https://" })
+      return
+    }
+    setTestandoBackend(true)
+    const r = await pingBackend(clean)
+    setTestandoBackend(false)
+    setTesteBackend(r)
+  }
 
   async function salvar() {
     setErro("")
@@ -150,6 +168,15 @@ function AbaGeral({ tema, setTema, user }) {
     }
     // espelha no localStorage p/ a aba Conexões e carregamento rápido
     localStorage.setItem("ab_config", JSON.stringify({ agencia, estado, backendUrl, n8nUrl }))
+
+    // Se a URL do backend mudou, sincroniza com o Electron (arquivo userData)
+    // — isso e o que rege o CSP e o healthcheck do main process. Marca flag
+    // pedindo reiniciar pra CSP ser re-aplicado com a nova origem.
+    if (backendUrl.trim() !== backendUrlOriginal.trim()) {
+      const r = await saveBackendUrl(backendUrl)
+      if (r.ok && r.precisaReiniciar) setPrecisaReiniciar(true)
+    }
+
     setSalvo(true)
     setTimeout(() => setSalvo(false), 2500)
   }
@@ -174,9 +201,60 @@ function AbaGeral({ tema, setTema, user }) {
           <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
         </svg>
       }>
-        <Field label="URL do Backend (FastAPI)" value={backendUrl} onChange={setBackendUrl} placeholder="http://127.0.0.1:8000" hint="Endereço onde o Agent Bastos Python está rodando."/>
+        <Field label="URL do Backend (FastAPI)" value={backendUrl} onChange={v => { setBackendUrl(v); setTesteBackend(null) }} placeholder="http://127.0.0.1:8000  ou  https://bastos.suaagencia.gov.br" hint="Endereço onde o backend do Agent Bastos está rodando (servidor central da agência ou máquina local)."/>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: -4, marginBottom: 4 }}>
+          <button
+            onClick={testarBackend}
+            disabled={testandoBackend}
+            style={{
+              padding: "6px 14px", borderRadius: 6, cursor: testandoBackend ? "wait" : "pointer",
+              background: "transparent", color: "#94A3B8",
+              border: "1px solid rgba(255,255,255,0.14)",
+              fontSize: 12, fontFamily: MONO, letterSpacing: "0.04em",
+            }}
+          >
+            {testandoBackend ? "Testando..." : "Testar conexão"}
+          </button>
+          {testeBackend && (
+            <span style={{
+              fontSize: 12, fontFamily: MONO,
+              color: testeBackend.ok ? "#4ADE80" : "#F87171",
+            }}>
+              {testeBackend.ok ? `✓ Backend respondeu (${testeBackend.dados?.status || "ok"})` : `✗ ${testeBackend.erro}`}
+            </span>
+          )}
+        </div>
+
         <Field label="URL do n8n (Automações)" value={n8nUrl} onChange={setN8nUrl} placeholder="http://localhost:5678" hint="Endereço do n8n para integrações e alertas automáticos."/>
       </Section>
+
+      {precisaReiniciar && (
+        <div style={{
+          padding: "12px 16px",
+          background: "rgba(232,160,32,0.10)",
+          border: "1px solid rgba(232,160,32,0.35)",
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: "#E8A020", fontFamily: MONO }}>
+            ⚠ URL do backend mudou. É preciso reiniciar o Agent Bastos para aplicar a nova origem (CSP).
+          </span>
+          <button
+            onClick={relaunchApp}
+            style={{
+              padding: "8px 16px", borderRadius: 6, cursor: "pointer",
+              background: "#E8A020", color: "#0B1120", border: "none",
+              fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: "0.05em",
+            }}
+          >
+            REINICIAR AGORA
+          </button>
+        </div>
+      )}
 
       {/* ── Chaves de API — visível apenas para admin (LGPD) ──────────── */}
       {user?.level === "admin" && (

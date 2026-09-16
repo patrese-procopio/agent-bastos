@@ -1,8 +1,10 @@
 import { getAccessToken, getRefreshToken, setTokens, clearSession } from "./authStore"
+import { getApiBase } from "./backendConfig"
 
-// Em dev: Vite proxeia /api-proxy → http://localhost:8000/api
-// Em produção (Electron packaged): sem proxy, vai direto para a API local
-const BASE = import.meta.env.DEV ? "/api-proxy" : "http://127.0.0.1:8000/api"
+// Em dev: Vite proxeia /api-proxy → backend local (config em vite.config.js).
+// Em prod (Electron packaged): le a URL configurada em Configuracoes -> Aba Geral
+// (localStorage.ab_config.backendUrl). Fallback = http://127.0.0.1:8000.
+// getApiBase() e resolvido A CADA chamada — muda de URL no runtime sem reload.
 
 function getToken() {
   return getAccessToken()
@@ -21,7 +23,7 @@ async function tryRefresh() {
   const refresh = getRefreshToken()
   if (!refresh) return false
   try {
-    const res = await fetch(`${BASE}/auth/refresh`, {
+    const res = await fetch(`${getApiBase()}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refresh }),
@@ -45,7 +47,7 @@ async function request(method, path, body = null) {
     opts.body = body
   }
 
-  let res = await fetch(`${BASE}${path}`, opts)
+  let res = await fetch(`${getApiBase()}${path}`, opts)
 
   if (res.status === 401) {
     const refreshed = await tryRefresh()
@@ -57,7 +59,7 @@ async function request(method, path, body = null) {
         retryOpts.headers = { Authorization: `Bearer ${getToken()}` }
         retryOpts.body = body
       }
-      res = await fetch(`${BASE}${path}`, retryOpts)
+      res = await fetch(`${getApiBase()}${path}`, retryOpts)
     }
     if (res.status === 401) {
       clearSession()
@@ -83,7 +85,7 @@ const api = {
     const form = new URLSearchParams()
     form.append("username", username)
     form.append("password", password)
-    return fetch(`${BASE}/auth/login`, {
+    return fetch(`${getApiBase()}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,

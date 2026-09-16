@@ -13,7 +13,10 @@
 
 const { app, BrowserWindow, ipcMain, dialog, session } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
+const https = require("https");
+const url = require("url");
 const { spawn } = require("child_process");
 const log = require("electron-log");
 
@@ -98,16 +101,72 @@ const BACKEND_DIR = isDev
 
 log.info("BACKEND_DIR:", BACKEND_DIR, "| isDev:", isDev);
 
+// ─── Config persistente do backend (userData/bastos-config.json) ─────────────
+// Guarda a URL do backend que este cliente aponta. O usuario define na tela
+// Configuracoes -> Aba Geral; a UI chama IPC "backend-config-set" que grava
+// aqui, e o CSP + health check leem daqui no proximo boot.
+//
+// Fallback: variavel de ambiente AGENT_BASTOS_BACKEND_URL (util em MDM/GPO)
+// ou http://127.0.0.1:8000 (deploy single-host).
+const CONFIG_PATH = path.join(app.getPath("userData"), "bastos-config.json");
+
+function readBackendConfig() {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+      if (raw && typeof raw.backendUrl === "string" && raw.backendUrl.trim()) {
+        return { backendUrl: raw.backendUrl.trim().replace(/\/+$/, "") };
+      }
+    }
+  } catch (e) {
+    log.warn("readBackendConfig falhou:", e.message);
+  }
+  const envUrl = (process.env.AGENT_BASTOS_BACKEND_URL || "").trim();
+  if (envUrl) return { backendUrl: envUrl.replace(/\/+$/, "") };
+  return { backendUrl: "http://127.0.0.1:8000" };
+}
+
+function writeBackendConfig(newUrl) {
+  const clean = (newUrl || "").trim().replace(/\/+$/, "");
+  if (!clean || !/^https?:\/\//.test(clean)) {
+    throw new Error("URL invalida — precisa comecar com http:// ou https://");
+  }
+  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ backendUrl: clean }, null, 2), "utf8");
+  log.info("Backend config gravado:", clean);
+  return clean;
+}
+
+// Deriva origem (protocol + host + porta) de uma URL, pra whitelist do CSP.
+function toOrigin(u) {
+  try {
+    const p = new URL(u);
+    return `${p.protocol}//${p.host}`;
+  } catch {
+    return null;
+  }
+}
+
+const CURRENT_BACKEND = readBackendConfig();
+log.info("Backend URL configurado:", CURRENT_BACKEND.backendUrl);
+
 // ─── Content Security Policy ──────────────────────────────────────────────────
 // Aplicado via session antes de qualquer janela ser criada.
 // Bloqueia scripts inline, eval(), e carregamento de recursos externos.
-// A API local (127.0.0.1:8000) e o Vite dev server (localhost:5174) são permitidos.
+// A origem do backend configurado + servicos locais (n8n, evolution) sao
+// permitidos. Em prod centralizado, o backend pode ser https://bastos.ag.gov.br
+// ou http://192.168.10.50:8000 — ambos entram no connect-src.
 //
-// Por que CSP no Electron e não só no backend?
-// O renderer process é um Chromium. Se algum conteúdo injetado (XSS via dado
-// vindo da API) conseguir executar script, o CSP bloqueia a exfiltração.
-// É a última linha de defesa dentro do próprio app.
+// Por que CSP no Electron e nao so no backend?
+// O renderer process e um Chromium. Se algum conteudo injetado (XSS via dado
+// vindo da API) conseguir executar script, o CSP bloqueia a exfiltracao.
+// E a ultima linha de defesa dentro do proprio app.
 app.on("ready", () => {
+  const backendOrigin = toOrigin(CURRENT_BACKEND.backendUrl) || "http://127.0.0.1:8000";
+  // Origens locais fixas de servicos que rodam junto quando o deploy e single-host.
+  // Em deploy centralizado o operador acessa n8n/evolution pelo IP do servidor
+  // (fora do Electron), entao essas origens locais nao atrapalham.
+  const localSvc = "http://127.0.0.1:5678 http://127.0.0.1:8080 http://localhost:5678 http://localhost:8080";
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -115,10 +174,10 @@ app.on("ready", () => {
         "Content-Security-Policy": [
           [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",   // unsafe-inline necessário para Vite HMR em dev
+            "script-src 'self' 'unsafe-inline'",   // unsafe-inline necessario para Vite HMR em dev
             "style-src 'self' 'unsafe-inline'",
-            "connect-src 'self' http://127.0.0.1:8000 http://127.0.0.1:5678 http://127.0.0.1:8080 http://localhost:5678 http://localhost:8080 ws://localhost:5174",
-            "img-src 'self' data: blob: https: http://127.0.0.1:8000 http://127.0.0.1:5678 http://127.0.0.1:8080",
+            `connect-src 'self' ${backendOrigin} ${localSvc} ws://localhost:5174`,
+            `img-src 'self' data: blob: https: ${backendOrigin} http://127.0.0.1:5678 http://127.0.0.1:8080`,
             "font-src 'self' data:",
             "object-src 'none'",
             "base-uri 'self'",
@@ -284,7 +343,12 @@ function startDockerStack() {
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 // 90 tentativas × 2s = 3 minutos de janela (cobre indexação ChromaDB na 1ª subida)
+// Usa http OU https conforme a URL configurada.
+function healthClient(healthUrl) {
+  return healthUrl.startsWith("https:") ? https : http;
+}
 function waitForApi(retries = 90, intervalMs = 2000) {
+  const healthUrl = `${CURRENT_BACKEND.backendUrl}/health`;
   return new Promise((resolve, reject) => {
     let attempt = 0;
     const tryOnce = () => {
@@ -294,8 +358,8 @@ function waitForApi(retries = 90, intervalMs = 2000) {
         50 + Math.min(attempt / retries, 1) * 35,
         2
       );
-      http
-        .get("http://127.0.0.1:8000/health", (res) => {
+      healthClient(healthUrl)
+        .get(healthUrl, (res) => {
           log.debug(`[health] status=${res.statusCode} attempt=${attempt}`);
           if (res.statusCode < 500) {
             log.info("API respondendo — health check OK");
@@ -361,11 +425,12 @@ function createWindow() {
 }
 
 // ─── Quick API check (sem bloquear no Docker) ────────────────────────────────
-// Tenta bater no /health com timeout curto.
-// Se a API já está no ar (iniciada via npm run backend), pula o Docker inteiro.
+// Tenta bater no /health com timeout curto na URL configurada.
+// Se a API já está no ar (backend local ou servidor central), pula o Docker.
 function checkApiQuick(timeoutMs = 2500) {
+  const healthUrl = `${CURRENT_BACKEND.backendUrl}/health`;
   return new Promise((resolve) => {
-    const req = http.get("http://127.0.0.1:8000/health", (res) => {
+    const req = healthClient(healthUrl).get(healthUrl, (res) => {
       resolve(res.statusCode < 500);
     });
     req.on("error", () => resolve(false));
@@ -487,4 +552,31 @@ ipcMain.handle("selecionar-pasta", async (_event, titulo) => {
   });
   if (resultado.canceled || resultado.filePaths.length === 0) return null;
   return resultado.filePaths[0];
+});
+
+// ─── Backend config (URL do servidor central) ────────────────────────────────
+// Le e grava o arquivo `userData/bastos-config.json`. O renderer usa isso
+// pra saber pra onde apontar e pra oferecer setup no primeiro boot.
+// A troca de URL exige RESTART do app pra o CSP ser re-aplicado — o renderer
+// mostra dialogo pedindo pra reabrir. Sem restart, o CSP antigo bloquearia
+// as chamadas pra nova origem.
+ipcMain.handle("backend-config-get", () => {
+  return readBackendConfig();
+});
+
+ipcMain.handle("backend-config-set", (_event, novaUrl) => {
+  log.info("IPC: backend-config-set", novaUrl);
+  try {
+    const gravada = writeBackendConfig(novaUrl);
+    return { ok: true, backendUrl: gravada, precisaReiniciar: true };
+  } catch (e) {
+    log.error("backend-config-set falhou:", e.message);
+    return { ok: false, erro: e.message };
+  }
+});
+
+ipcMain.handle("app-relaunch", () => {
+  log.info("IPC: app-relaunch — reiniciando para aplicar nova config");
+  app.relaunch();
+  app.exit(0);
 });

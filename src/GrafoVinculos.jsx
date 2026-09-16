@@ -5,7 +5,9 @@ import api from "./api"
 import { getAccessToken } from "./authStore"
 import { confirm } from "./ConfirmModal"
 import { toast } from "./Toast"
-const IMG_BASE = import.meta.env.DEV ? "/api-proxy" : "http://127.0.0.1:8000/api"
+import { getApiBase } from "./backendConfig"
+// IMG_BASE precisa ser resolvido a cada uso (usuario pode trocar backend em runtime)
+const getImgBase = () => getApiBase()
 import {
   GALERIA, CATEGORIAS, corCategoria, labelCategoria, iconePadrao,
 } from "./iconesGrafo"
@@ -527,7 +529,7 @@ export default function GrafoVinculos() {
     imgCache.set(url, "loading")
     try {
       const token = getAccessToken() || ""
-      const fullUrl = `${IMG_BASE}${url.replace(/^\/api/, "")}`
+      const fullUrl = `${getImgBase()}${url.replace(/^\/api/, "")}`
       const resp = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
       if (!resp.ok) throw new Error(resp.status)
       const blob = await resp.blob()
@@ -1366,7 +1368,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
   useEffect(() => {
     if (!det.foto_url) { setFotoSrc(null); return }
     const token = getAccessToken() || ""
-    const fullUrl = `${IMG_BASE}${det.foto_url.replace(/^\/api/, "")}`
+    const fullUrl = `${getImgBase()}${det.foto_url.replace(/^\/api/, "")}`
     let cancelled = false
     fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.blob() : Promise.reject(r.status))

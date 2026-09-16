@@ -9,6 +9,8 @@ import { ToastContainer } from "./Toast"
 import { ConfirmModalContainer } from "./ConfirmModal"
 import { MONO, SANS, C, GLOBAL_CSS, S } from "./shellTheme"
 import { NAV_GROUPS_ALL, buildNavGroups } from "./navConfig"
+import { getBackendUrl, hydrateFromElectron, isBackendConfigured } from "./backendConfig"
+import SetupInicial from "./SetupInicial"
 
 function AppShell() {
   const { user, authChecking, login, logout } = useAuth()
@@ -225,12 +227,15 @@ function AppShell() {
   }
 
   // ── Status do backend — polling a cada 30s ───────────────────────────────
-  // /health fica na raiz do FastAPI (fora do prefixo /api).
-  // Backend sempre roda local (localhost:8000), tanto em dev quanto em prod Electron.
+  // /health fica na raiz do FastAPI (fora do prefixo /api). A URL vem do
+  // config do usuario (Configuracoes -> Aba Geral) — cliente remoto aponta
+  // pro IP do servidor da agencia. Reagimos a "ab:backend-changed" pra
+  // atualizar o polling sem reload.
   useEffect(() => {
+    let intervalId
     async function ping() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/health", {
+        const res = await fetch(`${getBackendUrl()}/health`, {
           signal: AbortSignal.timeout(4000),
         })
         setBackendStatus(res.ok ? "online" : "offline")
@@ -238,9 +243,17 @@ function AppShell() {
         setBackendStatus("offline")
       }
     }
-    ping()
-    const interval = setInterval(ping, 30_000)
-    return () => clearInterval(interval)
+    function start() {
+      ping()
+      clearInterval(intervalId)
+      intervalId = setInterval(ping, 30_000)
+    }
+    start()
+    window.addEventListener("ab:backend-changed", start)
+    return () => {
+      clearInterval(intervalId)
+      window.removeEventListener("ab:backend-changed", start)
+    }
   }, [])
 
   // ── openTab: abre nova aba ou foca a existente ─────────────────────────
@@ -1281,10 +1294,41 @@ function AppShell() {
   )
 }
 
-// App — ponto de entrada. Só monta o AuthProvider e delega tudo pro
-// AppShell, que lê a sessão via useAuth() em vez de gerenciá-la direto
-// (Missão 34: extração de AuthContext/AppRouter do antigo "God Component").
+// App — ponto de entrada. Antes de qualquer coisa, hidrata a URL do backend
+// do processo main (Electron) — em prod, o arquivo userData/bastos-config.json
+// e a fonte de verdade. Se ainda nao ha URL configurada, mostra SetupInicial
+// (fora do fluxo autenticado) pedindo pro operador informar o servidor da
+// agencia. So depois disso monta o AuthProvider e o AppShell.
 export default function App() {
+  const [bootstrap, setBootstrap] = useState({ pronto: false, configurado: false })
+
+  useEffect(() => {
+    let vivo = true
+    ;(async () => {
+      await hydrateFromElectron()
+      if (!vivo) return
+      setBootstrap({ pronto: true, configurado: isBackendConfigured() })
+    })()
+    return () => { vivo = false }
+  }, [])
+
+  if (!bootstrap.pronto) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "#0B1120", color: "#94A3B8",
+        fontFamily: MONO, fontSize: 12, letterSpacing: 0.5,
+      }}>
+        INICIANDO...
+      </div>
+    )
+  }
+
+  if (!bootstrap.configurado) {
+    return <SetupInicial />
+  }
+
   return (
     <AuthProvider>
       <AppShell/>

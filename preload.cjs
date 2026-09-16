@@ -27,4 +27,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Diálogo nativo "Selecionar pasta" (Operações Drone: importação do cartão SD)
   selecionarPasta: (titulo) => ipcRenderer.invoke("selecionar-pasta", titulo),
+
+  // Configuracao do backend (URL do servidor central da agencia).
+  // getBackend() -> { backendUrl }
+  // setBackend(url) -> { ok, backendUrl, precisaReiniciar } | { ok:false, erro }
+  // relaunch() -> reinicia o app pra aplicar o novo CSP.
+  getBackend:  () => ipcRenderer.invoke("backend-config-get"),
+  setBackend:  (url) => ipcRenderer.invoke("backend-config-set", url),
+  relaunch:    () => ipcRenderer.invoke("app-relaunch"),
 });
