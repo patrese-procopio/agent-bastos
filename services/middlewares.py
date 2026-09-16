@@ -11,6 +11,7 @@ Rate limit (slowapi) e registrado direto no api.py (precisa do app instance).
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Iterable
 
@@ -101,7 +102,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 # Electron em producao envia Origin: null (file://) ou nao envia.
 # Vite dev envia http://localhost:5174 ou http://127.0.0.1:5174.
 # Tauri/Edge WebView2 podem enviar app://. Cobrimos todos.
-_CORS_ALLOW_ORIGINS = [
+_CORS_ALLOW_ORIGINS_DEFAULT = [
     "http://localhost:5174",
     "http://127.0.0.1:5174",
     "http://[::1]:5174",
@@ -110,15 +111,40 @@ _CORS_ALLOW_ORIGINS = [
 ]
 
 # Permite porta alternativa do Vite (5175 fallback) e Electron prod
-_CORS_ALLOW_ORIGIN_REGEX = r"^(https?://(localhost|127\.0\.0\.1|\[::1\]):(517[0-9]|3000|8000)|app://.*|file://.*)$"
+_CORS_ALLOW_ORIGIN_REGEX_DEFAULT = r"^(https?://(localhost|127\.0\.0\.1|\[::1\]):(517[0-9]|3000|8000)|app://.*|file://.*)$"
+
+
+def _origens_extras_do_env() -> list[str]:
+    """Le BASTOS_CORS_ORIGINS do env - vazio ou lista separada por virgula.
+    Uso em deploy centralizado: BASTOS_CORS_ORIGINS=https://bastos.aipen.am.gov.br,https://n8n.aipen.am.gov.br
+    """
+    raw = os.getenv("BASTOS_CORS_ORIGINS", "").strip()
+    if not raw:
+        return []
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+
+
+def _regex_do_env() -> str | None:
+    """Regex adicional opcional (BASTOS_CORS_ORIGIN_REGEX).
+    Se definido, SUBSTITUI o regex default - use com cuidado, ele ja cobre
+    dev/Electron. Util so quando o default nao serve (ex: dominio corporativo).
+    """
+    return os.getenv("BASTOS_CORS_ORIGIN_REGEX", "").strip() or None
 
 
 def montar_cors(app) -> None:
-    """Aplica CORSMiddleware oficial do FastAPI com allowlist."""
+    """Aplica CORSMiddleware oficial do FastAPI com allowlist.
+
+    Deploy centralizado (multi-cliente): defina BASTOS_CORS_ORIGINS no .env do
+    servidor com a lista de origens permitidas (dominio publico, IPs internos).
+    Origens default (Electron/Vite dev) permanecem em qualquer caso.
+    """
+    origins = list(_CORS_ALLOW_ORIGINS_DEFAULT) + _origens_extras_do_env()
+    regex = _regex_do_env() or _CORS_ALLOW_ORIGIN_REGEX_DEFAULT
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_CORS_ALLOW_ORIGINS,
-        allow_origin_regex=_CORS_ALLOW_ORIGIN_REGEX,
+        allow_origins=origins,
+        allow_origin_regex=regex,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],

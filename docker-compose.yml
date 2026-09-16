@@ -35,7 +35,12 @@ services:
     container_name: agent-bastos-api
     env_file: .env
     ports:
-      - "127.0.0.1:8000:8000"   # só loopback — Electron conecta, rede externa não
+      # BASTOS_BIND_ADDR controla quem enxerga a API:
+      #   "127.0.0.1"  -> so loopback (default seguro, dev single-host)
+      #   "0.0.0.0"    -> LAN toda (deploy centralizado, sempre com reverse
+      #                    proxy HTTPS na frente — nunca sem TLS na rede)
+      # Definido no .env do servidor. Default = loopback (comportamento antigo).
+      - "${BASTOS_BIND_ADDR:-127.0.0.1}:8000:8000"
     volumes:
       # ── Persistência de dados (volumes nomeados) ───────────────────────────
       - bastos_chroma:/app/data/chroma_db    # base vetorial (963+ chunks)
@@ -77,7 +82,10 @@ services:
     image: n8nio/n8n:latest
     container_name: agent-bastos-n8n
     ports:
-      - "127.0.0.1:5678:5678"   # painel n8n só acessível no host local
+      # Painel n8n: default loopback (admin acessa da propria maquina do
+      # servidor via RDP/VPN). Override BASTOS_N8N_BIND=0.0.0.0 SO se houver
+      # reverse proxy TLS na frente + autenticacao adicional.
+      - "${BASTOS_N8N_BIND:-127.0.0.1}:5678:5678"
     environment:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
@@ -121,7 +129,8 @@ services:
     image: atendai/evolution-api:v1.8.7
     container_name: agent-bastos-evolution
     ports:
-      - "127.0.0.1:8080:8080"   # Evolution API só acessível no host local
+      # Evolution API — segue a mesma politica do n8n. Default = loopback.
+      - "${BASTOS_EVOLUTION_BIND:-127.0.0.1}:8080:8080"
     environment:
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-bastos_evo_key_TROQUE}

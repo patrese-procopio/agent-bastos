@@ -1,0 +1,62 @@
+# ==============================================================================
+# docker-compose.caddy.yml -- Overlay opcional com Caddy como reverse proxy HTTPS
+# ==============================================================================
+# Como usar (deploy centralizado):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+#
+# O que este overlay faz:
+#   1. Sobe o servico `caddy` na frente da API na porta 443 (HTTPS) + 80 (redirect)
+#   2. Fecha a API do mundo externo (sobrescreve o ports pra 127.0.0.1)
+#   3. Caddy termina TLS e proxeia p/ api:8000 pela rede interna bastos_net
+#
+# Certificado TLS:
+#   - Se BASTOS_PUBLIC_HOST for um dominio publico (ex: bastos.aipen.am.gov.br)
+#     que aponta pro IP desta maquina, Caddy pega Let's Encrypt automaticamente.
+#   - Se for um hostname interno / IP privado, Caddy gera self-signed
+#     (clientes precisam confiar no CA do Caddy — arquivo em caddy_data).
+#   - Modo local dev: use "localhost" pra Caddy usar o CA interno dele.
+#
+# Variaveis (.env do servidor):
+#   BASTOS_PUBLIC_HOST=bastos.aipen.am.gov.br   # ou IP:porta, ou "localhost"
+#   BASTOS_CADDY_EMAIL=infra@aipen.am.gov.br    # p/ Let's Encrypt (obrigatorio se dominio publico)
+#
+# Depois de subir:
+#   - Clientes Electron apontam pra https://<BASTOS_PUBLIC_HOST> (sem porta)
+#   - CORS: adicione essa mesma URL em BASTOS_CORS_ORIGINS no .env
+# ==============================================================================
+
+services:
+
+  # Fecha a API - so Caddy consegue chegar nela (via rede interna).
+  # Isso SOBRESCREVE o `ports` do docker-compose.yml base pra loopback,
+  # mesmo que BASTOS_BIND_ADDR queira abrir. Deploy com Caddy = API atras.
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Caddy - reverse proxy TLS automatico
+  # ────────────────────────────────────────────────────────────────────────────
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: agent-bastos-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"    # redirect 80 -> 443
+      - "443:443"  # TLS
+    environment:
+      - BASTOS_PUBLIC_HOST=${BASTOS_PUBLIC_HOST:-localhost}
+      - BASTOS_CADDY_EMAIL=${BASTOS_CADDY_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # certificados TLS persistidos
+      - caddy_config:/config
+    networks:
+      - bastos_net
+    depends_on:
+      - api
+
+volumes:
+  caddy_data:
+  caddy_config:

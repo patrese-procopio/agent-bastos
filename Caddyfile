@@ -1,0 +1,51 @@
+# ==============================================================================
+# Caddyfile -- Reverse proxy TLS pro Agent Bastos
+# ==============================================================================
+# Envs esperados (via docker-compose.caddy.yml):
+#   BASTOS_PUBLIC_HOST  -- dominio publico ou hostname/IP (ex: bastos.aipen.am.gov.br)
+#   BASTOS_CADDY_EMAIL  -- email pro Let's Encrypt (obrigatorio se dominio publico)
+#
+# Comportamento por tipo de host:
+#   - Dominio publico (contem ponto, nao e IP): Caddy pede Let's Encrypt
+#   - Hostname sem ponto (localhost, servidor01): Caddy usa CA interno dele
+#   - IP puro: Caddy usa self-signed
+# ==============================================================================
+
+{
+	# Email pro Let's Encrypt (ignorado quando o host e interno).
+	email {$BASTOS_CADDY_EMAIL}
+
+	# Logs em stdout (docker logs pega).
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
+
+{$BASTOS_PUBLIC_HOST} {
+	# Headers de seguranca extras (o backend ja envia os principais,
+	# aqui redobramos porque Caddy tambem serve estatico se um dia precisar).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "DENY"
+		Referrer-Policy           "no-referrer"
+		# Remove header revelador
+		-Server
+	}
+
+	# Rate limit basico no proxy (a API tem o dela via slowapi tambem).
+	# Caddy nativo nao tem rate limit sem plugin — deixamos pra API.
+
+	# Proxy pra API pela rede interna do compose (nome do servico = api).
+	# O backend enxerga X-Forwarded-For (o IP real do cliente) via este header.
+	reverse_proxy api:8000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+
+	# Compressao (economiza banda em respostas grandes tipo /grafo/rede-alvo)
+	encode gzip zstd
+}
