@@ -111,19 +111,21 @@ log.info("BACKEND_DIR:", BACKEND_DIR, "| isDev:", isDev);
 const CONFIG_PATH = path.join(app.getPath("userData"), "bastos-config.json");
 
 function readBackendConfig() {
+  // `source` distingue explicit (usuario salvou / MDM definiu) de fallback
+  // — sem essa distincao o SetupInicial nao consegue saber se precisa aparecer.
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
       if (raw && typeof raw.backendUrl === "string" && raw.backendUrl.trim()) {
-        return { backendUrl: raw.backendUrl.trim().replace(/\/+$/, "") };
+        return { backendUrl: raw.backendUrl.trim().replace(/\/+$/, ""), source: "file" };
       }
     }
   } catch (e) {
     log.warn("readBackendConfig falhou:", e.message);
   }
   const envUrl = (process.env.AGENT_BASTOS_BACKEND_URL || "").trim();
-  if (envUrl) return { backendUrl: envUrl.replace(/\/+$/, "") };
-  return { backendUrl: "http://127.0.0.1:8000" };
+  if (envUrl) return { backendUrl: envUrl.replace(/\/+$/, ""), source: "env" };
+  return { backendUrl: "http://127.0.0.1:8000", source: "default" };
 }
 
 function writeBackendConfig(newUrl) {

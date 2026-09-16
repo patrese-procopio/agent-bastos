@@ -40,8 +40,14 @@ export function getBackendUrl() {
   return url.replace(/\/+$/, "")
 }
 
+// Cache do source retornado pelo Electron: "file" (usuario salvou),
+// "env" (MDM/GPO), "default" (fallback — precisa mostrar SetupInicial).
+let electronBackendSource = null
+
 // Hidrata a URL a partir do processo main (arquivo userData). Chamado no boot
 // do App.jsx antes de qualquer fetch. Se rodar no browser puro (dev), noop.
+// So espelha no localStorage se o Electron marcou como configurado explicitamente
+// (source != "default") — senao o SetupInicial nunca apareceria.
 export async function hydrateFromElectron() {
   if (import.meta.env.DEV) return null
   if (!window.electronAPI?.getBackend) return null
@@ -49,10 +55,13 @@ export async function hydrateFromElectron() {
     const cfg = await window.electronAPI.getBackend()
     if (cfg?.backendUrl) {
       electronBackendUrl = cfg.backendUrl.replace(/\/+$/, "")
-      // Espelha no localStorage pra tela Configuracoes ler
-      const local = readStored()
-      local.backendUrl = electronBackendUrl
-      localStorage.setItem("ab_config", JSON.stringify(local))
+      electronBackendSource = cfg.source || "default"
+      if (electronBackendSource !== "default") {
+        // Config real (arquivo ou MDM) — espelha no localStorage pra tela Configuracoes
+        const local = readStored()
+        local.backendUrl = electronBackendUrl
+        localStorage.setItem("ab_config", JSON.stringify(local))
+      }
       return electronBackendUrl
     }
   } catch (e) {
@@ -97,10 +106,16 @@ export async function setBackendUrl(url) {
   return { ok: true, precisaReiniciar: false }
 }
 
-// True quando o usuario ainda nao configurou uma URL propria — usado pelo
-// setup inicial pra decidir se mostra o wizard antes do login.
+// True quando o usuario (ou MDM/GPO) ja configurou uma URL propria. Falsy quando
+// o Electron so tem o fallback default — nesse caso o SetupInicial aparece.
+// Dev sempre "configurado" (Vite proxy).
 export function isBackendConfigured() {
   if (import.meta.env.DEV) return true
+  // Em prod: fonte de verdade e o source do Electron (arquivo ou env = configurado).
+  if (electronBackendSource !== null) {
+    return electronBackendSource === "file" || electronBackendSource === "env"
+  }
+  // Fallback: se hydrate ainda nao rodou (nao deveria acontecer), le localStorage
   const cfg = readStored()
   return typeof cfg.backendUrl === "string" && cfg.backendUrl.trim().length > 0
 }
