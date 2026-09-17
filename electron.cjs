@@ -178,7 +178,15 @@ app.on("ready", () => {
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",   // unsafe-inline necessario para Vite HMR em dev
             "style-src 'self' 'unsafe-inline'",
-            `connect-src 'self' ${backendOrigin} ${localSvc} ws://localhost:5174`,
+            // connect-src: permite backendOrigin especifico + servicos locais +
+            // https: em geral. Este ultimo e necessario pro SetupInicial poder
+            // testar QUALQUER URL de backend que o operador digitar antes de
+            // salvar (Cloudflare Tunnel, dominio da agencia, etc). Sem isso o
+            // fetch pra HTTPS externo virava "Failed to fetch" (bloqueio CSP).
+            // Seguranca: default-src 'self' + script-src restrito continuam
+            // barrando exfiltracao. connect-src HTTPS livre e padrao em apps
+            // que consomem APIs externas configuraveis pelo usuario.
+            `connect-src 'self' ${backendOrigin} ${localSvc} https: ws://localhost:5174`,
             `img-src 'self' data: blob: https: ${backendOrigin} http://127.0.0.1:5678 http://127.0.0.1:8080`,
             "font-src 'self' data:",
             "object-src 'none'",

@@ -15,8 +15,24 @@ import { pingBackend, setBackendUrl, relaunchApp } from "./backendConfig"
 const MONO = "'JetBrains Mono', 'Fira Code', 'Consolas', monospace"
 const SANS = "'Inter', 'Segoe UI', system-ui, sans-serif"
 
+// Corrige colagens comuns e evita bug de URL duplicada (http://https://...):
+// - trim + remove barras finais
+// - remove um esquema duplicado no inicio (http://https://... -> https://...)
+// - remove aspas ou espacos "inteligentes" as vezes coladas junto
+// - normalizacao adicional (path /health, /api etc.) fica no backendConfig
+function limparUrl(raw) {
+  let u = (raw || "").trim().replace(/[“”"']/g, "")
+  // Colar URL sobre "http://" pre-preenchido gera "http://https://..." ou
+  // "https://http://..." — mantem so o esquema mais interno (o "real").
+  const dup = u.match(/^(https?:\/\/)(https?:\/\/)(.*)$/i)
+  if (dup) u = dup[2] + dup[3]
+  return u.replace(/\/+$/, "")
+}
+
 export default function SetupInicial() {
-  const [url, setUrl] = useState("http://")
+  // State inicial vazio (nao preenche "http://" que causava bug de colagem em
+  // cima: virava "http://https://..."). O placeholder do input mostra exemplos.
+  const [url, setUrl] = useState("")
   const [testando, setTestando] = useState(false)
   const [resultado, setResultado] = useState(null) // {ok, dados|erro}
   const [salvando, setSalvando] = useState(false)
@@ -25,7 +41,9 @@ export default function SetupInicial() {
   async function testar() {
     setResultado(null)
     setErroSalvar("")
-    const clean = url.trim().replace(/\/+$/, "")
+    const clean = limparUrl(url)
+    // Se limpou (corrigiu duplicacao ou espacos), reflete no campo pro usuario ver
+    if (clean !== url.trim()) setUrl(clean)
     if (!/^https?:\/\//.test(clean)) {
       setResultado({ ok: false, erro: "URL precisa comecar com http:// ou https://" })
       return
@@ -39,7 +57,7 @@ export default function SetupInicial() {
   async function confirmar() {
     setSalvando(true)
     setErroSalvar("")
-    const r = await setBackendUrl(url)
+    const r = await setBackendUrl(limparUrl(url))
     if (!r.ok) {
       setErroSalvar(r.erro || "falha ao gravar")
       setSalvando(false)

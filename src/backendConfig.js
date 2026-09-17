@@ -82,7 +82,7 @@ export function getApiBase() {
 // evento pra hot-swap.
 // Retorna { ok, precisaReiniciar, erro? }.
 export async function setBackendUrl(url) {
-  const clean = (url || "").trim().replace(/\/+$/, "")
+  const clean = normalizarBackendUrl(url)
   if (!clean || !/^https?:\/\//.test(clean)) {
     return { ok: false, erro: "URL invalida — precisa comecar com http:// ou https://" }
   }
@@ -129,10 +129,21 @@ export async function relaunchApp() {
   }
 }
 
+// Normaliza a URL colada pelo usuario:
+// - remove barras/whitespace do final
+// - se colou terminando em /health, /api, /api/, /docs etc., corta pra origem
+//   (evita duplicar /health e retornar 404)
+function normalizarBackendUrl(raw) {
+  let u = (raw || "").trim().replace(/\/+$/, "")
+  // Corta caminhos comuns que usuarios costumam colar por engano
+  u = u.replace(/\/(health|api\/health|api|docs|redoc)$/i, "")
+  return u
+}
+
 // Testa conectividade contra /health do backend configurado.
 // Usado no setup inicial e na tela Configuracoes -> "Testar conexao".
 export async function pingBackend(url) {
-  const target = (url || getBackendUrl()).replace(/\/+$/, "")
+  const target = normalizarBackendUrl(url || getBackendUrl())
   try {
     const res = await fetch(`${target}/health`, {
       signal: AbortSignal.timeout(5000),

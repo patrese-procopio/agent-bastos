@@ -1,6 +1,6 @@
 {
   "name": "agent-bastos-app",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "description": "Agent Bastos - Sistema de Inteligência Operacional",
   "main": "electron.cjs",
   "author": {
