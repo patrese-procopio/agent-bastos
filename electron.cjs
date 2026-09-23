@@ -11,7 +11,7 @@
  *   6. Janela principal — frameless, contextIsolation, nodeIntegration=false
  */
 
-const { app, BrowserWindow, ipcMain, dialog, session } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, session, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -110,6 +110,12 @@ log.info("BACKEND_DIR:", BACKEND_DIR, "| isDev:", isDev);
 // ou http://127.0.0.1:8000 (deploy single-host).
 const CONFIG_PATH = path.join(app.getPath("userData"), "bastos-config.json");
 
+// URL padrao pro piloto AIPEN (setembro/2026): tunel ngrok fixo apontando pro
+// backend na maquina do coordenador. Amigos veem essa URL ja pre-preenchida
+// no SetupInicial, so precisam clicar Testar->Salvar. Se o backend mudar de
+// hospedagem no futuro, atualize aqui e distribua novo instalador.
+const DEFAULT_BACKEND_URL = "https://avert-collage-manual.ngrok-free.dev";
+
 function readBackendConfig() {
   // `source` distingue explicit (usuario salvou / MDM definiu) de fallback
   // — sem essa distincao o SetupInicial nao consegue saber se precisa aparecer.
@@ -125,7 +131,7 @@ function readBackendConfig() {
   }
   const envUrl = (process.env.AGENT_BASTOS_BACKEND_URL || "").trim();
   if (envUrl) return { backendUrl: envUrl.replace(/\/+$/, ""), source: "env" };
-  return { backendUrl: "http://127.0.0.1:8000", source: "default" };
+  return { backendUrl: DEFAULT_BACKEND_URL, source: "default" };
 }
 
 function writeBackendConfig(newUrl) {
@@ -418,6 +424,25 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
   }
 
+  // Delega qualquer target="_blank" (ou window.open) pro navegador DO SISTEMA
+  // via shell.openExternal — evita abrir link em nova janela do Chromium
+  // interno do Electron (o que ativa anti-bot do Google, entre outros).
+  // Aceita apenas http/https por seguranca — bloqueia file://, javascript:, etc.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const u = new URL(url);
+      if (u.protocol === "http:" || u.protocol === "https:") {
+        shell.openExternal(url).catch((e) =>
+          log.warn(`openExternal falhou: ${e.message}`));
+      } else {
+        log.warn(`Bloqueado abertura de link com esquema ${u.protocol}: ${url}`);
+      }
+    } catch (e) {
+      log.warn(`URL invalida bloqueada: ${url}`);
+    }
+    return { action: "deny" };   // nunca abre janela interna
+  });
+
   mainWindow.once("ready-to-show", () => {
     setSplash("PRONTO. ABRINDO...", 100, 3);
     setTimeout(() => {
@@ -453,19 +478,35 @@ app.whenReady().then(async () => {
   createSplash();
   await new Promise((r) => setTimeout(r, 400));
 
+  // Backend REMOTO (HTTPS ou host que nao seja localhost/127.0.0.1): Docker
+  // local nao ajuda em NADA — a API mora em outro lugar. Ficar 3min tentando
+  // subir docker compose so pra dar timeout e um bug de v1.3.x anterior.
+  // Regra: docker so entra em jogo pra backend LOCAL.
+  const backendUrl = CURRENT_BACKEND.backendUrl;
+  const parsedBackend = (() => { try { return new URL(backendUrl); } catch { return null; } })();
+  const backendELocal = parsedBackend &&
+    (parsedBackend.hostname === "localhost" || parsedBackend.hostname === "127.0.0.1");
+
   try {
-    // 1. Verifica primeiro se a API já está no ar (backend Python via npm run backend)
     setSplash("VERIFICANDO SERVICOS...", 10, 0);
     const apiJaRodando = await checkApiQuick();
 
     if (apiJaRodando) {
-      // Backend Python já está rodando — pula Docker completamente
-      log.info("API respondendo — backend já ativo, pulando Docker");
+      log.info("API respondendo — pulando Docker");
       setSplash("BACKEND CONECTADO", 85, 2);
       await new Promise((r) => setTimeout(r, 600));
 
+    } else if (!backendELocal) {
+      // Backend remoto sem resposta rapida — nao adianta subir Docker local.
+      // Segue direto pra UI; a tela de Login mostrara o botao "Reconfigurar
+      // URL do backend" e o SetupInicial se necessario.
+      log.info(`Backend remoto (${parsedBackend?.hostname}) nao respondeu na primeira tentativa — ` +
+               `pulando Docker (irrelevante pra backend remoto). UI segue.`);
+      setSplash("BACKEND REMOTO — SEGUINDO PRA UI", 85, 2);
+      await new Promise((r) => setTimeout(r, 600));
+
     } else {
-      // API não respondeu — tenta via Docker
+      // Backend local sem resposta: tenta Docker
       setSplash("VERIFICANDO DOCKER...", 20, 1);
       const dockerOk = await checkDockerRunning();
       log.info("Docker status:", dockerOk ? "OK" : "NAO ENCONTRADO");
@@ -479,7 +520,6 @@ app.whenReady().then(async () => {
         setSplash("CONECTANDO A API...", 50, 2);
         await waitForApi();
       } else {
-        // Sem Docker e sem API — avisa e abre em modo offline
         log.warn("Docker e API indisponiveis — modo offline");
         setSplash("SEM BACKEND — MODO OFFLINE", 85, 2);
         await new Promise((r) => setTimeout(r, 1200));
@@ -589,4 +629,18 @@ ipcMain.handle("app-relaunch", () => {
   log.info("IPC: app-relaunch — reiniciando para aplicar nova config");
   app.relaunch();
   app.exit(0);
+});
+
+// Apaga o bastos-config.json — o proximo boot cai no fallback default e mostra
+// SetupInicial. Usado pela tela de Login quando o operador precisa reconfigurar
+// a URL do backend (servidor mudou, tunel caiu, etc.) sem editar arquivos.
+ipcMain.handle("backend-config-clear", () => {
+  log.info("IPC: backend-config-clear — apagando config");
+  try {
+    if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH);
+    return { ok: true };
+  } catch (e) {
+    log.error("backend-config-clear falhou:", e.message);
+    return { ok: false, erro: e.message };
+  }
 });

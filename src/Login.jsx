@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import api from "./api"
 import { setTokens, setUser } from "./authStore"
+import { pingBackend, getBackendUrl, resetBackendConfig } from "./backendConfig"
 import logoImg from "./assets/logo.webp"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
@@ -11,6 +12,31 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState("")
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState("")
+  // Health do backend: null=verificando, true=online, false=offline
+  // Quando offline, mostramos o botao "Reconfigurar backend" (chave pro piloto
+  // — o operador nao precisa mais apagar arquivo pra trocar de URL).
+  const [backendOn, setBackendOn] = useState(null)
+  const [resetando, setResetando] = useState(false)
+
+  // Ping automatico no mount: se o backend nao responde /health, ja avisa ao
+  // operador ANTES de ele tentar logar e ver "Sem conexao" no erro.
+  useEffect(() => {
+    let vivo = true
+    ;(async () => {
+      const r = await pingBackend()
+      if (!vivo) return
+      setBackendOn(!!r?.ok)
+    })()
+    return () => { vivo = false }
+  }, [])
+
+  async function handleReconfigurar() {
+    setResetando(true)
+    await resetBackendConfig()
+    // resetBackendConfig ja chama relaunchApp — se nao reiniciar em 3s,
+    // recarrega manualmente pra abrir SetupInicial
+    setTimeout(() => { window.location.reload() }, 3000)
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -34,6 +60,7 @@ export default function Login({ onLogin }) {
       onLogin(data)
     } catch {
       setError("Sem conexão com o servidor")
+      setBackendOn(false)   // mostra botao de reconfigurar
     } finally {
       setLoading(false)
     }
@@ -150,6 +177,17 @@ export default function Login({ onLogin }) {
             </div>
           )}
 
+          {backendOn === false && !error && (
+            <div style={{
+              padding: "10px 14px", borderRadius: 8,
+              background: "rgba(232,160,32,0.10)",
+              border: "1px solid rgba(232,160,32,0.35)",
+              fontSize: 13, color: "#F59E0B", fontFamily: MONO,
+            }}>
+              ⚠ Servidor não responde. Reconfigure a URL se o endereço mudou.
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -166,7 +204,33 @@ export default function Login({ onLogin }) {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: MONO }}>
+        {/* Botao de reconfiguracao — aparece apenas quando backend esta offline
+            OU logo apos um erro de conexao. Alternativa amigavel a apagar
+            manualmente o arquivo de configuracao. */}
+        {backendOn === false && (
+          <button
+            onClick={handleReconfigurar}
+            disabled={resetando}
+            style={{
+              marginTop: 16, width: "100%", padding: "10px",
+              background: "transparent",
+              border: "1px solid rgba(232,160,32,0.35)",
+              borderRadius: 8,
+              fontSize: 12, fontWeight: 700, color: "#E8A020",
+              cursor: resetando ? "wait" : "pointer",
+              letterSpacing: "0.05em", textTransform: "uppercase",
+              fontFamily: MONO,
+            }}
+          >
+            {resetando ? "Reiniciando..." : "Reconfigurar URL do backend"}
+          </button>
+        )}
+
+        <div style={{ marginTop: 16, textAlign: "center", fontSize: 10.5, color: "rgba(255,255,255,0.28)", fontFamily: MONO, wordBreak: "break-all" }}>
+          {getBackendUrl().replace(/^https?:\/\//, "")}
+        </div>
+
+        <div style={{ marginTop: 12, textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: MONO }}>
           AIPEN · SEAP-AM · Sistema Restrito
         </div>
       </div>

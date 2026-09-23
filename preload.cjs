@@ -31,8 +31,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Configuracao do backend (URL do servidor central da agencia).
   // getBackend() -> { backendUrl }
   // setBackend(url) -> { ok, backendUrl, precisaReiniciar } | { ok:false, erro }
+  // clearBackend() -> { ok } | { ok:false, erro }
   // relaunch() -> reinicia o app pra aplicar o novo CSP.
-  getBackend:  () => ipcRenderer.invoke("backend-config-get"),
-  setBackend:  (url) => ipcRenderer.invoke("backend-config-set", url),
-  relaunch:    () => ipcRenderer.invoke("app-relaunch"),
+  getBackend:   () => ipcRenderer.invoke("backend-config-get"),
+  setBackend:   (url) => ipcRenderer.invoke("backend-config-set", url),
+  clearBackend: () => ipcRenderer.invoke("backend-config-clear"),
+  relaunch:     () => ipcRenderer.invoke("app-relaunch"),
 });

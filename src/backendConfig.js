@@ -11,7 +11,10 @@
 // backendUrl nao estiver definido (ver App.jsx).
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const DEFAULT_BACKEND = "http://127.0.0.1:8000"
+// URL padrao pro piloto AIPEN (2026-09): tunel ngrok fixo apontando pro backend
+// na maquina do coordenador. Amigos abrem o app e ja veem essa URL preenchida
+// no SetupInicial — 2 cliques (Testar + Salvar) e ta conectado.
+const DEFAULT_BACKEND = "https://avert-collage-manual.ngrok-free.dev"
 
 function readStored() {
   try {
@@ -129,6 +132,25 @@ export async function relaunchApp() {
   }
 }
 
+// Apaga a URL configurada e reinicia. No proximo boot cai no fallback default
+// e mostra SetupInicial pra o operador informar uma URL nova. Usado pela tela
+// de Login quando o backend esta offline e o operador precisa trocar de
+// servidor (ou o tunel caiu e voltou em outra URL).
+export async function resetBackendConfig() {
+  if (window.electronAPI?.clearBackend) {
+    await window.electronAPI.clearBackend()
+  }
+  // Zera cache local e localStorage tambem
+  electronBackendUrl = null
+  electronBackendSource = null
+  try {
+    const cfg = readStored()
+    delete cfg.backendUrl
+    localStorage.setItem("ab_config", JSON.stringify(cfg))
+  } catch { /* noop */ }
+  await relaunchApp()
+}
+
 // Normaliza a URL colada pelo usuario:
 // - remove barras/whitespace do final
 // - se colou terminando em /health, /api, /api/, /docs etc., corta pra origem
@@ -147,8 +169,17 @@ export async function pingBackend(url) {
   try {
     const res = await fetch(`${target}/health`, {
       signal: AbortSignal.timeout(5000),
+      // Ngrok grátis mostra tela intersticial text/plain sem esse header —
+      // sem ele o /health "responderia 200" com HTML de aviso e o pingBackend
+      // acharia que o backend esta OK quando na verdade nem chegou nele.
+      headers: { "ngrok-skip-browser-warning": "true" },
     })
     if (!res.ok) return { ok: false, erro: `HTTP ${res.status}` }
+    // Confere se a resposta e JSON de verdade (nao a tela intersticial do ngrok)
+    const ct = (res.headers.get("content-type") || "").toLowerCase()
+    if (!ct.includes("json")) {
+      return { ok: false, erro: "resposta inesperada (nao-JSON) — verifique a URL" }
+    }
     const data = await res.json().catch(() => ({}))
     return { ok: true, dados: data }
   } catch (e) {

@@ -237,8 +237,12 @@ function AppShell() {
       try {
         const res = await fetch(`${getBackendUrl()}/health`, {
           signal: AbortSignal.timeout(4000),
+          headers: { "ngrok-skip-browser-warning": "true" },
         })
-        setBackendStatus(res.ok ? "online" : "offline")
+        // Considera online SO se veio JSON (evita tela intersticial do ngrok
+        // fingindo 200 OK). Se veio text/plain, backend "existe" mas nao e o nosso.
+        const ct = (res.headers.get("content-type") || "").toLowerCase()
+        setBackendStatus(res.ok && ct.includes("json") ? "online" : "offline")
       } catch {
         setBackendStatus("offline")
       }

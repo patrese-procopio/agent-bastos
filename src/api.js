@@ -14,6 +14,10 @@ function headers(extra = {}) {
   const token = getToken()
   return {
     "Content-Type": "application/json",
+    // Pula a tela intersticial do ngrok free (retornaria text/plain com aviso
+    // em vez do JSON do backend, causando "sem conexao com o servidor").
+    // Backend ignora esse header — nao afeta setups sem ngrok.
+    "ngrok-skip-browser-warning": "true",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   }
@@ -25,7 +29,10 @@ async function tryRefresh() {
   try {
     const res = await fetch(`${getApiBase()}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
       body: JSON.stringify({ refresh_token: refresh }),
     })
     if (!res.ok) return false
@@ -43,7 +50,10 @@ async function request(method, path, body = null) {
   }
   if (body instanceof FormData) {
     const token = getToken()
-    opts.headers = token ? { Authorization: `Bearer ${token}` } : {}
+    opts.headers = {
+      "ngrok-skip-browser-warning": "true",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
     opts.body = body
   }
 
@@ -56,7 +66,10 @@ async function request(method, path, body = null) {
       const retryOpts = { method, headers: headers() }
       if (body && !(body instanceof FormData)) retryOpts.body = JSON.stringify(body)
       if (body instanceof FormData) {
-        retryOpts.headers = { Authorization: `Bearer ${getToken()}` }
+        retryOpts.headers = {
+          "ngrok-skip-browser-warning": "true",
+          Authorization: `Bearer ${getToken()}`,
+        }
         retryOpts.body = body
       }
       res = await fetch(`${getApiBase()}${path}`, retryOpts)
@@ -87,7 +100,10 @@ const api = {
     form.append("password", password)
     return fetch(`${getApiBase()}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "ngrok-skip-browser-warning": "true",
+      },
       body: form,
     })
   },

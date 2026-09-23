@@ -530,7 +530,7 @@ export default function GrafoVinculos() {
     try {
       const token = getAccessToken() || ""
       const fullUrl = `${getImgBase()}${url.replace(/^\/api/, "")}`
-      const resp = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+      const resp = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}`, "ngrok-skip-browser-warning": "true" } })
       if (!resp.ok) throw new Error(resp.status)
       const blob = await resp.blob()
       const objUrl = URL.createObjectURL(blob)
@@ -1370,7 +1370,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
     const token = getAccessToken() || ""
     const fullUrl = `${getImgBase()}${det.foto_url.replace(/^\/api/, "")}`
     let cancelled = false
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}`, "ngrok-skip-browser-warning": "true" } })
       .then(r => r.ok ? r.blob() : Promise.reject(r.status))
       .then(blob => { if (!cancelled) setFotoSrc(URL.createObjectURL(blob)) })
       .catch(() => { if (!cancelled) setFotoSrc(null) })

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import useAutoRefresh, { formatarHaTempo } from "./useAutoRefresh"
 import api from "./api"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
@@ -371,8 +372,9 @@ export default function Noticias() {
       setIntelGlobal(data.intel_global || [])
       setUltimaAtt(new Date())
       setPagina(0)
-    } catch {
+    } catch (e) {
       setErro("Falha ao conectar com o backend.")
+      throw e   // propaga pro useAutoRefresh disparar o backoff
     } finally {
       setLoading(false)
     }
@@ -394,13 +396,13 @@ export default function Noticias() {
     }
   }
 
-  useEffect(() => {
-    if (fetchedRef.current) return
-    fetchedRef.current = true
-    buscarNoticias()
-    const intervalo = setInterval(buscarNoticias, 5 * 60 * 1000)
-    return () => clearInterval(intervalo)
-  }, [])
+  // Auto-refresh a cada 5 min COM RETRY EM BACKOFF: se a rede/backend falhar,
+  // o hook retenta em 30s -> 60s -> 120s -> ... ate 5min. Antes esperava
+  // sempre 5 min completos ate a proxima tentativa.
+  const { falhou: refreshFalhou, atualizarAgora } = useAutoRefresh(
+    () => buscarNoticias(),
+    { intervalMs: 5 * 60 * 1000 }
+  )
 
   const totalPages  = Math.ceil(noticias.length / PER_PAGE)
   const paginaItems = noticias.slice(pagina * PER_PAGE, (pagina + 1) * PER_PAGE)
@@ -426,11 +428,15 @@ export default function Noticias() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {ultimaAtt && (
-            <span style={{ fontSize: 10, color: "#475569", fontFamily: MONO }}>
-              att {ultimaAtt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
+          {/* Badge auto-refresh: verde=fresco, amarelo=tentando reconectar */}
+          <span title={ultimaAtt ? `Última atualização ${ultimaAtt.toLocaleTimeString("pt-BR")}` : "Nunca atualizado"}
+            style={{ fontSize: 9.5, fontFamily: MONO, letterSpacing: "0.05em",
+              padding: "2px 8px", borderRadius: 10,
+              border: `1px solid ${refreshFalhou ? "rgba(232,160,32,0.35)" : "rgba(74,222,128,0.35)"}`,
+              color: refreshFalhou ? "#E8A020" : "#4ADE80",
+              background: refreshFalhou ? "rgba(232,160,32,0.08)" : "rgba(74,222,128,0.08)" }}>
+            {refreshFalhou ? "⚠ reconectando" : `● ao vivo · ${formatarHaTempo(ultimaAtt)}`}
+          </span>
           <button
             onClick={buscarFrescas}
             disabled={loadingFresco || loading}
@@ -445,7 +451,7 @@ export default function Noticias() {
             }}>
             {loadingFresco ? "BUSCANDO…" : "⬇ BUSCAR AGORA"}
           </button>
-          <button onClick={buscarNoticias} disabled={loading || loadingFresco} style={{
+          <button onClick={atualizarAgora} disabled={loading || loadingFresco} style={{
             fontSize: 10, fontWeight: 700, padding: "5px 12px",
             background: (loading || loadingFresco) ? "#1E293B" : "#1E3A5F",
             color: (loading || loadingFresco) ? "#475569" : "#60A5FA",
@@ -505,7 +511,7 @@ export default function Noticias() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <span style={{ fontSize: 12.5, color: "#FCA5A5", fontWeight: 600 }}>⚠ {erro}</span>
-            <button onClick={buscarNoticias} style={{
+            <button onClick={atualizarAgora} style={{
               fontSize: 10, fontWeight: 700, padding: "4px 12px", background: "#DC2626",
               color: "#FFF", border: "none", borderRadius: 4, cursor: "pointer", fontFamily: "'JetBrains Mono','Roboto Mono',monospace",
             }}>TENTAR NOVAMENTE</button>

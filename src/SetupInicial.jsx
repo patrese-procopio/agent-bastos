@@ -8,9 +8,9 @@
 // Fica FORA do fluxo autenticado — nao usa AuthContext, api.js, nada de
 // backend antes de configurar. Padrao visual enterprise dark.
 // ═══════════════════════════════════════════════════════════════════════════════
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import logoImg from "./assets/logo.webp"
-import { pingBackend, setBackendUrl, relaunchApp } from "./backendConfig"
+import { pingBackend, setBackendUrl, relaunchApp, getBackendUrl } from "./backendConfig"
 
 const MONO = "'JetBrains Mono', 'Fira Code', 'Consolas', monospace"
 const SANS = "'Inter', 'Segoe UI', system-ui, sans-serif"
@@ -30,13 +30,18 @@ function limparUrl(raw) {
 }
 
 export default function SetupInicial() {
-  // State inicial vazio (nao preenche "http://" que causava bug de colagem em
-  // cima: virava "http://https://..."). O placeholder do input mostra exemplos.
-  const [url, setUrl] = useState("")
+  // State inicial = URL default do Electron (embutida no build). Pro piloto
+  // atual, ja vem preenchida com o tunel ngrok da agencia; usuario so precisa
+  // clicar Testar->Salvar. Ele pode apagar e colar outra URL a qualquer momento.
+  const [url, setUrl] = useState(getBackendUrl())
   const [testando, setTestando] = useState(false)
   const [resultado, setResultado] = useState(null) // {ok, dados|erro}
   const [salvando, setSalvando] = useState(false)
   const [erroSalvar, setErroSalvar] = useState("")
+
+  // Auto-testa a URL default no mount pra dar feedback visual imediato.
+  // Se ja funciona, o botao "Salvar e Conectar" fica ativo direto — 1 clique.
+  useEffect(() => { testar() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function testar() {
     setResultado(null)

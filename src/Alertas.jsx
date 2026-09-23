@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import useAutoRefresh, { formatarHaTempo } from "./useAutoRefresh"
 import api from "./api"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
@@ -162,17 +163,37 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
                 </div>
               )}
               <div style={{display:"flex", gap:8}}>
-                <a href={alerta.link} target="_blank" rel="noreferrer" style={{
+                <button onClick={async e=>{
+                  e.stopPropagation()
+                  if (!alerta.link) return
+                  // Backend tenta em cascata: decoder -> follow_redirects ->
+                  // fallback com busca no Google pelo titulo. Sempre retorna
+                  // uma URL utilizavel.
+                  let alvo = alerta.link
+                  try {
+                    const params = new URLSearchParams({
+                      url: alerta.link,
+                      titulo: alerta.titulo || "",
+                    })
+                    const r = await api.get(`/alertas/resolver-link?${params.toString()}`)
+                    if (r?.ok) {
+                      const d = await r.json()
+                      if (d?.url) alvo = d.url
+                    }
+                  } catch { /* mantem o link original */ }
+                  // setWindowOpenHandler do electron.cjs manda pro navegador do sistema
+                  window.open(alvo, "_blank", "noreferrer")
+                }} style={{
                   padding:"8px 16px", background:"#E8A020", color:"#F1F5F9",
-                  borderRadius:7, fontSize:12, fontWeight:700, textDecoration:"none",
-                  display:"flex", alignItems:"center", gap:6,
+                  borderRadius:7, fontSize:12, fontWeight:700, border:"none",
+                  cursor:"pointer", display:"flex", alignItems:"center", gap:6,
                 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                     <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                   </svg>
                   Abrir fonte
-                </a>
+                </button>
                 {!alerta.lido && (
                   <button onClick={e=>{e.stopPropagation();onLido(alerta.id)}} style={{
                     padding:"8px 16px", background:"rgba(74,222,128,0.1)", color:"#4ADE80",
@@ -216,7 +237,12 @@ export default function Alertas({ onNavigate }) {
     return () => document.head.removeChild(style)
   }, [])
 
-  useEffect(() => { carregarAlertas() }, [])
+  // Auto-refresh a cada 3 min, com retry em backoff se falhar. Antes o
+  // useEffect rodava 1x no mount e a tela congelava — agora fica viva sozinha.
+  const { ultimaAtualizacao, falhou, atualizarAgora } = useAutoRefresh(
+    () => carregarAlertas(),
+    { intervalMs: 3 * 60 * 1000 }
+  )
 
   async function carregarAlertas() {
     setLoading(true)
@@ -228,10 +254,11 @@ export default function Alertas({ onNavigate }) {
       setRealtimeAlertas(Array.isArray(rt) ? rt : [])
       setOsintAlertas(Array.isArray(os) ? os : [])
       setErro(false)
-    } catch {
+    } catch (e) {
       setRealtimeAlertas([])
       setOsintAlertas([])
       setErro(true)
+      throw e   // propaga pro useAutoRefresh disparar o backoff
     } finally { setLoading(false) }
   }
 
@@ -463,7 +490,18 @@ export default function Alertas({ onNavigate }) {
             <div className={altoRisco>0?"alert-pulse":""} style={{width:9,height:9,borderRadius:"50%",flexShrink:0,
               background:altoRisco>0?"#EF4444":loading?"#94A3B8":"#4ADE80"}}/>
             <div>
-              <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9"}}>Central de Alertas OSINT</div>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9"}}>Central de Alertas OSINT</div>
+                {/* Badge auto-refresh: verde=fresh, amarelo=falha na ultima tentativa */}
+                <span title={ultimaAtualizacao ? `Última atualização ${ultimaAtualizacao.toLocaleTimeString()}` : "Nunca atualizado"}
+                  style={{fontSize:9.5, fontFamily:MONO, letterSpacing:"0.05em",
+                    padding:"2px 8px", borderRadius:10,
+                    border:`1px solid ${falhou ? "rgba(232,160,32,0.35)" : "rgba(74,222,128,0.35)"}`,
+                    color: falhou ? "#E8A020" : "#4ADE80",
+                    background: falhou ? "rgba(232,160,32,0.08)" : "rgba(74,222,128,0.08)"}}>
+                  {falhou ? "⚠ reconectando" : `● ao vivo · ${formatarHaTempo(ultimaAtualizacao)}`}
+                </span>
+              </div>
               <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
                 {loading ? "Carregando..." : `${filtrados.length} alertas · ${naoLidos} não lidos · 🔴 ${totalRT} · 🔵 ${totalOSINT} OSINT`}
               </div>
@@ -501,7 +539,7 @@ export default function Alertas({ onNavigate }) {
                 <div style={{fontSize:15,fontWeight:700,color:"#F1F5F9",marginBottom:5}}>Backend indisponível</div>
                 <p style={{fontSize:13,color:"#94A3B8",fontFamily:MONO,margin:0}}>Não foi possível carregar os alertas. Verifique se o servidor está online.</p>
               </div>
-              <button onClick={carregarAlertas} style={{...S.actionBtn,width:"auto",padding:"9px 20px",color:"#E8A020",border:"1px solid rgba(232,160,32,0.4)"}}>
+              <button onClick={atualizarAgora} style={{...S.actionBtn,width:"auto",padding:"9px 20px",color:"#E8A020",border:"1px solid rgba(232,160,32,0.4)"}}>
                 Tentar novamente
               </button>
             </div>
