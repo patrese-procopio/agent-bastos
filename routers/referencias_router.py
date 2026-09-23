@@ -36,7 +36,14 @@ router = APIRouter(tags=["referencias"])
 
 BASE_DIR             = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SA_KEY_PATH         = os.path.join(BASE_DIR, "serviceAccountKey.json")
-_INDICE_PATH         = os.path.join(BASE_DIR, "indice_documentos.json")
+# Indice de documentos: o drive_indexer grava em scripts/indice_documentos.json
+# (arquivo com 1635+ docs classificados por tipo/ano). O caminho da raiz nunca
+# existiu — bug historico que fazia GET /referencias retornar lista vazia.
+# Fallback: se scripts/ nao tiver o arquivo, tenta a raiz (compat com deploys
+# antigos que copiavam pra la manualmente).
+_INDICE_PATH_SCRIPTS = os.path.join(BASE_DIR, "scripts", "indice_documentos.json")
+_INDICE_PATH_RAIZ    = os.path.join(BASE_DIR, "indice_documentos.json")
+_INDICE_PATH         = _INDICE_PATH_SCRIPTS if os.path.exists(_INDICE_PATH_SCRIPTS) else _INDICE_PATH_RAIZ
 _LISTA_NEGRA_FILE_ID = "1G6eFhb0jnD38iWU_SLDIFkGtOB0ngHjh"
 
 

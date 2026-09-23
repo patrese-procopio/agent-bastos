@@ -86,15 +86,40 @@ class FusaoIn(BaseModel):
 def submeter(request: Request, body: ExtratoIn,
              background_tasks: BackgroundTasks = BackgroundTasks(),
              user: dict = Depends(_GATE)):
+    """
+    Grava o extrato bruto IMEDIATAMENTE e retorna 202 (Accepted). O
+    processamento LLM (extracao de entidades, grafo, RAE) roda em thread
+    daemon separada e demora 30s-8min dependendo do provedor/tamanho.
+
+    Antes: request sincrono ficava pendurado ate o LLM terminar; o cliente
+    ou o proxy (ngrok grátis, 10min limite) timeoutavam ou o operador
+    achava que travou e re-submetia. Agora o operador ve o item aparecer
+    na lista com status "recebido" -> "processando" -> "processado"
+    (frontend faz polling ate estabilizar).
+    """
     if not (body.corpo or "").strip():
         raise HTTPException(status_code=400, detail="Corpo do extrato vazio.")
     _log_audit.info("extrato submetido",
                     extra={"username": user.get("sub"), "classif": body.classificacao,
                            "unidade": body.unidade, "bytes": len(body.corpo)})
-    resultado = extrato.criar_e_processar(body.model_dump(), usuario=user.get("sub", "?"))
-    # ── Correlação automática em background ───────────────────────────────────
+    usuario = user.get("sub", "?")
+
+    # 1. Grava bruto (rapido — instantaneo)
+    reg = extrato.criar_extrato(body.model_dump(), usuario=usuario)
+    eid = reg["id"]
+
+    # 2. Processa em thread daemon (LLM, grafo, RAE) — nao bloqueia a request
+    import threading
+    def _rodar():
+        try:
+            extrato.processar(eid, usuario=usuario)
+        except Exception as exc:
+            _log_audit.error(f"extrato {eid} processar falhou em background: {exc}")
+    threading.Thread(target=_rodar, daemon=True,
+                     name=f"extrato-processar-{eid[:8]}").start()
+
+    # 3. Correlacao tambem em background (nao impacta o cliente)
     if _CORRELACAO_OK:
-        eid = resultado.get("id") or resultado.get("extrato_id", "?")
         background_tasks.add_task(
             _correlacionar,
             texto=body.corpo,
@@ -102,9 +127,16 @@ def submeter(request: Request, body: ExtratoIn,
             fonte_id=eid,
             metadados={"summary": body.assunto or "", "unidade": body.unidade or "",
                        "risco": "ALTO"},
-            operador=user.get("sub", "sistema"),
+            operador=usuario,
         )
-    return resultado
+
+    # 4. Retorna 202 — cliente faz polling em GET /extrato/{eid} pra ver status
+    return {
+        "extrato": reg,
+        "processamento": {"ok": True, "status": "iniciado",
+                          "aviso": "Processamento LLM roda em background. "
+                                   "Acompanhe pela lista (status vira 'processado')."},
+    }
 
 
 @router.post("/criar")
