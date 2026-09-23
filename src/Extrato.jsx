@@ -324,20 +324,45 @@ export default function Extrato({ onNavigate }) {
         topicos: form.topicos.split("\n").map(t=>t.trim()).filter(Boolean),
         nucleos_destino: form.nucleos_destino.split(",").map(t=>t.trim()).filter(Boolean),
       }
+      // Backend agora retorna 202 imediatamente e processa em background —
+      // evita timeouts (LLM demora 30s-8min). Fazemos POLLING do status do
+      // extrato ate ficar "processado" ou "erro".
       const r = await api.post("/extrato/submeter", payload)
       const d = await r.json()
-      if (!r.ok) { aviso(d?.detail?.erro||d?.detail||"Falha no processamento.", C.red); setBusy(false); return }
-      const proc = d.processamento || {}
-      if (!proc.ok) {
-        aviso(proc.bloqueado
-          ? "🔒 Bloqueado pelo guardrail de soberania (provedor local indisponível)."
-          : (proc.erro||"Falha na extração."), C.red)
+      if (!r.ok) { aviso(d?.detail?.erro||d?.detail||"Falha no envio.", C.red); setBusy(false); return }
+      const eid = d.extrato?.id
+      if (!eid) { aviso("Backend nao retornou id do extrato.", C.red); setBusy(false); return }
+
+      // Aparece na lista imediatamente com status "recebido" — feedback visivel
+      aviso("📥 Extrato recebido. Processamento em andamento…", C.gold)
+      setForm(f=>({...f, corpo:"", assunto:"", topicos:""}))
+      await carregarLista()
+
+      // Polling — chama /extrato/{eid} a cada 5s ate status estabilizar.
+      // Timeout total de 15 min por seguranca (LLM pesado + fila).
+      const T0 = Date.now()
+      const timeoutMs = 15 * 60 * 1000
+      let ultimo = null
+      while (Date.now() - T0 < timeoutMs) {
+        await new Promise(res => setTimeout(res, 5000))
+        try {
+          const rs = await api.get(`/extrato/${eid}`)
+          if (!rs.ok) continue
+          ultimo = await rs.json()
+          if (ultimo.status === "processado" || ultimo.status === "erro" || ultimo.bloqueado) break
+        } catch { /* rede caiu; tenta de novo */ }
+      }
+
+      await carregarLista()
+      if (!ultimo) {
+        aviso("⏱ Processamento ainda em andamento — recarregue a lista em alguns minutos.", C.gold)
+      } else if (ultimo.status === "processado") {
+        aviso(`✓ Processado via ${ultimo.provedor||"?"} · risco ${ultimo.risk_nivel||"?"} · ${(ultimo.entidades||[]).length} entidades`, C.green)
+        abrirRae(eid)
+      } else if (ultimo.bloqueado) {
+        aviso("🔒 Bloqueado pelo guardrail de soberania (provedor local indisponível).", C.red)
       } else {
-        const fl = proc.forcado_local ? " · forçado p/ local 🔒" : ""
-        aviso(`Processado via ${proc.provedor}${fl} · risco ${proc.risk_nivel} · ${proc.entidades} entidades`, C.green)
-        await carregarLista()
-        setForm(f=>({...f, corpo:"", assunto:"", topicos:""}))
-        if (d.extrato?.id) abrirRae(d.extrato.id)
+        aviso(ultimo.erro || "Falha na extração.", C.red)
       }
     } catch { aviso("Erro de conexão com o backend.", C.red) }
     setBusy(false)
@@ -643,6 +668,7 @@ export default function Extrato({ onNavigate }) {
                       <div style={{display:"flex",gap:8,marginTop:7,flexWrap:"wrap",alignItems:"center"}}>
                         <Tag>{e.unidade||"—"}</Tag>
                         {classifTag(e.classificacao)}
+                        {e.status==="recebido" && <span style={{fontSize:13,color:C.gold}}>⏳ processando…</span>}
                         {e.status==="erro" && <span style={{fontSize:13,color:C.red}}>● erro</span>}
                         {e.bloqueado && <span style={{fontSize:13,color:C.red}}>🔒 bloqueado</span>}
                         {e.forcado_local && <span style={{fontSize:13,color:C.green}}>🔒 local</span>}
