@@ -16,18 +16,50 @@ FIELDS = "files(id, name, mimeType, modifiedTime, parents)"
 MIME_FOLDER = "application/vnd.google-apps.folder"
 
 
+import time
+
+
+def _executar_com_retry(fn, *, tentativas=3, delay=2):
+    """
+    Retry simples pra chamadas de rede que dao TimeoutError intermitente
+    (SSL, socket) em pastas grandes. Exponential backoff: 2s -> 4s -> 8s.
+    """
+    ultima = None
+    for i in range(tentativas):
+        try:
+            return fn()
+        except Exception as exc:
+            ultima = exc
+            if i < tentativas - 1:
+                time.sleep(delay * (2 ** i))
+    raise ultima
+
+
 def listar_subpastas(service: Resource, folder_id: str) -> list[dict]:
     """Retorna todas as subpastas diretas de uma pasta."""
     query = f"'{folder_id}' in parents and mimeType='{MIME_FOLDER}' and trashed=false"
-    resultado = service.files().list(q=query, fields=FIELDS).execute()
+    resultado = _executar_com_retry(
+        lambda: service.files().list(q=query, fields=FIELDS, pageSize=1000).execute()
+    )
     return resultado.get("files", [])
 
 
 def listar_arquivos(service: Resource, folder_id: str) -> list[dict]:
-    """Retorna todos os arquivos (não pastas) de uma pasta."""
+    """Retorna todos os arquivos (não pastas) de uma pasta. Paginado pra pastas com >1000 arquivos."""
     query = f"'{folder_id}' in parents and mimeType!='{MIME_FOLDER}' and trashed=false"
-    resultado = service.files().list(q=query, fields=FIELDS, pageSize=1000).execute()
-    return resultado.get("files", [])
+    arquivos: list[dict] = []
+    token = None
+    while True:
+        def _chamar(t=token):
+            req = service.files().list(q=query, fields=f"nextPageToken,{FIELDS}",
+                                        pageSize=1000, pageToken=t)
+            return req.execute()
+        resultado = _executar_com_retry(_chamar)
+        arquivos.extend(resultado.get("files", []))
+        token = resultado.get("nextPageToken")
+        if not token:
+            break
+    return arquivos
 
 
 def extrair_numero_mes(nome_pasta: str) -> Optional[str]:

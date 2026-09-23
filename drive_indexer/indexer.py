@@ -51,42 +51,77 @@ def formatar_data(iso_string: str) -> str:
         return iso_string
 
 
-def construir_indice() -> dict:
+def _persistir(indice: dict) -> None:
+    """Escreve o indice atual em disco. Chamado apos cada ano pra ter
+    progresso incremental — se a rede cair no meio, o proximo run comeca
+    do proximo ano em vez de zerar tudo."""
+    indice["total_documentos"] = len(indice["documentos"])
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_PATH.write_text(
+        json.dumps(indice, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _carregar_existente() -> dict:
+    """Le o indice anterior se existir. Volta um dict vazio se nao houver."""
+    if OUTPUT_PATH.exists():
+        try:
+            return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"gerado_em": "", "total_documentos": 0, "nao_classificados": 0, "documentos": []}
+
+
+def construir_indice(resumir: bool = True) -> dict:
     """
     Funcao principal: autentica, coleta e parseia todos os documentos.
     Retorna o indice completo como dicionario.
+
+    Se resumir=True (default) e o arquivo do indice ja existe, PULA anos
+    que ja tem documentos — util pra retomar apos falha de rede.
     """
     print("[*] Autenticando com o Google Drive...")
     service = get_drive_service()
     print("[+] Autenticado com sucesso.\n")
 
-    indice = {
-        "gerado_em": datetime.now().strftime("%d/%m/%Y as %H:%M"),
-        "total_documentos": 0,
-        "nao_classificados": 0,
-        "documentos": []
+    indice = _carregar_existente() if resumir else {
+        "gerado_em": "", "total_documentos": 0,
+        "nao_classificados": 0, "documentos": [],
     }
+    indice["gerado_em"] = datetime.now().strftime("%d/%m/%Y as %H:%M")
+    # Anos ja indexados (pra pular em modo resume)
+    anos_ja_processados = {d.get("ano") for d in indice.get("documentos", []) if d.get("ano")}
 
     for ano, folder_id in PASTAS_ANOS.items():
         if "COLE_AQUI" in folder_id:
             print(f"[!] Pasta {ano} sem ID configurado - pulando.")
             continue
 
+        if resumir and ano in anos_ja_processados:
+            n = sum(1 for d in indice["documentos"] if d.get("ano") == ano)
+            print(f"[=] {ano} ja indexado ({n} docs) - pulando. Use resumir=False pra refazer.")
+            continue
+
         print(f"[.] Crawleando {ano}...")
-        arquivos_brutos = crawlear_pasta_ano(service, folder_id, ano)
+        try:
+            arquivos_brutos = crawlear_pasta_ano(service, folder_id, ano)
+        except Exception as exc:
+            print(f"[X] {ano} FALHOU: {exc}")
+            print(f"    Salvando progresso ate aqui e abortando. Rode de novo pra retomar.")
+            _persistir(indice)
+            raise
         print(f"    {len(arquivos_brutos)} arquivos encontrados.")
 
+        adicionados = 0
+        nao_class_ano = 0
         for arq in arquivos_brutos:
             metadata = parsear_nome_arquivo(
-                nome=arq["name"],
-                ano_pasta=ano,
-                mes_pasta=arq.get("mes")
+                nome=arq["name"], ano_pasta=ano, mes_pasta=arq.get("mes")
             )
-
             # Arquivo temporario do Word - ignora
             if metadata is None:
                 continue
-
             doc = {
                 "tipo": metadata.tipo,
                 "numero": metadata.numero,
@@ -98,30 +133,33 @@ def construir_indice() -> dict:
                 "classificado": metadata.classificado,
                 "file_id": arq.get("id", ""),
             }
-
             indice["documentos"].append(doc)
-
+            adicionados += 1
             if not metadata.classificado:
-                indice["nao_classificados"] += 1
+                nao_class_ano += 1
+        indice["nao_classificados"] = indice.get("nao_classificados", 0) + nao_class_ano
 
-    indice["total_documentos"] = len(indice["documentos"])
+        # Salva progresso apos cada ano (rede pode cair)
+        _persistir(indice)
+        print(f"    +{adicionados} docs, {nao_class_ano} nao classificados. Total acumulado: {len(indice['documentos'])}")
+
     return indice
 
 
 def salvar_indice():
-    indice = construir_indice()
-
-    # Garante que scripts/ existe (idempotente)
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(
-        json.dumps(indice, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
-
+    indice = construir_indice(resumir=True)
+    _persistir(indice)
     print(f"\n[+] Indice salvo em: {OUTPUT_PATH}")
     print(f"[=] Total: {indice['total_documentos']} documentos")
     print(f"[!] Nao classificados: {indice['nao_classificados']}")
 
 
 if __name__ == "__main__":
-    salvar_indice()
+    import sys
+    # Uso: python -m drive_indexer.indexer [--refazer]
+    resumir = "--refazer" not in sys.argv
+    idx = construir_indice(resumir=resumir)
+    _persistir(idx)
+    print(f"\n[+] Indice salvo em: {OUTPUT_PATH}")
+    print(f"[=] Total: {idx['total_documentos']} documentos")
+    print(f"[!] Nao classificados: {idx['nao_classificados']}")
