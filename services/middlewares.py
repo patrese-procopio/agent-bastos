@@ -147,7 +147,10 @@ def montar_cors(app) -> None:
         allow_origin_regex=regex,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+        allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With",
+                       # Permite o header que pula a tela intersticial do ngrok free.
+                       # Sem isso o preflight CORS bloqueia toda chamada dos clientes.
+                       "ngrok-skip-browser-warning"],
         expose_headers=["Content-Disposition", "Content-Length"],
         max_age=3600,
     )

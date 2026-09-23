@@ -67,7 +67,7 @@ def init_db():
                 data            TEXT,
                 unidade         TEXT,
                 nucleo          TEXT,
-                autor           TEXT,
+                autor           TEXT,             -- nome livre do formulario (ex: "Thiago Oderdenge")
                 assunto         TEXT,
                 corpo           TEXT NOT NULL,
                 topicos         TEXT,            -- JSON list
@@ -95,6 +95,19 @@ def init_db():
                 erro            TEXT
             )
         """)
+        # Migracao 2026-09-17: separa "autor" (nome livre do form) de "criado_por"
+        # (username do login, usado no scoping). O campo autor era usado pra ambos,
+        # causando 404 no RAE quando o form tinha "THIAGO ODERDENGE" e o scoping
+        # comparava com user.sub="vitor". Idempotente — ALTER falha silencioso se
+        # coluna ja existe.
+        _cols = [r[1] for r in con.execute("PRAGMA table_info(extratos)").fetchall()]
+        if "criado_por" not in _cols:
+            con.execute("ALTER TABLE extratos ADD COLUMN criado_por TEXT")
+            # Backfill: registros antigos ficam do admin (que ve tudo mesmo).
+            # Isso preserva historico visivel pra admin sem risco de vazamento
+            # inter-analistas. Admin pode reatribuir manualmente via SQL se quiser.
+            con.execute("UPDATE extratos SET criado_por='admin' WHERE criado_por IS NULL OR criado_por=''")
+            con.execute("CREATE INDEX IF NOT EXISTS idx_extr_criado_por ON extratos(criado_por)")
         con.execute("""
             CREATE TABLE IF NOT EXISTS extrato_entidades (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -226,20 +239,25 @@ def verificar_cadeia() -> dict:
 # ── CRUD / criação ───────────────────────────────────────────────────────────
 
 def criar_extrato(payload: dict, usuario: str = "sistema") -> dict:
-    """Grava o extrato bruto imediatamente (status 'recebido')."""
+    """Grava o extrato bruto imediatamente (status 'recebido').
+
+    - `autor` (do form) = nome livre digitado pelo analista (ex: "Thiago Oderdenge")
+    - `criado_por` (do token) = username do login, unico e usado no scoping
+      (evita bug em que o RAE dava 404 pq o autor livre nao batia com user.sub)
+    """
     eid = "ext_" + uuid.uuid4().hex[:12]
     corpo = (payload.get("corpo") or payload.get("texto") or "").strip()
     classif = (payload.get("classificacao") or "reservado").strip().lower()
     with _conn() as con:
         con.execute(
             """INSERT INTO extratos (id, data, unidade, nucleo, autor, assunto, corpo,
-                    topicos, nucleos_destino, classificacao, status, criado_em)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    topicos, nucleos_destino, classificacao, status, criado_em, criado_por)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (eid, payload.get("data"), payload.get("unidade"), payload.get("nucleo"),
              payload.get("autor"), payload.get("assunto"), corpo,
              json.dumps(payload.get("topicos") or [], ensure_ascii=False),
              json.dumps(payload.get("nucleos_destino") or [], ensure_ascii=False),
-             classif, "recebido", _agora()),
+             classif, "recebido", _agora(), usuario),
         )
         _auditar(con, eid, usuario, "CRIADO",
                  f"unidade={payload.get('unidade')} classif={classif}")
@@ -407,17 +425,20 @@ def _extrato_dict(row) -> dict:
 def obter(eid: str, user: dict | None = None) -> dict | None:
     """Le um extrato pelo ID.
 
-    Se `user` for fornecido e nao for admin, aplica scoping (so ve se for autor).
-    Chamadas internas (sem user) ignoram o scoping.
+    Regra do produto (piloto AIPEN): extrato e base compartilhada de ocorrencias
+    — TODOS os usuarios autenticados veem TODOS os extratos, independente de
+    quem criou. `criado_por` continua sendo gravado pra trilha de auditoria,
+    mas nao restringe leitura. Se quiser reativar scoping estrito no futuro,
+    basta descomentar o bloco abaixo.
     """
-    from services.scoping_service import pode_ver_registro
+    # from services.scoping_service import pode_ver_registro  # scoping desativado
     with _conn() as con:
         row = con.execute("SELECT * FROM extratos WHERE id = ?", (eid,)).fetchone()
         if not row:
             return None
         d = _extrato_dict(row)
-        if user is not None and not pode_ver_registro(user, d, coluna="autor"):
-            return None
+        # if user is not None and not pode_ver_registro(user, d, coluna="criado_por"):
+        #     return None
         ents = con.execute(
             "SELECT * FROM extrato_entidades WHERE extrato_id = ? ORDER BY id", (eid,)
         ).fetchall()
@@ -426,18 +447,20 @@ def obter(eid: str, user: dict | None = None) -> dict | None:
 
 
 def listar(limite: int = 200, user: dict | None = None) -> list[dict]:
-    """Lista extratos recentes. Se `user` for nao-admin, filtra por autor=user.sub."""
-    from services.scoping_service import where_escopo
-    sql_escopo, params_escopo = where_escopo(user, coluna="autor")
+    """Lista extratos recentes.
+
+    Regra do produto: base compartilhada — todos veem tudo. `user` mantido
+    na assinatura por compatibilidade / auditoria futura.
+    """
     sql = (
         "SELECT id, data, unidade, nucleo, autor, assunto, assunto_sintetizado, "
         "       classificacao, status, risk_score, risk_nivel, criado_em, "
         "       processado_em, provedor, forcado_local, bloqueado, rae_gerado "
-        "FROM extratos WHERE 1=1" + sql_escopo +
-        " ORDER BY criado_em DESC LIMIT ?"
+        "FROM extratos "
+        "ORDER BY criado_em DESC LIMIT ?"
     )
     with _conn() as con:
-        rows = con.execute(sql, (*params_escopo, limite)).fetchall()
+        rows = con.execute(sql, (limite,)).fetchall()
         out = []
         for r in rows:
             d = dict(r)

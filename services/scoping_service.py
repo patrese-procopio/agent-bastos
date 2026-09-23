@@ -46,10 +46,16 @@ def where_escopo(user: dict | None, coluna: str = "autor",
     """
     Retorna (clausula_where, params) para juntar a uma query.
 
+    Regra do produto (piloto AIPEN):
+      - admin              -> sem filtro (ve tudo)
+      - demais (analistas) -> ve os proprios + os que o admin publicou.
+        (O admin funciona como "curador central" — publica material referencial
+        que todos devem ver, mas isolamento entre analistas continua valendo.)
+
     Exemplo:
-        sql_extra, p_extra = where_escopo(user, coluna="autor")
-        # admin -> sql_extra='' , p_extra=()
-        # outro -> sql_extra=' AND autor = ?' , p_extra=(user['sub'],)
+        sql_extra, p_extra = where_escopo(user, coluna="criado_por")
+        # admin  -> sql_extra='' , p_extra=()
+        # outros -> sql_extra=' AND (criado_por = ? OR criado_por = "admin")' , p_extra=(user['sub'],)
 
     Args:
         user: dict do token JWT (com 'sub' e 'level').
@@ -62,7 +68,7 @@ def where_escopo(user: dict | None, coluna: str = "autor",
     if not sub:
         # Token sem sub e estranho - filtra como ninguem para nao vazar
         return f"{prefixo}1=0", ()
-    return f"{prefixo}{coluna} = ?", (sub,)
+    return f"{prefixo}({coluna} = ? OR {coluna} = 'admin')", (sub,)
 
 
 def pode_ver_registro(user: dict | None, registro: dict | None,
@@ -70,6 +76,8 @@ def pode_ver_registro(user: dict | None, registro: dict | None,
     """
     Versao em memoria: valida se 'user' pode ver 'registro' apos buscado.
     Util para endpoints /{id} que ja fizeram um SELECT pelo PK.
+
+    Regra do produto (piloto AIPEN): analistas veem os proprios + os do admin.
     """
     if not registro:
         return False
@@ -78,4 +86,5 @@ def pode_ver_registro(user: dict | None, registro: dict | None,
     dono = registro.get(coluna)
     if dono is None:
         return True  # registro orfao (legado) - nao bloquear
-    return dono == (user or {}).get("sub")
+    sub = (user or {}).get("sub")
+    return dono == sub or dono == "admin"

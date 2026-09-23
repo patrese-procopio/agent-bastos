@@ -225,3 +225,84 @@ def status_alertas_telegram(user: dict = Depends(require_module("osint"))):
     """Verifica se as credenciais/sessão do Telegram estão válidas (sem varrer)."""
     from modules.telegram_monitor import status_telegram
     return status_telegram()
+
+
+# ─── Resolucao de redirect de links do Google News ────────────────────────────
+# Links do OSINT sao do Google News RSS (news.google.com/rss/articles/...)
+# que quando abertos direto no navegador precisam resolver via JS o redirect
+# real. Google identifica isso como "requisicao automatizada" e bloqueia com
+# a pagina "We're sorry" apos algumas chamadas. Solucao: resolver o redirect
+# no backend (que aceita follow_redirects) e retornar a URL final. O
+# frontend abre essa URL direto no navegador do sistema.
+_LINK_CACHE: dict[str, str] = {}   # cache in-memory pra evitar re-resolver
+
+@router.get("/alertas/resolver-link")
+def resolver_link_externo(url: str, titulo: str = "",
+                          user: dict = Depends(require_module("alertas"))):
+    """
+    Resolve URLs do Google News em ETAPAS, ate uma dar certo:
+
+      1. Tenta decodificar via `googlenewsdecoder` (extrai o URL final do
+         payload protobuf sem depender de request pro Google)
+      2. Tenta seguir redirect HTTP (httpx follow_redirects)
+      3. Fallback: retorna uma URL de busca do Google Search pelo TITULO da
+         materia. O operador acha o link real no primeiro resultado.
+
+    Sem essa cadeia, o link do Google News RSS abre no Chrome/Edge e cai na
+    tela "We're sorry — automated queries" porque o Google detecta o padrao
+    de acesso a URLs de RSS como bot.
+
+    URLs que nao sao do Google News passam direto (nao viramos proxy aberto).
+    """
+    url = (url or "").strip()
+    titulo = (titulo or "").strip()
+    if not url.startswith(("http://", "https://")):
+        return {"url": url, "resolvido": False, "motivo": "url_invalida"}
+
+    e_google_news = "news.google.com" in url or "google.com/url?" in url
+    if not e_google_news:
+        return {"url": url, "resolvido": False, "motivo": "nao_precisa"}
+
+    if url in _LINK_CACHE:
+        return {"url": _LINK_CACHE[url], "resolvido": True, "cache": True}
+
+    # ── Etapa 1: googlenewsdecoder (sem chamar Google diretamente) ───────────
+    try:
+        from googlenewsdecoder import gnewsdecoder
+        r = gnewsdecoder(url)
+        final = (r or {}).get("decoded_url")
+        if final and final.startswith("http") and "news.google.com" not in final:
+            _LINK_CACHE[url] = final
+            if len(_LINK_CACHE) > 500:
+                _LINK_CACHE.pop(next(iter(_LINK_CACHE)))
+            return {"url": final, "resolvido": True, "metodo": "decoder"}
+    except Exception:
+        pass
+
+    # ── Etapa 2: follow-redirects HTTP ───────────────────────────────────────
+    try:
+        import httpx
+        UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+        with httpx.Client(follow_redirects=True, timeout=8.0,
+                          headers={"User-Agent": UA}) as c:
+            r = c.get(url)
+            final = str(r.url)
+        if final and "news.google.com" not in final and final != url:
+            _LINK_CACHE[url] = final
+            if len(_LINK_CACHE) > 500:
+                _LINK_CACHE.pop(next(iter(_LINK_CACHE)))
+            return {"url": final, "resolvido": True, "metodo": "http"}
+    except Exception:
+        pass
+
+    # ── Etapa 3: fallback — busca no Google pelo titulo ──────────────────────
+    if titulo:
+        from urllib.parse import quote
+        # Aspas em volta do titulo restringem a busca — Google Search NAO
+        # e bloqueado (so o Google News RSS/articles esta).
+        busca = f'https://www.google.com/search?q={quote(titulo[:120])}'
+        return {"url": busca, "resolvido": False, "metodo": "busca_titulo",
+                "aviso": "Nao foi possivel resolver o link; abrindo busca no Google."}
+
+    return {"url": url, "resolvido": False, "metodo": "nao_resolvido"}

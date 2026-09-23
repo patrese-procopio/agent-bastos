@@ -162,12 +162,17 @@ def health_check():
 
 
 # ── Schedulers ────────────────────────────────────────────────────────────────
-from modules.monitor import iniciar_scheduler as _iniciar_watchlist
+# scheduler_service consolida alertas + noticias + telegram num unico ponto,
+# substituindo o watchlist antigo (que so cobria alertas). Elimina a
+# dependencia do n8n pra as varreduras se manterem vivas — enquanto o backend
+# esta up, os feeds sao atualizados. Compat com WATCHLIST_ATIVO e
+# WATCHLIST_INTERVALO_HORAS pra deploys existentes.
+from services.scheduler_service import start_scheduler
 from services.briefing_service import iniciar_scheduler as _iniciar_briefing
 
 @app.on_event("startup")
 def _startup():
-    _iniciar_watchlist()
+    start_scheduler()
     _iniciar_briefing()   # BDI automático: todo dia às BRIEFING_HORA (padrão 06:00 UTC)
 
 
