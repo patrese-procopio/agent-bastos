@@ -371,11 +371,17 @@ export default function OperacoesDrone({ onNavigate }) {
     piloto: "", drone_modelo: "", data_voo: "", sarpas_protocolo: "", observacoes: "", checklist: {} })
   const [salvando, setSalvando] = useState(false)
 
-  // importação
+  // importação — modo 1: pasta local (deploy single-host)
   const [origemPath, setOrigemPath] = useState("")
   const [job, setJob]               = useState(null)
   const [importErro, setImportErro] = useState(null)
   const pollRef = useRef(null)
+
+  // importação — modo 2: UPLOAD HTTP das midias (piloto multi-maquina).
+  // Envia arquivo por arquivo em serie; UI mostra progress "N/total".
+  const uploadRef = useRef(null)      // ref pra <input type="file"> oculto
+  const [upStats, setUpStats] = useState(null)  // {enviados, total, dup, erro, atual}
+  const [uploading, setUploading] = useState(false)
 
   // trajeto: mapa real (online) ou esquema SVG (offline) + foto do ponto clicado
   const [modoMapa, setModoMapa]   = useState(true)
@@ -429,6 +435,38 @@ export default function OperacoesDrone({ onNavigate }) {
   const [resultComp, setResultComp]   = useState(null)
   const [erroComp, setErroComp]       = useState(null)
   const [parSlider, setParSlider]     = useState(null)
+
+  // comparação MOSAICO-a-MOSAICO (v1.3.3): recorta a intersecao dos bounds
+  // dos dois mosaicos, alinha e mede vegetacao (ExG) + mudancas RGB.
+  const [mosDisp, setMosDisp]           = useState([])          // lista de mosaicos concluidos
+  const [mosAId,  setMosAId]            = useState("")           // referencia (antes)
+  const [mosBId,  setMosBId]            = useState("")           // atual (depois)
+  const [compMos, setCompMos]           = useState(false)        // busy
+  const [resMos,  setResMos]            = useState(null)         // resumo com comp_id
+  const [erroMos, setErroMos]           = useState(null)
+
+  // Carrega mosaicos disponiveis toda vez que a lista de mosaicos da missao
+  // atual mudar (ou seja: apos gerar um novo). Nao amarra a "selecionada" pra
+  // exibir tambem mosaicos de OUTRAS missoes na comparacao.
+  useEffect(() => {
+    api.get("/drone/mosaicos-para-comparar")
+      .then(r => r?.ok ? r.json() : { mosaicos: [] })
+      .then(d => setMosDisp(d?.mosaicos || []))
+      .catch(() => setMosDisp([]))
+  }, [mosaicos.length])
+
+  async function compararMosaicos() {
+    if (!mosAId || !mosBId || compMos) return
+    setCompMos(true); setErroMos(null); setResMos(null)
+    try {
+      const res = await api.post("/drone/comparar-mosaicos",
+        { mosaico_a: mosAId, mosaico_b: mosBId })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) setErroMos(d.detail || "Erro na comparacao.")
+      else setResMos(d)
+    } catch { setErroMos("Falha de conexao.") }
+    setCompMos(false)
+  }
 
   async function compararVoos() {
     if (!selecionada || !alvoComp || comparando) return
@@ -515,6 +553,54 @@ export default function OperacoesDrone({ onNavigate }) {
     }
     const pasta = await window.electronAPI.selecionarPasta("Selecionar pasta do cartão SD")
     if (pasta) { setOrigemPath(pasta); setImportErro(null) }
+  }
+
+  // ── Upload de midias via HTTP (funciona pra clientes remotos) ───────────
+  function abrirSeletorUpload() {
+    if (uploading || !selecionada) return
+    uploadRef.current?.click()
+  }
+
+  async function fazerUpload(fileList) {
+    if (!selecionada || !fileList || !fileList.length) return
+    const arquivos = Array.from(fileList).filter(f => {
+      const n = (f.name || "").toLowerCase()
+      return /\.(jpg|jpeg|png|dng|mp4|mov|mkv|avi|m4v)$/.test(n)
+    })
+    if (!arquivos.length) {
+      setImportErro("Nenhum arquivo suportado selecionado (fotos: jpg/png/dng, videos: mp4/mov/mkv/avi).")
+      return
+    }
+    setImportErro(null)
+    setUploading(true)
+    let enviados = 0, dup = 0, erro = 0
+    setUpStats({ enviados: 0, total: arquivos.length, dup, erro, atual: arquivos[0]?.name })
+    for (const arquivo of arquivos) {
+      setUpStats(s => ({ ...s, atual: arquivo.name }))
+      try {
+        const fd = new FormData()
+        fd.append("arquivo", arquivo, arquivo.name)
+        const res = await api.upload(`/drone/missoes/${selecionada.id}/upload`, fd)
+        if (res?.ok) {
+          const d = await res.json().catch(() => ({}))
+          if (d.status === "duplicado") dup++
+          else if (d.status === "ok") enviados++
+          else erro++
+        } else {
+          erro++
+        }
+      } catch { erro++ }
+      setUpStats(s => ({ ...s,
+        enviados: enviados + dup,   // conta duplicados como "processados" no progress
+        dup, erro,
+      }))
+    }
+    setUploading(false)
+    // Refresh da missao pra ver as midias novas na galeria
+    if (enviados > 0 || dup > 0) {
+      abrirMissao(selecionada.id); carregar()
+    }
+    if (uploadRef.current) uploadRef.current.value = ""
   }
 
   async function importar() {
@@ -760,24 +846,67 @@ export default function OperacoesDrone({ onNavigate }) {
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
                 padding: 16, marginBottom: 18 }}>
                 <div style={{ ...lbl, marginBottom: 8 }}>Importar mídia do cartão SD</div>
+
+                {/* ── Modo 1: UPLOAD DIRETO — funciona pra clientes remotos ── */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+                  <button onClick={abrirSeletorUpload} disabled={uploading} style={{
+                    padding: "10px 22px", borderRadius: 7, border: `1px solid ${C.goldBorder}`,
+                    background: C.goldSoft, color: C.gold, fontWeight: 800, fontSize: 13,
+                    cursor: uploading ? "wait" : "pointer", whiteSpace: "nowrap",
+                    opacity: uploading ? 0.6 : 1 }}>
+                    {uploading ? "⬆ ENVIANDO…" : "⬆ SELECIONAR ARQUIVOS DO CARTÃO SD"}
+                  </button>
+                  <span style={{ fontSize: 11, color: TXT_DIM, fontFamily: MONO }}>
+                    Escolhe as fotos/vídeos direto no teu computador — envia pro servidor pela rede.
+                  </span>
+                </div>
+                {/* Input file oculto acionado pelo botão acima */}
+                <input ref={uploadRef} type="file" multiple hidden
+                  accept=".jpg,.jpeg,.png,.dng,.mp4,.mov,.mkv,.avi,.m4v,image/*,video/*"
+                  onChange={e => fazerUpload(e.target.files)} />
+
+                {upStats && (
+                  <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 7,
+                    background: C.surfaceUp, border: `1px solid ${C.border}` }}>
+                    <div style={{ height: 6, borderRadius: 3, background: "#0B1120", overflow: "hidden", marginBottom: 6 }}>
+                      <div style={{ height: "100%", borderRadius: 3, transition: "width .3s",
+                        width: `${upStats.total ? Math.round((upStats.enviados / upStats.total) * 100) : 0}%`,
+                        background: uploading ? C.gold : upStats.erro ? "#F59E0B" : "#4ADE80" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: TXT_MID, fontFamily: MONO }}>
+                      {uploading
+                        ? `Enviando ${upStats.enviados}/${upStats.total} · atual: ${(upStats.atual || "").slice(0, 40)}${upStats.dup ? ` · ${upStats.dup} duplicadas` : ""}${upStats.erro ? ` · ${upStats.erro} erros` : ""}`
+                        : `Concluído: ${upStats.enviados - (upStats.dup || 0)} novas, ${upStats.dup || 0} duplicadas, ${upStats.erro || 0} erros.`}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 10px" }}>
+                  <div style={{ flex: 1, height: 1, background: C.border }}/>
+                  <span style={{ fontSize: 10, color: TXT_DIM, fontFamily: MONO }}>OU importar de pasta local do servidor</span>
+                  <div style={{ flex: 1, height: 1, background: C.border }}/>
+                </div>
+
+                {/* ── Modo 2: PASTA LOCAL DO BACKEND (deploy single-host) ── */}
                 <div style={{ display: "flex", gap: 10 }}>
                   <input style={{ ...inp, marginBottom: 0, flex: 1 }} value={origemPath}
                     onChange={e => setOrigemPath(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && importar()}
-                    placeholder="Caminho da pasta — ex.: E:\DCIM\100MEDIA" />
+                    placeholder="Caminho da pasta NO SERVIDOR — ex.: E:\DCIM\100MEDIA" />
                   <button onClick={procurarPasta} style={{
                     padding: "0 18px", borderRadius: 7, border: `1px solid ${C.borderUp}`,
                     background: C.surfaceUp, color: TXT_MID, fontWeight: 700, fontSize: 13,
                     cursor: "pointer", whiteSpace: "nowrap" }}>📁 PROCURAR…</button>
                   <button onClick={importar} disabled={job?.status === "executando"} style={{
-                    padding: "0 22px", borderRadius: 7, border: `1px solid ${C.goldBorder}`,
-                    background: C.goldSoft, color: C.gold, fontWeight: 800, fontSize: 13,
+                    padding: "0 22px", borderRadius: 7, border: `1px solid ${C.borderUp}`,
+                    background: C.surfaceUp, color: TXT_MID, fontWeight: 700, fontSize: 13,
                     cursor: "pointer", whiteSpace: "nowrap",
-                    opacity: job?.status === "executando" ? 0.5 : 1 }}>IMPORTAR</button>
+                    opacity: job?.status === "executando" ? 0.5 : 1 }}>IMPORTAR DO SERVIDOR</button>
                 </div>
                 <div style={{ fontSize: 11, color: TXT_DIM, fontFamily: MONO, marginTop: 6 }}>
-                  A cópia roda em segundo plano no servidor — vídeos grandes não travam a interface.
-                  Duplicatas são detectadas por hash e ignoradas.
+                  <b>Upload</b>: envia do teu PC pelo túnel (funciona em qualquer máquina, ~500MB-2GB).
+                  <b> Importar do servidor</b>: útil só se você tem o backend na mesma máquina onde estão as fotos.
+                  Duplicatas detectadas por hash e ignoradas em ambos os modos.
                 </div>
                 {importErro && <div style={{ color: "#FCA5A5", fontSize: 12.5, marginTop: 8 }}>{importErro}</div>}
                 {job && (
@@ -885,17 +1014,35 @@ export default function OperacoesDrone({ onNavigate }) {
                 {mosaicoAtivo?.bounds && (
                   <div style={{ marginTop: 12 }}>
                     <MosaicoMapa jobId={mosaicoAtivo.id} bounds={mosaicoAtivo.bounds} />
-                    <button onClick={async () => {
-                      const r = await api.get(`/drone/mosaico/${mosaicoAtivo.id}/imagem`)
-                      if (!r.ok) return
-                      const blob = await r.blob()
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement("a")
-                      a.href = url; a.download = `mosaico_${mosaicoAtivo.id.slice(0, 8)}.jpg`; a.click()
-                      URL.revokeObjectURL(url)
-                    }} style={{ marginTop: 10, padding: "8px 18px", borderRadius: 7,
-                      border: `1px solid ${C.border}`, background: "transparent", color: TXT_MID,
-                      fontSize: 12, cursor: "pointer" }}>⬇ Baixar JPEG (com world file p/ QGIS no servidor)</button>
+                    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <button onClick={async () => {
+                        const r = await api.get(`/drone/mosaico/${mosaicoAtivo.id}/imagem`)
+                        if (!r.ok) return
+                        const blob = await r.blob()
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement("a")
+                        a.href = url; a.download = `mosaico_${mosaicoAtivo.id.slice(0, 8)}.jpg`; a.click()
+                        URL.revokeObjectURL(url)
+                      }} style={{ padding: "8px 18px", borderRadius: 7,
+                        border: `1px solid ${C.border}`, background: "transparent", color: TXT_MID,
+                        fontSize: 12, cursor: "pointer" }}>⬇ Baixar JPEG</button>
+
+                      <button onClick={async () => {
+                        const r = await api.get(`/drone/mosaico/${mosaicoAtivo.id}/geotiff`)
+                        if (!r.ok) {
+                          alert("Este mosaico foi gerado antes do TIFF ser incluído.\nGere um novo mosaico pra ter esse download disponível.")
+                          return
+                        }
+                        const blob = await r.blob()
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement("a")
+                        a.href = url; a.download = `mosaico_${mosaicoAtivo.id.slice(0, 8)}_geotiff.zip`; a.click()
+                        URL.revokeObjectURL(url)
+                      }} title="Zip com TIFF + world file + KML. Extraia e dê duplo clique no .kml pra abrir no Google Earth já georreferenciado."
+                        style={{ padding: "8px 18px", borderRadius: 7,
+                        border: `1px solid ${C.goldBorder}`, background: C.goldSoft, color: C.gold,
+                        fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🌍 Baixar TIFF + KML (Google Earth)</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1009,6 +1156,93 @@ export default function OperacoesDrone({ onNavigate }) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Comparação MOSAICO x MOSAICO (voo inteiro vs voo inteiro, v1.3.3) */}
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
+                padding: 16, marginBottom: 18 }}>
+                <div style={{ ...lbl, marginBottom: 8 }}>Comparação de mosaicos — voo inteiro vs voo inteiro</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "center" }}>
+                  <select value={mosAId} onChange={e => setMosAId(e.target.value)} style={{ ...inp, marginBottom: 0 }}>
+                    <option value="">Mosaico ANTES (referência)…</option>
+                    {mosDisp.filter(m => m.job_id !== mosBId).map(m => (
+                      <option key={m.job_id} value={m.job_id}>
+                        {m.missao_nome} · {m.missao_data} · {m.gsd_cm || "?"} cm/px
+                      </option>
+                    ))}
+                  </select>
+                  <select value={mosBId} onChange={e => setMosBId(e.target.value)} style={{ ...inp, marginBottom: 0 }}>
+                    <option value="">Mosaico DEPOIS (atual)…</option>
+                    {mosDisp.filter(m => m.job_id !== mosAId).map(m => (
+                      <option key={m.job_id} value={m.job_id}>
+                        {m.missao_nome} · {m.missao_data} · {m.gsd_cm || "?"} cm/px
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={compararMosaicos} disabled={!mosAId || !mosBId || compMos} style={{
+                    padding: "10px 22px", borderRadius: 7, border: `1px solid ${C.goldBorder}`,
+                    background: C.goldSoft, color: C.gold, fontWeight: 800, fontSize: 12.5,
+                    cursor: "pointer", opacity: !mosAId || !mosBId || compMos ? 0.5 : 1 }}>
+                    {compMos ? "ANALISANDO…" : "◈ COMPARAR MOSAICOS"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 10.5, color: TXT_DIM, fontFamily: MONO, marginTop: 6 }}>
+                  Recorta a área comum aos dois mosaicos, alinha pixel-a-pixel, mede vegetação (ExG)
+                  e destaca em vermelho onde a cena mudou. Cobre o voo inteiro em uma única imagem.
+                </div>
+                {mosDisp.length < 2 && (
+                  <div style={{ fontSize: 12, color: TXT_MID, fontFamily: MONO, marginTop: 8 }}>
+                    ⓘ Precisa de ao menos 2 mosaicos gerados (das mesmas ou de missões diferentes) pra comparar.
+                    Atualmente: {mosDisp.length} mosaico(s) disponível(is).
+                  </div>
+                )}
+                {erroMos && <div style={{ color: "#FCA5A5", fontSize: 12.5, marginTop: 8 }}>{erroMos}</div>}
+
+                {resMos && (
+                  <div style={{ marginTop: 14 }}>
+                    {/* Resumo */}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                      {[[`${resMos.diff_pct}%`, "mudança total"],
+                        [`${resMos.veg_antes_pct}%`, "veg. antes"],
+                        [`${resMos.veg_depois_pct}%`, "veg. depois"],
+                        [`${resMos.delta_veg > 0 ? "+" : ""}${resMos.delta_veg}%`, "Δ vegetação"]].map(([v, k]) => (
+                        <div key={k} style={{ background: C.surfaceUp, border: `1px solid ${C.border}`,
+                          borderRadius: 7, padding: "7px 12px", minWidth: 108 }}>
+                          <div style={{ fontSize: 15.5, fontWeight: 800, fontFamily: MONO,
+                            color: k === "Δ vegetação" && resMos.delta_veg < -5 ? "#F87171" : C.text }}>{v}</div>
+                          <div style={{ fontSize: 9.5, color: TXT_DIM, fontFamily: MONO,
+                            letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 1 }}>{k}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {resMos.delta_veg < -5 && (
+                      <div style={{ padding: "8px 12px", borderRadius: 7, background: "rgba(239,68,68,0.12)",
+                        border: "1px solid rgba(239,68,68,0.3)", color: "#FCA5A5", fontSize: 12,
+                        marginBottom: 12, fontFamily: MONO }}>
+                        ⚠ Perda significativa de vegetação entre os dois voos.
+                      </div>
+                    )}
+                    {/* 3 imagens lado a lado */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                      {[["ANTES", "antes"], ["DEPOIS", "depois"], ["MUDANÇAS", "mudancas"]].map(([rot, tipo]) => (
+                        <div key={tipo}>
+                          <div style={{ fontSize: 9, color: TXT_DIM, fontFamily: MONO, marginBottom: 4 }}>{rot}</div>
+                          <ThumbAuth
+                            path={`/drone/comparacao-mosaico/${resMos.comp_id}/${tipo}`}
+                            alt={rot}
+                            style={{ width: "100%", height: 260, objectFit: "contain",
+                                     borderRadius: 6, display: "block", background: "#0B1120",
+                                     border: `1px solid ${C.border}` }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: TXT_DIM, fontFamily: MONO, marginTop: 8 }}>
+                      Área analisada: {resMos.tamanho_analise?.[0]}×{resMos.tamanho_analise?.[1]} px ·
+                      intersecção geográfica dos dois mosaicos.
+                    </div>
                   </div>
                 )}
               </div>
