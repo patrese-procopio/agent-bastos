@@ -11,7 +11,7 @@ Concessão do módulo: Configurações → Gerenciar Usuários.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -68,6 +68,11 @@ class MosaicoIn(BaseModel):
     qualidade:    str = Field(default="rapida", pattern="^(rapida|media|alta)$")
     agl_padrao_m: float = Field(default=60.0, ge=5, le=500,
                                 description="Altura de voo usada quando a foto não traz AGL")
+
+
+class ComparacaoMosaicosIn(BaseModel):
+    mosaico_a: str = Field(description="job_id do mosaico de referência (antes)")
+    mosaico_b: str = Field(description="job_id do mosaico atual (depois)")
 
 
 # ─── Missões ──────────────────────────────────────────────────────────────────
@@ -133,6 +138,31 @@ def status_importacao(job_id: str, user: dict = Depends(require_module("drone"))
     if not job:
         raise HTTPException(404, "Job não encontrado")
     return job
+
+
+@router.post("/missoes/{mid}/upload")
+def upload_midia(mid: str, arquivo: UploadFile = File(...),
+                 user: dict = Depends(require_module("drone"))):
+    """
+    Upload de UM arquivo (foto ou video) via HTTP multipart. Usado por clientes
+    remotos (piloto multi-maquina) que nao compartilham filesystem com o
+    backend — o `importar` original le pasta do cartao SD LOCAL do backend,
+    o que so serve pra deploy single-host.
+
+    O frontend envia arquivo-por-arquivo em serie e mostra progress no cabecalho
+    da missao. Cada request eh independente: se um falhar, os outros seguem.
+    Streaming no server (drone_service.receber_upload) — nao carrega em RAM.
+    """
+    resultado = drone_service.receber_upload(
+        mid=mid,
+        nome_original=arquivo.filename or "sem_nome",
+        tipo_hint=arquivo.content_type or "",
+        stream=arquivo.file,
+        usuario=user["sub"],
+    )
+    if resultado.get("status") == "erro":
+        raise HTTPException(400, resultado.get("motivo", "erro no upload"))
+    return resultado
 
 
 # ─── Galeria e trajeto ────────────────────────────────────────────────────────
@@ -220,6 +250,60 @@ def heatmap_comparacao(comp_id: str, idx: int,
     return FileResponse(path, media_type="image/png")
 
 
+# ─── Comparação de Mosaicos (voo inteiro vs voo inteiro) ─────────────────────
+
+@router.get("/mosaicos-para-comparar")
+def mosaicos_para_comparar(user: dict = Depends(require_module("drone"))):
+    """
+    Lista todos os mosaicos CONCLUIDOS de TODAS as missoes, pra alimentar os
+    dropdowns de comparacao mosaico-a-mosaico. Vem ordenado por data
+    finalizada desc.
+    """
+    from services import drone_service, drone_mosaico
+    # varre todas as missoes do usuario -> lista mosaicos concluidos + nome missao
+    itens = []
+    for missao in drone_service.listar_missoes():
+        for mos in drone_mosaico.listar_mosaicos(missao["id"]):
+            itens.append({
+                "job_id": mos["id"],
+                "missao_id": missao["id"],
+                "missao_nome": missao.get("nome"),
+                "missao_data": missao.get("data_voo"),
+                "finalizado_em": mos.get("finalizado_em"),
+                "gsd_cm": mos.get("gsd_cm"),
+                "bounds": mos.get("bounds"),
+            })
+    itens.sort(key=lambda x: x.get("finalizado_em") or "", reverse=True)
+    return {"mosaicos": itens}
+
+
+@router.post("/comparar-mosaicos")
+def comparar_mosaicos_endpoint(body: ComparacaoMosaicosIn,
+                                user: dict = Depends(require_module("drone"))):
+    """
+    Compara dois mosaicos inteiros (voo A vs voo B). Corta a area comum,
+    alinha, calcula % vegetacao (ExG) e % mudanca, gera 3 PNGs (antes,
+    depois, mudancas). Retorna resumo + comp_id p/ buscar as imagens.
+    """
+    from services import drone_comparacao
+    try:
+        return drone_comparacao.comparar_mosaicos(body.mosaico_a, body.mosaico_b,
+                                                   usuario=user["sub"])
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@router.get("/comparacao-mosaico/{comp_id}/{tipo}")
+def imagem_comparacao_mosaico(comp_id: str, tipo: str,
+                               user: dict = Depends(require_module("drone"))):
+    """Serve antes|depois|mudancas de uma comparacao mosaico-a-mosaico."""
+    from services import drone_comparacao
+    path = drone_comparacao.caminho_comparacao_mosaico(comp_id, tipo)
+    if not path:
+        raise HTTPException(404, "Imagem não encontrada")
+    return FileResponse(path, media_type="image/png")
+
+
 # ─── Mosaico Rápido (Fase 4) ──────────────────────────────────────────────────
 
 @router.post("/missoes/{mid}/mosaico")
@@ -272,3 +356,22 @@ def preview_mosaico(job_id: str, user: dict = Depends(require_module("drone"))):
     if not path:
         raise HTTPException(404, "Preview não encontrado")
     return FileResponse(path, media_type="image/png")
+
+
+@router.get("/mosaico/{job_id}/geotiff")
+def geotiff_mosaico(job_id: str, user: dict = Depends(require_module("drone"))):
+    """
+    Baixa o pacote GeoTIFF + KML pro Google Earth Pro.
+    Zip contem .tif (LZW), .tfw (world file) e .kml (abre direto no
+    Google Earth apontando pro TIFF na mesma pasta).
+    """
+    from fastapi.responses import Response
+    from services import drone_mosaico
+    blob = drone_mosaico.montar_pacote_geotiff(job_id)
+    if not blob:
+        raise HTTPException(404, "GeoTIFF nao encontrado — gere um novo mosaico.")
+    return Response(
+        content=blob, media_type="application/zip",
+        headers={"Content-Disposition":
+                 f'attachment; filename="mosaico_{job_id[:8]}_geotiff.zip"'},
+    )

@@ -393,6 +393,98 @@ def iniciar_importacao(mid: str, origem: str, usuario: str) -> dict:
     return {"job_id": job_id, "total": len(arquivos)}
 
 
+def receber_upload(mid: str, nome_original: str, tipo_hint: str,
+                    stream, usuario: str = "sistema") -> dict:
+    """
+    Recebe UM arquivo enviado via HTTP (multipart) e faz o mesmo processamento
+    da importacao do cartao SD, mas SEM depender do backend enxergar o
+    filesystem do cliente. Usado quando os operadores estao em maquinas
+    remotas (piloto multi-maquina via ngrok tunnel).
+
+    Diferenca pra _executar_importacao (que le do disco local):
+    - Copia do stream direto pro destino em chunks (sem carregar em RAM)
+    - Retorna sincrono — o frontend chama 1 por arquivo em serie e mostra
+      progress. Sem thread daemon: cada upload eh atomico e independente.
+
+    Retorna:
+        {status: "ok"|"duplicado"|"erro", motivo?, midia_id?, tamanho?}
+    """
+    if not obter_missao(mid):
+        return {"status": "erro", "motivo": "missao_nao_encontrada"}
+
+    ext = Path(nome_original).suffix.lower()
+    if ext in _FOTO_EXTS:
+        tipo = "foto"
+    elif ext in _VIDEO_EXTS:
+        tipo = "video"
+    else:
+        return {"status": "erro", "motivo": "tipo_nao_suportado"}
+
+    media_dir = MISSIONS_DIR / mid / "media"
+    thumb_dir = MISSIONS_DIR / mid / "thumbs"
+    media_dir.mkdir(parents=True, exist_ok=True)
+
+    # Salva em nome temporario primeiro (nao dupilca sha ate ler o arquivo todo)
+    tmp = media_dir / f".upload_{uuid.uuid4().hex[:8]}.tmp"
+    total = 0
+    try:
+        with open(tmp, "wb") as fh:
+            while True:
+                chunk = stream.read(1024 * 1024)   # 1MB por vez
+                if not chunk:
+                    break
+                fh.write(chunk)
+                total += len(chunk)
+
+        # SHA-256 pra deduplicar
+        digest = _sha256_arquivo(tmp)
+        with _conn() as con:
+            ja_existe = con.execute(
+                "SELECT id FROM midias WHERE missao_id=? AND sha256=?",
+                (mid, digest),
+            ).fetchone()
+        if ja_existe:
+            tmp.unlink(missing_ok=True)
+            return {"status": "duplicado", "midia_id": ja_existe["id"]}
+
+        # Renomeia com hash curto + nome (mesmo padrao da import de cartao SD)
+        dest = media_dir / f"{digest[:12]}_{nome_original}"
+        # se ja existir (colisao rara), sobrescreve
+        if dest.exists():
+            dest.unlink()
+        tmp.rename(dest)
+
+        meta = extrair_exif(dest) if tipo == "foto" else {
+            "capturado_em": datetime.fromtimestamp(dest.stat().st_mtime).isoformat(),
+            "lat": None, "lon": None, "alt": None,
+            "largura": None, "altura": None,
+        }
+        thumb_rel = None
+        if tipo == "foto":
+            thumb_rel = _gerar_thumb(dest, thumb_dir / f"{digest[:12]}.jpg")
+
+        midia_id = str(uuid.uuid4())
+        with _conn() as con:
+            con.execute(
+                "INSERT INTO midias (id, missao_id, arquivo, "
+                "nome_original, tipo, sha256, tamanho, capturado_em, "
+                "lat, lon, alt, largura, altura, thumb, criado_em) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (midia_id, mid, str(dest.relative_to(DRONE_DIR)),
+                 nome_original, tipo, digest, dest.stat().st_size,
+                 meta["capturado_em"], meta["lat"], meta["lon"],
+                 meta["alt"], meta["largura"], meta["altura"],
+                 thumb_rel, _now()),
+            )
+        _audit(evento="upload_midia", categoria="drone", usuario=usuario,
+               alvo=mid, detalhe=f"{tipo} {nome_original} ({total} bytes)")
+        return {"status": "ok", "midia_id": midia_id, "tamanho": total,
+                "tipo": tipo, "lat": meta.get("lat"), "lon": meta.get("lon")}
+    except Exception as exc:
+        tmp.unlink(missing_ok=True)
+        return {"status": "erro", "motivo": str(exc)}
+
+
 def _executar_importacao(job_id: str, mid: str, arquivos: list[Path]) -> None:
     media_dir = MISSIONS_DIR / mid / "media"
     thumb_dir = MISSIONS_DIR / mid / "thumbs"

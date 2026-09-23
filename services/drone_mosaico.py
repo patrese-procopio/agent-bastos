@@ -288,16 +288,22 @@ def _montar(job_id: str, mid: str, fotos: list[dict],
                 con.execute("UPDATE mosaico_jobs SET processados=? WHERE id=?",
                             (i + 1, job_id))
 
-    # ── 4. Salvar produtos + world file (abre no QGIS) + bounds p/ Leaflet ──
+    # ── 4. Salvar produtos + world files + bounds p/ Leaflet ────────────────
     dest_dir = MOSAICO_DIR / mid
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    # Produto principal: JPEG (compacto, p/ download e QGIS via world file).
+    # Produto principal JPEG (compacto, p/ download e QGIS via world file).
     # JPEG não tem alfa — composita sobre fundo escuro.
     dest = dest_dir / f"{job_id}.jpg"
     fundo = Image.new("RGB", canvas.size, (14, 20, 33))
     fundo.paste(canvas, (0, 0), canvas)
     fundo.save(dest, "JPEG", quality=82)
+
+    # Produto secundário TIFF (LZW comprimido, mesmo canvas).
+    # Aceito pelo Google Earth Pro via "Add > Image Overlay" com o .tfw ao
+    # lado, e pelo QGIS/ArcGIS como raster. LZW mantem qualidade sem perda.
+    tif_path = dest_dir / f"{job_id}.tif"
+    fundo.save(tif_path, "TIFF", compression="tiff_lzw")
     del fundo
 
     # Preview web: PNG COM TRANSPARÊNCIA, reduzido — é o que o Leaflet exibe
@@ -307,10 +313,34 @@ def _montar(job_id: str, mid: str, fotos: list[dict],
         preview.thumbnail((_PREVIEW_LADO_MAX, _PREVIEW_LADO_MAX))
     preview.save(dest_dir / f"{job_id}_preview.png", "PNG", optimize=True)
 
-    # World file (.jgw): 6 linhas — tamanho do pixel em graus + canto sup. esq.
-    (dest_dir / f"{job_id}.jgw").write_text("\n".join(map(str, [
+    # World files: 6 linhas — tamanho do pixel em graus + canto sup. esq.
+    # .jgw ao lado do .jpg, .tfw ao lado do .tif. Mesmo conteudo, extensoes
+    # diferentes que o GIS reconhece automaticamente.
+    world_lines = "\n".join(map(str, [
         gsd_m / m_por_grau_lon, 0, 0, -gsd_m / _M_POR_GRAU_LAT,
-        min_lon, max_lat])), encoding="ascii")
+        min_lon, max_lat]))
+    (dest_dir / f"{job_id}.jgw").write_text(world_lines, encoding="ascii")
+    (dest_dir / f"{job_id}.tfw").write_text(world_lines, encoding="ascii")
+
+    # KML de acompanhamento: apontando pro TIFF na mesma pasta. Usuario baixa
+    # o zip, extrai, da duplo clique no KML → Google Earth abre no lugar
+    # exato automaticamente, sem posicionar overlay manualmente.
+    kml_body = f'''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <GroundOverlay>
+    <name>Mosaico Agent Bastos — {mid}</name>
+    <description>Ortomosaico gerado em {_now()} — {W}x{H} px, {gsd_m*100:.0f} cm/px</description>
+    <Icon><href>{job_id}.tif</href></Icon>
+    <LatLonBox>
+      <north>{max_lat}</north>
+      <south>{min_lat}</south>
+      <east>{max_lon}</east>
+      <west>{min_lon}</west>
+    </LatLonBox>
+  </GroundOverlay>
+</kml>
+'''
+    (dest_dir / f"{job_id}.kml").write_text(kml_body, encoding="utf-8")
 
     bounds = [[min_lat, min_lon], [max_lat, max_lon]]
     with _conn() as con:
@@ -345,8 +375,12 @@ def _limpar_antigos(mid: str) -> int:
     for row in rows[_MANTER_MOSAICOS:]:
         if row["arquivo"]:
             caminho = DRONE_DIR / row["arquivo"]
+            # Apaga todos os subprodutos: JPG, world files, TIFF, KML, preview.
             for p in (caminho,
                       caminho.with_suffix(".jgw"),
+                      caminho.with_suffix(".tif"),
+                      caminho.with_suffix(".tfw"),
+                      caminho.with_suffix(".kml"),
                       caminho.with_name(caminho.stem + "_preview.png")):
                 p.unlink(missing_ok=True)
         with _conn() as con:
@@ -398,3 +432,28 @@ def caminho_imagem(job_id: str, preview: bool = False) -> Optional[Path]:
     if not str(path).startswith(str(DRONE_DIR.resolve())):
         return None
     return path if path.exists() else None
+
+
+def montar_pacote_geotiff(job_id: str) -> Optional[bytes]:
+    """
+    Retorna um ZIP em memoria contendo .tif + .tfw + .kml do mosaico.
+    O usuario extrai o zip, da duplo clique no .kml e o Google Earth Pro
+    abre o mosaico no lugar exato — sem posicionar overlay manualmente.
+    Se algum arquivo estiver faltando (mosaico antigo, pre-tiff), retorna
+    None e o router responde 404.
+    """
+    import io, zipfile
+    jpg = caminho_imagem(job_id)
+    if not jpg:
+        return None
+    tif  = jpg.with_suffix(".tif")
+    tfw  = jpg.with_suffix(".tfw")
+    kml  = jpg.with_suffix(".kml")
+    if not (tif.exists() and tfw.exists() and kml.exists()):
+        return None
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.write(tif, arcname=tif.name)
+        zf.write(tfw, arcname=tfw.name)
+        zf.write(kml, arcname=kml.name)
+    return buf.getvalue()

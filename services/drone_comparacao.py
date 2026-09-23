@@ -217,3 +217,142 @@ def caminho_heatmap(comp_id: str, idx: int) -> Optional[Path]:
     if not str(path).startswith(str(COMP_DIR.resolve())):
         return None
     return path if path.exists() else None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Comparação Mosaico-a-Mosaico (voo inteiro vs voo inteiro)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Diferente da comparação foto-a-foto (par por GPS), esta compara os DOIS
+# MOSAICOS INTEIROS georreferenciados. Vantagem: nao depende de cada foto ter
+# um par proximo, cobre a extensao completa da varredura e responde em uma
+# unica imagem "antes/depois/mudancas" pro analista bater olho.
+#
+# Como funciona:
+#   1. Le bounds dos dois mosaicos (ja gravados pelo drone_mosaico)
+#   2. Calcula a INTERSECAO geografica dos bounds
+#   3. Recorta cada mosaico so na area comum (pixel = bound linear)
+#   4. Redimensiona ambos pro mesmo tamanho — alinha pixel-a-pixel
+#   5. Roda o mesmo ExG + diff RGB borrado da funcao par-a-par
+#   6. Salva 3 PNGs: antes / depois / mudancas (heatmap vermelho)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_LADO_ANALISE_MAX = 1600   # px — trava RAM: mosaicos grandes sao downscale antes
+
+
+def comparar_mosaicos(job_a: str, job_b: str, usuario: str = "sistema") -> dict:
+    """Compara dois mosaicos concluidos. Retorna resumo + 3 PNGs em disco."""
+    from PIL import Image, ImageFilter
+    import numpy as np
+    from services import drone_mosaico
+
+    ja = drone_mosaico.obter_job(job_a)
+    jb = drone_mosaico.obter_job(job_b)
+    if not ja or not jb:
+        raise ValueError("Mosaico nao encontrado")
+    if job_a == job_b:
+        raise ValueError("Selecione dois mosaicos diferentes")
+    if ja.get("status") != "concluido" or jb.get("status") != "concluido":
+        raise ValueError("Ambos os mosaicos precisam estar concluidos")
+    if not ja.get("bounds") or not jb.get("bounds"):
+        raise ValueError("Mosaico sem bounds georreferenciados — regenere.")
+
+    ba, bb = ja["bounds"], jb["bounds"]  # [[lat_min, lon_min], [lat_max, lon_max]]
+
+    # Area comum aos dois — sem overlap, nao ha o que comparar.
+    lat_min = max(ba[0][0], bb[0][0])
+    lon_min = max(ba[0][1], bb[0][1])
+    lat_max = min(ba[1][0], bb[1][0])
+    lon_max = min(ba[1][1], bb[1][1])
+    if lat_min >= lat_max or lon_min >= lon_max:
+        raise ValueError(
+            "Os dois mosaicos nao se sobrepoem geograficamente. "
+            "Confirme que sao voos do mesmo perimetro.")
+
+    path_a = drone_mosaico.caminho_imagem(job_a)
+    path_b = drone_mosaico.caminho_imagem(job_b)
+    if not path_a or not path_b:
+        raise ValueError("Arquivo do mosaico nao encontrado no disco")
+
+    def _crop_area_comum(mosaico_path: Path, bounds_mosaico: list):
+        """Recorta o mosaico so na area comum, usando os bounds pra converter
+        de coordenada geografica pra pixel."""
+        with Image.open(mosaico_path) as img:
+            W, H = img.size
+            b = bounds_mosaico
+            # Linear: (coord - min) / (max - min) * dim. y invertido (norte=topo)
+            x0 = (lon_min - b[0][1]) / (b[1][1] - b[0][1]) * W
+            x1 = (lon_max - b[0][1]) / (b[1][1] - b[0][1]) * W
+            y0 = (b[1][0] - lat_max) / (b[1][0] - b[0][0]) * H
+            y1 = (b[1][0] - lat_min) / (b[1][0] - b[0][0]) * H
+            box = (max(0, int(x0)), max(0, int(y0)),
+                   min(W, int(x1)), min(H, int(y1)))
+            if box[2] <= box[0] or box[3] <= box[1]:
+                raise ValueError("Recorte da area comum resultou vazio")
+            return img.crop(box).convert("RGB")
+
+    im_a = _crop_area_comum(path_a, ba)
+    im_b = _crop_area_comum(path_b, bb)
+
+    # Alinha resolucao: usa a MENOR dos dois pra economizar RAM, mesma proporcao
+    # da imagem A (imagem B pode ter proporcao levemente diferente por causa do
+    # gsd de cada mosaico — force ambas pro mesmo canvas).
+    tw = min(im_a.width, im_b.width, _LADO_ANALISE_MAX)
+    th = max(64, int(tw * im_a.height / im_a.width))
+    im_a = im_a.resize((tw, th))
+    im_b = im_b.resize((tw, th))
+
+    arr_a = np.asarray(im_a).astype(np.int16)
+    arr_b = np.asarray(im_b).astype(np.int16)
+    veg_a = _veg_pct(arr_a)
+    veg_b = _veg_pct(arr_b)
+
+    def _rgb_borrado(arr):
+        img = Image.fromarray(arr.astype("uint8"))
+        return np.asarray(img.filter(ImageFilter.GaussianBlur(3))).astype(np.int16)
+
+    diff = np.abs(_rgb_borrado(arr_a) - _rgb_borrado(arr_b)).max(axis=2)
+    mask = diff > _DIFF_LIMIAR
+    diff_pct = float(mask.mean() * 100.0)
+
+    # 3 saidas: antes, depois, mudancas (heatmap sobre "depois")
+    comp_id = uuid.uuid4().hex
+    out_dir = COMP_DIR / f"mosaico_{comp_id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    im_a.save(out_dir / "antes.png", "PNG", optimize=True)
+    im_b.save(out_dir / "depois.png", "PNG", optimize=True)
+    heat = arr_b.astype(np.float32)
+    heat[mask] = heat[mask] * 0.35 + np.array([220, 38, 38], dtype=np.float32) * 0.65
+    Image.fromarray(heat.astype("uint8")).save(out_dir / "mudancas.png", "PNG", optimize=True)
+
+    resumo = {
+        "comp_id": f"mosaico_{comp_id}",
+        "mosaico_a": {"job_id": job_a, "finalizado_em": ja.get("finalizado_em"),
+                       "gsd_cm": ja.get("gsd_cm")},
+        "mosaico_b": {"job_id": job_b, "finalizado_em": jb.get("finalizado_em"),
+                       "gsd_cm": jb.get("gsd_cm")},
+        "veg_antes_pct":  round(veg_a, 1),
+        "veg_depois_pct": round(veg_b, 1),
+        "delta_veg":      round(veg_b - veg_a, 1),
+        "diff_pct":       round(diff_pct, 1),
+        "bounds_intersecao": [[lat_min, lon_min], [lat_max, lon_max]],
+        "tamanho_analise":   [tw, th],
+    }
+    _audit(evento="comparacao_mosaicos", categoria="drone", usuario=usuario,
+           alvo=f"{job_a[:8]}~{job_b[:8]}",
+           detalhe=f"comp mosaico {comp_id[:8]}: diff {diff_pct:.1f}%, "
+                   f"dveg {veg_b - veg_a:+.1f}%")
+    return resumo
+
+
+def caminho_comparacao_mosaico(comp_id: str, tipo: str) -> Optional[Path]:
+    """Serve PNG (antes|depois|mudancas) da comparacao de mosaicos, com
+    validacao anti path-traversal."""
+    if tipo not in ("antes", "depois", "mudancas"):
+        return None
+    if not re.fullmatch(r"mosaico_[0-9a-f]{32}", comp_id):
+        return None
+    path = (COMP_DIR / comp_id / f"{tipo}.png").resolve()
+    if not str(path).startswith(str(COMP_DIR.resolve())):
+        return None
+    return path if path.exists() else None
