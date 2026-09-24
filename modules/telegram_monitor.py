@@ -189,15 +189,19 @@ def _alerta_de_mensagem(msg, canal_label: str, username: str | None,
 
 # ─── Núcleo assíncrono ────────────────────────────────────────────────────────
 
-async def _varrer_async(api_id: int, api_hash: str, session: str) -> dict:
+async def _varrer_async(api_id: int, api_hash: str, session: str,
+                         alvo_id: str | None = None) -> dict:
     from telethon import TelegramClient
     from telethon.sessions import StringSession
     from telethon.errors import FloodWaitError
 
-    alvos          = _carregar_alvos()
+    alvos          = _carregar_alvos(alvo_id)
     cfg            = _carregar_config_canais()
     canais         = [c for c in cfg.get("canais", []) if c]
-    termos_globais = [t for t in cfg.get("termos_globais", []) if t]
+    # Termos globais de facção só entram na varredura "todos os alvos" — numa
+    # varredura individualizada (alvo_id informado) o interesse é só aquele
+    # alvo/termo, não o contexto amplo de crime organizado.
+    termos_globais = [] if alvo_id is not None else [t for t in cfg.get("termos_globais", []) if t]
     alvo_tema      = {"id": None, "nome": _TEMA_FACCAO, "vulgos": []}
 
     alertas_atuais = _ler_alertas(ALERTAS_OST)
@@ -318,10 +322,11 @@ async def _descobrir_canais(client, alvos: list) -> list:
 
 # ─── Entrada síncrona (chamada pelo router FastAPI) ───────────────────────────
 
-def varrer_telegram() -> dict:
+def varrer_telegram(alvo_id: str | None = None) -> dict:
     """
     Varre o Telegram em busca de menções aos alvos e salva alertas OSINT.
     Wrapper síncrono — roda o núcleo async num event loop próprio.
+    `alvo_id`: se informado, varre só esse alvo/termo (varredura individualizada).
     """
     creds = _creds()
     if not creds:
@@ -330,7 +335,7 @@ def varrer_telegram() -> dict:
                            "(gere a session com scripts/telegram_login.py)"}
     api_id, api_hash, session = creds
     try:
-        return asyncio.run(_varrer_async(api_id, api_hash, session))
+        return asyncio.run(_varrer_async(api_id, api_hash, session, alvo_id=alvo_id))
     except Exception as e:
         return {"ok": False, "erro": "falha", "detalhe": f"{type(e).__name__}: {e}"}
 

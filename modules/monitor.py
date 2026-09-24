@@ -3,8 +3,15 @@
 monitor.py — Monitor de Alertas OSINT
 Agent Bastos | AIPEN
 
-Lê alvos.json, busca menções via Google News RSS e salva
-alertas no Firestore (com fallback local em alertas.json).
+Lê alvos.json, busca menções via GDELT DOC 2.0 (API gratuita e sem chave)
+e salva alertas no Firestore (com fallback local em alertas.json).
+
+Migrado do Google News RSS (scraping) em 2026-09: a rede desta agência foi
+bloqueada pelo Google por "tráfego incomum" após meses de varredura
+automática — o scraping devolvia HTTP 503 e o código antigo mascarava isso
+como "0 resultados", indistinguível de uma busca genuína sem achados. O
+GDELT é keyless, sem cota diária e sem esse risco de bloqueio (só exige
+>=5s entre requisições do mesmo IP, controlado por `_throttle_gdelt`).
 
 Chamado pelos endpoints:
   POST /alertas/varrer       → varrer_realtime()
@@ -14,13 +21,14 @@ Chamado pelos endpoints:
 import json
 import os
 import re
+import time
 import uuid
 import hashlib
 import socket
 import urllib.request
 import urllib.parse
+import urllib.error
 from datetime import datetime, timezone
-from xml.etree import ElementTree as ET
 
 # Timeout global: cobre conexão E leitura de dados
 # urllib.request.urlopen(timeout=N) só cobre conexão — socket cobre os dois
@@ -34,32 +42,57 @@ ALERTAS_OST = str(FILE_ALERTAS_OSINT)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-def _carregar_alvos() -> list:
+def _carregar_alvos(alvo_id: str | None = None) -> list:
     """
     Retorna a lista de alvos do alvos.json.
     Suporta dois tipos:
       {"id": 1, "nome": "João Silva"}           → tipo "pessoa" (nome completo, sem vulgos)
       {"id": "t1", "tipo": "termo", "termo": "CV-AM"}  → tipo "termo" (hashtag/expressão livre)
     Vulgos foram removidos da varredura — geram ruído excessivo sem contexto.
+
+    Se `alvo_id` for informado, filtra pra varredura individualizada de um só
+    alvo/termo (tela Alertas → dropdown "Alvo"); sem ele, varre todos (padrão
+    usado pelo scheduler automático).
     """
     if not os.path.exists(ALVOS_PATH):
         return []
     with open(ALVOS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+        alvos = json.load(f)
+    if alvo_id is not None:
+        alvos = [a for a in alvos if str(a.get("id")) == str(alvo_id)]
+    return alvos
 
 
 def _termos_de_busca(alvo: dict) -> list[str]:
     """
     Retorna a lista de termos a buscar para um alvo.
     - Pessoa: apenas o nome completo (vulgos excluídos — geram falsos positivos)
-    - Termo:  o próprio termo livre (ex: "CV-AM", "Tropa de Manaus")
+    - Termo:  o termo livre + variantes cadastradas (ex: "CV-AM" + ["CVAM", "CV/AM"])
     """
     if alvo.get("tipo") == "termo":
         t = (alvo.get("termo") or "").strip()
-        return [t] if t else []
+        variantes = [v.strip() for v in (alvo.get("variantes") or []) if v.strip()]
+        return ([t] if t else []) + variantes
     # Tipo pessoa — só o nome, sem vulgos
     nome = (alvo.get("nome") or "").strip()
     return [nome] if nome else []
+
+
+def _query_gdelt_do_alvo(alvo: dict) -> str | None:
+    """
+    Monta o núcleo da query GDELT pro alvo, JÁ entre aspas (uma frase exata
+    pra pessoa, ou um grupo OR de frases exatas quando o termo tem variantes
+    cadastradas). Siglas como "CV-AM" raramente aparecem escritas de forma
+    idêntica em toda notícia — sem as variantes, uma busca de frase exata
+    (o padrão de qualquer busca "entre aspas") acha muito pouco. Retorna
+    None se o alvo não tiver nome/termo válido.
+    """
+    termos = _termos_de_busca(alvo)
+    if not termos:
+        return None
+    if len(termos) == 1:
+        return f'"{termos[0]}"'
+    return "(" + " OR ".join(f'"{t}"' for t in termos) + ")"
 
 
 def _ler_alertas(caminho: str) -> list:
@@ -70,6 +103,28 @@ def _ler_alertas(caminho: str) -> list:
             return json.load(f)
     except Exception:
         return []
+
+
+# Retenção máxima dos alertas — mesma janela da busca no GDELT (90 dias),
+# pra ferramenta de OSINT ficar de fato "últimos 3 meses", sem acúmulo de
+# meses de varredura antiga poluindo a tela. Alerta sem timestamp válido
+# é mantido (não arrisca apagar dado por falha de parsing).
+_RETENCAO_DIAS = 90
+
+
+def _remover_antigos(alertas: list, dias: int = _RETENCAO_DIAS) -> list:
+    from datetime import timedelta
+    limite = datetime.now(timezone.utc) - timedelta(days=dias)
+    def _recente(a: dict) -> bool:
+        ts = a.get("timestamp")
+        if not ts:
+            return True
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            return dt >= limite
+        except Exception:
+            return True
+    return [a for a in alertas if _recente(a)]
 
 
 def _salvar_alertas(caminho: str, alertas: list) -> None:
@@ -168,7 +223,7 @@ def _salvar_firestore(alerta: dict, colecao: str = "alertas") -> bool:
         return False
 
 
-# ─── Google News RSS ──────────────────────────────────────────────────────────
+# ─── GDELT DOC 2.0 (busca de notícias real, gratuita, sem chave) ─────────────
 
 def _janela_dias() -> int:
     """Retorna quantos dias atrás considerar como 'atual'. Configurável via .env."""
@@ -178,259 +233,261 @@ def _janela_dias() -> int:
         return 30
 
 
-def _parsear_data(pub_raw: str):
+class BuscaExternaIndisponivel(Exception):
     """
-    Tenta parsear a data de publicação do RSS (formato RFC 2822).
-    Retorna datetime timezone-aware ou None se não conseguir.
+    Levantada quando a busca no GDELT falha (rede, timeout ou HTTP de erro).
+    `bloqueio` sinaliza especificamente rate-limit (HTTP 429 — GDELT exige
+    >=5s entre requisições do mesmo IP) pro chamador poder avisar o operador
+    com uma mensagem acionável, em vez de mostrar "0 alertas" como se a busca
+    tivesse rodado normal e não encontrado nada (foi assim que o bloqueio do
+    Google passou despercebido antes desta migração).
     """
-    if not pub_raw:
-        return None
-    formatos = [
-        "%a, %d %b %Y %H:%M:%S %z",
-        "%a, %d %b %Y %H:%M:%S GMT",
-        "%d %b %Y %H:%M:%S %z",
-    ]
-    for fmt in formatos:
-        try:
-            from datetime import timezone as _tz
-            dt = datetime.strptime(pub_raw, fmt)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=_tz.utc)
-            return dt
-        except ValueError:
-            continue
-    return None
+    def __init__(self, motivo: str, bloqueio: bool = False):
+        super().__init__(motivo)
+        self.bloqueio = bloqueio
 
 
-def _buscar_google_news(termo: str, max_resultados: int = 5) -> list:
-    """
-    Busca no Google News RSS por termo.
-    Filtra automaticamente resultados mais antigos que WATCHLIST_JANELA_DIAS (padrão: 30 dias).
-    Retorna lista de dicts: {titulo, resumo, link, fonte, data_pub}
-    """
-    janela = _janela_dias()
-    # Parâmetro 'after:' do Google News limita a data mínima na query
-    from datetime import timedelta
-    data_corte = datetime.now(timezone.utc) - timedelta(days=janela)
-    after_str  = data_corte.strftime("%Y-%m-%d")
+# GDELT pede explicitamente >=1 requisição a cada 5s por IP (senão devolve
+# texto simples "Please limit requests..." em vez de JSON, e pode entrar
+# num cooldown mais longo se o limite for ignorado repetidas vezes).
+# `_throttle_gdelt` garante esse espaçamento entre TODAS as chamadas do
+# processo, sequencialmente — por isso uma varredura de muitos alvos fica
+# mais lenta (é o preço de uma API gratuita e sem bloqueio de IP).
+_GDELT_ULTIMA_CHAMADA = 0.0
+_GDELT_INTERVALO_MIN  = 5.2
 
-    query = urllib.parse.quote(f'"{termo}" Manaus OR Amazonas OR AM after:{after_str}')
-    url   = f"https://news.google.com/rss/search?q={query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
 
+def _throttle_gdelt() -> None:
+    global _GDELT_ULTIMA_CHAMADA
+    espera = _GDELT_INTERVALO_MIN - (time.monotonic() - _GDELT_ULTIMA_CHAMADA)
+    if espera > 0:
+        time.sleep(espera)
+    _GDELT_ULTIMA_CHAMADA = time.monotonic()
+
+
+def _buscar_gdelt(query_alvo: str, max_resultados: int = 5, dias: int | None = None) -> list:
+    """
+    Busca notícias reais via GDELT DOC 2.0 (https://api.gdeltproject.org) —
+    gratuita, sem chave de API, sem cota diária. Cobre uma janela rolante de
+    até 3 meses de cobertura global; `dias` limita a busca a esse recorte
+    (padrão: WATCHLIST_JANELA_DIAS).
+    `query_alvo` já vem pronto e entre aspas — normalmente `_query_gdelt_do_alvo()`
+    (frase exata, ou grupo OR de frases quando o alvo tem variantes).
+    Retorna lista de dicts: {titulo, resumo, link, fonte, data_pub}.
+    GDELT não devolve trecho/resumo do artigo (só metadados) — "resumo" fica
+    vazio; a classificação de risco usa o título mesmo.
+    Levanta BuscaExternaIndisponivel se a requisição falhar — NUNCA retorna
+    lista vazia por falha de rede, pra não ser confundido com "sem resultado".
+    """
+    _throttle_gdelt()
+    janela = min(dias or _janela_dias(), 90)  # DOC 2.0 só cobre ~3 meses
+
+    query = urllib.parse.quote(f'{query_alvo} sourcecountry:brazil sourcelang:portuguese')
+    url = (
+        "https://api.gdeltproject.org/api/v2/doc/doc"
+        f"?query={query}&mode=artlist&maxrecords={max_resultados}"
+        f"&timespan={janela}d&format=json&sort=datedesc"
+    )
     headers = {"User-Agent": "Mozilla/5.0 (compatible; AgentBastos/1.0)"}
     req     = urllib.request.Request(url, headers=headers)
 
     try:
-        with urllib.request.urlopen(req) as resp:
-            xml = resp.read()
-    except Exception:
-        return []
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            corpo = resp.read()
+    except urllib.error.HTTPError as e:
+        raise BuscaExternaIndisponivel(f"GDELT HTTP {e.code}", bloqueio=(e.code == 429)) from e
+    except Exception as e:
+        raise BuscaExternaIndisponivel(f"GDELT {type(e).__name__}: {e}") from e
+
+    texto = corpo.decode("utf-8", errors="replace").strip()
+    if not texto.startswith("{"):
+        # GDELT devolve texto plano (não JSON) quando o rate-limit é violado
+        raise BuscaExternaIndisponivel("GDELT rate-limit (resposta não-JSON)", bloqueio=True)
+
+    try:
+        dados = json.loads(texto)
+    except json.JSONDecodeError:
+        return []  # corpo malformado isolado — trata como zero resultados
 
     resultados = []
-    try:
-        root  = ET.fromstring(xml)
-        items = root.findall(".//item")
-        for item in items:
-            titulo  = item.findtext("title", "").strip()
-            link    = item.findtext("link",  "").strip()
-            desc    = item.findtext("description", "").strip()
-            fonte   = item.findtext("source", "").strip() or "Google News"
-            pub_raw = item.findtext("pubDate", "").strip()
-
-            # Validação dupla: além do filtro na query, checa a data do item
-            # (Google às vezes ignora o after: em alguns resultados)
-            dt_pub = _parsear_data(pub_raw)
-            if dt_pub and dt_pub < data_corte:
-                continue  # descarta item antigo
-
-            resumo = re.sub(r"<[^>]+>", "", desc).strip()[:400]
-
-            resultados.append({
-                "titulo":   titulo,
-                "resumo":   resumo,
-                "link":     link,
-                "fonte":    fonte,
-                "data_pub": pub_raw,
-            })
-
-            if len(resultados) >= max_resultados:
-                break
-
-    except ET.ParseError:
-        pass
-
+    for art in (dados.get("articles") or [])[:max_resultados]:
+        resultados.append({
+            "titulo":   (art.get("title") or "").strip(),
+            "resumo":   "",
+            "link":     art.get("url") or "",
+            "fonte":    art.get("domain") or "GDELT",
+            "data_pub": art.get("seendate") or "",
+        })
     return resultados
 
 
 # ─── Varredura Tempo Real (Google News) ──────────────────────────────────────
 
-def varrer_realtime() -> dict:
+def varrer_realtime(alvo_id: str | None = None) -> dict:
     """
-    Busca menções a alvos e vulgos no Google News.
+    Busca menções a alvos e vulgos via GDELT (notícias).
     Salva alertas novos no Firestore + fallback local.
+    `alvo_id`: se informado, varre só esse alvo/termo (varredura individualizada).
     """
-    alvos        = _carregar_alvos()
+    alvos        = _carregar_alvos(alvo_id)
     alertas_atuais = _ler_alertas(ALERTAS_RT)
     ids_existentes = {a.get("id") for a in alertas_atuais}
     novos          = []
     ia_orcamento   = _IA_MAX_POR_VARREDURA
+    buscas_falhas  = 0
+    bloqueio_busca = False
 
     for alvo in alvos:
-        termos = _termos_de_busca(alvo)
+        query_alvo = _query_gdelt_do_alvo(alvo)
+        if not query_alvo:
+            continue
+        nome_ref = alvo.get("nome") or alvo.get("termo") or ""
 
-        for termo in termos:
-            noticias = _buscar_google_news(termo, max_resultados=3)
+        try:
+            noticias = _buscar_gdelt(query_alvo, max_resultados=5)
+        except BuscaExternaIndisponivel as e:
+            buscas_falhas += 1
+            if e.bloqueio:
+                bloqueio_busca = True
+            continue
 
-            for n in noticias:
-                id_alerta = _gerar_id(n["link"] + termo)
-                if id_alerta in ids_existentes:
-                    continue
+        for n in noticias:
+            id_alerta = _gerar_id(n["link"] + nome_ref)
+            if id_alerta in ids_existentes:
+                continue
 
-                risco = _classificar_risco(n["titulo"], n["resumo"])
+            risco = _classificar_risco(n["titulo"], n["resumo"])
 
-                alerta = {
-                    "id":              id_alerta,
-                    "tipo":            "noticia",
-                    "fonte":           n["fonte"],
-                    "link":            n["link"],
-                    "titulo":          n["titulo"],
-                    "resumo":          n["resumo"],
-                    "risco":           risco,
-                    "timestamp":       datetime.now(timezone.utc).isoformat(),
-                    "lido":            False,
-                    "categoria":       "realtime",
-                    "alvo_id":          alvo["id"],
-                    "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
-                    "alvo_tipo":        alvo.get("tipo", "pessoa"),
-                    "termo_encontrado": termo,
-                    "analise_ia":       None,
-                }
+            alerta = {
+                "id":              id_alerta,
+                "tipo":            "noticia",
+                "fonte":           n["fonte"],
+                "link":            n["link"],
+                "titulo":          n["titulo"],
+                "resumo":          n["resumo"],
+                "risco":           risco,
+                "timestamp":       datetime.now(timezone.utc).isoformat(),
+                "lido":            False,
+                "categoria":       "realtime",
+                "alvo_id":          alvo["id"],
+                "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
+                "alvo_tipo":        alvo.get("tipo", "pessoa"),
+                "termo_encontrado": nome_ref,
+                "analise_ia":       None,
+            }
 
-                nome_ref = alvo.get("nome") or alvo.get("termo") or termo
-                if ia_orcamento > 0:
-                    ia = _analisar_ia(n["titulo"], n["resumo"], nome_ref)
-                    if ia:
-                        if ia["risco"]:
-                            alerta["risco"] = ia["risco"]
-                        alerta["analise_ia"] = ia["analise"]
-                        ia_orcamento -= 1
+            if ia_orcamento > 0:
+                ia = _analisar_ia(n["titulo"], n["resumo"], nome_ref)
+                if ia:
+                    if ia["risco"]:
+                        alerta["risco"] = ia["risco"]
+                    alerta["analise_ia"] = ia["analise"]
+                    ia_orcamento -= 1
 
-                _salvar_firestore(alerta)
-                novos.append(alerta)
-                ids_existentes.add(id_alerta)
+            _salvar_firestore(alerta)
+            novos.append(alerta)
+            ids_existentes.add(id_alerta)
 
+    # Poda alertas com mais de 90 dias a CADA varredura (mesmo sem novos
+    # achados) — sem isso, meses de scan antigo ficam acumulados no cache
+    # local até serem empurrados pelo limite de 200 itens, poluindo a tela.
+    limpos = _remover_antigos(alertas_atuais)
+    if novos or len(limpos) != len(alertas_atuais):
+        _salvar_alertas(ALERTAS_RT, (novos + limpos)[:200])
     if novos:
-        alertas_atualizados = novos + alertas_atuais
-        _salvar_alertas(ALERTAS_RT, alertas_atualizados[:200])
         _hitl_automatico(novos)
 
-    return {"ok": True, "novos": len(novos), "alvos_varridos": len(alvos)}
+    return {
+        "ok": True, "novos": len(novos), "alvos_varridos": len(alvos),
+        "buscas_falhas": buscas_falhas, "bloqueio_busca": bloqueio_busca,
+    }
 
 
-# ─── Varredura OSINT (Google Dork) ───────────────────────────────────────────
+# ─── Varredura OSINT (cobertura estendida via GDELT) ─────────────────────────
+# ANTES: "Google Dork" — montava site:facebook.com/instagram.com/etc mas
+# rodava tudo pelo Google News RSS, que ignorava o operador `site:` e só
+# devolvia notícia mesmo (achado já registrado antes desta migração — nunca
+# pesquisou rede social de verdade). Mantido honesto agora: mesma fonte do
+# Tempo Real, mas com janela de cobertura mais ampla (90 dias, o máximo do
+# GDELT) — pega menções mais antigas que a varredura de Tempo Real (30 dias)
+# deixaria passar.
 
-_DORK_SITES = [
-    "site:facebook.com",
-    "site:instagram.com",
-    "site:twitter.com",
-    "site:tiktok.com",
-    "site:youtube.com",
-    "site:pastebin.com",
-    "site:t.me",
-]
-
-def varrer_osint() -> dict:
+def varrer_osint(alvo_id: str | None = None) -> dict:
     """
-    Executa Google Dorks para cada alvo nas principais redes sociais.
+    Busca menções a alvos numa janela mais ampla (90 dias) via GDELT.
     Salva alertas OSINT novos no Firestore + fallback local.
+    `alvo_id`: se informado, varre só esse alvo/termo (varredura individualizada).
     """
-    alvos           = _carregar_alvos()
+    alvos           = _carregar_alvos(alvo_id)
     alertas_atuais  = _ler_alertas(ALERTAS_OST)
     ids_existentes  = {a.get("id") for a in alertas_atuais}
     novos           = []
     ia_orcamento    = _IA_MAX_POR_VARREDURA
+    buscas_falhas   = 0
+    bloqueio_busca  = False
 
     for alvo in alvos:
-        termos = _termos_de_busca(alvo)
+        query_alvo = _query_gdelt_do_alvo(alvo)
+        if not query_alvo:
+            continue
+        nome_ref = alvo.get("nome") or alvo.get("termo") or ""
 
-        for termo in termos:
-            for site in _DORK_SITES[:3]:  # Máx 3 sites por termo
-                dork     = f'{site} "{termo}"'
-                query    = urllib.parse.quote(f'{dork} Manaus')
-                url      = f"https://news.google.com/rss/search?q={query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
-                headers  = {"User-Agent": "Mozilla/5.0 (compatible; AgentBastos/1.0)"}
-                req      = urllib.request.Request(url, headers=headers)
+        try:
+            noticias = _buscar_gdelt(query_alvo, max_resultados=5, dias=90)
+        except BuscaExternaIndisponivel as e:
+            buscas_falhas += 1
+            if e.bloqueio:
+                bloqueio_busca = True
+            continue
 
-                try:
-                    with urllib.request.urlopen(req) as resp:
-                        xml = resp.read()
-                    root  = ET.fromstring(xml)
-                    items = root.findall(".//item")[:2]
-                except Exception:
-                    continue
+        for n in noticias:
+            id_alerta = _gerar_id(n["link"] + nome_ref + "osint")
+            if id_alerta in ids_existentes:
+                continue
 
-                for item in items:
-                    titulo   = item.findtext("title", "").strip()
-                    link     = item.findtext("link",  "").strip()
-                    desc     = item.findtext("description", "").strip()
-                    resumo   = re.sub(r"<[^>]+>", "", desc).strip()[:400]
-                    id_alerta = _gerar_id(link + termo + site)
+            alerta = {
+                "id":              id_alerta,
+                "tipo":            "gdelt",
+                "fonte":           n["fonte"],
+                "link":            n["link"],
+                "titulo":          n["titulo"],
+                "resumo":          n["resumo"],
+                "risco":           _classificar_risco(n["titulo"], n["resumo"]),
+                "timestamp":       datetime.now(timezone.utc).isoformat(),
+                "lido":            False,
+                "categoria":       "osint",
+                "alvo_id":          alvo["id"],
+                "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
+                "alvo_tipo":        alvo.get("tipo", "pessoa"),
+                "termo_encontrado": nome_ref,
+                "analise_ia":      None,
+            }
 
-                    if id_alerta in ids_existentes:
-                        continue
+            if ia_orcamento > 0:
+                ia = _analisar_ia(n["titulo"], n["resumo"], nome_ref)
+                if ia:
+                    if ia["risco"]:
+                        alerta["risco"] = ia["risco"]
+                    alerta["analise_ia"] = ia["analise"]
+                    ia_orcamento -= 1
 
-                    # Detecta plataforma pelo site do dork
-                    plataforma_map = {
-                        "facebook":   "Facebook",
-                        "instagram":  "Instagram",
-                        "twitter":    "Twitter/X",
-                        "tiktok":     "TikTok",
-                        "youtube":    "YouTube",
-                        "pastebin":   "Pastebin",
-                        "t.me":       "Telegram",
-                    }
-                    plataforma = next(
-                        (v for k, v in plataforma_map.items() if k in site), "Web"
-                    )
+            _salvar_firestore(alerta)
+            novos.append(alerta)
+            ids_existentes.add(id_alerta)
 
-                    alerta = {
-                        "id":              id_alerta,
-                        "tipo":            "google_dork",
-                        "fonte":           f"Google Dork — {plataforma}",
-                        "link":            link,
-                        "titulo":          titulo,
-                        "resumo":          resumo,
-                        "risco":           "MÉDIO",
-                        "timestamp":       datetime.now(timezone.utc).isoformat(),
-                        "lido":            False,
-                        "categoria":       "osint",
-                        "alvo_id":          alvo["id"],
-                        "alvo_nome":        alvo.get("nome") or alvo.get("termo"),
-                        "alvo_tipo":        alvo.get("tipo", "pessoa"),
-                        "termo_encontrado": termo,
-                        "dork":            dork,
-                        "plataforma":      plataforma,
-                        "analise_ia":      None,
-                    }
-
-                    if ia_orcamento > 0:
-                        ia = _analisar_ia(titulo, resumo, alvo["nome"])
-                        if ia:
-                            if ia["risco"]:
-                                alerta["risco"] = ia["risco"]
-                            alerta["analise_ia"] = ia["analise"]
-                            ia_orcamento -= 1
-
-                    _salvar_firestore(alerta)
-                    novos.append(alerta)
-                    ids_existentes.add(id_alerta)
-
+    # Poda alertas com mais de 90 dias a CADA varredura (mesmo sem novos
+    # achados) — sem isso, meses de scan antigo ficam acumulados no cache
+    # local até serem empurrados pelo limite de 200 itens, poluindo a tela.
+    limpos = _remover_antigos(alertas_atuais)
+    if novos or len(limpos) != len(alertas_atuais):
+        _salvar_alertas(ALERTAS_OST, (novos + limpos)[:200])
     if novos:
-        alertas_atualizados = novos + alertas_atuais
-        _salvar_alertas(ALERTAS_OST, alertas_atualizados[:200])
         _hitl_automatico(novos)
 
-    return {"ok": True, "novos": len(novos), "alvos_varridos": len(alvos)}
+    return {
+        "ok": True, "novos": len(novos), "alvos_varridos": len(alvos),
+        "buscas_falhas": buscas_falhas, "bloqueio_busca": bloqueio_busca,
+    }
 
 
 # ─── Backfill de análise por IA ───────────────────────────────────────────────

@@ -22,9 +22,13 @@ Rotas registradas:
   POST   /alertas/analisar-pendentes
   POST   /alertas/telegram/varrer
   GET    /alertas/telegram/status
+  GET    /alertas/alvos
+  POST   /alertas/alvos
+  PATCH  /alertas/alvos/{alvo_id}/variantes
+  DELETE /alertas/alvos/{alvo_id}
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from services.alertas_service import (
     ler_alertas,
     salvar_alertas,
@@ -35,6 +39,7 @@ from fastapi import BackgroundTasks
 from dependencies import get_current_user, require_module
 from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA
 from services.logging_service import get_logger
+import services.alvos_service as alvos_service
 
 _log_audit = get_logger("audit.alertas")
 
@@ -187,18 +192,20 @@ def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
 
 @router.post("/alertas/varrer")
 @limiter.limit(LIMIT_VARREDURA)
-def varrer_alertas_realtime(request: Request, user: dict = Depends(require_module("alertas"))):
+def varrer_alertas_realtime(request: Request, alvo_id: str | None = None,
+                             user: dict = Depends(require_module("alertas"))):
     from modules.monitor import varrer_realtime
-    _log_audit.info("varrer realtime", extra={"username": user.get("sub")})
-    return varrer_realtime()
+    _log_audit.info("varrer realtime", extra={"username": user.get("sub"), "alvo_id": alvo_id})
+    return varrer_realtime(alvo_id=alvo_id)
 
 
 @router.post("/alertas/osint/varrer")
 @limiter.limit(LIMIT_VARREDURA)
-def varrer_alertas_osint(request: Request, user: dict = Depends(require_module("osint"))):
+def varrer_alertas_osint(request: Request, alvo_id: str | None = None,
+                          user: dict = Depends(require_module("osint"))):
     from modules.monitor import varrer_osint
-    _log_audit.info("varrer osint", extra={"username": user.get("sub")})
-    return varrer_osint()
+    _log_audit.info("varrer osint", extra={"username": user.get("sub"), "alvo_id": alvo_id})
+    return varrer_osint(alvo_id=alvo_id)
 
 
 @router.post("/alertas/analisar-pendentes")
@@ -213,11 +220,12 @@ def analisar_alertas_pendentes(request: Request, limite: int = 20,
 
 @router.post("/alertas/telegram/varrer")
 @limiter.limit(LIMIT_VARREDURA)
-def varrer_alertas_telegram(request: Request, user: dict = Depends(require_module("osint"))):
+def varrer_alertas_telegram(request: Request, alvo_id: str | None = None,
+                             user: dict = Depends(require_module("osint"))):
     """Varre canais públicos do Telegram em busca de menções aos alvos (salva como OSINT)."""
     from modules.telegram_monitor import varrer_telegram
-    _log_audit.info("varrer telegram", extra={"username": user.get("sub")})
-    return varrer_telegram()
+    _log_audit.info("varrer telegram", extra={"username": user.get("sub"), "alvo_id": alvo_id})
+    return varrer_telegram(alvo_id=alvo_id)
 
 
 @router.get("/alertas/telegram/status")
@@ -225,6 +233,58 @@ def status_alertas_telegram(user: dict = Depends(require_module("osint"))):
     """Verifica se as credenciais/sessão do Telegram estão válidas (sem varrer)."""
     from modules.telegram_monitor import status_telegram
     return status_telegram()
+
+
+# ─── Watchlist de alvos/termos (CRUD) ─────────────────────────────────────────
+# Alimenta as 3 varreduras acima (Tempo Real, OSINT/Dork, Telegram) a partir do
+# mesmo data/alvos.json. Antes só era editável direto no arquivo pelo backend;
+# agora qualquer agente com acesso ao módulo "alertas" cadastra/remove pela tela
+# (ex: dar baixa num alvo que foi preso, morreu ou saiu da facção).
+
+@router.get("/alertas/alvos")
+def listar_alvos(user: dict = Depends(require_module("alertas"))):
+    return alvos_service.listar_alvos()
+
+
+@router.post("/alertas/alvos")
+def criar_alvo(payload: dict, user: dict = Depends(require_module("alertas"))):
+    try:
+        novo = alvos_service.criar_alvo(
+            tipo=payload.get("tipo", "pessoa"),
+            nome=payload.get("nome", ""),
+            termo=payload.get("termo", ""),
+            vulgos=payload.get("vulgos") or [],
+            descricao=payload.get("descricao", ""),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _log_audit.info("alvo criado", extra={"username": user.get("sub"), "alvo": novo})
+    return novo
+
+
+@router.patch("/alertas/alvos/{alvo_id}/variantes")
+def editar_variantes_alvo(alvo_id: str, payload: dict, user: dict = Depends(require_module("alertas"))):
+    """
+    Atualiza a lista de variantes/sinônimos de um termo já cadastrado (ex:
+    CV-AM ganha "CVAM", "CV/AM", "Comando Vermelho do Amazonas") sem recriar
+    o alvo — preserva o alvo_id e o histórico de alertas já vinculados a ele.
+    """
+    try:
+        atualizado = alvos_service.editar_variantes(alvo_id, payload.get("variantes") or [])
+    except ValueError as e:
+        status = 404 if "não encontrado" in str(e) else 400
+        raise HTTPException(status_code=status, detail=str(e))
+    _log_audit.info("variantes de alvo atualizadas", extra={"username": user.get("sub"), "alvo": atualizado})
+    return atualizado
+
+
+@router.delete("/alertas/alvos/{alvo_id}")
+def remover_alvo(alvo_id: str, user: dict = Depends(require_module("alertas"))):
+    ok = alvos_service.remover_alvo(alvo_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Alvo não encontrado")
+    _log_audit.info("alvo removido", extra={"username": user.get("sub"), "alvo_id": alvo_id})
+    return {"ok": True, "id": alvo_id}
 
 
 # ─── Resolucao de redirect de links do Google News ────────────────────────────
