@@ -71,7 +71,7 @@ export default function Login({ onLogin }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       height: "100vh", background: "#0B1120", fontFamily: SANS,
       backgroundImage: `url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.9' fill='%23FFFFFF' fill-opacity='0.04'/%3E%3C/svg%3E")`,
-      position: "relative",
+      position: "relative", WebkitAppRegion: "drag",
     }}>
 
       {/* ── Controles de janela — canto superior direito ── */}
@@ -100,6 +100,7 @@ export default function Login({ onLogin }) {
         border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 16, padding: "40px 36px",
         boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
+        WebkitAppRegion: "no-drag",
       }}>
 
         <div style={{ textAlign: "center", marginBottom: 32 }}>

@@ -691,7 +691,7 @@ function AppShell() {
           background:"rgba(10,16,30,0.97)", backdropFilter:"blur(24px)",
           borderBottom:"1px solid rgba(255,255,255,0.07)",
           boxShadow:"0 1px 0 rgba(232,160,32,0.12),0 4px 20px rgba(0,0,0,0.4)",
-          position:"relative", zIndex:20
+          position:"relative", zIndex:20, WebkitAppRegion:"drag"
         }}>
 
           {/* ── Breadcrumb ── */}
@@ -719,7 +719,7 @@ function AppShell() {
           })()}
 
           {/* ── Centro: inline search ── */}
-          <div style={{flex:1,maxWidth:440,margin:"0 auto",position:"relative"}}>
+          <div style={{flex:1,maxWidth:440,margin:"0 auto",position:"relative",WebkitAppRegion:"no-drag"}}>
             {/* Trigger / Input */}
             {!showSearch ? (
               <button onClick={()=>{setShowSearch(true);setSearchQuery(""); setTimeout(()=>searchInputRef.current?.focus(),30)}}
@@ -800,7 +800,7 @@ function AppShell() {
           </div>
 
           {/* ── Direita: ações ── */}
-          <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0,WebkitAppRegion:"no-drag"}}>
 
             {/* Sino de alertas — dropdown de notificações */}
             <div style={{position:"relative"}}>

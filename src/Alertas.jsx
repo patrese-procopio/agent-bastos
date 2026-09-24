@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 import useAutoRefresh, { formatarHaTempo } from "./useAutoRefresh"
 import api from "./api"
+import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const SANS = "'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
@@ -12,7 +15,7 @@ const GLOBAL_CSS = `
   .alert-pulse  { animation: pulse-alert 2s ease-in-out infinite; }
   .spin         { animation: spin 1s linear infinite; }
   .card-row:hover { background: rgba(232,160,32,0.06) !important; cursor: pointer; }
-  ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
+  ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:5px} ::-webkit-scrollbar-thumb:hover{background:rgba(232,160,32,0.45)}
 `
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -22,6 +25,11 @@ const RISK = {
   BAIXO: { color:"#4ADE80", bg:"rgba(74,222,128,0.12)", border:"rgba(74,222,128,0.3)", dot:"#22C55E" },
 }
 const r = (level, key) => (RISK[level] || RISK.MÉDIO)[key]
+
+function rotuloAlvo(a) {
+  if (!a) return ""
+  return a.tipo === "termo" ? `# ${a.termo}` : a.nome
+}
 
 function timeAgo(iso) {
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
@@ -37,6 +45,7 @@ const TIPO_CONFIG = {
   youtube:      { label:"▶ YouTube",     color:"#F87171", bg:"rgba(239,68,68,0.12)",   border:"rgba(239,68,68,0.3)",   categoria:"realtime" },
   sherlock:     { label:"🔍 Sherlock",   color:"#60A5FA", bg:"rgba(96,165,250,0.12)",  border:"rgba(96,165,250,0.3)",  categoria:"osint"    },
   google_dork:  { label:"🌐 Dork",       color:"#A78BFA", bg:"rgba(167,139,250,0.12)", border:"rgba(167,139,250,0.3)", categoria:"osint"    },
+  gdelt:        { label:"🌐 GDELT",      color:"#A78BFA", bg:"rgba(167,139,250,0.12)", border:"rgba(167,139,250,0.3)", categoria:"osint"    },
   maigret:      { label:"🕵 Maigret",    color:"#94A3B8", bg:"rgba(148,163,184,0.12)", border:"rgba(148,163,184,0.3)", categoria:"osint"    },
 }
 
@@ -215,6 +224,221 @@ function AlertCard({ alerta, isSelected, onClick, onLido }) {
   )
 }
 
+// ── Modal Gerenciar Alvos ────────────────────────────────────────────────────
+// CRUD da watchlist (data/alvos.json no backend) direto pela tela — antes só
+// dava pra editar mexendo em código. Alimenta as 3 varreduras (Tempo Real,
+// OSINT/Dork, Telegram) e o dropdown de varredura individualizada.
+function ModalGerenciarAlvos({ alvos, onFechar, onMudou }) {
+  const [tipo, setTipo]         = useState("pessoa")
+  const [nome, setNome]         = useState("")
+  const [vulgos, setVulgos]     = useState("")
+  const [termo, setTermo]       = useState("")
+  const [descricao, setDescricao] = useState("")
+  const [salvando, setSalvando] = useState(false)
+  const [editandoId, setEditandoId] = useState(null)
+  const [variantesEdit, setVariantesEdit] = useState("")
+  const [salvandoVariantes, setSalvandoVariantes] = useState(false)
+
+  const pessoas = alvos.filter(a => (a.tipo || "pessoa") === "pessoa")
+  const termos  = alvos.filter(a => a.tipo === "termo")
+
+  async function adicionar() {
+    if (tipo === "pessoa" && !nome.trim())  return toast.error("Informe o nome do alvo.")
+    if (tipo === "termo"  && !termo.trim()) return toast.error("Informe o termo de busca.")
+    setSalvando(true)
+    try {
+      const listaVulgos = vulgos.split(",").map(v=>v.trim()).filter(Boolean)
+      const payload = tipo === "pessoa"
+        ? { tipo, nome: nome.trim(), vulgos: listaVulgos }
+        : { tipo, termo: termo.trim(), vulgos: listaVulgos, descricao: descricao.trim() }
+      const res = await api.post("/alertas/alvos", payload)
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.detail || "Não foi possível adicionar."); return }
+      toast.success(tipo === "pessoa" ? `"${data.nome}" adicionado à watchlist.` : `Termo "${data.termo}" adicionado.`)
+      setNome(""); setVulgos(""); setTermo(""); setDescricao("")
+      onMudou()
+    } catch {
+      toast.error("Sem conexão com o servidor.")
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  function abrirEdicaoVariantes(alvo) {
+    setEditandoId(alvo.id)
+    setVariantesEdit((alvo.variantes || []).join(", "))
+  }
+
+  async function salvarVariantes(alvo) {
+    setSalvandoVariantes(true)
+    try {
+      const lista = variantesEdit.split(",").map(v=>v.trim()).filter(Boolean)
+      const res = await api.patch(`/alertas/alvos/${alvo.id}/variantes`, { variantes: lista })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.detail || "Não foi possível salvar."); return }
+      toast.success(`Variantes de "${alvo.termo}" atualizadas.`)
+      setEditandoId(null)
+      onMudou()
+    } catch {
+      toast.error("Sem conexão com o servidor.")
+    } finally {
+      setSalvandoVariantes(false)
+    }
+  }
+
+  function remover(alvo) {
+    const label = alvo.tipo === "termo" ? alvo.termo : alvo.nome
+    confirm({
+      title: "Remover da watchlist",
+      description: `"${label}" vai parar de ser buscado nas próximas varreduras (Tempo Real, OSINT e Telegram). Os alertas já gerados permanecem no histórico.`,
+      confirmLabel: "Remover",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await api.delete(`/alertas/alvos/${alvo.id}`)
+          if (!res.ok) { toast.error("Não foi possível remover."); return }
+          toast.success(`"${label}" removido da watchlist.`)
+          onMudou()
+        } catch {
+          toast.error("Sem conexão com o servidor.")
+        }
+      },
+    })
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+      <div style={{background:"#111827",borderRadius:10,width:"100%",maxWidth:560,
+        border:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",
+        maxHeight:"88vh",overflow:"hidden"}}>
+
+        {/* Header */}
+        <div style={{padding:"14px 20px",background:"rgba(255,255,255,0.02)",
+          borderBottom:"1px solid rgba(255,255,255,0.07)",
+          display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9",fontFamily:MONO}}>GERENCIAR ALVOS E TERMOS</div>
+            <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,marginTop:2}}>
+              {pessoas.length} pessoas · {termos.length} termos — alimenta as 3 varreduras
+            </div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",
+            borderRadius:6,width:28,height:28,cursor:"pointer",color:"#94A3B8",fontSize:16,
+            display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+
+        {/* Form de adicionar */}
+        <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+          <div style={{display:"flex",gap:6,marginBottom:12}}>
+            {[["pessoa","👤 Pessoa"],["termo","# Termo"]].map(([id,label])=>(
+              <button key={id} onClick={()=>setTipo(id)} style={{
+                flex:1,padding:"7px 0",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",
+                fontFamily:MONO,border:`1px solid ${tipo===id?"rgba(232,160,32,0.4)":"rgba(255,255,255,0.08)"}`,
+                background:tipo===id?"rgba(232,160,32,0.14)":"transparent",
+                color:tipo===id?"#E8A020":"#94A3B8",
+              }}>{label}</button>
+            ))}
+          </div>
+
+          {tipo === "pessoa" ? (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <input value={nome} onChange={e=>setNome(e.target.value)}
+                placeholder="Nome completo do alvo"
+                style={S.modalInput}/>
+              <input value={vulgos} onChange={e=>setVulgos(e.target.value)}
+                placeholder="Vulgos (opcional, separados por vírgula)"
+                style={S.modalInput}/>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <input value={termo} onChange={e=>setTermo(e.target.value)}
+                placeholder='Termo livre (ex: "CV-AM", "Tropa de Manaus")'
+                style={S.modalInput}/>
+              <input value={vulgos} onChange={e=>setVulgos(e.target.value)}
+                placeholder="Variantes/como também é escrito (opcional, separadas por vírgula: CVAM, CV/AM...)"
+                style={S.modalInput}/>
+              <input value={descricao} onChange={e=>setDescricao(e.target.value)}
+                placeholder="Descrição (opcional)"
+                style={S.modalInput}/>
+            </div>
+          )}
+
+          <button onClick={adicionar} disabled={salvando} style={{
+            marginTop:10,width:"100%",padding:"9px",borderRadius:7,border:"none",cursor:"pointer",
+            background:"#E8A020",color:"#0F172A",fontSize:13,fontWeight:800,fontFamily:MONO,
+            opacity:salvando?0.6:1,
+          }}>{salvando?"Adicionando...":"+ Adicionar à watchlist"}</button>
+        </div>
+
+        {/* Lista atual */}
+        <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
+          {alvos.length === 0 && (
+            <div style={{padding:"30px 20px",textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:13,fontFamily:MONO}}>
+              Nenhum alvo cadastrado ainda.
+            </div>
+          )}
+          {pessoas.length > 0 && (
+            <div style={{padding:"6px 20px 2px",fontSize:11,fontWeight:700,color:"#64748B",
+              letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO}}>Pessoas ({pessoas.length})</div>
+          )}
+          {pessoas.map(a => (
+            <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,
+              padding:"9px 20px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#F1F5F9"}}>{a.nome}</div>
+                {a.vulgos?.length > 0 && (
+                  <div style={{fontSize:11,color:"#94A3B8",fontFamily:MONO,marginTop:1}}>{a.vulgos.join(", ")}</div>
+                )}
+              </div>
+              <button onClick={()=>remover(a)} title="Remover"
+                style={S.trashBtn}>🗑</button>
+            </div>
+          ))}
+          {termos.length > 0 && (
+            <div style={{padding:"12px 20px 2px",fontSize:11,fontWeight:700,color:"#64748B",
+              letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO}}>Termos ({termos.length})</div>
+          )}
+          {termos.map(a => (
+            <div key={a.id} style={{padding:"9px 20px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"#F1F5F9",fontFamily:MONO}}>#{a.termo}</div>
+                  {a.descricao && (
+                    <div style={{fontSize:11,color:"#94A3B8",marginTop:1}}>{a.descricao}</div>
+                  )}
+                  {a.variantes?.length > 0 && (
+                    <div style={{fontSize:11,color:"#E8A020",marginTop:2,fontFamily:MONO}}>
+                      também: {a.variantes.join(", ")}
+                    </div>
+                  )}
+                </div>
+                <button onClick={()=>editandoId===a.id ? setEditandoId(null) : abrirEdicaoVariantes(a)}
+                  title="Editar variantes/sinônimos" style={{...S.trashBtn,color:"#E8A020",
+                    border:"1px solid rgba(232,160,32,0.3)",background:"rgba(232,160,32,0.08)"}}>✎</button>
+                <button onClick={()=>remover(a)} title="Remover"
+                  style={S.trashBtn}>🗑</button>
+              </div>
+              {editandoId === a.id && (
+                <div style={{display:"flex",gap:6,marginTop:8}}>
+                  <input value={variantesEdit} onChange={e=>setVariantesEdit(e.target.value)}
+                    placeholder="Variantes separadas por vírgula (ex: CVAM, CV/AM)"
+                    style={{...S.modalInput,flex:1,padding:"6px 10px",fontSize:12}}/>
+                  <button onClick={()=>salvarVariantes(a)} disabled={salvandoVariantes} style={{
+                    padding:"0 14px",borderRadius:6,border:"none",cursor:"pointer",
+                    background:"#E8A020",color:"#0F172A",fontSize:12,fontWeight:800,fontFamily:MONO,
+                    opacity:salvandoVariantes?0.6:1,
+                  }}>Salvar</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 export default function Alertas({ onNavigate }) {
   const [realtimeAlertas, setRealtimeAlertas] = useState([])
@@ -229,6 +453,33 @@ export default function Alertas({ onNavigate }) {
   const [varrendo, setVarrendo]       = useState(false)
   const [varrendoOSINT, setVarrendoOSINT] = useState(false)
   const [varrendoTelegram, setVarrendoTelegram] = useState(false)
+  const [alvos, setAlvos]             = useState([])
+  const [alvoSelecionado, setAlvoSelecionado] = useState("TODOS")
+  const [modalAlvos, setModalAlvos]   = useState(false)
+  const [showAlvoList, setShowAlvoList] = useState(false)
+  const [alvoDropdownPos, setAlvoDropdownPos] = useState(null)
+  const [buscandoAlvo, setBuscandoAlvo] = useState(false)
+  const alvoTriggerRef = useRef(null)
+
+  // A barra lateral tem rolagem própria (overflow-y:auto) — um dropdown com
+  // position:absolute renderizado dentro dela fica CORTADO pelo limite do
+  // menu (some ou aparece pela metade). Por isso calculamos a posição em tela
+  // do botão e desenhamos a lista via portal direto no body, com
+  // position:fixed — sempre visível, seja qual for o tamanho da barra.
+  function toggleAlvoList() {
+    if (!showAlvoList && alvoTriggerRef.current) {
+      const rect = alvoTriggerRef.current.getBoundingClientRect()
+      const espacoAbaixo = window.innerHeight - rect.bottom
+      const abrirParaCima = espacoAbaixo < 180 && rect.top > espacoAbaixo
+      setAlvoDropdownPos({
+        left: rect.left, width: rect.width,
+        top:    abrirParaCima ? null : rect.bottom + 4,
+        bottom: abrirParaCima ? (window.innerHeight - rect.top + 4) : null,
+        maxHeight: Math.max(120, Math.min(280, (abrirParaCima ? rect.top : espacoAbaixo) - 16)),
+      })
+    }
+    setShowAlvoList(s => !s)
+  }
 
   useEffect(() => {
     const style = document.createElement("style")
@@ -236,6 +487,26 @@ export default function Alertas({ onNavigate }) {
     document.head.appendChild(style)
     return () => document.head.removeChild(style)
   }, [])
+
+  useEffect(() => { carregarAlvos() }, [])
+
+  async function carregarAlvos() {
+    try {
+      const r = await api.get("/alertas/alvos")
+      const data = await r.json()
+      const lista = Array.isArray(data) ? data : []
+      setAlvos(lista)
+      return lista
+    } catch { return null } // dropdown fica só com "Todos" — não trava a tela
+  }
+
+  // Se o alvo selecionado no dropdown foi removido na Gerenciar Alvos, volta pra "Todos"
+  async function aoMudarAlvos() {
+    const lista = await carregarAlvos()
+    if (lista && alvoSelecionado !== "TODOS" && !lista.some(a => String(a.id) === alvoSelecionado)) {
+      setAlvoSelecionado("TODOS")
+    }
+  }
 
   // Auto-refresh a cada 3 min, com retry em backoff se falhar. Antes o
   // useEffect rodava 1x no mount e a tela congelava — agora fica viva sozinha.
@@ -262,10 +533,29 @@ export default function Alertas({ onNavigate }) {
     } finally { setLoading(false) }
   }
 
+  // alvoSelecionado !== "TODOS" -> varredura individualizada (só aquele alvo/termo)
+  function sufixoAlvo() {
+    return alvoSelecionado !== "TODOS" ? `?alvo_id=${encodeURIComponent(alvoSelecionado)}` : ""
+  }
+
+  // O backend (GDELT, gratuito e sem chave) reporta buscas que falharam —
+  // rede instável ou rate-limit (exige >=5s entre requisições). Antes, com
+  // o Google News RSS, uma falha virava silenciosamente "0 novos",
+  // indistinguível de "não achou nada" — isso avisa o operador na hora.
+  function avisarFalhasBusca(data) {
+    if (!data) return
+    if (data.bloqueio_busca) {
+      toast.error("Busca temporariamente limitada (rate-limit do provedor gratuito) — Tempo Real/OSINT podem estar incompletos. Tente novamente em alguns segundos.", 9000)
+    } else if (data.buscas_falhas > 0) {
+      toast.warn(`${data.buscas_falhas} busca(s) falharam por instabilidade de rede — resultado pode estar incompleto.`)
+    }
+  }
+
   async function varrerRealtime() {
     setVarrendo(true)
     try {
-      await api.post("/alertas/varrer")
+      const r = await api.post(`/alertas/varrer${sufixoAlvo()}`)
+      avisarFalhasBusca(await r.json())
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,1500)) }
     finally { setVarrendo(false) }
@@ -274,7 +564,8 @@ export default function Alertas({ onNavigate }) {
   async function varrerOSINT() {
     setVarrendoOSINT(true)
     try {
-      await api.post("/alertas/osint/varrer")
+      const r = await api.post(`/alertas/osint/varrer${sufixoAlvo()}`)
+      avisarFalhasBusca(await r.json())
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,2000)) }
     finally { setVarrendoOSINT(false) }
@@ -283,10 +574,44 @@ export default function Alertas({ onNavigate }) {
   async function varrerTelegram() {
     setVarrendoTelegram(true)
     try {
-      await api.post("/alertas/telegram/varrer")
+      await api.post(`/alertas/telegram/varrer${sufixoAlvo()}`)
       await carregarAlertas()
     } catch { await new Promise(r=>setTimeout(r,2000)) }
     finally { setVarrendoTelegram(false) }
+  }
+
+  // Ação única e intuitiva: dispara as 3 varreduras (Tempo Real + OSINT +
+  // Telegram) de uma vez, todas restritas ao alvo selecionado no dropdown.
+  async function buscarAlvoSelecionado() {
+    if (alvoSelecionado === "TODOS") return
+    const rotulo = rotuloAlvo(alvoAtual)
+    setBuscandoAlvo(true)
+    try {
+      const suf = sufixoAlvo()
+      const resultados = await Promise.allSettled([
+        api.post(`/alertas/varrer${suf}`).then(r=>r.json()),
+        api.post(`/alertas/osint/varrer${suf}`).then(r=>r.json()),
+        api.post(`/alertas/telegram/varrer${suf}`).then(r=>r.json()),
+      ])
+      const valores = resultados.filter(r=>r.status==="fulfilled").map(r=>r.value)
+      const novos = valores.reduce((acc,v)=> acc + (v?.novos || 0), 0)
+      const falhas = valores.reduce((acc,v)=> acc + (v?.buscas_falhas || 0), 0)
+      const bloqueado = valores.some(v=>v?.bloqueio_busca)
+      await carregarAlertas()
+      if (bloqueado) {
+        toast.error(`Busca temporariamente limitada (rate-limit do provedor gratuito) — a busca sobre "${rotulo}" pode estar incompleta. Tente novamente em instantes.`, 9000)
+      } else if (falhas > 0) {
+        toast.warn(`Busca sobre "${rotulo}" concluída, mas ${falhas} sub-busca(s) falharam por instabilidade — resultado pode estar incompleto.`)
+      } else {
+        toast.success(novos > 0
+          ? `Busca concluída: ${novos} alerta(s) novo(s) sobre "${rotulo}".`
+          : `Busca concluída sobre "${rotulo}" — nenhuma menção nova encontrada.`)
+      }
+    } catch {
+      toast.error("Falha ao buscar o alvo selecionado.")
+    } finally {
+      setBuscandoAlvo(false)
+    }
   }
 
   function marcarLido(id) {
@@ -303,6 +628,9 @@ export default function Alertas({ onNavigate }) {
 
   const todos = [...realtimeAlertas, ...osintAlertas].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))
   const filtrados = todos.filter(a => {
+    // Alvo específico selecionado no dropdown -> lista só mostra os alertas
+    // DELE (mesmo vazio), nunca mistura com os demais alvos monitorados.
+    if (alvoSelecionado !== "TODOS" && String(a.alvo_id) !== alvoSelecionado) return false
     const tc = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.noticia
     if (filtroRisco !== "TODOS" && a.risco !== filtroRisco) return false
     if (filtroTipo === "realtime" && tc.categoria !== "realtime") return false
@@ -322,6 +650,9 @@ export default function Alertas({ onNavigate }) {
   const altoRisco  = todos.filter(a=>a.risco==="ALTO"&&!a.lido).length
   const totalOSINT = osintAlertas.length
   const totalRT    = realtimeAlertas.length
+
+  const alvoAtual = alvos.find(a => String(a.id) === alvoSelecionado) || null
+  const alvosOrdenados = [...alvos].sort((a,b) => rotuloAlvo(a).localeCompare(rotuloAlvo(b), "pt-BR"))
 
   return (
     <div style={{ display:"flex", flexDirection:"column", flex:1, height:"100%", overflow:"hidden" }}>
@@ -446,6 +777,103 @@ export default function Alertas({ onNavigate }) {
 
           <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
 
+          {/* Alvo da varredura — individualizada ou todos */}
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <div style={S.filterLabel}>Alvo da varredura</div>
+              <button onClick={()=>setModalAlvos(true)} title="Adicionar ou remover alvos/termos"
+                style={{background:"transparent",border:"none",cursor:"pointer",color:"#E8A020",
+                  fontSize:11,fontFamily:MONO,fontWeight:700,padding:0}}>⚙ Gerenciar</button>
+            </div>
+
+            {/* Dropdown custom (não usamos <select> nativo — no Windows/Electron
+                a lista de opções renderiza com fundo branco do SO, ilegível no
+                tema dark; assim controlamos 100% do estilo). */}
+            <div style={{position:"relative"}}>
+              <button ref={alvoTriggerRef} onClick={toggleAlvoList} style={{
+                width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,
+                padding:"8px 10px",borderRadius:6,fontSize:12,fontFamily:MONO,cursor:"pointer",
+                background:alvoSelecionado!=="TODOS"?"rgba(232,160,32,0.12)":"rgba(255,255,255,0.04)",
+                border:`1px solid ${alvoSelecionado!=="TODOS"?"rgba(232,160,32,0.4)":"rgba(255,255,255,0.1)"}`,
+                color:alvoSelecionado!=="TODOS"?"#E8A020":"#E2E8F0", textAlign:"left",
+              }}>
+                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {alvoSelecionado==="TODOS" ? `Todos os alvos (${alvos.length})` : rotuloAlvo(alvoAtual)}
+                </span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{flexShrink:0,transform:showAlvoList?"rotate(180deg)":"none",transition:"transform 0.15s"}}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Portal pro body — foge da rolagem da barra lateral, senão a
+                lista fica cortada/invisível dentro do menu */}
+            {showAlvoList && alvoDropdownPos && createPortal(
+              <>
+                <div onClick={()=>setShowAlvoList(false)} style={{position:"fixed",inset:0,zIndex:9998}}/>
+                <div style={{
+                  position:"fixed", zIndex:9999,
+                  left:alvoDropdownPos.left, width:alvoDropdownPos.width,
+                  ...(alvoDropdownPos.top!=null ? {top:alvoDropdownPos.top} : {bottom:alvoDropdownPos.bottom}),
+                  maxHeight:alvoDropdownPos.maxHeight, overflowY:"auto", borderRadius:8,
+                  background:"rgba(10,16,28,0.99)",
+                  border:"1px solid rgba(255,255,255,0.14)",
+                  boxShadow:"0 16px 40px rgba(0,0,0,0.65)",
+                }}>
+                  <button onClick={()=>{setAlvoSelecionado("TODOS");setShowAlvoList(false)}} style={{
+                    width:"100%",textAlign:"left",padding:"9px 12px",background:alvoSelecionado==="TODOS"?"rgba(232,160,32,0.14)":"transparent",
+                    border:"none",borderBottom:"1px solid rgba(255,255,255,0.06)",cursor:"pointer",
+                    color:alvoSelecionado==="TODOS"?"#E8A020":"#E2E8F0",fontSize:12,fontFamily:MONO,fontWeight:700,
+                  }}
+                    onMouseEnter={e=>e.currentTarget.style.background="rgba(232,160,32,0.10)"}
+                    onMouseLeave={e=>e.currentTarget.style.background=alvoSelecionado==="TODOS"?"rgba(232,160,32,0.14)":"transparent"}>
+                    Todos os alvos ({alvos.length})
+                  </button>
+                  {alvosOrdenados.length === 0 && (
+                    <div style={{padding:"14px 12px",fontSize:12,color:"rgba(255,255,255,0.3)",fontFamily:MONO}}>
+                      Nenhum alvo cadastrado — use "Gerenciar" pra adicionar.
+                    </div>
+                  )}
+                  {alvosOrdenados.map(a => {
+                    const sel = String(a.id) === alvoSelecionado
+                    return (
+                      <button key={a.id} onClick={()=>{setAlvoSelecionado(String(a.id));setShowAlvoList(false)}} style={{
+                        width:"100%",textAlign:"left",padding:"9px 12px",
+                        background:sel?"rgba(232,160,32,0.14)":"transparent",
+                        border:"none",borderBottom:"1px solid rgba(255,255,255,0.05)",cursor:"pointer",
+                        color:sel?"#E8A020":"#E2E8F0",fontSize:12,fontFamily:MONO,fontWeight:sel?700:500,
+                      }}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(232,160,32,0.10)"}
+                        onMouseLeave={e=>e.currentTarget.style.background=sel?"rgba(232,160,32,0.14)":"transparent"}>
+                        {rotuloAlvo(a)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>,
+              document.body
+            )}
+
+            {/* Botão de ação — só aparece com um alvo específico selecionado.
+                Dispara as 3 varreduras de uma vez, sem precisar escolher qual. */}
+            {alvoSelecionado !== "TODOS" && (
+              <button onClick={buscarAlvoSelecionado} disabled={buscandoAlvo} style={{
+                width:"100%",marginTop:8,padding:"9px",borderRadius:7,border:"none",cursor:"pointer",
+                background:"#E8A020",color:"#0F172A",fontSize:13,fontWeight:800,fontFamily:MONO,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                opacity:buscandoAlvo?0.65:1,
+              }}>
+                {buscandoAlvo
+                  ? <><svg className="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Buscando...</>
+                  : <>🔍 Buscar alvo selecionado</>}
+              </button>
+            )}
+          </div>
+
+          <div style={{height:1,background:"rgba(255,255,255,0.07)"}}/>
+
           {/* Ações */}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             <button onClick={varrerRealtime} disabled={varrendo} style={S.actionBtn}>
@@ -455,7 +883,7 @@ export default function Alertas({ onNavigate }) {
             </button>
             <button onClick={varrerOSINT} disabled={varrendoOSINT} style={{...S.actionBtn,color:"#60A5FA",border:"1px solid rgba(96,165,250,0.3)"}}>
               {varrendoOSINT
-                ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Sherlock rodando...</>
+                ? <><svg className="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Buscando (GDELT)...</>
                 : <><span>🔵</span>Varrer OSINT</>}
             </button>
             <button onClick={varrerTelegram} disabled={varrendoTelegram} style={{...S.actionBtn,color:"#818CF8",border:"1px solid rgba(129,140,248,0.3)"}}>
@@ -475,10 +903,10 @@ export default function Alertas({ onNavigate }) {
         <div style={{padding:"12px 14px",borderTop:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
             <div className={altoRisco>0?"alert-pulse":""} style={{width:6,height:6,borderRadius:"50%",background:altoRisco>0?"#EF4444":"#4ADE80"}}/>
-            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Monitor OSINT · a cada 8h</span>
+            <span style={{fontSize:11,color:"#94A3B8",fontFamily:MONO}}>Monitor OSINT · varredura manual</span>
           </div>
           <span style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:MONO}}>
-            Telegram · News · Sherlock · Google Dork
+            Telegram · GDELT News
           </span>
         </div>
       </aside>
@@ -548,7 +976,9 @@ export default function Alertas({ onNavigate }) {
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12,padding:40,height:"100%"}}>
               <EmptyState texto="OSINT Monitor · Telegram · Google News" />
               <p style={{fontSize:13,color:"rgba(255,255,255,0.2)",fontFamily:MONO,margin:0}}>
-                {busca ? "Nenhum alerta encontrado para essa busca" : "Nenhum alerta registrado ainda"}
+                {alvoSelecionado !== "TODOS"
+                  ? `Nenhum alerta para "${rotuloAlvo(alvoAtual)}" nos últimos 90 dias`
+                  : busca ? "Nenhum alerta encontrado para essa busca" : "Nenhum alerta registrado ainda"}
               </p>
             </div>
           )}
@@ -568,6 +998,10 @@ export default function Alertas({ onNavigate }) {
         </div>
       </div>
       </div>
+
+      {modalAlvos && (
+        <ModalGerenciarAlvos alvos={alvos} onFechar={()=>setModalAlvos(false)} onMudou={aoMudarAlvos}/>
+      )}
     </div>
   )
 }
@@ -583,4 +1017,6 @@ const S = {
   filterLabel:{fontSize:11,fontWeight:700,color:"#64748B",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:MONO,marginBottom:6},
   filterBtn:{width:"100%",padding:"7px 10px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:MONO,transition:"all 0.12s",textAlign:"left"},
   actionBtn:{width:"100%",padding:"9px",borderRadius:7,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",fontSize:13,color:"#94A3B8",cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6},
+  modalInput:{width:"100%",padding:"9px 12px",borderRadius:7,fontSize:13,fontFamily:MONO,color:"#F1F5F9",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",outline:"none"},
+  trashBtn:{flexShrink:0,width:30,height:30,borderRadius:6,border:"1px solid rgba(239,68,68,0.25)",background:"rgba(239,68,68,0.08)",color:"#F87171",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"},
 }

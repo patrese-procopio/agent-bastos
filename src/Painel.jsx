@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import AnimatedNumber from "./AnimatedNumber"
 import { S, C, MONO } from "./shellTheme"
-import { REFS } from "./homeData"
+import painelBanner from "./assets/painel-banner.jpg"
 
 function LiveClock({ showSeconds = false }) {
   const [t, setT] = useState(new Date())
@@ -21,11 +21,9 @@ function LiveClock({ showSeconds = false }) {
 // componentes lazy-loaded independentes.
 export default function Painel({
   homeKpis, homeKpisLoading, expandedKpi, setExpandedKpi,
-  chatHistory, loading, message, setMessage, focused, setFocused,
-  chatEndRef, enviarPergunta, handleKey,
+  loading, message, setMessage, focused, setFocused,
+  enviarPergunta, handleKey,
 }) {
-  const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
-
   return (
           <>
             <header style={S.topbar}>
@@ -326,163 +324,37 @@ export default function Painel({
               {/* RIGHT: refs bar + chat */}
               <div style={{flex:1, display:"flex", flexDirection:"column", gap:10, minWidth:0, overflow:"hidden"}}>
 
-              {/* ── Unified intel chat card ── */}
+              {/* ── Banner institucional ──
+                   Antes tinha um card de chat/RAG duplicado aqui (a busca real
+                   já vive na tela Chat RAG dedicada — isso só ocupava espaço
+                   sem uso diário). Virou a "vitrine" do sistema: foto real da
+                   equipe em operação (rostos anonimizados por segurança —
+                   agentes de inteligência penitenciária não podem ficar
+                   identificáveis numa tela que qualquer um pode ver por cima
+                   do ombro) + a proposta de valor do Bastos. */}
               <div style={{
-                flex:1, display:"flex", flexDirection:"column",
-                background:"rgba(255,255,255,0.02)",
+                flex:1, position:"relative", borderRadius:14, overflow:"hidden",
                 border:"1px solid rgba(255,255,255,0.07)",
-                borderRadius:14,
-                overflow:"hidden",
-                backdropFilter:"blur(16px)",
-                WebkitBackdropFilter:"blur(16px)",
                 boxShadow:"0 4px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)",
+                backgroundImage:`url(${painelBanner})`,
+                backgroundSize:"cover", backgroundPosition:"center 32%",
+                display:"flex", flexDirection:"column", justifyContent:"flex-end",
+                padding:"24px 30px",
               }}>
-
-                {/* Card header */}
-                <div style={{
-                  padding:"10px 16px",
-                  borderBottom:"1px solid rgba(255,255,255,0.06)",
-                  display:"flex", alignItems:"center", justifyContent:"space-between",
-                  flexShrink:0,
-                  background:"rgba(232,160,32,0.03)",
-                }}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",
-                      boxShadow:"0 0 8px #E8A020",animation:"amber-pulse 2.5s infinite",flexShrink:0}}/>
-                    <span style={{fontSize:11,fontWeight:800,color:C.gold,letterSpacing:"0.14em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
-                    <span style={{fontSize:10,color:"rgba(232,160,32,0.4)",fontFamily:MONO}}>· Sistema Pronto</span>
-                  </div>
-                  <div style={{display:"flex",gap:5}}>
-                    {REFS.slice(0,3).map((r,i)=>(
-                      <button key={i}
-                        onClick={()=>enviarPergunta(r.query)}
-                        style={{
-                          padding:"3px 9px", borderRadius:5,
-                          background:"rgba(255,255,255,0.03)",
-                          border:`1px solid rgba(255,255,255,0.07)`,
-                          color:r.color, fontSize:10.5, fontWeight:600, cursor:"pointer",
-                          display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
-                          fontFamily:MONO, letterSpacing:"0.03em",
-                          transition:"all 0.15s",
-                        }}
-                        onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.borderColor=r.color+"55"}}
-                        onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"}}>
-                        <span style={{width:4,height:4,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
+                <div style={{position:"absolute", top:18, left:22, display:"flex", alignItems:"center", gap:8}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:"#E8A020",
+                    boxShadow:"0 0 8px #E8A020",animation:"amber-pulse 2.5s infinite",flexShrink:0}}/>
+                  <span style={{fontSize:11,fontWeight:800,color:C.gold,letterSpacing:"0.14em",fontFamily:MONO}}>◈ AGENT BASTOS</span>
+                  <span style={{fontSize:10,color:"rgba(232,160,32,0.55)",fontFamily:MONO}}>· AIPEN / SEAP-AM</span>
                 </div>
 
-                {/* Chat messages area */}
-                <div style={{flex:1, position:"relative", overflow:"hidden", minHeight:0}}>
-                  {/* Scanline overlay — efeito tela tática */}
-                  <div style={{
-                    position:"absolute", inset:0, pointerEvents:"none", zIndex:10,
-                    backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px)",
-                  }}/>
-                  {/* RESERVADO watermark */}
-                  <div style={{
-                    position:"absolute", inset:0, display:"flex",
-                    alignItems:"center", justifyContent:"center",
-                    pointerEvents:"none", overflow:"hidden", zIndex:1,
-                  }}>
-                    <span style={{
-                      fontSize:58, fontWeight:900, color:"rgba(255,255,255,0.016)",
-                      fontFamily:MONO, letterSpacing:"0.28em",
-                      transform:"rotate(-28deg)", userSelect:"none", whiteSpace:"nowrap",
-                    }}>RESERVADO</span>
-                  </div>
-                  {chatHistory.length===0 && (
-                    <div style={{
-                      position:"absolute", inset:0,
-                      display:"flex", flexDirection:"column",
-                      alignItems:"center", justifyContent:"center",
-                      gap:18, pointerEvents:"none", userSelect:"none",
-                    }}>
-                      {/* Animated ring */}
-                      <div style={{position:"relative", width:80, height:80}}>
-                        <div style={{
-                          position:"absolute", inset:0,
-                          borderRadius:"50%",
-                          border:"1px solid rgba(232,160,32,0.15)",
-                          animation:"breathe 4s ease-in-out infinite",
-                        }}/>
-                        <div style={{
-                          position:"absolute", inset:8,
-                          borderRadius:"50%",
-                          border:"1px solid rgba(232,160,32,0.25)",
-                          animation:"breathe 4s ease-in-out infinite 0.3s",
-                        }}/>
-                        <div style={{
-                          position:"absolute", inset:16,
-                          borderRadius:"50%",
-                          background:"rgba(232,160,32,0.06)",
-                          border:"1.5px solid rgba(232,160,32,0.4)",
-                          boxShadow:"0 0 30px rgba(232,160,32,0.12)",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          animation:"breathe 4s ease-in-out infinite 0.6s",
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="#E8A020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                        </div>
-                      </div>
-                      <div style={{textAlign:"center"}}>
-                        <p style={{fontSize:15,color:"rgba(255,255,255,0.25)",fontWeight:700,margin:0,letterSpacing:"0.06em"}}>
-                          AGUARDANDO CONSULTA
-                        </p>
-                        <p style={{fontSize:11,color:"rgba(255,255,255,0.12)",fontFamily:MONO,marginTop:6,letterSpacing:"0.04em"}}>
-                          Doutrina · Análise · Referências
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {chatHistory.length>0 && (
-                    <>
-                      <div style={S.chatFadeMask}/>
-                      <div style={S.chatMessages}>
-                        {chatHistory.map((m,i)=>(
-                          <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"80%",position:"relative",zIndex:3}}>
-                            <div style={{
-                              background: m.role==="user"
-                                ? "linear-gradient(135deg,#1E3A5F,#0F2840)"
-                                : "rgba(255,255,255,0.04)",
-                              borderRadius:10,
-                              padding:"11px 15px",
-                              fontSize:15.5,
-                              color: m.role==="user"?"#FFFFFF":C.text,
-                              lineHeight:1.65,
-                              boxShadow: m.role==="user"?"0 4px 20px rgba(0,0,0,0.4)":"0 2px 12px rgba(0,0,0,0.2)",
-                              backdropFilter:"blur(8px)",
-                              border: m.role==="bastos"?"1px solid rgba(232,160,32,0.15)":"none",
-                              borderLeft: m.role==="bastos"?"2px solid #E8A020":"none",
-                            }}>
-                              {m.role==="bastos"&&(
-                                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                                  <span style={{fontSize:10,color:C.gold,fontWeight:800,letterSpacing:"0.12em",fontFamily:MONO}}>◈ BASTOS-UNIT</span>
-                                  <span style={{fontSize:10,color:C.textMid,fontFamily:MONO}}>· {now}</span>
-                                </div>
-                              )}
-                              {m.text}
-                            </div>
-                          </div>
-                        ))}
-                        {loading&&(
-                          <div style={{alignSelf:"flex-start",fontSize:12,color:C.textMid,fontFamily:MONO,
-                            display:"flex",alignItems:"center",gap:8,zIndex:3,position:"relative"}}>
-                            <span style={{width:5,height:5,borderRadius:"50%",background:C.gold,display:"inline-block",
-                              animation:"amber-pulse 1.5s ease-in-out infinite"}}/>
-                            processando consulta doutrinária...
-                          </div>
-                        )}
-                        <div ref={chatEndRef}/>
-                      </div>
-                    </>
-                  )}
+                <div style={{maxWidth:480}}>
+                  <h2 style={{fontSize:25,fontWeight:900,color:"#F8FAFC",lineHeight:1.28,margin:0,
+                    textShadow:"0 2px 20px rgba(0,0,0,0.7)", letterSpacing:"-0.01em"}}>
+                    Inteligência auxiliando na decisão rápida em ambiente de risco.
+                  </h2>
                 </div>
-              </div>{/* /unified chat card */}
+              </div>{/* /banner institucional */}
               </div>{/* /right col */}
               </div>{/* /2-col wrapper */}
             </div>{/* /S.body */}
