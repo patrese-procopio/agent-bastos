@@ -29,9 +29,14 @@ _log_security = get_logger("security")
 # ----------------------------------------------------------------------------
 # Security headers
 # ----------------------------------------------------------------------------
-# Conjunto conservador - nao quebra Electron/Vite que usam inline styles/scripts.
-# CSP estrito intencionalmente OMITIDO: o frontend usa eval-inline (Vite HMR) e
-# o usuario carrega <img> via blob:/data: - CSP rigoroso quebraria a UI.
+# CORRIGIDO (2026-09-25): o comentario antigo aqui omitia CSP achando que
+# quebraria o Vite HMR/eval-inline do frontend — engano: ESTE middleware so
+# roda nas respostas da API FastAPI (sempre JSON), nunca no HTML/JS do
+# Electron. A CSP que protege a UI de verdade e outra, injetada direto no
+# processo Electron via session.defaultSession.webRequest (electron.cjs) —
+# essa nao muda aqui. Como a API nunca serve HTML (/docs fica desligado fora
+# de BASTOS_ENV=development), uma CSP restritiva de API e segura e nao afeta
+# em nada a interface.
 _SECURITY_HEADERS = {
     "X-Content-Type-Options":   "nosniff",
     "X-Frame-Options":          "DENY",
@@ -40,13 +45,27 @@ _SECURITY_HEADERS = {
     "Permissions-Policy":       "geolocation=(), microphone=(), camera=(), payment=()",
     "Cross-Origin-Opener-Policy":   "same-origin",
     "Cross-Origin-Resource-Policy": "same-site",
+    # API pura em JSON — nunca deveria renderizar nada, e se algum dia um
+    # endpoint devolver HTML/script por engano, isso barra a execucao.
+    "Content-Security-Policy":  "default-src 'none'; frame-ancestors 'none'",
+    # So tem efeito quando a conexao e HTTPS (o navegador ignora em HTTP puro,
+    # por espec) — protege o deploy via Caddy/ngrok sem afetar o dev local.
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
+
+
+_DOCS_PATHS = {"/docs", "/redoc", "/openapi.json", "/api/docs", "/api/redoc", "/api/openapi.json"}
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         for k, v in _SECURITY_HEADERS.items():
+            # Swagger/Redoc (so existem com BASTOS_ENV=development) precisam de
+            # inline script/style pra propria UI renderizar — CSP restritiva
+            # quebraria so essa pagina de doc, nao a API real nem o app.
+            if k == "Content-Security-Policy" and request.url.path in _DOCS_PATHS:
+                continue
             # nao sobrescrever se o endpoint ja setou (raro, mas respeitar)
             response.headers.setdefault(k, v)
         return response

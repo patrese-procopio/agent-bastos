@@ -183,7 +183,7 @@ def _init_users_db() -> None:
         seed = [
             (
                 "admin",
-                _carregar_hash("ADMIN_PASSWORD_HASH", _FALLBACK_ADMIN, "admin"),
+                _carregar_hash("ADMIN_PASSWORD_HASH", "admin"),
                 "admin",
                 json.dumps(["chat_rag", "grafoscopia", "transcricao", "dashboard",
                             "agenda", "alertas", "lista_negra", "referencias",
@@ -193,7 +193,7 @@ def _init_users_db() -> None:
             ),
             (
                 "analista",
-                _carregar_hash("ANALISTA_PASSWORD_HASH", _FALLBACK_ANALISTA, "analista"),
+                _carregar_hash("ANALISTA_PASSWORD_HASH", "analista"),
                 "analista",
                 json.dumps(["chat_rag", "grafoscopia", "transcricao",
                             "referencias", "noticias"]),
@@ -211,48 +211,22 @@ def _init_users_db() -> None:
 
 
 # --- Banco de usuarios --------------------------------------------------------
-_FALLBACK_ADMIN     = "admin123"
-_FALLBACK_ANALISTA  = "analista123"
-
-
-def _carregar_hash(env_var: str, fallback: str, usuario: str) -> str:
+# SEGURANCA (2026-09-25): removido o fallback silencioso para senha padrao
+# ("admin123"/"analista123"). Antes, se ADMIN_PASSWORD_HASH/ANALISTA_PASSWORD_HASH
+# nao estivessem definidas no .env, o sistema subia normalmente com essas senhas
+# conhecidas — so um warning no log, nada bloqueava. Agora falha rapido (mesmo
+# padrao do JWT_SECRET_KEY acima): sem hash configurado, o backend NAO sobe.
+# Novo deploy: rode `python scripts/setar_senha.py admin` (nao depende do
+# servidor rodando) ANTES de iniciar o backend pela primeira vez.
+def _carregar_hash(env_var: str, usuario: str) -> str:
     h = os.getenv(env_var, "").strip()
     if h:
         return h
-    _log.warning(
-        f"{env_var} nao definido - usando senha padrao para '{usuario}'. "
-        f"Rode: python scripts/setar_senha.py {usuario}",
-        extra={"usuario": usuario, "acao": "fallback_senha_padrao"},
+    raise RuntimeError(
+        f"{env_var} nao definido no .env — sem senha padrao permitida.\n"
+        f"Defina a senha de '{usuario}' antes de iniciar o backend: "
+        f"python scripts/setar_senha.py {usuario}"
     )
-    return pwd_context.hash(fallback)
-
-
-USERS_DB: dict = {
-    "admin": {
-        "username": "admin",
-        "hashed_password": _carregar_hash("ADMIN_PASSWORD_HASH", _FALLBACK_ADMIN, "admin"),
-        "level": "admin",
-        "modules": [
-            "admin", "chat_rag", "grafoscopia", "transcricao", "dashboard",
-            "agenda", "alertas", "lista_negra", "referencias",
-            "noticias", "osint", "grupos", "inteligencia_grupos",
-            "politicas", "configuracoes", "drone"
-        ],
-    },
-    "analista": {
-        "username": "analista",
-        "hashed_password": _carregar_hash("ANALISTA_PASSWORD_HASH", _FALLBACK_ANALISTA, "analista"),
-        "level": "analista",
-        # grafoscopia: concedido explicitamente â€" funcao primordial para o
-        # trabalho operacional diario dos analistas da agencia.
-        # Principio do menor privilegio aplicado: acesso por concessao
-        # intencional, nao por ausencia de controle.
-        "modules": [
-            "chat_rag", "grafoscopia", "transcricao",
-            "referencias", "noticias"
-        ],
-    },
-}
 
 
 _init_users_db()
@@ -355,6 +329,39 @@ def list_users() -> list[dict]:
 # --- Funcoes de senha ---------------------------------------------------------
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+# --- Bloqueio por usuario apos tentativas falhas de login ---------------------
+# O rate limit existente (LIMIT_LOGIN) e por IP — um atacante rotacionando IP
+# (ou distribuido) contorna isso facilmente. Isso complementa com um contador
+# por USERNAME, em memoria (processo unico, escala do Bastos nao precisa de
+# Redis): apos _FALHAS_MAX tentativas erradas pro mesmo usuario, bloqueia por
+# _BLOQUEIO_MINUTOS mesmo vindo de IPs diferentes. Login certo zera o contador.
+_FALHAS_MAX        = 5
+_BLOQUEIO_MINUTOS  = 15
+_falhas_login: dict[str, dict] = {}
+
+
+def registrar_falha_login(username: str) -> None:
+    info = _falhas_login.setdefault(username, {"count": 0, "bloqueado_ate": None})
+    info["count"] += 1
+    if info["count"] >= _FALHAS_MAX:
+        info["bloqueado_ate"] = datetime.now(timezone.utc) + timedelta(minutes=_BLOQUEIO_MINUTOS)
+
+
+def limpar_falhas_login(username: str) -> None:
+    _falhas_login.pop(username, None)
+
+
+def usuario_bloqueado(username: str) -> Optional[datetime]:
+    """Retorna o instante em que o bloqueio expira, ou None se nao estiver bloqueado."""
+    info = _falhas_login.get(username)
+    if not info or not info["bloqueado_ate"]:
+        return None
+    if datetime.now(timezone.utc) >= info["bloqueado_ate"]:
+        _falhas_login.pop(username, None)
+        return None
+    return info["bloqueado_ate"]
 
 
 def change_password(username: str, old_password: str, new_password: str) -> None:

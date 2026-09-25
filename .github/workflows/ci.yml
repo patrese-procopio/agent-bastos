@@ -72,3 +72,38 @@ jobs:
           echo "## Resultado dos Testes" >> $GITHUB_STEP_SUMMARY
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Scan de dependências (2026-09-25)
+  #
+  # Job SEPARADO do de testes — nunca bloqueia o merge (continue-on-error),
+  # só reporta no resumo do Actions. Adicionado depois de uma auditoria de
+  # segurança achar 163 vulnerabilidades conhecidas acumuladas no
+  # requirements.txt (incluindo na propria lib de JWT usada pra autenticacao)
+  # sem nenhum scan automatico rodando ate entao.
+  # ───────────────────────────────────────────────────────────────────────────
+  scan-dependencias:
+    name: Scan de Vulnerabilidades (pip-audit)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # informativo — nao trava PR/merge
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar pip-audit
+        run: pip install --upgrade pip pip-audit
+
+      - name: Rodar pip-audit contra requirements.txt
+        run: pip-audit --requirement requirements.txt --desc on
+
+      - name: Resumo do scan
+        if: always()
+        run: |
+          echo "## Scan de Dependências (pip-audit)" >> $GITHUB_STEP_SUMMARY
+          echo "Ver o log do step acima para a lista completa de CVEs encontradas." >> $GITHUB_STEP_SUMMARY

@@ -27,6 +27,9 @@ from services.auth_service import (
     update_user,
     delete_user,
     list_users,
+    registrar_falha_login,
+    limpar_falhas_login,
+    usuario_bloqueado,
     change_password,
 )
 from dependencies import require_module
@@ -105,11 +108,26 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
 
     Rate limit: LIMIT_LOGIN por IP (anti brute-force).
     """
-    user = get_user(form.username)
     ip = request.client.host if request.client else "?"
+
+    # Bloqueio por usuario (complementa o rate limit por IP acima — um
+    # atacante trocando de IP nao contorna isso).
+    bloqueado_ate = usuario_bloqueado(form.username)
+    if bloqueado_ate:
+        _log_security.warning(
+            "login bloqueado (tentativas excessivas)",
+            extra={"username": form.username, "ip": ip, "bloqueado_ate": bloqueado_ate.isoformat()},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Muitas tentativas para este usuário. Tente novamente após {bloqueado_ate.strftime('%H:%M:%S')} UTC.",
+        )
+
+    user = get_user(form.username)
 
     # Mensagem genérica intencional — não revelar se o usuário existe ou não
     if not user or not verify_password(form.password, user["hashed_password"]) or not user.get("active", True):
+        registrar_falha_login(form.username)
         _log_security.warning(
             "login falhou",
             extra={"username": form.username, "ip": ip, "motivo": "credenciais"},
@@ -122,6 +140,7 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    limpar_falhas_login(user["username"])
     access  = create_access_token(user["username"], user["level"], user["modules"])
     refresh = create_refresh_token(user["username"])
 

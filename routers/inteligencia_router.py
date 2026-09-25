@@ -15,7 +15,6 @@ Rotas registradas:
 
 import json
 import os
-import traceback
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -26,6 +25,9 @@ from services.drive_service import (
     get_service   as _gdrive_service,
 )
 from dependencies import get_current_user, require_module
+from services.logging_service import get_logger
+
+_log = get_logger("inteligencia")
 
 router = APIRouter(tags=["inteligencia"])
 
@@ -149,8 +151,16 @@ def forcar_snapshot(user: dict = Depends(require_module("inteligencia_grupos")))
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _exigir_admin(user: dict) -> None:
+    # Rotas de debug expõem detalhes internos (estrutura do Drive, stack trace
+    # no log) — restrito a admin, não a qualquer analista com o módulo.
+    if user.get("level") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
+
+
 @router.get("/debug/drive")
 def debug_drive(user: dict = Depends(require_module("inteligencia_grupos"))):
+    _exigir_admin(user)
     try:
         service = _gdrive_service()
         results = service.files().list(
@@ -159,11 +169,15 @@ def debug_drive(user: dict = Depends(require_module("inteligencia_grupos"))):
         ).execute()
         return {"ok": True, "arquivos": results.get("files", [])}
     except Exception as e:
-        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
+        # Trace completo só no log do servidor — nunca na resposta HTTP
+        # (evita vazar caminho interno/stack pra quem chamar a rota).
+        _log.error(f"debug_drive falhou: {e}", exc_info=True)
+        return {"ok": False, "erro": "Falha ao acessar o Drive — ver bastos.error.log para detalhes."}
 
 
 @router.get("/debug/snapshot-erro")
 def debug_snapshot_erro(user: dict = Depends(require_module("inteligencia_grupos"))):
+    _exigir_admin(user)
     try:
         mes_atual = datetime.now().strftime("%Y-%m")
         ocupacao  = _baixar_ocupacao_drive()
@@ -171,4 +185,5 @@ def debug_snapshot_erro(user: dict = Depends(require_module("inteligencia_grupos
         _upload_json_drive(f"snapshot_{mes_atual}.json", snapshot, _HISTORICO_FOLDER_ID)
         return {"ok": True, "mes": mes_atual}
     except Exception as e:
-        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
+        _log.error(f"debug_snapshot_erro falhou: {e}", exc_info=True)
+        return {"ok": False, "erro": "Falha ao gerar snapshot — ver bastos.error.log para detalhes."}

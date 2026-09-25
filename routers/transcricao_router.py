@@ -18,8 +18,11 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import Response
 
 from services.export_service import build_txt, build_pdf, build_docx
+from services.logging_service import get_logger
 from dependencies import get_current_user, require_module
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
+
+_log = get_logger("transcricao")
 
 # ── Human-in-the-Loop: importações opcionais ──────────────────────────────────
 # Importadas aqui para não criar dependência circular se o módulo não existir.
@@ -47,6 +50,28 @@ router = APIRouter(tags=["transcricao"])
 
 _MAX_AUDIO_BYTES = 25 * 1024 * 1024
 _AUDIO_EXTS      = {".wav", ".mp3", ".mp4", ".ogg", ".webm", ".flac", ".m4a", ".mpga", ".mpeg"}
+
+# Grafoscopia (/decifrar): mesmo padrão de magic-bytes usado em grafo_router.py/
+# liderancas_router.py — Content-Type do cliente pode ser falsificado, os
+# primeiros bytes do arquivo não. Sem isso, qualquer tamanho/tipo de arquivo
+# era aceito e mandado direto pra API do Gemini (custo/abuso de cota + DoS).
+_MAX_IMAGEM_BYTES = 15 * 1024 * 1024
+_MAGIC_IMAGEM = {
+    b"\xff\xd8\xff": "image/jpeg",
+    b"\x89PNG":      "image/png",
+    b"GIF8":         "image/gif",
+    b"RIFF":         "image/webp",
+}
+
+
+def _validar_imagem_decifrar(conteudo: bytes) -> None:
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Imagem vazia.")
+    if len(conteudo) > _MAX_IMAGEM_BYTES:
+        raise HTTPException(status_code=413, detail=f"Imagem maior que {_MAX_IMAGEM_BYTES // (1024*1024)} MB.")
+    header = conteudo[:8]
+    if not any(header.startswith(magic) for magic in _MAGIC_IMAGEM):
+        raise HTTPException(status_code=415, detail="Formato inválido. Envie JPEG, PNG, GIF ou WEBP.")
 _EXPORT_MIME     = {
     "txt":  "text/plain",
     "pdf":  "application/pdf",
@@ -342,10 +367,8 @@ async def decifrar(
     Retorna transcrição forense + cronologia analítica estruturada.
     """
     dados = await imagem.read()
-    if len(dados) == 0:
-        raise HTTPException(status_code=400, detail="Imagem vazia.")
-
-    media_type = imagem.content_type or "image/jpeg"
+    _validar_imagem_decifrar(dados)
+    media_type = _MAGIC_IMAGEM[next(m for m in _MAGIC_IMAGEM if dados[:8].startswith(m))]
 
     try:
         tipo = TipoDocumento(tipo_documento)
@@ -362,4 +385,5 @@ async def decifrar(
         )
         return resultado
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        _log.error(f"decifrar falhou: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Falha ao processar o documento. Tente novamente.")

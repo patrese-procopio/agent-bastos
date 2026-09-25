@@ -37,7 +37,7 @@ from services.alertas_service import (
 )
 from fastapi import BackgroundTasks
 from dependencies import get_current_user, require_module
-from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA
+from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA, LIMIT_ESCRITA
 from services.logging_service import get_logger
 import services.alvos_service as alvos_service
 
@@ -247,7 +247,8 @@ def listar_alvos(user: dict = Depends(require_module("alertas"))):
 
 
 @router.post("/alertas/alvos")
-def criar_alvo(payload: dict, user: dict = Depends(require_module("alertas"))):
+@limiter.limit(LIMIT_ESCRITA)
+def criar_alvo(request: Request, payload: dict, user: dict = Depends(require_module("alertas"))):
     try:
         novo = alvos_service.criar_alvo(
             tipo=payload.get("tipo", "pessoa"),
@@ -263,7 +264,8 @@ def criar_alvo(payload: dict, user: dict = Depends(require_module("alertas"))):
 
 
 @router.patch("/alertas/alvos/{alvo_id}/variantes")
-def editar_variantes_alvo(alvo_id: str, payload: dict, user: dict = Depends(require_module("alertas"))):
+@limiter.limit(LIMIT_ESCRITA)
+def editar_variantes_alvo(request: Request, alvo_id: str, payload: dict, user: dict = Depends(require_module("alertas"))):
     """
     Atualiza a lista de variantes/sinônimos de um termo já cadastrado (ex:
     CV-AM ganha "CVAM", "CV/AM", "Comando Vermelho do Amazonas") sem recriar
@@ -279,7 +281,8 @@ def editar_variantes_alvo(alvo_id: str, payload: dict, user: dict = Depends(requ
 
 
 @router.delete("/alertas/alvos/{alvo_id}")
-def remover_alvo(alvo_id: str, user: dict = Depends(require_module("alertas"))):
+@limiter.limit(LIMIT_ESCRITA)
+def remover_alvo(request: Request, alvo_id: str, user: dict = Depends(require_module("alertas"))):
     ok = alvos_service.remover_alvo(alvo_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Alvo não encontrado")
