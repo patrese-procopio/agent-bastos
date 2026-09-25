@@ -26,3 +26,24 @@ jobs:
 
       - name: Build de producao (Vite)
         run: npm run build
+
+  scan-dependencias:
+    name: Scan de Vulnerabilidades (npm audit)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # informativo — nao trava PR/merge
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Rodar npm audit
+        run: npm audit --audit-level=high
