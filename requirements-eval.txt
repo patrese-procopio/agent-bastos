@@ -1,0 +1,17 @@
+# requirements-eval.txt
+# -----------------------------------------------------------------------------
+# Dependências SÓ do script de avaliação offline (scripts/avaliar_rag.py) —
+# NUNCA importadas pelo app em produção (verificado 2026-09-27).
+#
+# Movidas pra cá porque `ragas` exige `instructor`, que por sua vez exige
+# jiter<0.15 — incompatível com jiter>=0.16 exigido pelo `openai` 3.x que o
+# LangChain atual (langchain-openai 1.6.6) já usa. As duas cadeias de
+# dependência não cabem no mesmo ambiente ao mesmo tempo.
+#
+# Uso (só quando for rodar a avaliação do RAG):
+#   .venv\Scripts\python.exe -m pip install -r requirements-eval.txt
+# (isso vai fazer downgrade de jiter/openai só nesse venv — não rode o
+# backend depois sem reinstalar requirements.txt de novo)
+# -----------------------------------------------------------------------------
+ragas==0.4.3
+instructor==1.15.1
