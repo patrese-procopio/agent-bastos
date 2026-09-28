@@ -568,20 +568,22 @@ export default function GrafoVinculos() {
   }
 
   /* ── CRUD nós/arestas ── */
-  async function criarNo(payload, conectar) {
+  async function criarNo(payload, conexoes, posRef) {
     const r = await api.post("/grafo/no", payload)
     if (!r.ok) { aviso("Falha ao criar nó.", C.red); return null }
     const no = await r.json()
     const novo = { ...no }
-    // posiciona perto do alvo/selecionado
-    const ref = graph.nodes.find(n => n.id === (conectar?.origem_id)) || graph.nodes.find(n => n.id === alvoId)
+    // aceita uma única conexão ({origem_id,rotulo}) ou várias (ex.: os dois lados de um vínculo)
+    const lista = Array.isArray(conexoes) ? conexoes.filter(c => c?.origem_id) : (conexoes?.origem_id ? [conexoes] : [])
+    // posiciona perto do alvo/selecionado (ou no ponto médio do vínculo, se informado)
+    const ref = posRef || graph.nodes.find(n => n.id === lista[0]?.origem_id) || graph.nodes.find(n => n.id === alvoId)
     if (ref?.x != null) { novo.x = ref.x + 40; novo.y = ref.y + 30 }
     setGraph(g => ({ ...g, nodes: [...g.nodes, novo] }))
-    if (conectar?.origem_id) {
-      await criarAresta({ origem_id: conectar.origem_id, destino_id: no.id, rotulo: conectar.rotulo }, true)
+    for (const c of lista) {
+      await criarAresta({ origem_id: c.origem_id, destino_id: no.id, rotulo: c.rotulo }, true)
     }
     preloadFotos([novo])
-    aviso("Nó criado.", C.green)
+    aviso(lista.length > 1 ? "Nó criado e conectado ao vínculo." : "Nó criado.", C.green)
     return no
   }
   async function criarAresta(payload, silencioso) {
@@ -842,6 +844,9 @@ export default function GrafoVinculos() {
     return "rgba(232,160,32,0.55)"
   }, [sel, pathRes, centMap])
 
+  // nó ao qual "+ Nó" conecta por padrão: o nó selecionado, senão o alvo raiz da rede
+  const noConectarRef = sel?.tipo === "node" ? sel.data : graph.nodes.find(n => n.id === alvoId)
+
   /* ============================ UI ============================ */
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: C.bg, fontFamily: SANS, color: C.text }}>
@@ -1060,6 +1065,11 @@ export default function GrafoVinculos() {
         {alvoId && edit && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 18px", background: C.surfaceMid, borderBottom: `1px solid ${C.border}`, flexWrap: "wrap" }}>
             <button className="gv-btn" onClick={() => setModal({ tipo: "novoNo" })} style={btn(C.gold)}>+ Nó</button>
+            {noConectarRef && (
+              <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>
+                liga em: <b style={{ color: C.gold }}>{noConectarRef.rotulo}</b>
+              </span>
+            )}
             <button className="gv-btn"
               onClick={() => { if (sel?.tipo === "node") setLinking({ sourceId: sel.data.id }); else aviso("Selecione um nó de origem primeiro.", C.textMid) }}
               style={btn(linking ? C.green : C.textMid)}>{linking ? "Clique no destino →" : "+ Vínculo a partir do selecionado"}</button>
@@ -1298,6 +1308,7 @@ export default function GrafoVinculos() {
       {sel && <PainelDetalhe sel={sel} edit={edit}
         onEdit={() => setModal({ tipo: sel.tipo === "node" ? "editNo" : "editLink", data: sel.data })}
         onConnect={() => setLinking({ sourceId: sel.data.id })}
+        onAttachNode={() => setModal({ tipo: "novoNoLink", link: sel.data })}
         onDelete={() => sel.tipo === "node" ? excluirNo(sel.data.id) : excluirAresta(sel.data.id)}
         onFoto={(file) => enviarFoto(sel.data.id, file)}
         onExportarPDF={() => exportarPDF(sel.data)}
@@ -1306,11 +1317,31 @@ export default function GrafoVinculos() {
 
       {/* ── MODAIS ── */}
       {modal?.tipo === "novoNo" && (
-        <ModalNo titulo="Novo nó" rotulosVinculo={meta.rotulos_vinculo} podeConectar={!!alvoId}
-          alvoLabel={alvos.find(a => a.id === alvoId)?.rotulo}
+        <ModalNo titulo="Novo nó" rotulosVinculo={meta.rotulos_vinculo} podeConectar={!!noConectarRef}
+          alvoLabel={noConectarRef?.rotulo}
           onClose={() => setModal(null)}
-          onSalvar={async (dados, conectar) => { setModal(null); await criarNo(dados, conectar ? { origem_id: alvoId, rotulo: conectar } : null) }} />
+          onSalvar={async (dados, conectar) => { setModal(null); await criarNo(dados, conectar ? { origem_id: noConectarRef?.id, rotulo: conectar } : null) }} />
       )}
+      {modal?.tipo === "novoNoLink" && (() => {
+        const link = modal.link
+        const origemNode  = graph.nodes.find(n => n.id === (link.source?.id ?? link.source))
+        const destinoNode = graph.nodes.find(n => n.id === (link.target?.id ?? link.target))
+        return (
+          <ModalNo titulo="Novo nó no vínculo" rotulosVinculo={meta.rotulos_vinculo}
+            conectarLink={{ origem: origemNode, destino: destinoNode }}
+            onClose={() => setModal(null)}
+            onSalvar={async (dados, rotVinc) => {
+              setModal(null)
+              const posRef = (origemNode?.x != null && destinoNode?.x != null)
+                ? { x: (origemNode.x + destinoNode.x) / 2, y: (origemNode.y + destinoNode.y) / 2 }
+                : null
+              await criarNo(dados, [
+                { origem_id: origemNode?.id, rotulo: rotVinc },
+                { origem_id: destinoNode?.id, rotulo: rotVinc },
+              ], posRef)
+            }} />
+        )
+      })()}
       {modal?.tipo === "editNo" && (
         <ModalNo titulo="Editar nó" inicial={modal.data} onClose={() => setModal(null)}
           onSalvar={async (dados) => { setModal(null); await atualizarNo(modal.data.id, dados) }} />
@@ -1357,7 +1388,7 @@ function Vazio({ onSync, busy, temAlvos }) {
 }
 
 /* ── painel de detalhe (nó ou vínculo) ── */
-function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto, onRemoveFoto, onExportarPDF }) {
+function PainelDetalhe({ sel, edit, onEdit, onConnect, onAttachNode, onDelete, onClose, onFoto, onRemoveFoto, onExportarPDF }) {
   const isNode = sel.tipo === "node"
   const d = sel.data
   const cor = isNode ? corCategoria(d.tipo) : C.gold
@@ -1462,6 +1493,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button className="gv-btn" onClick={onEdit} style={{ ...btn(C.gold), flex: 1 }}>✎ Editar</button>
           {isNode && <button className="gv-btn" onClick={onConnect} style={{ ...btn(C.green), flex: 1 }}>+ Vínculo</button>}
+          {!isNode && <button className="gv-btn" onClick={onAttachNode} style={{ ...btn(C.green), flex: 1 }}>+ Nó neste vínculo</button>}
           <button className="gv-btn" onClick={onDelete} style={{ ...btn(C.red), flex: 1 }}>── Excluir</button>
         </div>
       )}
@@ -1470,7 +1502,7 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onDelete, onClose, onFoto
 }
 
 /* ── modal de nó (criar/editar) com galeria de ícones ── */
-function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulosVinculo = [], onClose, onSalvar }) {
+function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, conectarLink, rotulosVinculo = [], onClose, onSalvar }) {
   const [tipo, setTipo]     = useState(inicial?.tipo || forcarTipo || "generico")
   const [icone, setIcone]   = useState(inicial?.icone || iconePadrao(forcarTipo || "generico"))
   const [rotulo, setRotulo] = useState(inicial?.rotulo || "")
@@ -1490,7 +1522,9 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
     const detalhes = { ...(inicial?.detalhes || {}) }
     detalhes.observacao = obs || undefined
     detalhes.data = data || undefined
-    onSalvar({ tipo, icone, rotulo: rotulo || "Sem rótulo", detalhes }, conectar ? rotVinc : false)
+    const payload = { tipo, icone, rotulo: rotulo || "Sem rótulo", detalhes }
+    if (conectarLink) { onSalvar(payload, rotVinc || "RELACIONADO_A"); return }
+    onSalvar(payload, conectar ? rotVinc : false)
   }
 
   return (
@@ -1564,12 +1598,12 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
               style={{ ...inp(), resize: "vertical", fontFamily: SANS }} />
           </div>
 
-          {/* conectar ao alvo */}
-          {podeConectar && (
+          {/* conectar a um nó (alvo raiz ou o nó selecionado no momento) */}
+          {podeConectar && !conectarLink && (
             <div style={{ background: "rgba(74,222,128,0.06)", border: `1px solid rgba(74,222,128,0.25)`, borderRadius: 10, padding: 12 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: C.text }}>
                 <input type="checkbox" checked={conectar} onChange={e => setConectar(e.target.checked)} style={{ accentColor: C.green }} />
-                Ligar ao alvo <b style={{ color: C.gold }}>{alvoLabel}</b>
+                Ligar a <b style={{ color: C.gold }}>{alvoLabel}</b>
               </label>
               {conectar && (
                 <div style={{ marginTop: 10 }}>
@@ -1577,6 +1611,20 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, rotulos
                   <SelectRotulo valor={rotVinc} onChange={setRotVinc} rotulos={rotulosVinculo} />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* conectar aos dois lados de um vínculo existente (estilo i2: anexar entidade à relação) */}
+          {conectarLink && (
+            <div style={{ background: C.goldSoft, border: `1px solid ${C.goldBorder}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 13, color: C.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ color: C.textMid }}>Este nó vai se conectar aos dois lados do vínculo:</span>
+                <b style={{ color: C.gold }}>{conectarLink.origem?.icone} {conectarLink.origem?.rotulo}</b>
+                <span style={{ color: C.textMid }}>↔</span>
+                <b style={{ color: C.gold }}>{conectarLink.destino?.icone} {conectarLink.destino?.rotulo}</b>
+              </div>
+              <Lbl>Rótulo do vínculo (aplicado aos dois lados)</Lbl>
+              <SelectRotulo valor={rotVinc} onChange={setRotVinc} rotulos={rotulosVinculo} />
             </div>
           )}
         </div>
