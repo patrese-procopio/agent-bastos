@@ -675,6 +675,17 @@ export default function HitlDashboard() {
   const [, setTick] = useState(0)
   const intervalRef = useRef(null)
 
+  // Handoff de outras telas (ex.: "Gerar Dossiê SUBINT" na Análise de Vínculo)
+  const [subintEntidadeInicial, setSubintEntidadeInicial] = useState("")
+  useEffect(() => {
+    const nome = localStorage.getItem("oraculo_subint_entidade")
+    if (nome) {
+      localStorage.removeItem("oraculo_subint_entidade")
+      setSubintEntidadeInicial(nome)
+      setAba("subint")
+    }
+  }, [])
+
   const carregar = useCallback(async () => {
     try {
       const res  = await api.get("/human-loop/listar?limite=100")
@@ -875,6 +886,7 @@ export default function HitlDashboard() {
             subints={subints}
             onRefresh={carregarSubints}
             onPreview={(s) => setSubintPreview({ id: s.id, numero: s.numero })}
+            initialEntidade={subintEntidadeInicial}
           />
         )}
 
@@ -1322,8 +1334,9 @@ const LOADING_MSGS = [
   "Gerando PDF e DOCX…",
 ]
 
-function SubintTab({ subints, onRefresh, onPreview }) {
-  const [entidade,  setEntidade]  = useState("")
+function SubintTab({ subints, onRefresh, onPreview, initialEntidade }) {
+  const [entidade,  setEntidade]  = useState(initialEntidade || "")
+  useEffect(() => { if (initialEntidade) setEntidade(initialEntidade) }, [initialEntidade])
   const [origem,    setOrigem]    = useState("AIPEN")
   const [gerando,   setGerando]   = useState(false)
   const [msgIdx,    setMsgIdx]    = useState(0)

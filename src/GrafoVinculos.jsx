@@ -52,7 +52,7 @@ const CLUSTER_COLORS = [
 ]
 
 /* ============================================================ */
-export default function GrafoVinculos() {
+export default function GrafoVinculos({ onNavigate }) {
   const [meta, setMeta]         = useState({ rotulos_vinculo: [] })
   const [alvos, setAlvos]       = useState([])
   const [alvoId, setAlvoId]     = useState(null)
@@ -655,6 +655,23 @@ export default function GrafoVinculos() {
     if (!r.ok) { aviso("Falha ao excluir.", C.red); return }
     setGraph(g => ({ ...g, links: g.links.filter(l => l.id !== id) }))
     setSel(null); aviso("Vínculo removido.", C.textMid)
+  }
+
+  /* ── Histórico do interno → IA (extrai pro grafo + dispara correlação/Oráculo) ── */
+  async function analisarHistorico(no_id) {
+    try {
+      const r = await api.post(`/grafo/no/${no_id}/analisar-historico`, {})
+      const d = await r.json()
+      if (!r.ok || !d.ok) { aviso(d.motivo || "Falha ao analisar histórico.", C.red); return }
+      if (d.bloqueado) { aviso(d.motivo || "Análise bloqueada (guardrail de soberania).", C.textMid); return }
+      aviso(`🔮 ${d.entidades_criadas || 0} entidade(s) · ${d.arestas_criadas || 0} vínculo(s) extraído(s) do histórico.`, C.oracleLight)
+      if (alvoId) carregarRede(alvoId)
+    } catch { aviso("Erro ao analisar histórico.", C.red) }
+  }
+
+  function gerarDossie(node) {
+    localStorage.setItem("oraculo_subint_entidade", node.rotulo)
+    onNavigate?.("ORÁCULO")
   }
 
   /* ── Interações no canvas ── */
@@ -1312,6 +1329,8 @@ export default function GrafoVinculos() {
         onDelete={() => sel.tipo === "node" ? excluirNo(sel.data.id) : excluirAresta(sel.data.id)}
         onFoto={(file) => enviarFoto(sel.data.id, file)}
         onExportarPDF={() => exportarPDF(sel.data)}
+        onAnalisarHistorico={() => analisarHistorico(sel.data.id)}
+        onGerarDossie={() => gerarDossie(sel.data)}
         onRemoveFoto={() => removerFoto(sel.data.id)}
         onClose={() => setSel(null)} />}
 
@@ -1388,14 +1407,20 @@ function Vazio({ onSync, busy, temAlvos }) {
 }
 
 /* ── painel de detalhe (nó ou vínculo) ── */
-function PainelDetalhe({ sel, edit, onEdit, onConnect, onAttachNode, onDelete, onClose, onFoto, onRemoveFoto, onExportarPDF }) {
+function PainelDetalhe({ sel, edit, onEdit, onConnect, onAttachNode, onDelete, onClose, onFoto, onRemoveFoto, onExportarPDF, onAnalisarHistorico, onGerarDossie }) {
   const isNode = sel.tipo === "node"
   const d = sel.data
   const cor = isNode ? corCategoria(d.tipo) : C.gold
   const det = isNode ? (d.detalhes || {}) : (d.propriedades || {})
   const movs = isNode ? det.movimentacoes : null
-  const ocultar = new Set(["movimentacoes", "foto_url", "foto_lider_id", "foto"])
+  const ocultar = new Set(["movimentacoes", "foto_url", "foto_lider_id", "foto", "historico"])
   const [fotoSrc, setFotoSrc] = useState(null)
+  const [analisando, setAnalisando] = useState(false)
+  async function analisar() {
+    if (analisando) return
+    setAnalisando(true)
+    try { await onAnalisarHistorico?.() } finally { setAnalisando(false) }
+  }
   useEffect(() => {
     if (!det.foto_url) { setFotoSrc(null); return }
     const token = getAccessToken() || ""
@@ -1452,6 +1477,21 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onAttachNode, onDelete, o
             ⬇ Exportar Relatório PDF
           </button>
         )}
+        {/* IA / Oráculo — só para pessoas */}
+        {isNode && d.tipo === "pessoa" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {det.historico && (
+              <button className="gv-btn" onClick={analisar} disabled={analisando}
+                style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid rgba(167,139,250,0.35)", background:"rgba(167,139,250,0.08)", color: analisando ? C.textMid : C.oracleLight, fontSize:12, fontWeight:700, cursor: analisando ? "not-allowed" : "pointer", fontFamily:MONO, letterSpacing:"0.05em", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                {analisando ? "🔮 Analisando…" : "🔮 Analisar Histórico"}
+              </button>
+            )}
+            <button className="gv-btn" onClick={onGerarDossie}
+              style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${C.oracleBorder}`, background: C.oracleSoft, color: C.oracleLight, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:MONO, letterSpacing:"0.05em", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              🔮 Gerar Dossiê SUBINT (Oráculo)
+            </button>
+          </div>
+        )}
         {/* metadados */}
         {Object.entries(det).filter(([k, v]) => !ocultar.has(k) && v != null && v !== "").length > 0 && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px" }}>
@@ -1486,6 +1526,16 @@ function PainelDetalhe({ sel, edit, onEdit, onConnect, onAttachNode, onDelete, o
             </div>
           </div>
         )}
+
+        {/* histórico do interno */}
+        {isNode && det.historico && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: "0.1em", marginBottom: 8, fontFamily: MONO }}>HISTÓRICO DO INTERNO</div>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.text, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {det.historico}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* a──es */}
@@ -1507,6 +1557,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, conecta
   const [icone, setIcone]   = useState(inicial?.icone || iconePadrao(forcarTipo || "generico"))
   const [rotulo, setRotulo] = useState(inicial?.rotulo || "")
   const [obs, setObs]       = useState(inicial?.detalhes?.observacao || "")
+  const [historico, setHistorico] = useState(inicial?.detalhes?.historico || "")
   const [data, setData]     = useState(inicial?.detalhes?.data || "")
   const [buscaIco, setBuscaIco] = useState("")
   const [conectar, setConectar] = useState(false)
@@ -1521,6 +1572,7 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, conecta
   function salvar() {
     const detalhes = { ...(inicial?.detalhes || {}) }
     detalhes.observacao = obs || undefined
+    detalhes.historico = historico || undefined
     detalhes.data = data || undefined
     const payload = { tipo, icone, rotulo: rotulo || "Sem rótulo", detalhes }
     if (conectarLink) { onSalvar(payload, rotVinc || "RELACIONADO_A"); return }
@@ -1596,6 +1648,12 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, conecta
             <Lbl>Observação (opcional)</Lbl>
             <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="Anotação livre?"
               style={{ ...inp(), resize: "vertical", fontFamily: SANS }} />
+          </div>
+          <div>
+            <Lbl>Histórico do interno (opcional)</Lbl>
+            <textarea value={historico} onChange={e => setHistorico(e.target.value)} rows={8}
+              placeholder="Narrativa livre sobre o alvo — trajetória, fatos conhecidos, contexto. O botão &quot;Analisar Histórico&quot; no painel do nó extrai entidades/vínculos daqui e alimenta o Oráculo."
+              style={{ ...inp(), resize: "vertical", fontFamily: SANS, lineHeight: 1.5 }} />
           </div>
 
           {/* conectar a um nó (alvo raiz ou o nó selecionado no momento) */}
