@@ -111,19 +111,33 @@ def _coletar_dados(entidade_nome: str, hitl_id: Optional[str] = None) -> dict:
     """
     Coleta todos os dados disponíveis sobre a entidade nos módulos do sistema.
     Fail-safe: cada fonte é independente — falha em uma não bloqueia as outras.
+
+    O grafo de vínculos é tratado como a camada de agregação: ao invés de
+    fontes soltas, resolve-se o nó da entidade e lê-se `rede_alvo` (2 saltos),
+    que já traz de graça o que outros fluxos convergiram pra lá (lideranças
+    sincronizadas, citações RELINT via `varrer_citacoes`, hub de Extrato via
+    `ingerir_extrato`, hub de correlação confirmada via `grafo_auto_service`).
+    Além disso, `varrer_citacoes` é chamado NA HORA (não só o que já estava
+    salvo) para o SUBINT sempre refletir as referências mais recentes.
     """
     dados: dict = {
-        "entidade":       entidade_nome,
-        "score":          None,
-        "historico_score": [],
-        "nos_grafo":      [],
-        "arestas":        [],
-        "hitls":          [],
-        "hits_hitl":      [],
-        "hitl_descricao": "",
-        "hitl_risco":     "ALTO",
-        "hitl_summary":   "",
-        "risco_nivel":    "DESCONHECIDO",
+        "entidade":          entidade_nome,
+        "score":             None,
+        "historico_score":   [],
+        "no_id":             None,
+        "historico_interno": "",
+        "cadastro":          {},
+        "movimentacoes":     [],
+        "nos_grafo":         [],
+        "arestas":           [],
+        "documentos":        [],
+        "extratos":          [],
+        "hitls":             [],
+        "hits_hitl":         [],
+        "hitl_descricao":    "",
+        "hitl_risco":        "ALTO",
+        "hitl_summary":      "",
+        "risco_nivel":       "DESCONHECIDO",
     }
 
     # ── Score de risco ────────────────────────────────────────────────────────
@@ -138,48 +152,88 @@ def _coletar_dados(entidade_nome: str, hitl_id: Optional[str] = None) -> dict:
     except Exception as exc:
         logger.warning("[subint] Score indisponível: %s", exc)
 
-    # ── Grafo de vínculos ─────────────────────────────────────────────────────
+    # ── Grafo de vínculos (2 saltos) + citações RELINT/RELTEC frescas ─────────
+    no_id = None
     try:
-        from modules.grafo import _conn as _gconn
+        from modules import grafo as _grafo
         nome_norm = _norm(entidade_nome)
-        with _gconn() as gcon:
-            nos = gcon.execute(
-                "SELECT id, tipo, rotulo, propriedades FROM nos "
-                "WHERE lower(rotulo) LIKE ? LIMIT 5",
-                (f"%{nome_norm}%",),
+        with _grafo._conn() as gcon:
+            # Comparação em Python (não SQL LIKE): rotulo pode ter acento e a
+            # coluna às vezes carrega espaço/caixa inconsistente da sincronização
+            # de lideranças (ex.: " NENÉM DA MAJOR") — lower()/LIKE do SQLite não
+            # normaliza acento, então um LIKE direto nunca bate com o nome
+            # digitado sem acento ou com espaçamento diferente.
+            candidatos = gcon.execute(
+                "SELECT id, rotulo FROM nos WHERE tipo='pessoa'"
             ).fetchall()
-            dados["nos_grafo"] = [dict(n) for n in nos]
+            no_id = None
+            for c in candidatos:
+                rn = _norm(c["rotulo"])
+                if rn == nome_norm or nome_norm in rn or rn in nome_norm:
+                    no_id = c["id"]
+                    break
 
-            if nos:
-                no_id   = nos[0]["id"]
-                arestas = gcon.execute(
-                    "SELECT rotulo, origem_id, destino_id FROM arestas "
-                    "WHERE origem_id=? OR destino_id=? LIMIT 20",
-                    (no_id, no_id),
-                ).fetchall()
-                # Enriquecer com rótulos dos nós conectados
-                ids_extra = set()
-                for a in arestas:
-                    ids_extra.add(a["origem_id"])
-                    ids_extra.add(a["destino_id"])
-                ids_extra.discard(no_id)
-                rotulos = {}
-                for eid_g in ids_extra:
-                    row = gcon.execute(
-                        "SELECT rotulo FROM nos WHERE id=?", (eid_g,)
-                    ).fetchone()
-                    if row:
-                        rotulos[eid_g] = row["rotulo"]
-                dados["arestas"] = [
-                    {
-                        "rotulo":    a["rotulo"],
-                        "de":        rotulos.get(a["origem_id"], a["origem_id"][:8]),
-                        "para":      rotulos.get(a["destino_id"], a["destino_id"][:8]),
-                    }
-                    for a in arestas
-                ]
+        if no_id:
+            dados["no_id"] = no_id
+            try:
+                _grafo.varrer_citacoes(no_id)
+            except Exception as exc:
+                logger.warning("[subint] varrer_citacoes falhou: %s", exc)
+
+            rede = _grafo.rede_alvo(no_id, hops=2)
+            nos_map  = {n["id"]: n for n in rede.get("nodes", [])}
+            det_alvo = (nos_map.get(no_id) or {}).get("detalhes") or {}
+
+            dados["historico_interno"] = det_alvo.get("historico") or ""
+            dados["cadastro"] = {
+                "cargo":    det_alvo.get("cargo_atual")    or det_alvo.get("cargo"),
+                "faccao":   det_alvo.get("faccao_atual")   or det_alvo.get("faccao"),
+                "unidade":  det_alvo.get("unidade_atual")  or det_alvo.get("unidade"),
+                "pavilhao": det_alvo.get("pavilhao_atual") or det_alvo.get("pavilhao"),
+                "cela":     det_alvo.get("cela_atual")     or det_alvo.get("cela"),
+            }
+            dados["movimentacoes"] = det_alvo.get("movimentacoes") or []
+            dados["nos_grafo"]     = rede.get("nodes", [])
+
+            arestas, documentos = [], []
+            for e in rede.get("edges", []):
+                sid, tid = e.get("origem_id"), e.get("destino_id")
+                s, t = nos_map.get(sid) or {}, nos_map.get(tid) or {}
+                arestas.append({
+                    "rotulo": e.get("rotulo"),
+                    "de":     s.get("rotulo", (sid or "")[:8]),
+                    "para":   t.get("rotulo", (tid or "")[:8]),
+                })
+            for n in rede.get("nodes", []):
+                if n.get("tipo") == "documento":
+                    d = n.get("detalhes") or {}
+                    if d.get("trecho") or d.get("fonte"):
+                        documentos.append({
+                            "rotulo": n.get("rotulo"), "fonte": d.get("fonte"),
+                            "data": d.get("data"), "trecho": d.get("trecho"),
+                        })
+            dados["arestas"]    = arestas[:30]
+            dados["documentos"] = documentos[:10]
     except Exception as exc:
         logger.warning("[subint] Grafo indisponível: %s", exc)
+
+    # ── Menções em extratos de campo (direto por no_id, sem match difuso) ─────
+    if no_id:
+        try:
+            import sqlite3
+            from config.paths import DB_EXTRATO
+            con = sqlite3.connect(str(DB_EXTRATO), timeout=5)
+            con.row_factory = sqlite3.Row
+            rows = con.execute(
+                """SELECT ee.papel, ee.evidencia, ex.assunto, ex.unidade, ex.data
+                   FROM extrato_entidades ee JOIN extratos ex ON ex.id = ee.extrato_id
+                   WHERE ee.no_id = ? ORDER BY ex.data DESC LIMIT 10""",
+                (no_id,),
+            ).fetchall()
+            con.close()
+            dados["extratos"] = [dict(r) for r in rows]
+        except Exception as exc:
+            logger.warning("[subint] extrato_entidades indisponível: %s", exc)
 
     # ── HITLs confirmados que mencionam a entidade ────────────────────────────
     try:
@@ -287,6 +341,42 @@ def _sintetizar_via_llm(dados: dict, origem: str) -> str:
         for a in dados["arestas"][:10]:
             grafo_bloco += f"• {a['de']} —[{a['rotulo']}]→ {a['para']}\n"
 
+    # Formata histórico do interno (narrativa livre escrita pelo analista no nó)
+    historico_bloco = dados.get("historico_interno") or "Sem histórico registrado pelo analista."
+
+    # Formata cadastro (lideranças) + movimentações
+    cad = dados.get("cadastro") or {}
+    cadastro_linhas = [f"{k.capitalize()}: {v}" for k, v in cad.items() if v]
+    cadastro_bloco = "\n".join(cadastro_linhas) or "Sem dados de cadastro de liderança."
+    if dados.get("movimentacoes"):
+        cadastro_bloco += "\nHistórico de movimentações:\n"
+        for m in dados["movimentacoes"][:6]:
+            cadastro_bloco += (
+                f"  • [{m.get('competencia','?')}] {m.get('unidade','')} "
+                f"{m.get('pavilhao','')} — {m.get('cargo','')} ({m.get('faccao','')})\n"
+            )
+
+    # Formata menções em extratos de campo
+    extratos_bloco = "Nenhuma menção em extrato de campo."
+    if dados.get("extratos"):
+        extratos_bloco = ""
+        for e in dados["extratos"][:8]:
+            extratos_bloco += (
+                f"• [{(e.get('data') or '')[:10]}] {e.get('assunto') or e.get('unidade') or '?'} "
+                f"— papel: {e.get('papel') or 'N/A'}\n"
+            )
+            if e.get("evidencia"):
+                extratos_bloco += f"  \"{e['evidencia'][:160]}\"\n"
+
+    # Formata documentos/RELINT-RELTEC citados (varridos na hora via varrer_citacoes)
+    documentos_bloco = "Nenhum documento/RELINT/RELTEC citando a entidade."
+    if dados.get("documentos"):
+        documentos_bloco = ""
+        for d in dados["documentos"][:8]:
+            documentos_bloco += f"• {d.get('rotulo') or d.get('fonte') or '?'} [{(d.get('data') or '')[:10]}]\n"
+            if d.get("trecho"):
+                documentos_bloco += f"  \"{d['trecho'][:160]}\"\n"
+
     prompt = f"""Você é um analista sênior de inteligência de segurança pública do Brasil.
 
 Produza um SUBINT (Subsídio de Inteligência) técnico e objetivo sobre a entidade abaixo.
@@ -296,6 +386,12 @@ Escreva em português formal de inteligência de segurança pública.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ENTIDADE: {entidade}
 ORIGEM DO SUBINT: {origem}
+
+HISTÓRICO DO INTERNO (escrito por analista no grafo de vínculos):
+{historico_bloco}
+
+DADOS DE CADASTRO E MOVIMENTAÇÃO:
+{cadastro_bloco}
 
 SCORE DE RISCO:
 {score_bloco}
@@ -308,12 +404,18 @@ ENTIDADES E FONTES CO-MENCIONADAS:
 
 GRAFO DE VÍNCULOS:
 {grafo_bloco}
+
+MENÇÕES EM EXTRATOS DE CAMPO:
+{extratos_bloco}
+
+DOCUMENTOS / RELINT / RELTEC CITANDO A ENTIDADE:
+{documentos_bloco}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ESTRUTURA OBRIGATÓRIA (use exatamente estes títulos de seção):
 
 1. IDENTIFICAÇÃO E CONTEXTO
-[Apresente quem é a entidade, de onde aparecem no sistema, seu histórico no Agent Bastos]
+[Apresente quem é a entidade — cadastro, unidade/pavilhão, histórico escrito pelo analista]
 
 2. CORRELAÇÕES IDENTIFICADAS
 [Liste cada correlação confirmada com data, risco e entidades associadas]
@@ -324,7 +426,10 @@ ESTRUTURA OBRIGATÓRIA (use exatamente estes títulos de seção):
 4. AVALIAÇÃO DE RISCO
 [Interprete o score, o nível de risco e o histórico de eventos]
 
-5. CONSIDERAÇÕES FINAIS E DILIGÊNCIAS SUGERIDAS
+5. MENÇÕES EM EXTRATOS E DOCUMENTOS
+[Sintetize o que os extratos de campo e os documentos/RELINT/RELTEC citados dizem sobre a entidade]
+
+6. CONSIDERAÇÕES FINAIS E DILIGÊNCIAS SUGERIDAS
 [Conclusões analíticas e recomendações de acompanhamento para os analistas]
 
 REGRAS:
@@ -333,7 +438,7 @@ REGRAS:
 - Se uma seção não tiver dados suficientes, escreva "Sem dados suficientes para análise nesta seção."
 - NÃO inclua cabeçalho (data, número, origem) — ele será adicionado pelo sistema
 
-Produza APENAS o corpo do documento com as 5 seções."""
+Produza APENAS o corpo do documento com as 6 seções."""
 
     msg = client.messages.create(
         model="claude-opus-4-6",

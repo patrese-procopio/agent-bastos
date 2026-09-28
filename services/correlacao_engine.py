@@ -44,10 +44,11 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("bastos.correlacao")
 
-from config.paths import BASE_DIR, DB_AUTH, DB_EXTRATO, DB_LIDERANCAS, DATA_DIR
+from config.paths import BASE_DIR, DB_AUTH, DB_EXTRATO, DB_LIDERANCAS, DB_GRAFO, DATA_DIR
 
 _DB_PATH    = str(DB_AUTH)
 _EXTRATO_DB = str(DB_EXTRATO)
+_GRAFO_DB   = str(DB_GRAFO)
 
 # Stop words para tokenização
 _STOP = {
@@ -230,6 +231,27 @@ def _carregar_corpus() -> list[dict]:
             con.close()
     except Exception as exc:
         logger.warning("[correlacao] extrato_entidades: %s", exc)
+
+    # 5. grafo_vinculos.db — pessoas cadastradas manualmente ou via auto (grafo
+    #    deixa de ser ilha: um extrato/alerta futuro que cite alguém que só
+    #    existe na Análise de Vínculo passa a abrir HITL também)
+    try:
+        if os.path.exists(_GRAFO_DB):
+            con = sqlite3.connect(_GRAFO_DB, timeout=5)
+            con.row_factory = sqlite3.Row
+            for r in con.execute(
+                "SELECT rotulo, detalhes FROM nos WHERE tipo = 'pessoa'"
+            ).fetchall():
+                try:
+                    det = json.loads(r["detalhes"] or "{}")
+                except Exception:
+                    det = {}
+                _add(r["rotulo"], "Grafo de Vínculos", "Pessoa cadastrada na Análise de Vínculo")
+                if det.get("vulgo"):
+                    _add(det["vulgo"], "Grafo de Vínculos", f"Vulgo de {r['rotulo']}")
+            con.close()
+    except Exception as exc:
+        logger.warning("[correlacao] grafo_vinculos.db: %s", exc)
 
     return corpus
 

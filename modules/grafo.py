@@ -560,7 +560,17 @@ def sincronizar() -> dict:
                 det["foto_url"] = f"/api/liderancas/foto/{foto_lider['id']}"
 
             rotulo = atual.get("vulgo") or atual.get("nome") or "Alvo"
-            existia = con.execute("SELECT id FROM nos WHERE id = ?", (pid,)).fetchone()
+            existente = con.execute("SELECT detalhes FROM nos WHERE id = ?", (pid,)).fetchone()
+            existia = existente is not None
+            if existente:
+                # Re-sincronizar não pode apagar o histórico que o analista
+                # escreveu à mão — só os campos que vêm de fato de liderancas.db
+                # são recalculados acima.
+                det_antigo = _loads(existente["detalhes"])
+                if det_antigo.get("historico"):
+                    det["historico"] = det_antigo["historico"]
+                if det_antigo.get("historicos"):
+                    det["historicos"] = det_antigo["historicos"]
             _upsert_no(con, pid, "pessoa", rotulo, icone="👤",
                        detalhes=det, origem="auto:liderancas")
             if not existia:
@@ -888,6 +898,127 @@ def _registrar_mencao(con, no_id: str, extrato_id: str, ent: dict) -> None:
         det["extratos"] = mencoes
         con.execute("UPDATE nos SET detalhes = ?, atualizado_em = ? WHERE id = ?",
                     (json.dumps(det, ensure_ascii=False), _agora(), no_id))
+
+
+# ── Ingestão a partir do Histórico do Interno (nó do grafo) ──────────────────
+
+def _registrar_mencao_historico(con, no_id: str, sujeito_no_id: str, ent: dict) -> None:
+    """Anexa, ao detalhe de um nó já existente, a menção vinda do histórico de OUTRO nó."""
+    row = con.execute("SELECT detalhes FROM nos WHERE id = ?", (no_id,)).fetchone()
+    det = _loads(row["detalhes"]) if row else {}
+    mencoes = det.get("historicos") or []
+    if not any(m.get("sujeito_no_id") == sujeito_no_id for m in mencoes):
+        mencoes.append({"sujeito_no_id": sujeito_no_id,
+                        "papel": ent.get("papel_no_contexto"),
+                        "evidencia": ent.get("evidencia")})
+        det["historicos"] = mencoes
+        con.execute("UPDATE nos SET detalhes = ?, atualizado_em = ? WHERE id = ?",
+                    (json.dumps(det, ensure_ascii=False), _agora(), no_id))
+
+
+def limpar_historico(no_id: str) -> None:
+    """Remove as arestas/nós AUTO gerados por uma análise anterior do histórico
+    deste nó (reanalisar não duplica). Preserva pessoas (nós compartilhados)."""
+    origem = f"auto:historico:{no_id}"
+    with _conn() as con:
+        con.execute("DELETE FROM arestas WHERE origem = ?", (origem,))
+        con.execute("DELETE FROM nos WHERE origem = ? AND tipo != 'pessoa'", (origem,))
+
+
+def ingerir_historico(no_id: str, entidades: list[dict], conexoes: list[dict]) -> dict:
+    """
+    Materializa entidades e vínculos extraídos do campo "histórico do interno"
+    de um nó JÁ EXISTENTE (`no_id`) — mesma lógica de `ingerir_extrato`, mas
+    sem nó-hub novo: o hub é o próprio `no_id`. O ref especial "self" (usado
+    pelo prompt historico-v1 quando o texto descreve a própria pessoa) aponta
+    direto para `no_id`, sem criar/atualizar esse nó (preserva foto, cargo,
+    movimentações e o próprio histórico já salvo).
+
+    `entidades`: [{ref, tipo, nome, vulgo, rotulo, papel_no_contexto, evidencia}]
+    `conexoes` : [{source(ref), target(ref), relation, weight, evidencia}]
+
+    Retorna {ref_para_id, nos_criados, arestas_criadas}.
+    """
+    sujeito = buscar_no(no_id)
+    if not sujeito:
+        return {"ref_para_id": {}, "nos_criados": 0, "arestas_criadas": 0, "erro": "no_nao_encontrado"}
+
+    # Nomes/vulgo do próprio sujeito, pra detectar quando a IA o descreve por
+    # nome em vez de usar o ref "self" pedido no prompt (modelos locais mais
+    # fracos nem sempre seguem a instrução à risca — não confiar só no hash).
+    det_sujeito = sujeito.get("detalhes") or {}
+    nomes_sujeito = {
+        _norm(x) for x in (sujeito.get("rotulo"), det_sujeito.get("nome"), det_sujeito.get("vulgo"))
+        if x and len(_norm(x)) >= 3
+    }
+
+    limpar_historico(no_id)
+    origem = f"auto:historico:{no_id}"
+    ref_para_id: dict[str, str] = {"self": no_id}
+    nos_criados = 0
+
+    with _conn() as con:
+        for ent in entidades:
+            ref = str(ent.get("ref") or "")
+            if ref.lower() == "self" or ref in ref_para_id:
+                continue
+            tipo = ent.get("tipo") or "generico"
+            if tipo not in TIPOS_NO:
+                tipo = "generico"
+            nome  = (ent.get("nome") or "").strip()
+            vulgo = (ent.get("vulgo") or "").strip()
+            rotulo = (ent.get("rotulo") or vulgo or nome or "Entidade").strip()
+            ent_id = _id_entidade(tipo, nome, vulgo, rotulo)
+            eh_o_proprio = tipo == "pessoa" and (
+                ent_id == no_id
+                or (nomes_sujeito & {_norm(nome), _norm(vulgo), _norm(rotulo)} - {""})
+            )
+            if eh_o_proprio:
+                # a IA descreveu o próprio sujeito por nome em vez de usar "self"
+                ref_para_id[ref] = no_id
+                continue
+            ref_para_id[ref] = ent_id
+
+            existe = con.execute("SELECT id FROM nos WHERE id = ?", (ent_id,)).fetchone()
+            if existe:
+                _registrar_mencao_historico(con, ent_id, no_id, ent)
+                continue
+            det = {
+                "nome": nome or None, "vulgo": vulgo or None,
+                "papel_no_contexto": ent.get("papel_no_contexto"),
+                "historicos": [{"sujeito_no_id": no_id,
+                                "papel": ent.get("papel_no_contexto"),
+                                "evidencia": ent.get("evidencia")}],
+            }
+            _upsert_no(con, ent_id, tipo, rotulo,
+                       icone=ICONE_PADRAO.get(tipo, "⚪"), detalhes=det, origem=origem)
+            nos_criados += 1
+
+        arestas_criadas = 0
+        for cx in conexoes:
+            sid = ref_para_id.get(str(cx.get("source")))
+            tid = ref_para_id.get(str(cx.get("target")))
+            if not sid or not tid or sid == tid:
+                continue
+            rel = (cx.get("relation") or "RELACIONADO_A").strip().upper().replace(" ", "_")
+            try:
+                weight = int(cx.get("weight") or 2)
+            except Exception:
+                weight = 2
+            _upsert_aresta_auto(con, sid, tid, rel, {
+                "weight": max(1, min(3, weight)),
+                "evidencia": cx.get("evidencia"),
+                "fonte": "historico",
+            }, origem)
+            arestas_criadas += 1
+
+    return {"ref_para_id": ref_para_id, "nos_criados": nos_criados,
+            "arestas_criadas": arestas_criadas}
+
+
+def _existe_no(no_id: str) -> bool:
+    with _conn() as con:
+        return con.execute("SELECT 1 FROM nos WHERE id = ?", (no_id,)).fetchone() is not None
 
 
 # ── Resolução de homônimos (sugerir e confirmar) ─────────────────────────────

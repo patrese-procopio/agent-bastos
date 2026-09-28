@@ -177,7 +177,7 @@ def _montar_user(texto: str, lexico_contexto: str = "") -> str:
 
 # ── Backends ─────────────────────────────────────────────────────────────────
 
-def _extrair_groq(texto: str, lexico: str) -> tuple[str | None, str]:
+def _extrair_groq(texto: str, lexico: str, system_prompt: str = SYSTEM_PROMPT) -> tuple[str | None, str]:
     from groq import Groq
     from config.settings import GROQ_API_KEY
     if not GROQ_API_KEY:
@@ -186,7 +186,7 @@ def _extrair_groq(texto: str, lexico: str) -> tuple[str | None, str]:
     resp = client.chat.completions.create(
         model=GROQ_MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": _montar_user(texto, lexico)},
         ],
         response_format={"type": "json_object"},
@@ -196,14 +196,14 @@ def _extrair_groq(texto: str, lexico: str) -> tuple[str | None, str]:
     return resp.choices[0].message.content, GROQ_MODEL
 
 
-def _extrair_ollama(texto: str, lexico: str) -> tuple[str | None, str]:
+def _extrair_ollama(texto: str, lexico: str, system_prompt: str = SYSTEM_PROMPT) -> tuple[str | None, str]:
     payload = {
         "model": OLLAMA_MODEL,
         "stream": False,
         "format": "json",
         "options": {"temperature": 0.2},
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": _montar_user(texto, lexico)},
         ],
     }
@@ -228,7 +228,7 @@ def _extrair_ollama(texto: str, lexico: str) -> tuple[str | None, str]:
     return (body.get("message") or {}).get("content"), OLLAMA_MODEL
 
 
-def _extrair_claude(texto: str, lexico: str) -> tuple[str | None, str]:
+def _extrair_claude(texto: str, lexico: str, system_prompt: str = SYSTEM_PROMPT) -> tuple[str | None, str]:
     import anthropic
     from config.settings import ANTHROPIC_API_KEY
     if not ANTHROPIC_API_KEY:
@@ -243,7 +243,7 @@ def _extrair_claude(texto: str, lexico: str) -> tuple[str | None, str]:
         temperature=0.2,
         system=[{
             "type": "text",
-            "text": SYSTEM_PROMPT + "\n\nResponda apenas com o objeto JSON, sem texto fora dele.",
+            "text": system_prompt + "\n\nResponda apenas com o objeto JSON, sem texto fora dele.",
             "cache_control": {"type": "ephemeral"},
         }],
         messages=[{"role": "user", "content": _montar_user(texto, lexico)}],
@@ -252,7 +252,7 @@ def _extrair_claude(texto: str, lexico: str) -> tuple[str | None, str]:
     return txt, CLAUDE_MODEL
 
 
-def _extrair_deepseek(texto: str, lexico: str) -> tuple[str | None, str]:
+def _extrair_deepseek(texto: str, lexico: str, system_prompt: str = SYSTEM_PROMPT) -> tuple[str | None, str]:
     """DeepSeek — API OpenAI-compatible (deepseek-chat = DeepSeek-V3). JSON mode."""
     import requests
     from config.settings import DEEPSEEK_API_KEY
@@ -265,7 +265,7 @@ def _extrair_deepseek(texto: str, lexico: str) -> tuple[str | None, str]:
         json={
             "model": DEEPSEEK_MODEL,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": _montar_user(texto, lexico)},
             ],
             "response_format": {"type": "json_object"},
@@ -309,9 +309,15 @@ def _extrair_json(raw: str) -> dict | None:
 
 # ── API pública ──────────────────────────────────────────────────────────────
 
-def extrair(texto: str, classificacao: str = "", lexico_contexto: str = "") -> dict:
+def extrair(texto: str, classificacao: str = "", lexico_contexto: str = "",
+            system_prompt: str | None = None, prompt_versao: str | None = None) -> dict:
     """
-    Extrai inteligência do extrato respeitando o guardrail de classificação.
+    Extrai inteligência de um texto respeitando o guardrail de classificação.
+
+    `system_prompt`/`prompt_versao` são opcionais — permitem reusar todo o
+    pipeline (provedor/guardrail/parsing) com um prompt diferente do rae-v1
+    do Extrato (ex.: histórico-v1 do grafo). Sem eles, comportamento idêntico
+    ao de sempre.
 
     Retorna:
       {
@@ -326,7 +332,7 @@ def extrair(texto: str, classificacao: str = "", lexico_contexto: str = "") -> d
     rota = resolver_provedor(classificacao)
     base = {
         "provedor": rota["provedor"], "modelo": None,
-        "prompt_versao": PROMPT_VERSAO,
+        "prompt_versao": prompt_versao or PROMPT_VERSAO,
         "forcado_local": rota["forcado_local"], "bloqueado": rota["bloqueado"],
         "dados": None, "bruto": None,
     }
@@ -339,7 +345,7 @@ def extrair(texto: str, classificacao: str = "", lexico_contexto: str = "") -> d
         return {**base, "ok": False, "erro": f"Provedor desconhecido: {rota['provedor']}"}
 
     try:
-        raw, modelo = backend(texto, lexico_contexto)
+        raw, modelo = backend(texto, lexico_contexto, system_prompt or SYSTEM_PROMPT)
         base["modelo"] = modelo
         base["bruto"] = raw
         if not raw:

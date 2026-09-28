@@ -23,14 +23,22 @@ Automático:
 """
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, Request, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from modules import grafo
 from dependencies import require_module, get_current_user_media
-from services.rate_limit_service import limiter, LIMIT_VARREDURA
+from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA
 from services.logging_service import get_logger
+from services import historico_service
+
+# ── Correlação automática: importação opcional (mesmo padrão de extrato_router) ──
+try:
+    from services.correlacao_engine import correlacionar_texto as _correlacionar
+    _CORRELACAO_OK = True
+except ImportError:
+    _CORRELACAO_OK = False
 
 # ── Validação MIME (magic bytes) ─────────────────────────────────────────────
 # Bloqueia uploads mascarados: um .exe renomeado para .jpg passa pelo content-type
@@ -251,3 +259,41 @@ def post_varrer_citacoes(request: Request, alvo_id: str, user: dict = Depends(_G
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("erro", "Falha na varredura."))
     return res
+
+
+@router.post("/no/{no_id}/analisar-historico",
+             summary="Extrai entidades/vínculos do histórico do interno via IA")
+@limiter.limit(LIMIT_IA_PESADA)
+def post_analisar_historico(
+    request: Request, no_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(_GATE),
+):
+    """
+    Lê o campo detalhes.historico do nó, extrai entidades/vínculos via IA
+    (mesmo pipeline do Extrato) e materializa no grafo — reanalisar substitui
+    a análise anterior, não duplica. Em seguida dispara a correlação cruzada
+    (Oráculo) em background, exatamente como um Extrato submetido.
+    """
+    no = grafo.buscar_no(no_id)
+    if not no:
+        raise HTTPException(status_code=404, detail="Nó não encontrado.")
+    historico = (no.get("detalhes") or {}).get("historico") or ""
+    if not historico.strip():
+        raise HTTPException(status_code=400, detail="Este nó não tem histórico para analisar.")
+
+    _log_audit.info("grafo analisar historico",
+                    extra={"username": user.get("sub"), "no_id": no_id})
+    resultado = historico_service.analisar(no_id, historico, no.get("rotulo") or no_id)
+    if not resultado.get("ok"):
+        raise HTTPException(status_code=422, detail=resultado.get("motivo", "Falha na análise."))
+
+    if _CORRELACAO_OK:
+        background_tasks.add_task(
+            _correlacionar, texto=historico, fonte_tipo="grafo_historico",
+            fonte_id=no_id,
+            metadados={"summary": (no.get("rotulo") or "")[:200], "risco": "MEDIO"},
+            operador=user.get("sub", "sistema"),
+        )
+
+    return resultado
