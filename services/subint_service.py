@@ -598,16 +598,30 @@ def _gerar_pdf(numero: str, entidade: str, origem: str, texto: str, operador: st
         Spacer(1, 0.3*cm),
     ]
 
+    def _escapar(txt: str) -> str:
+        # O texto vem de um LLM (Claude Opus) narrando sobre vínculos e
+        # correlações — "&", "<" e ">" aparecem o tempo todo em produção
+        # (siglas com "&", comparações "A <-> B", "score < 50"). O Paragraph
+        # do ReportLab interpreta esses caracteres como marcação XML: sem
+        # escapar, um trecho vira tag desconhecida e SOME do PDF em silêncio
+        # (nunca lança exceção — o SUBINT "gera com sucesso" mas o documento
+        # sai com pedaços faltando ou, em casos piores, malformado o
+        # suficiente pro leitor de PDF recusar abrir o arquivo).
+        return txt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
     for linha in texto.split("\n"):
         if not linha.strip():
             story.append(Spacer(1, 0.2*cm))
         elif re.match(r"^\d+\.\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ]", linha):
-            story.append(Paragraph(linha, s_head))
+            story.append(Paragraph(_escapar(linha), s_head))
         elif linha.startswith(("- ", "• ")):
-            story.append(Paragraph(f"• {linha[2:]}", s_body))
+            # Hífen ASCII, não "•": sem visualizador de PDF pra conferir o
+            # render aqui, o hífen garante glifo correto em qualquer fonte/
+            # encoding — "•" depende de mapeamento que variou entre versões
+            # do ReportLab e já saiu como glifo .notdef em teste local.
+            story.append(Paragraph(f"- {_escapar(linha[2:])}", s_body))
         else:
-            safe = linha.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            story.append(Paragraph(safe, s_body))
+            story.append(Paragraph(_escapar(linha), s_body))
 
     story += [
         Spacer(1, 0.5*cm),
