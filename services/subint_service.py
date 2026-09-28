@@ -685,12 +685,19 @@ def gerar_subint(
             )
 
         logger.info("[subint] SUBINT %s gerado com sucesso.", numero)
+        # Chaves "id"/"entidade_nome" (nao "subint_id"/"entidade"): e o
+        # contrato que o frontend ja usa em TODA parte da tela ORACULO que
+        # consome um SUBINT (listar_subints, obter_texto, os botoes de
+        # download). Divergir aqui fazia resultado.id vir undefined so na
+        # resposta do /gerar -> downloads batiam em /subint/undefined/pdf,
+        # o backend 404ava, e o frontend salvava o corpo do erro JSON como
+        # se fosse o PDF/DOCX (o "documento" de 43 bytes que nao abria).
         return {
-            "ok":        True,
-            "subint_id": subint_id,
-            "numero":    numero,
-            "entidade":  entidade_nome,
-            "criado_em": agora,
+            "ok":            True,
+            "id":            subint_id,
+            "numero":        numero,
+            "entidade_nome": entidade_nome,
+            "criado_em":     agora,
         }
 
     except Exception as exc:
@@ -741,7 +748,14 @@ def obter_texto(subint_id: str) -> Optional[dict]:
                 "FROM subint_docs WHERE id = ?",
                 (subint_id,),
             ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        doc = dict(row)
+        # SubintPreviewModal.jsx le doc.entidade_nome (mesmo motivo do fix em
+        # gerar_subint) -- coluna da tabela chama "entidade", renomeia so na
+        # borda HTTP pra bater com o que a tela ORACULO ja espera.
+        doc["entidade_nome"] = doc.pop("entidade")
+        return doc
     except Exception as exc:
         logger.error("[subint] Erro ao obter texto de %s: %s", subint_id, exc)
         return None
