@@ -32,88 +32,13 @@ from services.human_loop_service import (
     expirar_pendentes,
     listar_aprovacoes,
     marcar_notificado,
+    pos_confirmacao,
     responder_aprovacao,
 )
 from services.notification_service import notificar_aprovacao_pendente
 from services.audit_service import registrar as audit
-import services.feedback_service as _fb
 
 logger = logging.getLogger("bastos.human_loop")
-
-
-def _registrar_feedback(aprovacao_id: str, registro: dict, decisao: str, operador: str) -> None:
-    """
-    Registra feedback de correlação após decisão HITL.
-    Se confirmado, também materializa os vínculos no grafo (Missão 27).
-    Wrapper seguro: nunca lança exceção para não quebrar o endpoint.
-    """
-    try:
-        import json
-        tipo_evento = registro.get("tipo_evento", "")
-        detalhes = registro.get("detalhes") or {}
-        if isinstance(detalhes, str):
-            try:
-                detalhes = json.loads(detalhes)
-            except Exception:
-                detalhes = {}
-        hits = detalhes.get("hits", [])
-        if hits:
-            _fb.registrar_feedback(
-                hitl_id    = aprovacao_id,
-                tipo_evento = tipo_evento,
-                hits        = hits,
-                decisao     = decisao,
-                operador    = operador,
-            )
-    except Exception as exc:
-        logger.warning("[human_loop] Falha ao registrar feedback: %s", exc)
-
-    # Missão 27 — Grafo Automático: confirmar = materializar vínculos no grafo
-    if decisao == "confirmada":
-        try:
-            import json
-            from services.grafo_auto_service import registrar_correlacao_no_grafo
-            tipo_evento = registro.get("tipo_evento", "")
-            detalhes = registro.get("detalhes") or {}
-            if isinstance(detalhes, str):
-                try:
-                    detalhes = json.loads(detalhes)
-                except Exception:
-                    detalhes = {}
-            hits = detalhes.get("hits", [])
-            if hits:
-                registrar_correlacao_no_grafo(
-                    hitl_id     = aprovacao_id,
-                    tipo_evento = tipo_evento,
-                    hits        = hits,
-                    detalhes    = detalhes,
-                    operador    = operador,
-                )
-        except Exception as exc:
-            logger.warning("[human_loop] Falha ao atualizar grafo: %s", exc)
-
-    # Missão 28 — Score de Risco Dinâmico: confirmar HITL eleva score das entidades
-    if decisao == "confirmada":
-        try:
-            import json as _json
-            from services.risco_score_service import registrar_hitl_confirmado
-            _det28 = registro.get("detalhes") or {}
-            if isinstance(_det28, str):
-                try:
-                    _det28 = _json.loads(_det28)
-                except Exception:
-                    _det28 = {}
-            _hits28  = _det28.get("hits", [])
-            _risco28 = _det28.get("risco", registro.get("risco", "ALTO"))
-            if _hits28:
-                _n = registrar_hitl_confirmado(
-                    hits   = _hits28,
-                    risco  = _risco28,
-                    motivo = f"HITL {aprovacao_id[:8]} confirmado por {operador}",
-                )
-                logger.debug("[human_loop] M28: score atualizado para %d entidade(s).", _n)
-        except Exception as exc:
-            logger.warning("[human_loop] Falha ao atualizar score de risco: %s", exc)
 
 router = APIRouter(prefix="/human-loop", tags=["human-loop"])
 
@@ -253,7 +178,7 @@ def responder(
     )
     audit(f"hitl_{payload.decisao}", "hitl", usuario=payload.resposta_por,
           alvo=aprovacao_id, detalhe=f"via whatsapp · {payload.observacao or ''}")
-    _registrar_feedback(aprovacao_id, registro, payload.decisao, payload.resposta_por)
+    pos_confirmacao(aprovacao_id, registro, payload.decisao, payload.resposta_por)
     return {"ok": True, "aprovacao": registro}
 
 
@@ -302,7 +227,7 @@ def decidir(
     )
     audit(f"hitl_{payload.decisao}", "hitl", usuario=user.get("sub","?"),
           alvo=aprovacao_id, detalhe=f"via dashboard · {payload.observacao or ''}")
-    _registrar_feedback(aprovacao_id, registro, payload.decisao, user.get("username", "admin"))
+    pos_confirmacao(aprovacao_id, registro, payload.decisao, user.get("username", "admin"))
     return {"ok": True, "aprovacao": registro}
 
 

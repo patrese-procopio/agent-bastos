@@ -257,6 +257,82 @@ def listar_aprovacoes(
     ]
 
 
+def pos_confirmacao(
+    aprovacao_id: str,
+    registro:     dict,
+    decisao:      str,
+    operador:     str,
+) -> None:
+    """
+    Efeitos colaterais de uma decisão HITL já persistida: feedback loop
+    sempre, e se confirmada, materializa vínculos no grafo (Missão 27) e
+    atualiza o score de risco das entidades envolvidas (Missão 28).
+
+    Compartilhado pelos TRÊS caminhos de confirmação do sistema — WhatsApp/n8n
+    (human_loop_router.responder), Dashboard manual (human_loop_router.decidir)
+    e auto-confirm de risco BAIXO/MÉDIO (auto_response_service, Missão 26) —
+    pra que uma correlação de risco médio (ex.: vinda do botão "Analisar
+    Histórico" na Análise de Vínculo, que sempre marca risco MEDIO) tenha
+    exatamente o mesmo efeito no grafo/score que uma ALTO/CRÍTICO confirmada
+    manualmente. Antes só os dois primeiros caminhos chamavam isso — o
+    auto-confirm marcava "confirmada" no HITL sem nunca integrar.
+
+    Nunca propaga exceção — falha aqui não pode reverter uma decisão já
+    persistida.
+    """
+    import json as _json
+
+    tipo_evento = registro.get("tipo_evento", "")
+    detalhes = registro.get("detalhes") or {}
+    if isinstance(detalhes, str):
+        try:
+            detalhes = _json.loads(detalhes)
+        except Exception:
+            detalhes = {}
+    hits = detalhes.get("hits", [])
+    if not hits:
+        return
+
+    try:
+        from services.feedback_service import registrar_feedback
+        registrar_feedback(
+            hitl_id     = aprovacao_id,
+            tipo_evento = tipo_evento,
+            hits        = hits,
+            decisao     = decisao,
+            operador    = operador,
+        )
+    except Exception as exc:
+        logger.warning("[human_loop] Falha ao registrar feedback: %s", exc)
+
+    if decisao != "confirmada":
+        return
+
+    try:
+        from services.grafo_auto_service import registrar_correlacao_no_grafo
+        registrar_correlacao_no_grafo(
+            hitl_id     = aprovacao_id,
+            tipo_evento = tipo_evento,
+            hits        = hits,
+            detalhes    = detalhes,
+            operador    = operador,
+        )
+    except Exception as exc:
+        logger.warning("[human_loop] Falha ao atualizar grafo (Missão 27): %s", exc)
+
+    try:
+        from services.risco_score_service import registrar_hitl_confirmado
+        risco = detalhes.get("risco", registro.get("risco", "ALTO"))
+        n = registrar_hitl_confirmado(
+            hits   = hits,
+            risco  = risco,
+            motivo = f"HITL {aprovacao_id[:8]} confirmado por {operador}",
+        )
+        logger.debug("[human_loop] Missão 28: score atualizado para %d entidade(s).", n)
+    except Exception as exc:
+        logger.warning("[human_loop] Falha ao atualizar score de risco (Missão 28): %s", exc)
+
+
 def expirar_pendentes() -> int:
     """
     Marca como 'expirada' toda aprovação pendente além do timeout.

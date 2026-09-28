@@ -76,34 +76,33 @@ def responder_automaticamente(
 
     Fluxo:
       1. Chama responder_aprovacao() com decisao="confirmada", operador="auto_sistema"
-      2. Chama registrar_feedback() → o aprendizado continua mesmo no auto-confirm
+      2. Chama pos_confirmacao() — feedback loop + grafo (M27) + score de risco
+         (M28), o MESMO efeito colateral do confirm manual via Dashboard/WhatsApp.
+         Antes só os caminhos manuais integravam grafo/risco; o auto-confirm
+         marcava "confirmada" sem nunca materializar nada — corrigido aqui.
       3. Loga a ação para auditoria
 
     Retorna True se o auto-confirm foi executado com sucesso.
     Nunca propaga exceção.
     """
     try:
-        from services.human_loop_service import responder_aprovacao
-        from services.feedback_service  import registrar_feedback
+        from services.human_loop_service import pos_confirmacao, responder_aprovacao
 
         observacao = f"Respondido automaticamente — risco {risco.upper()}"
 
-        responder_aprovacao(
+        registro = responder_aprovacao(
             aprovacao_id = hitl_id,
             decisao      = "confirmada",
             resposta_por = "auto_sistema",
             observacao   = observacao,
         )
 
-        # Feedback loop: auto-confirms contam como "confirmada" para aprendizado
-        if hits:
-            registrar_feedback(
-                hitl_id     = hitl_id,
-                tipo_evento = tipo_evento,
-                hits        = hits,
-                decisao     = "confirmada",
-                operador    = "auto_sistema",
-            )
+        pos_confirmacao(
+            aprovacao_id = hitl_id,
+            registro     = registro,
+            decisao      = "confirmada",
+            operador     = "auto_sistema",
+        )
 
         logger.info(
             "[auto_response] HITL %s auto-confirmado | risco=%s | fonte=%s/%s | hits=%d",
