@@ -287,6 +287,7 @@ function SubintModal({ hitl, onClose }) {
     setBaixando(true)
     try {
       const res  = await api.get(`/subint/${resultado.id}/${formato}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
@@ -516,6 +517,7 @@ function SubintPreviewModal({ subintId, onClose }) {
     setBaixando(true)
     try {
       const res  = await api.get(`/subint/${subintId}/${formato}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
@@ -1285,10 +1287,12 @@ function SubintDownloadBtns({ id, numero }) {
   const [baixandoDocx, setBaixandoDocx] = useState(false)
 
   async function baixar(formato) {
+    if (!id) { toast.error(`SUBINT sem ID — não é possível baixar ${formato.toUpperCase()}.`); return }
     const set = formato === "pdf" ? setBaixandoPdf : setBaixandoDocx
     set(true)
     try {
       const res  = await api.get(`/subint/${id}/${formato}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
