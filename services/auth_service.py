@@ -188,7 +188,7 @@ def _init_users_db() -> None:
                 json.dumps(["chat_rag", "grafoscopia", "transcricao", "dashboard",
                             "agenda", "alertas", "lista_negra", "referencias",
                             "noticias", "osint", "grupos", "inteligencia_grupos",
-                            "politicas", "configuracoes"]),
+                            "politicas", "configuracoes", "admin"]),
                 now, "system"
             ),
             (

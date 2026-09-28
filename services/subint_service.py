@@ -249,7 +249,14 @@ def _coletar_dados(entidade_nome: str, hitl_id: Optional[str] = None) -> dict:
                 except Exception:
                     det = {}
             hits = det.get("hits", [])
-            menciona = any(nome_norm in _norm(hit.get("nome", "")) for hit in hits)
+            # Bidirecional: o rotulo do grafo pode ser mais longo que o nome/vulgo
+            # salvo no hit (ex.: "NENEM (TESTE E2E)" vs. "Nenem") ou vice-versa.
+            # Um check unidirecional perdia a correlacao silenciosamente.
+            menciona = any(
+                (hit_norm := _norm(hit.get("nome", ""))) and len(hit_norm) >= 3
+                and (nome_norm in hit_norm or hit_norm in nome_norm)
+                for hit in hits
+            )
             if menciona or nome_norm in _norm(h.get("descricao", "")):
                 relevantes.append({
                     "id":        h.get("id", ""),
