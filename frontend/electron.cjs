@@ -34,13 +34,20 @@ function createWindow() {
 }
 
 function startPythonBackend() {
-  const pythonPath = path.join(
-    __dirname,
-    "../Agent_Bastos/.venv/Scripts/python.exe"
-  );
-  const scriptPath = path.join(__dirname, "../Agent_Bastos/api.py");
+  // frontend/ agora mora DENTRO da raiz do projeto (monorepo), nao mais como
+  // repo irmao ao lado de Agent_Bastos/ — um nivel acima de __dirname ja e
+  // a raiz, sem precisar entrar de novo numa pasta "Agent_Bastos".
+  const pythonPath = path.join(__dirname, "../.venv/Scripts/python.exe");
+  const scriptPath = path.join(__dirname, "../api.py");
 
   pythonProcess = spawn(pythonPath, [scriptPath]);
+
+  // Sem isto, um spawn que falha (ENOENT, caminho errado, etc.) vira uma
+  // excecao nao tratada no processo principal do Electron e derruba o app
+  // inteiro antes mesmo de abrir a janela.
+  pythonProcess.on("error", (err) => {
+    console.error(`[Python] Falha ao iniciar backend: ${err.message}`);
+  });
 
   pythonProcess.stdout.on("data", (data) => {
     console.log(`[Python] ${data}`);
