@@ -154,11 +154,16 @@ def _carregar_corpus() -> list[dict]:
     corpus: list[dict] = []
     seen: set[str] = set()
 
-    def _add(nome: str, fonte: str, detalhe: str) -> None:
+    def _add(nome: str, fonte: str, detalhe: str, no_id: str | None = None) -> None:
         n = _norm(nome)
         if n and len(n) >= 4 and n not in seen:
             seen.add(n)
-            corpus.append({"nome": nome, "nome_norm": n, "fonte": fonte, "detalhe": detalhe})
+            corpus.append({
+                "nome": nome, "nome_norm": n, "fonte": fonte, "detalhe": detalhe,
+                # ID do próprio nó do grafo, quando a entrada vem de lá — permite
+                # correlacionar_texto excluir a entidade de si mesma (ver abaixo).
+                "no_id": no_id,
+            })
 
     # 1. alvos.json
     try:
@@ -240,15 +245,17 @@ def _carregar_corpus() -> list[dict]:
             con = sqlite3.connect(_GRAFO_DB, timeout=5)
             con.row_factory = sqlite3.Row
             for r in con.execute(
-                "SELECT rotulo, detalhes FROM nos WHERE tipo = 'pessoa'"
+                "SELECT id, rotulo, detalhes FROM nos WHERE tipo = 'pessoa'"
             ).fetchall():
                 try:
                     det = json.loads(r["detalhes"] or "{}")
                 except Exception:
                     det = {}
-                _add(r["rotulo"], "Grafo de Vínculos", "Pessoa cadastrada na Análise de Vínculo")
+                _add(r["rotulo"], "Grafo de Vínculos", "Pessoa cadastrada na Análise de Vínculo",
+                     no_id=r["id"])
                 if det.get("vulgo"):
-                    _add(det["vulgo"], "Grafo de Vínculos", f"Vulgo de {r['rotulo']}")
+                    _add(det["vulgo"], "Grafo de Vínculos", f"Vulgo de {r['rotulo']}",
+                         no_id=r["id"])
             con.close()
     except Exception as exc:
         logger.warning("[correlacao] grafo_vinculos.db: %s", exc)
@@ -414,6 +421,11 @@ def correlacionar_texto(
         hits_novos: list[dict] = []
         for entrada in corpus:
             key = entrada["nome_norm"]
+            # Auto-match: a entrada do grafo É a própria fonte do texto (ex.:
+            # o histórico de uma pessoa menciona o próprio nome/vulgo dela).
+            # Não é uma correlação — é a pessoa falando dela mesma.
+            if entrada.get("no_id") and entrada["no_id"] == fonte_id:
+                continue
             if _ja_registrada(fonte_tipo, fonte_id, key):
                 continue
             if _suprimido("correlacao_cruzada", entrada["nome_norm"], entrada["fonte"]):
