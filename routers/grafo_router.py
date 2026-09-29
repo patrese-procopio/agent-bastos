@@ -115,6 +115,29 @@ class ArestaUpdate(BaseModel):
     propriedades: Optional[dict[str, Any]] = None
 
 
+class EntidadeCandidata(BaseModel):
+    ref: str
+    tipo: str = "generico"
+    nome: Optional[str] = None
+    vulgo: Optional[str] = None
+    rotulo: Optional[str] = None
+    papel_no_contexto: Optional[str] = None
+    evidencia: Optional[str] = None
+
+
+class ConexaoCandidata(BaseModel):
+    source: str
+    target: str
+    relation: Optional[str] = "RELACIONADO_A"
+    weight: Optional[int] = 2
+    evidencia: Optional[str] = None
+
+
+class ConfirmarHistoricoIn(BaseModel):
+    entidades: list[EntidadeCandidata] = []
+    conexoes: list[ConexaoCandidata] = []
+
+
 # ── Leitura ─────────────────────────────────────────────────────────────────
 
 @router.get("/meta")
@@ -262,18 +285,17 @@ def post_varrer_citacoes(request: Request, alvo_id: str, user: dict = Depends(_G
 
 
 @router.post("/no/{no_id}/analisar-historico",
-             summary="Extrai entidades/vínculos do histórico do interno via IA")
+             summary="Extrai candidatos de entidades/vínculos do histórico via IA (revisão humana antes de gravar)")
 @limiter.limit(LIMIT_IA_PESADA)
 def post_analisar_historico(
     request: Request, no_id: str,
-    background_tasks: BackgroundTasks,
     user: dict = Depends(_GATE),
 ):
     """
-    Lê o campo detalhes.historico do nó, extrai entidades/vínculos via IA
-    (mesmo pipeline do Extrato) e materializa no grafo — reanalisar substitui
-    a análise anterior, não duplica. Em seguida dispara a correlação cruzada
-    (Oráculo) em background, exatamente como um Extrato submetido.
+    Lê o campo detalhes.historico do nó e extrai entidades/vínculos candidatos
+    via IA (mesmo pipeline do Extrato) — NÃO grava nada no grafo. O analista
+    revisa item a item no frontend e confirma com POST /confirmar-historico,
+    que é quem materializa e dispara a correlação cruzada (Oráculo).
     """
     no = grafo.buscar_no(no_id)
     if not no:
@@ -284,11 +306,44 @@ def post_analisar_historico(
 
     _log_audit.info("grafo analisar historico",
                     extra={"username": user.get("sub"), "no_id": no_id})
-    resultado = historico_service.analisar(no_id, historico, no.get("rotulo") or no_id)
+    resultado = historico_service.extrair_candidatos(historico, no.get("rotulo") or no_id)
     if not resultado.get("ok"):
         raise HTTPException(status_code=422, detail=resultado.get("motivo", "Falha na análise."))
 
-    if _CORRELACAO_OK:
+    return resultado
+
+
+@router.post("/no/{no_id}/confirmar-historico",
+             summary="Materializa no grafo os candidatos confirmados pelo analista")
+def post_confirmar_historico(
+    no_id: str, body: ConfirmarHistoricoIn,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(_GATE),
+):
+    """
+    Grava no grafo apenas os candidatos que sobraram da revisão humana
+    (o que o analista não descartou em /analisar-historico). Chamado uma
+    única vez por revisão — ver historico_service.confirmar(). Em seguida
+    dispara a correlação cruzada (Oráculo) em background, exatamente como
+    um Extrato submetido.
+    """
+    no = grafo.buscar_no(no_id)
+    if not no:
+        raise HTTPException(status_code=404, detail="Nó não encontrado.")
+    historico = (no.get("detalhes") or {}).get("historico") or ""
+
+    _log_audit.info("grafo confirmar historico",
+                    extra={"username": user.get("sub"), "no_id": no_id,
+                           "entidades": len(body.entidades), "conexoes": len(body.conexoes)})
+    resultado = historico_service.confirmar(
+        no_id,
+        [e.model_dump() for e in body.entidades],
+        [c.model_dump() for c in body.conexoes],
+    )
+    if not resultado.get("ok"):
+        raise HTTPException(status_code=422, detail=resultado.get("motivo", "Falha ao confirmar."))
+
+    if _CORRELACAO_OK and historico.strip():
         background_tasks.add_task(
             _correlacionar, texto=historico, fonte_tipo="grafo_historico",
             fonte_id=no_id,
