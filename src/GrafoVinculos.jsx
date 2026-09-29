@@ -97,6 +97,14 @@ export default function GrafoVinculos({ onNavigate }) {
   const wrapRef = useRef()
   const fitOnce = useRef(false)
 
+  /* Drag-to-conectar (estilo i2): arrasta do "+" no canto do nó até outro nó
+     ou até um ponto vazio da tela. Guardado em refs (não state) porque muda
+     a cada mousemove — se fosse state, cada frame do arrasto re-renderizaria
+     o componente inteiro (900+ linhas de JSX) só pra mover uma linha pontilhada. */
+  const connectDragRef = useRef(null)   // { srcId, sx, sy, cx, cy } em coords de grafo, ou null fora do arrasto
+  const liveNodesRef   = useRef([])     // displayGraph.nodes espelhado a cada render, lido de dentro do listener nativo
+  const editRef         = useRef(false) // idem para `edit`
+
   /* BFS — caminho mínimo (breadth-first) */
   function bfsPath(srcId, dstId, nodes, links) {
     if (srcId === dstId) return { nodeIds: [srcId], linkIds: [] }
@@ -568,7 +576,7 @@ export default function GrafoVinculos({ onNavigate }) {
   }
 
   /* ── CRUD nós/arestas ── */
-  async function criarNo(payload, conexoes, posRef) {
+  async function criarNo(payload, conexoes, posRef, exact) {
     const r = await api.post("/grafo/no", payload)
     if (!r.ok) { aviso("Falha ao criar nó.", C.red); return null }
     const no = await r.json()
@@ -577,7 +585,17 @@ export default function GrafoVinculos({ onNavigate }) {
     const lista = Array.isArray(conexoes) ? conexoes.filter(c => c?.origem_id) : (conexoes?.origem_id ? [conexoes] : [])
     // posiciona perto do alvo/selecionado (ou no ponto médio do vínculo, se informado)
     const ref = posRef || graph.nodes.find(n => n.id === lista[0]?.origem_id) || graph.nodes.find(n => n.id === alvoId)
-    if (ref?.x != null) { novo.x = ref.x + 40; novo.y = ref.y + 30 }
+    // `exact` pula o deslocamento — usado quando posRef já é o ponto exato onde o
+    // usuário soltou o arrasto (drag-to-conectar), diferente do "perto do nó de referência"
+    if (ref?.x != null) {
+      novo.x = exact ? ref.x : ref.x + 40; novo.y = exact ? ref.y : ref.y + 30
+      if (exact) {
+        // fixa no ponto exato onde o usuário soltou o arrasto — sem isso a
+        // simulação de força "chuta" o nó recém-criado assim que ele nasce
+        novo.fx = novo.x; novo.fy = novo.y
+        api.put(`/grafo/no/${no.id}`, { pos_x: novo.x, pos_y: novo.y }).catch(() => {})
+      }
+    }
     setGraph(g => ({ ...g, nodes: [...g.nodes, novo] }))
     for (const c of lista) {
       await criarAresta({ origem_id: c.origem_id, destino_id: no.id, rotulo: c.rotulo }, true)
@@ -706,6 +724,105 @@ export default function GrafoVinculos({ onNavigate }) {
     api.put(`/grafo/no/${node.id}`, { pos_x: node.x, pos_y: node.y }).catch(() => {})
   }
 
+  /* posição do handle "+" no canto do nó — usa o raio (`_r`) que o nodeCanvas
+     guarda em cada nó a cada frame, pra não duplicar o cálculo de raio (que
+     varia com centralidade) aqui e lá */
+  function handlePosOf(node) {
+    const r = node._r || 8
+    return { x: node.x + r * 0.82, y: node.y - r * 0.82 }
+  }
+  function hitTestNode(nodes, gx, gy, excludeId) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i]
+      if (n.id === excludeId || n.x == null) continue
+      const r = (n._r || 8) + 4
+      if (Math.hypot(gx - n.x, gy - n.y) < r) return n
+    }
+    return null
+  }
+
+  useEffect(() => { liveNodesRef.current = displayGraph.nodes }, [displayGraph])
+  useEffect(() => { editRef.current = edit }, [edit])
+
+  /* ── Drag-to-conectar (estilo i2) ──
+     O react-force-graph-2d usa d3-drag por baixo pro arrasto de nós, e o
+     d3-drag tem tolerância a clique igual a ZERO: qualquer tremor de mão
+     entre apertar e soltar o botão já conta como arrasto, disparando
+     onNodeDragEnd em vez de onNodeClick. É por isso que "clique na origem,
+     clique no destino" falha na prática (ver conversa no card do bug).
+     Solução: um handle dedicado, com hit-test e arrasto 100% nossos, via
+     listener nativo em fase de captura no container — corre ANTES do
+     mousedown chegar no <canvas> do force-graph, então nunca aciona o
+     drag nativo da lib quando o clique começa em cima do handle. */
+  useEffect(() => {
+    const wrap = wrapRef.current
+    if (!wrap) return
+
+    function toGraph(e, canvas) {
+      const rect = canvas.getBoundingClientRect()
+      return fgRef.current.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top)
+    }
+
+    function onMouseMoveWindow(e) {
+      const drag = connectDragRef.current
+      if (!drag) return
+      const canvas = wrap.querySelector("canvas")
+      if (!canvas) return
+      const { x, y } = toGraph(e, canvas)
+      drag.cx = x; drag.cy = y
+      fgRef.current?.refresh?.()
+    }
+
+    function onMouseUpWindow(e) {
+      window.removeEventListener("mousemove", onMouseMoveWindow)
+      const drag = connectDragRef.current
+      connectDragRef.current = null
+      const canvas = wrap.querySelector("canvas")
+      if (!drag || !canvas) return
+      const zoom = fgRef.current?.zoom() || 1
+      const { x, y } = toGraph(e, canvas)
+      canvas.style.cursor = ""
+      const moved = Math.hypot(x - drag.sx, y - drag.sy)
+      if (moved < 8 / zoom) { fgRef.current?.refresh?.(); return } // clicou no handle sem arrastar — ignora
+      const alvo = hitTestNode(liveNodesRef.current, x, y, drag.srcId)
+      if (alvo) {
+        setModal({ tipo: "novoLink", origem_id: drag.srcId, destino_id: alvo.id })
+      } else {
+        setModal({ tipo: "novoNoSolto", origem_id: drag.srcId, pos: { x, y } })
+      }
+      fgRef.current?.refresh?.()
+    }
+
+    function onMouseDownCapture(e) {
+      if (e.button !== 0 || !editRef.current) return
+      const canvas = wrap.querySelector("canvas")
+      if (!canvas || !fgRef.current) return
+      const { x, y } = toGraph(e, canvas)
+      const zoom = fgRef.current?.zoom() || 1
+      const hitR = 14 / zoom
+      const nodes = liveNodesRef.current
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const n = nodes[i]
+        if (n.x == null) continue
+        const hp = handlePosOf(n)
+        if (Math.hypot(x - hp.x, y - hp.y) < hitR) {
+          e.preventDefault(); e.stopPropagation()
+          connectDragRef.current = { srcId: n.id, sx: x, sy: y, cx: x, cy: y }
+          canvas.style.cursor = "crosshair"
+          window.addEventListener("mousemove", onMouseMoveWindow)
+          window.addEventListener("mouseup", onMouseUpWindow, { once: true })
+          return
+        }
+      }
+    }
+
+    wrap.addEventListener("mousedown", onMouseDownCapture, true)
+    return () => {
+      wrap.removeEventListener("mousedown", onMouseDownCapture, true)
+      window.removeEventListener("mousemove", onMouseMoveWindow)
+    }
+  }, [])
+
   /* ── Render dos nós ── */
   const nodeCanvas = useCallback((node, ctx, scale) => {
     const cor = corCategoria(node.tipo)
@@ -716,6 +833,7 @@ export default function GrafoVinculos({ onNavigate }) {
     const centScore = centMap ? (centMap.norm[node.id] ?? null) : null
     const centR = centScore != null ? 7 + centScore * 13 : (isAlvo ? 11 : 8)
     const r = centR
+    node._r = r // espelhado pro listener nativo de drag-to-conectar (handlePosOf/hitTestNode), fora do ciclo de render do React
 
     // ── Padrões de Rede: halos e dimming ──
     if (padroes) {
@@ -832,7 +950,18 @@ export default function GrafoVinculos({ onNavigate }) {
       ctx.fillStyle = isAlvo ? C.gold : (isAutoCorr ? C.oracleLight : C.text)
       ctx.fillText(label, node.x, node.y + r + 2.5)
     }
-  }, [sel, linking, pathRes, pathSrc, centMap, padroes, padroesHighlight])
+    // handle "+" de conexão (drag-to-conectar, estilo i2) — só em modo edição
+    if (edit) {
+      const hp = handlePosOf(node)
+      const hr = Math.min(6, 9 / scale)
+      ctx.beginPath(); ctx.arc(hp.x, hp.y, hr, 0, 2 * Math.PI)
+      ctx.fillStyle = "rgba(74,222,128,0.9)"; ctx.strokeStyle = "#0B1120"; ctx.lineWidth = 1.3 / scale
+      ctx.fill(); ctx.stroke()
+      ctx.fillStyle = "#0B1120"; ctx.font = `bold ${hr * 1.1}px ${MONO}`
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      ctx.fillText("+", hp.x, hp.y + 0.3)
+    }
+  }, [sel, linking, pathRes, pathSrc, centMap, padroes, padroesHighlight, edit])
 
   const nodePointerArea = useCallback((node, color, ctx) => {
     const r = (node.alvo ? 11 : 8) + 3
@@ -1089,10 +1218,10 @@ export default function GrafoVinculos({ onNavigate }) {
             )}
             <button className="gv-btn"
               onClick={() => { if (sel?.tipo === "node") setLinking({ sourceId: sel.data.id }); else aviso("Selecione um nó de origem primeiro.", C.textMid) }}
-              style={btn(linking ? C.green : C.textMid)}>{linking ? "Clique no destino →" : "+ Vínculo a partir do selecionado"}</button>
+              style={btn(linking ? C.green : C.textMid)}>{linking ? "Clique no destino →" : "+ Vínculo (alternativa: clique origem → destino)"}</button>
             {linking && <span className="gv-link-mode" style={{ fontSize: 12, color: C.green, fontFamily: MONO }}>modo conexão · clique no nó de destino (ESC/clique no fundo cancela)</span>}
             <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>arraste nós para organizar · a posição é salva</span>
+            <span style={{ fontSize: 11, color: C.textDim, fontFamily: MONO }}>arraste o <b style={{ color: "#4ADE80" }}>+</b> verde no canto do nó até outro nó (ou solte no vazio p/ criar um novo) · arraste o corpo do nó pra reorganizar</span>
           </div>
         )}
 
@@ -1147,6 +1276,18 @@ export default function GrafoVinculos({ onNavigate }) {
                 onBackgroundClick={onBgClick}
                 onNodeDragEnd={onNodeDragEnd}
                 onEngineStop={onEngineStop}
+                onRenderFramePost={(ctx, scale) => {
+                  // linha pontilhada do drag-to-conectar, desenhada por cima do frame já pronto
+                  const drag = connectDragRef.current
+                  if (!drag) return
+                  const src = liveNodesRef.current.find(n => n.id === drag.srcId)
+                  if (!src || src.x == null) return
+                  ctx.save()
+                  ctx.strokeStyle = C.green; ctx.lineWidth = 1.6 / scale
+                  ctx.setLineDash([5 / scale, 3 / scale])
+                  ctx.beginPath(); ctx.moveTo(src.x, src.y); ctx.lineTo(drag.cx, drag.cy); ctx.stroke()
+                  ctx.restore()
+                }}
                 cooldownTicks={timelineMode ? 0 : 120}
                 nodeRelSize={6}
               />
@@ -1358,6 +1499,18 @@ export default function GrafoVinculos({ onNavigate }) {
                 { origem_id: origemNode?.id, rotulo: rotVinc },
                 { origem_id: destinoNode?.id, rotulo: rotVinc },
               ], posRef)
+            }} />
+        )
+      })()}
+      {modal?.tipo === "novoNoSolto" && (() => {
+        const origemNode = graph.nodes.find(n => n.id === modal.origem_id)
+        return (
+          <ModalNo titulo="Novo nó" rotulosVinculo={meta.rotulos_vinculo}
+            conectarLink={{ origem: origemNode }}
+            onClose={() => setModal(null)}
+            onSalvar={async (dados, rotVinc) => {
+              setModal(null)
+              await criarNo(dados, { origem_id: origemNode?.id, rotulo: rotVinc }, modal.pos, true)
             }} />
         )
       })()}
@@ -1672,16 +1825,19 @@ function ModalNo({ titulo, inicial, forcarTipo, podeConectar, alvoLabel, conecta
             </div>
           )}
 
-          {/* conectar aos dois lados de um vínculo existente (estilo i2: anexar entidade à relação) */}
+          {/* conectar a um nó (drag-to-conectar solto no vazio) ou aos dois lados de um
+              vínculo existente (estilo i2: anexar entidade à relação) */}
           {conectarLink && (
             <div style={{ background: C.goldSoft, border: `1px solid ${C.goldBorder}`, borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 13, color: C.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ color: C.textMid }}>Este nó vai se conectar aos dois lados do vínculo:</span>
+                <span style={{ color: C.textMid }}>{conectarLink.destino ? "Este nó vai se conectar aos dois lados do vínculo:" : "Este nó vai se conectar a:"}</span>
                 <b style={{ color: C.gold }}>{conectarLink.origem?.icone} {conectarLink.origem?.rotulo}</b>
-                <span style={{ color: C.textMid }}>↔</span>
-                <b style={{ color: C.gold }}>{conectarLink.destino?.icone} {conectarLink.destino?.rotulo}</b>
+                {conectarLink.destino && (<>
+                  <span style={{ color: C.textMid }}>↔</span>
+                  <b style={{ color: C.gold }}>{conectarLink.destino?.icone} {conectarLink.destino?.rotulo}</b>
+                </>)}
               </div>
-              <Lbl>Rótulo do vínculo (aplicado aos dois lados)</Lbl>
+              <Lbl>{conectarLink.destino ? "Rótulo do vínculo (aplicado aos dois lados)" : "Rótulo do vínculo"}</Lbl>
               <SelectRotulo valor={rotVinc} onChange={setRotVinc} rotulos={rotulosVinculo} />
             </div>
           )}
