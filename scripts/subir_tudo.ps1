@@ -11,6 +11,9 @@
     5. Resumo         -> mostra a URL para colar no app
     6. (-Vigiar)      -> fica rodando e sobe de novo o que cair (backend / ngrok)
 
+  Instancia unica: se ja houver um vigia ativo, nova execucao recusa subir. -Parar encerra
+  tarefa agendada + vigia + ngrok + backend, nessa ordem.
+
   O dominio do ngrok vem de (nesta ordem): parametro -Dominio, variavel NGROK_DOMAIN no .env.
   Se nenhum for informado, o ngrok sorteia um dominio (e a URL muda a cada subida).
   O authtoken NUNCA passa por aqui: ele fica no ngrok.yml da maquina (ngrok config add-authtoken).
@@ -44,6 +47,13 @@ $script:ProcBackend = $null
 $script:ProcNgrok   = $null
 $script:ArgsNgrok   = @()
 $script:UrlPublica  = ""
+
+# Controle de instancia unica: o vigia grava PID + StartTime + "batimento" neste arquivo.
+# Duas instancias brigam entre si (uma reinicia o que a outra derruba) e o ngrok recusa o
+# mesmo dominio duas vezes (ERR_NGROK_6030).
+$NomeTarefa = "AgentBastos-Servidor"
+$ArquivoPid = Join-Path $Raiz "data\subir_tudo.pid"
+$FrescorSeg = $TimeoutBackendSeg + (3 * $IntervaloVigiaSeg) + 60
 
 function Write-Etapa($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)    { Write-Host "    [OK]   $msg" -ForegroundColor Green }
@@ -144,14 +154,62 @@ function Test-Publico([string]$url) {
     return $false
 }
 
+function Get-InstanciaAtiva {
+    # Devolve o processo de OUTRA instancia ativa do vigia, ou $null. Confere tres coisas para
+    # nao confundir com PID reciclado ou arquivo velho: batimento recente, processo vivo e
+    # mesmo StartTime.
+    if (-not (Test-Path $ArquivoPid)) { return $null }
+    try {
+        $arq = Get-Item $ArquivoPid
+        if (((Get-Date) - $arq.LastWriteTime).TotalSeconds -gt $FrescorSeg) { return $null }
+        $partes = (Get-Content $ArquivoPid -Raw).Trim().Split("|")
+        $p = Get-Process -Id ([int]$partes[0]) -ErrorAction Stop
+        if ($p.Id -eq $PID) { return $null }
+        if ($p.StartTime.Ticks -ne [long]$partes[1]) { return $null }
+        return $p
+    } catch { return $null }
+}
+
+function Save-Batimento {
+    $dir = Split-Path -Parent $ArquivoPid
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $eu = Get-Process -Id $PID
+    Set-Content -Path $ArquivoPid -Value "$($eu.Id)|$($eu.StartTime.Ticks)" -Encoding ASCII
+}
+
+function Fim([int]$codigo) {
+    # Toda saida depois do registro passa por aqui: solta o "lock" para a proxima tentativa.
+    Remove-Item $ArquivoPid -Force -ErrorAction SilentlyContinue
+    exit $codigo
+}
+
 # ---------------------------------------------------------------- modo -Parar
 if ($Parar) {
-    Write-Etapa "Derrubando backend e ngrok"
+    Write-Etapa "Derrubando vigia, backend e ngrok"
+    # Ordem importa: primeiro quem RELIGA as coisas (tarefa agendada e vigia), depois o resto.
+    # Se matar so o backend/ngrok, o vigia os ressuscita em ate 30 s.
+    Stop-ScheduledTask -TaskName $NomeTarefa -ErrorAction SilentlyContinue
+    $vigia = Get-InstanciaAtiva
+    if ($vigia) {
+        Write-Aviso "Encerrando o vigia (PID $($vigia.Id)); se ele estava num terminal, essa janela fecha"
+        Stop-Process -Id $vigia.Id -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item $ArquivoPid -Force -ErrorAction SilentlyContinue
     Stop-Ngrok
     Stop-Porta $Porta
     Write-Ok "Tudo encerrado."
     return
 }
+
+# Instancia unica: se ja ha um vigia vivo, nao sobe outro por cima.
+$outra = Get-InstanciaAtiva
+if ($outra) {
+    Write-Falha "Ja existe uma instancia do subir_tudo rodando (PID $($outra.Id))."
+    Write-Host  "         Duas instancias brigam entre si e o ngrok recusa o mesmo dominio duas vezes."
+    Write-Host  "         Para parar tudo antes de subir de novo: .\scripts\subir_tudo.ps1 -Parar"
+    exit 1
+}
+if ($Vigiar) { Save-Batimento }
 
 # Em modo servidor (-Vigiar) ninguem esta olhando a tela: grava um log para diagnostico.
 # data\ ja esta no .gitignore (LGPD: o log nao deve ir para o repositorio).
@@ -171,7 +229,7 @@ Write-Etapa "1/4  Pre-checagens"
 if (-not (Test-Path $Python)) {
     Write-Falha "Python do venv nao encontrado em: $Python"
     Write-Host "         Crie o ambiente: python -m venv .venv ; .venv\Scripts\pip install -r requirements.txt"
-    exit 1
+    Fim 1
 }
 Write-Ok "venv encontrado"
 
@@ -179,7 +237,7 @@ if (-not $SemNgrok) {
     $ngrok = Get-Command ngrok -ErrorAction SilentlyContinue
     if (-not $ngrok) {
         Write-Falha "ngrok nao esta no PATH. Instale em https://ngrok.com/download"
-        exit 1
+        Fim 1
     }
     Write-Ok "ngrok encontrado ($($ngrok.Source))"
 
@@ -216,7 +274,7 @@ Write-Ok "porta $Porta livre"
 Write-Etapa "2/4  Backend (startup.py)"
 Start-Backend
 Write-Host "    aguardando $Local/health (o 1o boot carrega o modelo de embeddings e pode demorar)..."
-if (-not (Wait-Backend)) { exit 1 }
+if (-not (Wait-Backend)) { Fim 1 }
 Write-Ok "backend respondendo em $Local/health"
 
 if ($SemNgrok) {
@@ -229,7 +287,7 @@ if ($SemNgrok) {
 if (-not $SemNgrok) {
     Write-Etapa "3/4  Tunel ngrok"
     $script:UrlPublica = Start-Tunel
-    if (-not $script:UrlPublica) { exit 1 }
+    if (-not $script:UrlPublica) { Fim 1 }
     Write-Ok "tunel: $($script:UrlPublica) -> 127.0.0.1:$Porta"
 
     # -------------------------------------------------------------- 4. validacao
@@ -239,7 +297,7 @@ if (-not $SemNgrok) {
     } else {
         Write-Falha "A URL publica nao respondeu 200 (backend de pe, mas o tunel nao entrega)."
         Write-Host  "         Inspecione as requisicoes em http://127.0.0.1:4040"
-        exit 1
+        Fim 1
     }
 
     Write-Host ""
@@ -257,8 +315,10 @@ if (-not $SemNgrok) {
 if ($Vigiar) {
     Write-Etapa "Modo vigia ativo (checa a cada $IntervaloVigiaSeg s; Ctrl+C ou -Parar para sair)"
     $falhasSeguidas = 0
+    try {
     while ($true) {
         Start-Sleep -Seconds $IntervaloVigiaSeg
+        Save-Batimento
 
         # Backend: processo morto OU /health falhando 3x seguidas (travado) -> reinicia
         if ($script:ProcBackend.HasExited) {
@@ -283,5 +343,9 @@ if ($Vigiar) {
             $nova = Start-Tunel
             if ($nova) { $script:UrlPublica = $nova; Write-Ok "[$(Get-Agora)] tunel de volta: $nova" }
         }
+    }
+    } finally {
+        # Ctrl+C ou encerramento normal: solta o "lock" (o arquivo velho tambem expira sozinho).
+        Remove-Item $ArquivoPid -Force -ErrorAction SilentlyContinue
     }
 }
