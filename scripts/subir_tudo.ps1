@@ -167,7 +167,7 @@ if ($SemNgrok) {
 # ------------------------------------------------------------------- 3. ngrok
 Write-Etapa "3/4  Tunel ngrok"
 
-$argsNgrok = @("http", "$Porta")
+$argsNgrok = @("http", "127.0.0.1:$Porta")
 if ($Dominio) { $argsNgrok += "--url=$Dominio" }
 $procNgrok = Start-Process -FilePath "ngrok" -ArgumentList $argsNgrok -WindowStyle Minimized -PassThru
 
@@ -192,7 +192,7 @@ if (-not $urlPublica) {
     Write-Falha "O ngrok subiu, mas nao consegui ler a URL publica em 127.0.0.1:4040."
     exit 1
 }
-Write-Ok "tunel: $urlPublica -> localhost:$Porta"
+Write-Ok "tunel: $urlPublica -> 127.0.0.1:$Porta"
 
 # ---------------------------------------------------------------- 4. validacao
 Write-Etapa "4/4  Validacao ponta a ponta (URL publica)"

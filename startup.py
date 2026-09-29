@@ -55,4 +55,10 @@ _ativar_offline_se_cacheado()
 import uvicorn
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, log_level="info")
+    # Loopback por padrao (mesmo criterio do api.py): o ngrok roda na mesma maquina e
+    # conecta em 127.0.0.1, entao a porta nao precisa ficar aberta na LAN.
+    # Para expor na rede, defina BASTOS_HOST=0.0.0.0 no ambiente, ciente do risco.
+    host = os.getenv("BASTOS_HOST", "127.0.0.1")
+    port = int(os.getenv("BASTOS_PORT", "8000"))
+    print(f"[startup] Ouvindo em {host}:{port}")
+    uvicorn.run("api:app", host=host, port=port, log_level="info")
