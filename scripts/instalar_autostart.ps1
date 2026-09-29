@@ -101,24 +101,50 @@ $config = New-ScheduledTaskSettingsSet `
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -MultipleInstances IgnoreNew
 
-if ($Modo -eq "Logon") {
-    $gatilho   = New-ScheduledTaskTrigger -AtLogOn -User $Usuario
-    $principal = New-ScheduledTaskPrincipal -UserId $Usuario -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName $NomeTarefa -Action $acao -Trigger $gatilho `
-        -Settings $config -Principal $principal `
-        -Description "Agent Bastos: sobe backend + ngrok ao fazer login (subir_tudo.ps1 -Vigiar)" `
-        -Force | Out-Null
-} else {
-    # Startup: o Windows precisa da senha para rodar sem sessao aberta.
-    Write-Host "Informe a senha do usuario $Usuario (o Windows guarda; o script nao)." -ForegroundColor Yellow
-    $cred = Get-Credential -UserName $Usuario -Message "Senha para a tarefa $NomeTarefa"
-    $gatilho = New-ScheduledTaskTrigger -AtStartup
-    $gatilho.Delay = "PT30S"   # 30 s de folga: deixa a rede subir antes do ngrok
-    Register-ScheduledTask -TaskName $NomeTarefa -Action $acao -Trigger $gatilho `
-        -Settings $config -User $cred.UserName `
-        -Password $cred.GetNetworkCredential().Password -RunLevel Limited `
-        -Description "Agent Bastos: sobe backend + ngrok ao ligar o Windows (subir_tudo.ps1 -Vigiar)" `
-        -Force | Out-Null
+try {
+    if ($Modo -eq "Logon") {
+        $gatilho   = New-ScheduledTaskTrigger -AtLogOn -User $Usuario
+        $principal = New-ScheduledTaskPrincipal -UserId $Usuario -LogonType Interactive -RunLevel Limited
+        Register-ScheduledTask -TaskName $NomeTarefa -Action $acao -Trigger $gatilho `
+            -Settings $config -Principal $principal `
+            -Description "Agent Bastos: sobe backend + ngrok ao fazer login (subir_tudo.ps1 -Vigiar)" `
+            -Force -ErrorAction Stop | Out-Null
+    } else {
+        # Startup: o Windows precisa da senha para rodar sem sessao aberta.
+        Write-Host "Informe a senha do usuario $Usuario (o Windows guarda; o script nao)." -ForegroundColor Yellow
+        $cred  = Get-Credential -UserName $Usuario -Message "Senha para a tarefa $NomeTarefa"
+        $senha = $cred.GetNetworkCredential().Password
+        if ([string]::IsNullOrEmpty($senha)) {
+            throw "SENHA_VAZIA"
+        }
+        $gatilho = New-ScheduledTaskTrigger -AtStartup
+        $gatilho.Delay = "PT30S"   # 30 s de folga: deixa a rede subir antes do ngrok
+        Register-ScheduledTask -TaskName $NomeTarefa -Action $acao -Trigger $gatilho `
+            -Settings $config -User $cred.UserName -Password $senha -RunLevel Limited `
+            -Description "Agent Bastos: sobe backend + ngrok ao ligar o Windows (subir_tudo.ps1 -Vigiar)" `
+            -Force -ErrorAction Stop | Out-Null
+    }
+
+    # Nao confie so na ausencia de erro: confirme que a tarefa existe de fato.
+    if (-not (Get-ScheduledTask -TaskName $NomeTarefa -ErrorAction SilentlyContinue)) {
+        throw "TAREFA_NAO_CRIADA"
+    }
+} catch {
+    $msg = $_.Exception.Message
+    Write-Host ""
+    Write-Host "[ERRO] A tarefa NAO foi instalada." -ForegroundColor Red
+    if ($msg -match "SENHA_VAZIA") {
+        Write-Host "       Senha em branco. O Windows nao deixa tarefa agendada rodar sem senha." -ForegroundColor Red
+        Write-Host "       Defina uma senha na conta ou use o modo Logon: .\scripts\instalar_autostart.ps1 -Modo Logon"
+    } elseif ($msg -match "0x8007052e|incorretos|incorrect|logon failure") {
+        Write-Host "       Usuario ou senha recusados pelo Windows. Confira:" -ForegroundColor Red
+        Write-Host "       - a senha e a da conta $Usuario (se voce entra com conta Microsoft/PIN, use a SENHA da conta, nao o PIN)"
+        Write-Host "       - o usuario esta escrito certo (netplwiz / 'whoami' mostram o nome exato)"
+        Write-Host "       - conta local sem senha nao funciona neste modo"
+    } else {
+        Write-Host "       $msg" -ForegroundColor Red
+    }
+    exit 1
 }
 
 Write-Host ""
