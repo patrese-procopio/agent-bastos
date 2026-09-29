@@ -116,9 +116,10 @@ app = FastAPI(
 #   request entra → SecurityHeaders → AccessLog → CORS → SlowAPI → router
 #   response sai  ← (mesmos em ordem reversa)
 # Por isso adicionamos do "mais externo" para o "mais interno".
-from services.middlewares import SecurityHeadersMiddleware, AccessLogMiddleware, montar_cors
+from services.middlewares import ApiKeyMiddleware, SecurityHeadersMiddleware, AccessLogMiddleware, montar_cors
 from services.rate_limit_service import montar_rate_limit
 
+app.add_middleware(ApiKeyMiddleware)            # porteiro: X-API-Key (opt-in via .env); o mais interno
 app.add_middleware(SecurityHeadersMiddleware)   # sempre adiciona headers, mesmo em 4xx/5xx
 app.add_middleware(AccessLogMiddleware)         # 1 linha por request em bastos.access
 montar_cors(app)                                # allowlist Electron + localhost

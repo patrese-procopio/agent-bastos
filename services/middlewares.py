@@ -20,6 +20,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from fastapi.responses import JSONResponse
+
+from services import api_key_service
 from services.logging_service import get_logger
 
 _log_access   = get_logger("access")
@@ -116,6 +119,60 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 
 
 # ----------------------------------------------------------------------------
+# API key gate
+# ----------------------------------------------------------------------------
+class ApiKeyMiddleware(BaseHTTPMiddleware):
+    """
+    Exige o header X-API-Key em toda rota, exceto as publicas
+    (api_key_service.is_public_path) e preflight CORS (OPTIONS).
+
+    Opt-in: sem BASTOS_API_KEY(S) no .env o gate fica desligado (com aviso no
+    log), para nao quebrar clientes existentes. Com chave configurada, e
+    fail-closed: qualquer request sem a chave correta recebe 401.
+
+    Posicao na pilha: adicionado ANTES dos demais no api.py, entao fica o mais
+    interno - o AccessLog enxerga o 401 e o CORS ainda anexa seus headers
+    (senao o navegador mostraria "erro de CORS" em vez de "chave invalida").
+    """
+
+    def __init__(self, app, keys: list[str] | None = None):
+        super().__init__(app)
+        self._keys = api_key_service.load_keys() if keys is None else keys
+        if not self._keys:
+            _log_security.warning(
+                "API key DESATIVADA: defina BASTOS_API_KEY no .env antes de expor a API na internet."
+            )
+            return
+        for problema in api_key_service.validate_keys(self._keys):
+            _log_security.warning(f"API key fraca: {problema}")
+        _log_security.info(f"API key ATIVA ({len(self._keys)} chave(s) configurada(s))")
+
+    async def dispatch(self, request: Request, call_next):
+        if (
+            not self._keys
+            or request.method == "OPTIONS"
+            or api_key_service.is_public_path(request.url.path)
+        ):
+            return await call_next(request)
+
+        provided = request.headers.get(api_key_service.HEADER_NAME)
+        if api_key_service.verify_key(provided, self._keys):
+            return await call_next(request)
+
+        ip = request.client.host if request.client else "?"
+        _log_security.warning(
+            f"API key {'invalida' if provided else 'ausente'} em {request.url.path}",
+            extra={"path": request.url.path, "ip": ip,
+                   "key_fp": api_key_service.fingerprint(provided)},
+        )
+        # Mensagem generica de proposito: nao diz se a chave existe, esta errada ou expirou.
+        return JSONResponse(
+            {"detail": "Credencial de acesso invalida ou ausente"},
+            status_code=401,
+        )
+
+
+# ----------------------------------------------------------------------------
 # CORS - allowlist para Electron (file://) + dev (Vite localhost)
 # ----------------------------------------------------------------------------
 # Electron em producao envia Origin: null (file://) ou nao envia.
@@ -169,7 +226,7 @@ def montar_cors(app) -> None:
         allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With",
                        # Permite o header que pula a tela intersticial do ngrok free.
                        # Sem isso o preflight CORS bloqueia toda chamada dos clientes.
-                       "ngrok-skip-browser-warning"],
+                       "ngrok-skip-browser-warning", api_key_service.HEADER_NAME],
         expose_headers=["Content-Disposition", "Content-Length"],
         max_age=3600,
     )
