@@ -11,9 +11,13 @@
   arquivos de indice do ChromaDB sao copiados "a quente"; para copia 100% garantida do
   Chroma rode com o backend parado (.\scripts\subir_tudo.ps1 -Parar) ou use -SemChroma.
 
+  Tudo e lido, compactado e criptografado num unico fluxo (sem copias intermediarias):
+  o disco de destino precisa ter pelo menos o tamanho dos dados. O script confere antes.
+
 .EXAMPLE
   .\scripts\backup_dados.ps1                              # backup em .\backups
   .\scripts\backup_dados.ps1 -Destino D:\bkp -Manter 30   # outro disco, guarda 30
+  .\scripts\backup_dados.ps1 -Excluir drone,relatorios     # deixa pastas grandes de fora
   .\scripts\backup_dados.ps1 -Verificar .\backups\agentbastos_20260929_190000.bkp
   .\scripts\backup_dados.ps1 -Restaurar arq.bkp -Para C:\restaura   # NUNCA sobrescreve dados vivos
 #>
@@ -23,6 +27,7 @@ param(
     [int]$Manter = 14,
     [switch]$SemChroma,
     [switch]$ComAudios,
+    [string[]]$Excluir = @(),
     [string]$Verificar = "",
     [string]$Restaurar = "",
     [string]$Para = ""
@@ -54,6 +59,7 @@ if ($Verificar) {
     $argumentos += @("--manter", "$Manter")
     if ($SemChroma) { $argumentos += "--sem-chroma" }
     if ($ComAudios) { $argumentos += "--com-audios" }
+    foreach ($pasta in $Excluir) { $argumentos += @("--excluir", $pasta) }
 
     # Aviso util: backend ligado + Chroma incluido = indice vetorial pode sair inconsistente.
     $backendLigado = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue

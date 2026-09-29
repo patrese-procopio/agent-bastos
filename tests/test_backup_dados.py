@@ -194,6 +194,88 @@ def test_verificacao_acusa_arquivo_alterado_dentro_do_zip(ambiente, tmp_path):
     json.dumps(m)                                                     # manifesto serializavel
 
 
+
+# ── Fluxo (sem copias intermediarias) ────────────────────────────────────────
+@pytest.mark.parametrize("tamanho", [0, 1, bk.TAM_BLOCO - 1, bk.TAM_BLOCO, bk.TAM_BLOCO + 1, 2 * bk.TAM_BLOCO, 3 * bk.TAM_BLOCO + 7])
+def test_escritor_em_fluxo_fronteiras_de_bloco(tmp_path, tamanho):
+    """O bloco FINAL tem que ser identificado mesmo quando o total e multiplo exato do bloco."""
+    dados = (bytes(range(251)) * (tamanho // 251 + 1))[:tamanho]
+    with bk.EscritorCifrado(tmp_path / "f.enc", SENHA, LOG2_N) as w:
+        for i in range(0, len(dados), 100_000):          # escritas em pedacos irregulares
+            w.write(dados[i:i + 100_000])
+    bk.decifrar_arquivo(tmp_path / "f.enc", tmp_path / "f.dec", SENHA)
+    assert (tmp_path / "f.dec").read_bytes() == dados
+
+
+def test_escritor_interrompido_nao_gera_arquivo_valido(tmp_path):
+    """Se algo falha no meio, o arquivo parcial NAO pode ser aceito como backup completo."""
+    with pytest.raises(RuntimeError):
+        with bk.EscritorCifrado(tmp_path / "f.enc", SENHA, LOG2_N) as w:
+            w.write(b"x" * (bk.TAM_BLOCO * 2))
+            raise RuntimeError("queda de energia")
+    with pytest.raises(bk.ErroBackup):
+        bk.decifrar_arquivo(tmp_path / "f.enc", tmp_path / "f.dec", SENHA)
+
+
+def test_recusa_quando_nao_ha_espaco(ambiente, monkeypatch):
+    import collections
+    Uso = collections.namedtuple("Uso", "total used free")
+    monkeypatch.setattr(bk.shutil, "disk_usage", lambda _: Uso(100, 99, 1))
+    with pytest.raises(bk.ErroBackup, match="Espaco insuficiente"):
+        _backup(ambiente)
+    assert list(ambiente["destino"].glob("*.bkp")) == []
+
+
+def test_excluir_pasta_grande(ambiente):
+    (ambiente["data"] / "drone").mkdir()
+    (ambiente["data"] / "drone" / "mosaico.tif").write_bytes(b"II*\x00" * 1000)
+    arquivo, _ = _backup(ambiente, excluir=frozenset({"drone"}))
+    m = bk.abrir_backup(arquivo, SENHA)
+    assert not any("drone" in i["caminho"] for i in m["itens"])
+    assert m["excluidos"] == ["drone"]
+
+
+def test_progresso_soma_os_bytes_lidos(ambiente):
+    lido = []
+    _, resumo = _backup(ambiente, progresso=lambda n, rel: lido.append(n))
+    assert sum(lido) > 0
+    assert resumo["bytes_origem"] > 0
+
+
+def test_arquivos_ja_compactados_nao_sao_recompactados(ambiente, tmp_path):
+    import zipfile
+    (ambiente["data"] / "foto.jpg").write_bytes(bytes(range(256)) * 50)
+    arquivo, _ = _backup(ambiente)
+    zip_claro = tmp_path / "c.zip"
+    bk.decifrar_arquivo(arquivo, zip_claro, SENHA)
+    with zipfile.ZipFile(zip_claro) as z:
+        assert z.getinfo("data/foto.jpg").compress_type == zipfile.ZIP_STORED
+        assert z.getinfo("data/logs/audit.log").compress_type == zipfile.ZIP_DEFLATED
+
+
+def test_backup_nao_altera_os_dados_de_origem(ambiente):
+    antes = {p: p.read_bytes() for p in ambiente["data"].rglob("*") if p.is_file() and not p.name.endswith(("-wal", "-shm", ".db"))}
+    _backup(ambiente)
+    depois = {p: p.read_bytes() for p in antes}
+    assert antes == depois
+
+
+def test_so_verificar_le_direto_do_zip_e_acusa_adulteracao(ambiente, tmp_path):
+    import zipfile
+    arquivo, _ = _backup(ambiente)
+    assert bk.abrir_backup(arquivo, SENHA)["falhas"] == []           # modo verificacao (pasta=None)
+    zip_claro = tmp_path / "c.zip"
+    bk.decifrar_arquivo(arquivo, zip_claro, SENHA)
+    adulterado = tmp_path / "a.zip"
+    with zipfile.ZipFile(zip_claro) as zin, zipfile.ZipFile(adulterado, "w") as zout:
+        for info in zin.infolist():
+            dados = b"outro conteudo" if info.filename == "data/logs/audit.log" else zin.read(info.filename)
+            zout.writestr(info, dados)
+    novo = tmp_path / "n.bkp"
+    bk.cifrar_arquivo(adulterado, novo, SENHA, LOG2_N)
+    falhas = bk.abrir_backup(novo, SENHA)["falhas"]
+    assert any("hash diferente: data/logs/audit.log" in f for f in falhas)
+
 # ── CLI ──────────────────────────────────────────────────────────────────────
 def test_cli_restaurar_recusa_pasta_nao_vazia(ambiente, monkeypatch, capsys):
     arquivo, _ = _backup(ambiente)
