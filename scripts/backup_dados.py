@@ -296,6 +296,23 @@ def listar_itens(data_dir: Path, base_dir: Path, *, incluir_chroma: bool, inclui
     return itens
 
 
+def avisos_de_exclusao(data_dir: Path, excluir: frozenset[str]) -> list[str]:
+    """Avisa quando uma pasta excluida contem banco de dados: bancos raramente sao reproduziveis."""
+    avisos: list[str] = []
+    for pasta, dirs, _ in os.walk(data_dir):
+        for nome in list(dirs):
+            if nome not in excluir:
+                continue
+            alvo = Path(pasta) / nome
+            dirs.remove(nome)                        # ja vamos varrer esta pasta aqui
+            bancos = sorted(p.relative_to(data_dir).as_posix() for p in alvo.rglob("*")
+                            if p.is_file() and p.suffix.lower() in EXT_SQLITE)
+            if bancos:
+                lista = ", ".join(bancos[:5]) + (" ..." if len(bancos) > 5 else "")
+                avisos.append(f"a pasta excluida '{nome}' contem banco(s) que NAO entrarao no backup: {lista}")
+    return avisos
+
+
 def resumo_por_pasta(itens: list[dict]) -> list[tuple[str, int]]:
     """Tamanho por pasta de primeiro nivel (ajuda a decidir o que passar em --excluir)."""
     somas: dict[str, int] = {}
@@ -368,7 +385,7 @@ def executar_backup(data_dir: Path, destino: Path, senha: str, *, base_dir: Path
     parcial = destino / (final.name + ".parcial")
 
     itens: list[dict] = []
-    avisos: list[str] = []
+    avisos: list[str] = avisos_de_exclusao(data_dir, excluir)
     try:
         with tempfile.TemporaryDirectory(prefix=".tmp_bkp_", dir=destino) as tmp, \
                 EscritorCifrado(parcial, senha, log2_n) as saida, \
@@ -595,6 +612,9 @@ def main(argv: list[str] | None = None) -> int:
         itens = listar_itens(data_dir, BASE_DIR, incluir_chroma=not args.sem_chroma,
                              incluir_audios=args.com_audios, excluir=excluir)
         total = sum(i["bytes"] for i in itens)
+        avisos_excl = avisos_de_exclusao(data_dir, excluir)
+        for aviso in avisos_excl:
+            print(f"[AVISO] {aviso}")
         print(f"\nVai salvar {len(itens)} arquivos, {_gb(total)} no total. Maiores pastas:")
         for nome, tam in resumo_por_pasta(itens)[:8]:
             print(f"  {_gb(tam):>10}  {nome}")
@@ -606,7 +626,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"     {r['itens']} arquivos ({r['bancos']} bancos SQLite): {_gb(r['bytes_origem'])} -> "
               f"{_gb(r['bytes_finais'])} criptografados")
         for aviso in r["avisos"]:
-            print(f"     [AVISO] {aviso}")
+            if aviso not in avisos_excl:                 # os de exclusao ja foram mostrados no inicio
+                print(f"     [AVISO] {aviso}")
         if r["integridade_com_problema"]:
             print(f"     [ERRO] banco(s) com problema de integridade: {', '.join(r['integridade_com_problema'])}")
             return 2

@@ -235,6 +235,26 @@ def test_excluir_pasta_grande(ambiente):
     assert m["excluidos"] == ["drone"]
 
 
+def test_avisa_quando_a_pasta_excluida_contem_banco(ambiente):
+    """Caso real: data/drone tem o drone.db (insubstituivel) ao lado de midias enormes."""
+    (ambiente["data"] / "drone" / "missoes").mkdir(parents=True)
+    (ambiente["data"] / "drone" / "missoes" / "video.mp4").write_bytes(b"\x00" * 100)
+    con = sqlite3.connect(ambiente["data"] / "drone" / "drone.db")
+    con.execute("CREATE TABLE m (id)"); con.commit(); con.close()
+
+    # excluir 'missoes' NAO tira o drone.db -> sem aviso e o banco entra
+    arquivo, r = _backup(ambiente, excluir=frozenset({"missoes"}))
+    assert r["avisos"] == []
+    m = bk.abrir_backup(arquivo, SENHA)
+    assert "data/drone/drone.db" in {i["caminho"] for i in m["itens"]}
+
+    # excluir 'drone' (o erro perigoso) -> o aviso aponta o banco que ficaria de fora
+    avisos = bk.avisos_de_exclusao(ambiente["data"], frozenset({"drone"}))
+    assert len(avisos) == 1 and "drone/drone.db" in avisos[0]
+    _, r2 = _backup(ambiente, excluir=frozenset({"drone"}))
+    assert any("drone.db" in a for a in r2["avisos"])
+
+
 def test_progresso_soma_os_bytes_lidos(ambiente):
     lido = []
     _, resumo = _backup(ambiente, progresso=lambda n, rel: lido.append(n))

@@ -17,7 +17,7 @@
 .EXAMPLE
   .\scripts\backup_dados.ps1                              # backup em .\backups
   .\scripts\backup_dados.ps1 -Destino D:\bkp -Manter 30   # outro disco, guarda 30
-  .\scripts\backup_dados.ps1 -Excluir drone,relatorios     # deixa pastas grandes de fora
+  .\scripts\backup_dados.ps1 -Excluir missoes            # deixa de fora midias brutas (as originais estao no HD)
   .\scripts\backup_dados.ps1 -Verificar .\backups\agentbastos_20260929_190000.bkp
   .\scripts\backup_dados.ps1 -Restaurar arq.bkp -Para C:\restaura   # NUNCA sobrescreve dados vivos
 #>
