@@ -104,12 +104,21 @@ def _evidencia_confere(corpo: str, evidencia: str) -> bool:
     return len(ev) > 20 and ev[:40] in cp
 
 
-def analisar(no_id: str, historico: str, rotulo: str, classificacao: str = "reservado") -> dict:
+def extrair_candidatos(historico: str, rotulo: str, classificacao: str = "reservado") -> dict:
     """
-    Extrai entidades/vínculos do histórico de um nó e materializa no grafo.
+    Extrai entidades/vínculos do histórico via IA e devolve como CANDIDATOS —
+    não escreve nada no grafo. A materialização só acontece em `confirmar()`,
+    depois que um humano revisou item a item (ver routers/grafo_router.py:
+    /analisar-historico devolve isso, /confirmar-historico é quem grava).
+
+    Cada item de `entidades`/`conexoes` já sai marcado com `evidencia_ok`
+    (bool) — se o trecho de evidência citado pela IA não é encontrado no
+    histórico original, o item ainda aparece pro revisor (não escondemos
+    nada), mas sinalizado como suspeito, pra ele examinar com mais cuidado
+    antes de aceitar.
 
     Retorna:
-      {ok, entidades_criadas, arestas_criadas, provedor, modelo, prompt_versao,
+      {ok, candidatos: {entidades, conexoes}, provedor, modelo, prompt_versao,
        forcado_local, bloqueado, evidencias_ok, evidencias_total, motivo?}
     """
     if not historico or not historico.strip():
@@ -134,19 +143,35 @@ def analisar(no_id: str, historico: str, rotulo: str, classificacao: str = "rese
     entidades = dados.get("entidades_chave") or []
     conexoes = dados.get("conexoes_grafo") or []
 
+    for item in entidades + conexoes:
+        item["evidencia_ok"] = _evidencia_confere(historico, item.get("evidencia"))
     evidencias_total = len(entidades) + len(conexoes)
-    evidencias_ok = sum(
-        1 for item in (entidades + conexoes)
-        if _evidencia_confere(historico, item.get("evidencia"))
-    )
-
-    resultado = grafo.ingerir_historico(no_id, entidades, conexoes)
-    if resultado.get("erro"):
-        return {**base, "ok": False, "motivo": f"Grafo: {resultado['erro']}"}
+    evidencias_ok = sum(1 for item in (entidades + conexoes) if item["evidencia_ok"])
 
     return {
         **base, "ok": True,
+        "candidatos": {"entidades": entidades, "conexoes": conexoes},
+        "evidencias_ok": evidencias_ok, "evidencias_total": evidencias_total,
+    }
+
+
+def confirmar(no_id: str, entidades: list[dict], conexoes: list[dict]) -> dict:
+    """
+    Materializa no grafo só os candidatos que o humano confirmou (o que
+    sobrou depois de descartar os errados na revisão). Chamado uma única
+    vez por revisão — nunca item a item — porque `grafo.ingerir_historico`
+    começa limpando a extração automática anterior desse nó
+    (`limpar_historico`); chamar em loop apagaria a confirmação anterior
+    a cada novo item.
+
+    Retorna:
+      {ok, entidades_criadas, arestas_criadas, motivo?}
+    """
+    resultado = grafo.ingerir_historico(no_id, entidades, conexoes)
+    if resultado.get("erro"):
+        return {"ok": False, "motivo": f"Grafo: {resultado['erro']}"}
+    return {
+        "ok": True,
         "entidades_criadas": resultado.get("nos_criados", 0),
         "arestas_criadas": resultado.get("arestas_criadas", 0),
-        "evidencias_ok": evidencias_ok, "evidencias_total": evidencias_total,
     }
