@@ -675,16 +675,35 @@ export default function GrafoVinculos({ onNavigate }) {
     setSel(null); aviso("Vínculo removido.", C.textMid)
   }
 
-  /* ── Histórico do interno → IA (extrai pro grafo + dispara correlação/Oráculo) ── */
+  /* ── Histórico do interno → IA (extrai candidatos; humano revisa antes de gravar) ── */
   async function analisarHistorico(no_id) {
     try {
       const r = await api.post(`/grafo/no/${no_id}/analisar-historico`, {})
       const d = await r.json()
       if (!r.ok || !d.ok) { aviso(d.motivo || "Falha ao analisar histórico.", C.red); return }
       if (d.bloqueado) { aviso(d.motivo || "Análise bloqueada (guardrail de soberania).", C.textMid); return }
-      aviso(`🔮 ${d.entidades_criadas || 0} entidade(s) · ${d.arestas_criadas || 0} vínculo(s) extraído(s) do histórico.`, C.oracleLight)
-      if (alvoId) carregarRede(alvoId)
+      const entidades = (d.candidatos?.entidades || []).map((e, i) => ({ ...e, _key: e.ref || `e${i}`, _mantido: true }))
+      const conexoes  = (d.candidatos?.conexoes  || []).map((c, i) => ({ ...c, _key: `${c.source}->${c.target}-${i}`, _mantido: true }))
+      if (!entidades.length && !conexoes.length) { aviso("Nenhuma entidade ou vínculo novo encontrado no histórico.", C.textMid); return }
+      setModal({ tipo: "revisaoHistorico", no_id, entidades, conexoes })
     } catch { aviso("Erro ao analisar histórico.", C.red) }
+  }
+
+  async function confirmarHistorico(no_id, entidades, conexoes) {
+    const refsDescartados = new Set(entidades.filter(e => !e._mantido).map(e => e.ref))
+    const entidadesFinal = entidades.filter(e => e._mantido)
+    const conexoesFinal = conexoes.filter(c => c._mantido && !refsDescartados.has(c.source) && !refsDescartados.has(c.target))
+    const payload = {
+      entidades: entidadesFinal.map(({ ref, tipo, nome, vulgo, rotulo, papel_no_contexto, evidencia }) => ({ ref, tipo, nome, vulgo, rotulo, papel_no_contexto, evidencia })),
+      conexoes: conexoesFinal.map(({ source, target, relation, weight, evidencia }) => ({ source, target, relation, weight, evidencia })),
+    }
+    try {
+      const r = await api.post(`/grafo/no/${no_id}/confirmar-historico`, payload)
+      const d = await r.json()
+      if (!r.ok || !d.ok) { aviso(d.motivo || "Falha ao confirmar histórico.", C.red); return }
+      aviso(`🔮 ${d.entidades_criadas || 0} entidade(s) · ${d.arestas_criadas || 0} vínculo(s) gravados no grafo.`, C.oracleLight)
+      if (alvoId) carregarRede(alvoId)
+    } catch { aviso("Erro ao confirmar histórico.", C.red) }
   }
 
   function gerarDossie(node) {
@@ -1534,6 +1553,13 @@ export default function GrafoVinculos({ onNavigate }) {
           onClose={() => setModal(null)}
           onSalvar={async (rotulo, direcionada) => { setModal(null); await atualizarAresta(modal.data.id, { rotulo, direcionada }) }} />
       )}
+      {modal?.tipo === "revisaoHistorico" && (
+        <ModalRevisaoHistorico
+          rotulo={graph.nodes.find(n => n.id === modal.no_id)?.rotulo || "alvo"}
+          entidades={modal.entidades} conexoes={modal.conexoes}
+          onClose={() => setModal(null)}
+          onConfirmar={async (entidades, conexoes) => { await confirmarHistorico(modal.no_id, entidades, conexoes); setModal(null) }} />
+      )}
 
       </div>
     </div>
@@ -1903,6 +1929,105 @@ function SelectRotulo({ valor, onChange, rotulos }) {
 }
 
 /* ── helpers de UI ── */
+/* ── modal de revisão dos candidatos extraídos do histórico (HITL) ── */
+function ModalRevisaoHistorico({ rotulo, entidades: entidadesIn, conexoes: conexoesIn, onClose, onConfirmar }) {
+  const [entidades, setEntidades] = useState(entidadesIn)
+  const [conexoes, setConexoes]   = useState(conexoesIn)
+  const [enviando, setEnviando]   = useState(false)
+
+  const refsDescartados = useMemo(() => new Set(entidades.filter(e => !e._mantido).map(e => e.ref)), [entidades])
+  const refLabel = (ref) => ref === "self" ? rotulo : (entidades.find(e => e.ref === ref)?.rotulo || entidades.find(e => e.ref === ref)?.nome || entidades.find(e => e.ref === ref)?.vulgo || ref)
+
+  function toggleEntidade(key) { setEntidades(es => es.map(e => e._key === key ? { ...e, _mantido: !e._mantido } : e)) }
+  function toggleConexao(key)  { setConexoes(cs => cs.map(c => c._key === key ? { ...c, _mantido: !c._mantido } : c)) }
+
+  const mantidas = entidades.filter(e => e._mantido).length
+  const mantidasConexoes = conexoes.filter(c => c._mantido && !refsDescartados.has(c.source) && !refsDescartados.has(c.target)).length
+  const totalMantido = mantidas + mantidasConexoes
+
+  async function confirmar() {
+    if (enviando || !totalMantido) return
+    setEnviando(true)
+    try { await onConfirmar(entidades, conexoes) } finally { setEnviando(false) }
+  }
+
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{ width: "min(640px,94vw)", maxHeight: "88vh", background: C.surface, borderRadius: 14, border: `1px solid ${C.borderUp}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.oracleLight, letterSpacing: "0.1em", fontFamily: MONO }}>🔮 REVISÃO DE INTELIGÊNCIA</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginTop: 4 }}>Candidatos extraídos do histórico de {rotulo}</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginTop: 6, lineHeight: 1.5 }}>
+            Clique num item pra descartar o que não confere com a realidade. Só o que ficar marcado como "manter" vai pro grafo.
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {entidades.length > 0 && (
+            <div>
+              <Lbl>ENTIDADES ({mantidas}/{entidades.length} mantidas)</Lbl>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {entidades.map(e => (
+                  <CandidatoCard key={e._key} mantido={e._mantido} suspeito={e.evidencia_ok === false}
+                    onToggle={() => toggleEntidade(e._key)}
+                    titulo={`${e.rotulo || e.nome || e.vulgo || e.ref} · ${labelCategoria(e.tipo) || e.tipo}`}
+                    subtitulo={e.papel_no_contexto}
+                    evidencia={e.evidencia} />
+                ))}
+              </div>
+            </div>
+          )}
+          {conexoes.length > 0 && (
+            <div>
+              <Lbl>VÍNCULOS ({mantidasConexoes}/{conexoes.length} mantidos)</Lbl>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {conexoes.map(c => {
+                  const autoDescartado = c._mantido && (refsDescartados.has(c.source) || refsDescartados.has(c.target))
+                  return (
+                    <CandidatoCard key={c._key} mantido={c._mantido && !autoDescartado} suspeito={c.evidencia_ok === false}
+                      travado={autoDescartado}
+                      onToggle={() => toggleConexao(c._key)}
+                      titulo={`${refLabel(c.source)} —${c.relation || "RELACIONADO_A"}→ ${refLabel(c.target)}`}
+                      subtitulo={autoDescartado ? "descartado automaticamente — uma das entidades foi removida" : `peso ${c.weight ?? 2}`}
+                      evidencia={c.evidencia} />
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {!entidades.length && !conexoes.length && (
+            <div style={{ fontSize: 13, color: C.textMid, textAlign: "center", padding: 30 }}>Nada foi extraído deste histórico.</div>
+          )}
+        </div>
+
+        <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="gv-btn" onClick={onClose} style={btn(C.textMid)}>Cancelar</button>
+          <button className="gv-btn" onClick={confirmar} disabled={enviando || !totalMantido} style={btn(C.oracleLight, enviando || !totalMantido)}>
+            {enviando ? "Gravando…" : `✓ Confirmar e gravar no grafo (${totalMantido})`}
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  )
+}
+function CandidatoCard({ mantido, suspeito, travado, onToggle, titulo, subtitulo, evidencia }) {
+  const cor = travado ? C.textMid : (mantido ? C.green : C.red)
+  return (
+    <div onClick={travado ? undefined : onToggle}
+      style={{ border: `1px solid ${cor}44`, background: mantido && !travado ? `${cor}0d` : "rgba(255,255,255,0.02)", borderRadius: 8, padding: "10px 12px", cursor: travado ? "default" : "pointer", opacity: travado ? 0.55 : (mantido ? 1 : 0.6), transition: "opacity .15s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, textDecoration: mantido ? "none" : "line-through" }}>{titulo}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {suspeito && <span title="evidência não encontrada literalmente no histórico — confira com atenção" style={{ fontSize: 11, color: C.red }}>⚠</span>}
+          <span style={{ fontSize: 11, fontWeight: 800, color: cor, fontFamily: MONO }}>{travado ? "AUTO-DESCARTADO" : (mantido ? "MANTER" : "DESCARTAR")}</span>
+        </div>
+      </div>
+      {subtitulo && <div style={{ fontSize: 11.5, color: C.textMid, marginTop: 2 }}>{subtitulo}</div>}
+      {evidencia && <div style={{ fontSize: 11.5, color: C.textDim, marginTop: 4, fontStyle: "italic" }}>"{evidencia}"</div>}
+    </div>
+  )
+}
+
 function Overlay({ children, onClose }) {
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
