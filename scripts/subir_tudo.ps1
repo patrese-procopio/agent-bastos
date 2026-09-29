@@ -9,6 +9,7 @@
     3. Tunel ngrok    -> janela propria, descobre a URL publica pela API local (:4040)
     4. Validacao      -> GET <url publica>/health (o mesmo teste do "Testar conexao" do app)
     5. Resumo         -> mostra a URL para colar no app
+    6. (-Vigiar)      -> fica rodando e sobe de novo o que cair (backend / ngrok)
 
   O dominio do ngrok vem de (nesta ordem): parametro -Dominio, variavel NGROK_DOMAIN no .env.
   Se nenhum for informado, o ngrok sorteia um dominio (e a URL muda a cada subida).
@@ -18,6 +19,7 @@
   .\scripts\subir_tudo.ps1
   .\scripts\subir_tudo.ps1 -Dominio avert-collage-manual.ngrok-free.dev
   .\scripts\subir_tudo.ps1 -SemNgrok        # so o backend (uso local)
+  .\scripts\subir_tudo.ps1 -Vigiar          # modo servidor: sobe e se recupera sozinho
   .\scripts\subir_tudo.ps1 -Parar           # derruba backend e ngrok
 #>
 [CmdletBinding()]
@@ -26,7 +28,9 @@ param(
     [string]$Dominio = "",
     [switch]$SemNgrok,
     [switch]$Parar,
-    [int]$TimeoutBackendSeg = 180
+    [switch]$Vigiar,
+    [int]$TimeoutBackendSeg = 180,
+    [int]$IntervaloVigiaSeg = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,10 +40,16 @@ $Raiz   = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $Raiz ".venv\Scripts\python.exe"
 $Local  = "http://127.0.0.1:$Porta"
 
+$script:ProcBackend = $null
+$script:ProcNgrok   = $null
+$script:ArgsNgrok   = @()
+$script:UrlPublica  = ""
+
 function Write-Etapa($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)    { Write-Host "    [OK]   $msg" -ForegroundColor Green }
 function Write-Aviso($msg) { Write-Host "    [AVISO] $msg" -ForegroundColor Yellow }
 function Write-Falha($msg) { Write-Host "    [ERRO] $msg" -ForegroundColor Red }
+function Get-Agora         { return (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") }
 
 function Get-EnvValor([string]$chave) {
     # Le CHAVE=valor do .env (ignora comentarios e aspas). Retorna "" se nao achar.
@@ -70,6 +80,70 @@ function Stop-Ngrok {
     }
 }
 
+function Test-Health([string]$url, [hashtable]$headers = @{}, [int]$timeout = 3) {
+    try {
+        $r = Invoke-WebRequest -Uri "$url/health" -UseBasicParsing -TimeoutSec $timeout -Headers $headers
+        return ($r.StatusCode -eq 200)
+    } catch { return $false }
+}
+
+function Start-Backend {
+    # startup.py (nao api.py): ele liga o modo offline quando o modelo de embeddings ja esta em cache.
+    $env:PYTHONUTF8 = "1"
+    $script:ProcBackend = Start-Process -FilePath $Python `
+        -ArgumentList @("-X", "utf8", "startup.py") `
+        -WorkingDirectory $Raiz `
+        -WindowStyle Minimized `
+        -PassThru
+}
+
+function Wait-Backend {
+    # Espera o /health dar 200. Retorna $true/$false; se o processo morrer, desiste na hora.
+    $inicio = Get-Date
+    while (((Get-Date) - $inicio).TotalSeconds -lt $TimeoutBackendSeg) {
+        if ($script:ProcBackend.HasExited) {
+            Write-Falha "O backend encerrou sozinho (codigo $($script:ProcBackend.ExitCode)). Rode manualmente para ver o erro:"
+            Write-Host  "         $Python -X utf8 startup.py"
+            return $false
+        }
+        if (Test-Health $Local) { return $true }
+        Start-Sleep -Seconds 2
+    }
+    Write-Falha "Backend nao respondeu em $TimeoutBackendSeg s. Veja a janela minimizada 'python'."
+    return $false
+}
+
+function Start-Tunel {
+    # Sobe o ngrok e le a URL publica na API local dele (127.0.0.1:4040).
+    $script:ProcNgrok = Start-Process -FilePath "ngrok" -ArgumentList $script:ArgsNgrok -WindowStyle Minimized -PassThru
+    $inicio = Get-Date
+    while (((Get-Date) - $inicio).TotalSeconds -lt 30) {
+        if ($script:ProcNgrok.HasExited) {
+            Write-Falha "O ngrok encerrou (codigo $($script:ProcNgrok.ExitCode)). Rode manualmente para ver o erro:"
+            Write-Host  "         ngrok $($script:ArgsNgrok -join ' ')"
+            Write-Host  "         ERR_NGROK_4018 = falta 'ngrok config add-authtoken <token>'"
+            return ""
+        }
+        try {
+            $t = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2
+            $https = $t.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+            if ($https) { return $https.public_url }
+        } catch { }
+        Start-Sleep -Seconds 1
+    }
+    Write-Falha "O ngrok subiu, mas nao consegui ler a URL publica em 127.0.0.1:4040."
+    return ""
+}
+
+function Test-Publico([string]$url) {
+    # O header pula a pagina de aviso do ngrok free, igual ao que o app faz.
+    for ($i = 1; $i -le 5; $i++) {
+        if (Test-Health $url @{ "ngrok-skip-browser-warning" = "true" } 8) { return $true }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
 # ---------------------------------------------------------------- modo -Parar
 if ($Parar) {
     Write-Etapa "Derrubando backend e ngrok"
@@ -77,6 +151,14 @@ if ($Parar) {
     Stop-Porta $Porta
     Write-Ok "Tudo encerrado."
     return
+}
+
+# Em modo servidor (-Vigiar) ninguem esta olhando a tela: grava um log para diagnostico.
+# data\ ja esta no .gitignore (LGPD: o log nao deve ir para o repositorio).
+if ($Vigiar) {
+    $dirLog = Join-Path $Raiz "data\logs"
+    if (-not (Test-Path $dirLog)) { New-Item -ItemType Directory -Path $dirLog -Force | Out-Null }
+    try { Start-Transcript -Path (Join-Path $dirLog "subir_tudo.log") -Append | Out-Null } catch { }
 }
 
 Write-Host ""
@@ -104,8 +186,7 @@ if (-not $SemNgrok) {
     # 'ngrok config check' valida o arquivo de configuracao. Sem authtoken o ngrok
     # falha com ERR_NGROK_4018 (foi o erro que tivemos), entao avisamos ANTES de subir.
     & ngrok config check *> $null
-    $cfgOk = ($LASTEXITCODE -eq 0)
-    if (-not $cfgOk) {
+    if ($LASTEXITCODE -ne 0) {
         Write-Aviso "'ngrok config check' nao passou. Se aparecer ERR_NGROK_4018, rode:"
         Write-Host  "         ngrok config add-authtoken <SEU_TOKEN>   (token em dashboard.ngrok.com)"
     } else {
@@ -120,6 +201,10 @@ if (-not $SemNgrok) {
     } else {
         Write-Aviso "Sem dominio fixo (NGROK_DOMAIN no .env ou -Dominio): a URL publica vai mudar a cada subida."
     }
+
+    # 127.0.0.1 explicito: 'localhost' pode resolver para IPv6 (::1) no Windows.
+    $script:ArgsNgrok = @("http", "127.0.0.1:$Porta")
+    if ($Dominio) { $script:ArgsNgrok += "--url=$Dominio" }
 }
 
 # Porta livre: derruba instancia antiga em vez de falhar com 'address already in use'
@@ -129,99 +214,74 @@ Write-Ok "porta $Porta livre"
 
 # ------------------------------------------------------------------ 2. backend
 Write-Etapa "2/4  Backend (startup.py)"
-
-$env:PYTHONUTF8 = "1"
-$procBackend = Start-Process -FilePath $Python `
-    -ArgumentList @("-X", "utf8", "startup.py") `
-    -WorkingDirectory $Raiz `
-    -WindowStyle Minimized `
-    -PassThru
+Start-Backend
 Write-Host "    aguardando $Local/health (o 1o boot carrega o modelo de embeddings e pode demorar)..."
-
-$inicio = Get-Date
-$pronto = $false
-while (((Get-Date) - $inicio).TotalSeconds -lt $TimeoutBackendSeg) {
-    if ($procBackend.HasExited) {
-        Write-Falha "O backend encerrou sozinho (codigo $($procBackend.ExitCode)). Rode manualmente para ver o erro:"
-        Write-Host  "         $Python -X utf8 startup.py"
-        exit 1
-    }
-    try {
-        $r = Invoke-WebRequest -Uri "$Local/health" -UseBasicParsing -TimeoutSec 3
-        if ($r.StatusCode -eq 200) { $pronto = $true; break }
-    } catch { }
-    Start-Sleep -Seconds 2
-}
-if (-not $pronto) {
-    Write-Falha "Backend nao respondeu em $TimeoutBackendSeg s. Veja a janela minimizada 'python'."
-    exit 1
-}
+if (-not (Wait-Backend)) { exit 1 }
 Write-Ok "backend respondendo em $Local/health"
 
 if ($SemNgrok) {
     Write-Host ""
     Write-Host "  Backend no ar (sem tunel). URL no app: $Local" -ForegroundColor Green
-    return
+    if (-not $Vigiar) { return }
 }
 
 # ------------------------------------------------------------------- 3. ngrok
-Write-Etapa "3/4  Tunel ngrok"
+if (-not $SemNgrok) {
+    Write-Etapa "3/4  Tunel ngrok"
+    $script:UrlPublica = Start-Tunel
+    if (-not $script:UrlPublica) { exit 1 }
+    Write-Ok "tunel: $($script:UrlPublica) -> 127.0.0.1:$Porta"
 
-$argsNgrok = @("http", "127.0.0.1:$Porta")
-if ($Dominio) { $argsNgrok += "--url=$Dominio" }
-$procNgrok = Start-Process -FilePath "ngrok" -ArgumentList $argsNgrok -WindowStyle Minimized -PassThru
-
-# A API local do ngrok (127.0.0.1:4040) lista os tuneis assim que a sessao abre.
-$urlPublica = ""
-$inicio = Get-Date
-while (((Get-Date) - $inicio).TotalSeconds -lt 30) {
-    if ($procNgrok.HasExited) {
-        Write-Falha "O ngrok encerrou (codigo $($procNgrok.ExitCode)). Rode manualmente para ver o erro:"
-        Write-Host  "         ngrok $($argsNgrok -join ' ')"
-        Write-Host  "         ERR_NGROK_4018 = falta 'ngrok config add-authtoken <token>'"
+    # -------------------------------------------------------------- 4. validacao
+    Write-Etapa "4/4  Validacao ponta a ponta (URL publica)"
+    if (Test-Publico $script:UrlPublica) {
+        Write-Ok "GET $($script:UrlPublica)/health -> 200"
+    } else {
+        Write-Falha "A URL publica nao respondeu 200 (backend de pe, mas o tunel nao entrega)."
+        Write-Host  "         Inspecione as requisicoes em http://127.0.0.1:4040"
         exit 1
     }
-    try {
-        $t = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2
-        $https = $t.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
-        if ($https) { $urlPublica = $https.public_url; break }
-    } catch { }
-    Start-Sleep -Seconds 1
-}
-if (-not $urlPublica) {
-    Write-Falha "O ngrok subiu, mas nao consegui ler a URL publica em 127.0.0.1:4040."
-    exit 1
-}
-Write-Ok "tunel: $urlPublica -> 127.0.0.1:$Porta"
 
-# ---------------------------------------------------------------- 4. validacao
-Write-Etapa "4/4  Validacao ponta a ponta (URL publica)"
-
-# O header pula a pagina de aviso do ngrok free, igual ao que o app faz.
-$validou = $false
-for ($i = 1; $i -le 5; $i++) {
-    try {
-        $r = Invoke-WebRequest -Uri "$urlPublica/health" -UseBasicParsing -TimeoutSec 8 `
-                -Headers @{ "ngrok-skip-browser-warning" = "true" }
-        if ($r.StatusCode -eq 200) { $validou = $true; break }
-    } catch { }
-    Start-Sleep -Seconds 2
-}
-if ($validou) {
-    Write-Ok "GET $urlPublica/health -> 200"
-} else {
-    Write-Falha "A URL publica nao respondeu 200 (backend de pe, mas o tunel nao entrega)."
-    Write-Host  "         Inspecione as requisicoes em http://127.0.0.1:4040"
-    exit 1
+    Write-Host ""
+    Write-Host "  ============================================" -ForegroundColor Green
+    Write-Host "   SISTEMA NO AR" -ForegroundColor Green
+    Write-Host "   URL para o app (Config. inicial): $($script:UrlPublica)" -ForegroundColor Green
+    Write-Host "   Backend local : $Local"
+    Write-Host "   Painel ngrok  : http://127.0.0.1:4040"
+    Write-Host "   Para derrubar : .\scripts\subir_tudo.ps1 -Parar"
+    Write-Host "  ============================================" -ForegroundColor Green
+    Write-Host ""
 }
 
-# ------------------------------------------------------------------- resumo
-Write-Host ""
-Write-Host "  ============================================" -ForegroundColor Green
-Write-Host "   SISTEMA NO AR" -ForegroundColor Green
-Write-Host "   URL para o app (Config. inicial): $urlPublica" -ForegroundColor Green
-Write-Host "   Backend local : $Local"
-Write-Host "   Painel ngrok  : http://127.0.0.1:4040"
-Write-Host "   Para derrubar : .\scripts\subir_tudo.ps1 -Parar"
-Write-Host "  ============================================" -ForegroundColor Green
-Write-Host ""
+# ------------------------------------------------------------------ 5. vigia
+if ($Vigiar) {
+    Write-Etapa "Modo vigia ativo (checa a cada $IntervaloVigiaSeg s; Ctrl+C ou -Parar para sair)"
+    $falhasSeguidas = 0
+    while ($true) {
+        Start-Sleep -Seconds $IntervaloVigiaSeg
+
+        # Backend: processo morto OU /health falhando 3x seguidas (travado) -> reinicia
+        if ($script:ProcBackend.HasExited) {
+            $falhasSeguidas = 3
+        } elseif (Test-Health $Local) {
+            $falhasSeguidas = 0
+        } else {
+            $falhasSeguidas++
+        }
+        if ($falhasSeguidas -ge 3) {
+            Write-Aviso "[$(Get-Agora)] backend fora do ar - reiniciando"
+            if (-not $script:ProcBackend.HasExited) { Stop-Process -Id $script:ProcBackend.Id -Force -ErrorAction SilentlyContinue }
+            Stop-Porta $Porta
+            Start-Backend
+            if (Wait-Backend) { Write-Ok "[$(Get-Agora)] backend de volta" }
+            $falhasSeguidas = 0
+        }
+
+        # ngrok: processo morto -> sobe de novo (com dominio fixo a URL nao muda)
+        if (-not $SemNgrok -and $script:ProcNgrok.HasExited) {
+            Write-Aviso "[$(Get-Agora)] ngrok caiu - reiniciando"
+            $nova = Start-Tunel
+            if ($nova) { $script:UrlPublica = $nova; Write-Ok "[$(Get-Agora)] tunel de volta: $nova" }
+        }
+    }
+}
