@@ -106,11 +106,11 @@
       "parameters": {
         "method": "POST",
         "url": "=http://localhost:8000/api/human-loop/responder/{{ $json.aprovacao_id }}",
-        "authentication": "none",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "X-Hitl-Key",   "value": "9908396e9e9398ec7adba2663041ef1db4f6a82a447f5b06" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
@@ -123,7 +123,10 @@
       "name": "8. Notifica o Backend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [940, 640]
+      "position": [940, 640],
+      "credentials": {
+        "httpHeaderAuth": { "id": "", "name": "Bastos HITL Key" }
+      }
     },
     {
       "parameters": {
