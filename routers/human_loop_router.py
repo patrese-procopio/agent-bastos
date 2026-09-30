@@ -18,6 +18,7 @@ Segurança:
 
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from typing import Optional
@@ -78,10 +79,19 @@ def _validar_callback_key(x_hitl_key: str = Header(default="")) -> None:
       ganho real de segurança para este fluxo interno.
     """
     if not _CALLBACK_KEY:
-        # Se não configurado, aceita qualquer coisa (dev mode)
-        logger.warning("HITL_CALLBACK_KEY não configurado — callback sem autenticação.")
-        return
-    if x_hitl_key != _CALLBACK_KEY:
+        # Fail-closed: sem chave configurada, o padrao e RECUSAR (antes aceitava
+        # qualquer chamada). So o modo desenvolvimento abre excecao, e com aviso.
+        if os.getenv("BASTOS_ENV", "production") == "development":
+            logger.warning("HITL_CALLBACK_KEY não configurado — callback sem autenticação (modo dev).")
+            return
+        logger.error("HITL_CALLBACK_KEY não configurado — callback recusado. Defina a chave no .env.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Callback indisponível: autenticação não configurada no servidor.",
+        )
+    # compare_digest: tempo constante, evita timing attack (o '!=' comum retorna
+    # mais cedo no primeiro caractere diferente, e isso vaza informacao).
+    if not hmac.compare_digest(x_hitl_key.encode("utf-8"), _CALLBACK_KEY.encode("utf-8")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chave de callback inválida.",
