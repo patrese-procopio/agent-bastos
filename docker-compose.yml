@@ -89,9 +89,6 @@ services:
     environment:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
-      # Forca IPv4. Sem isso o n8n pode escutar so em IPv6 (::1) e o Docker Desktop,
-      # que encaminha a porta do host via IPv4, recebe "connection refused" (ERR_EMPTY_RESPONSE).
-      - N8N_LISTEN_ADDRESS=0.0.0.0
       - N8N_PROTOCOL=http
       # Chave de criptografia das credenciais salvas no n8n.
       # Valor lido do .env — NUNCA hardcode aqui.
