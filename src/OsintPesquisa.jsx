@@ -66,6 +66,16 @@ const FONTES = [
   { key:"gnews",          label:"GNews",    icon:"📰" },
 ]
 
+const FONTES_INTERNAS = [
+  { key:"lista_negra", label:"Lista Negra", icon:"⛔" },
+  { key:"liderancas",  label:"Lideranças",  icon:"👥" },
+  { key:"referencias", label:"Referências", icon:"📁" },
+  { key:"receita_cnpj",label:"Receita (sócios)", icon:"🏢" },
+  { key:"tse",         label:"TSE (candidaturas)", icon:"🗳" },
+  { key:"djen",        label:"DJEN (CNJ)", icon:"⚖" },
+  { key:"querido_diario",label:"Diários Oficiais", icon:"📰" },
+]
+
 const TRIBUNAIS = [
   { value: "",     label: "Auto-detectar pelo número CNJ" },
   { value: "tjam", label: "TJAM — Amazonas" },
@@ -146,11 +156,129 @@ const SecLabel = ({ children, color=C.gold }) => (
   </div>
 )
 
+const NIVEL = {
+  confirmado: { cor:"#4ADE80", bg:"rgba(74,222,128,0.12)",  label:"CONFIRMADO" },
+  provavel:   { cor:"#E8A020", bg:"rgba(232,160,32,0.12)",  label:"PROVÁVEL"   },
+  possivel:   { cor:"#94A3B8", bg:"rgba(148,163,184,0.12)", label:"POSSÍVEL — VERIFICAR HOMÔNIMO" },
+}
+const FONTE_INT = {
+  lista_negra: { label:"Lista Negra",  icon:"⛔" },
+  liderancas:  { label:"Lideranças",   icon:"👥" },
+  referencias: { label:"Referências",  icon:"📁" },
+  receita_cnpj:{ label:"Receita (sócios)", icon:"🏢" },
+  tse:         { label:"TSE (candidaturas)", icon:"🗳" },
+  djen:        { label:"DJEN (CNJ)", icon:"⚖" },
+  querido_diario:{ label:"Diários Oficiais", icon:"📰" },
+}
+const STATUS_INT = {
+  nao_carregada: { cor:C.gold,    txt:"base não carregada" },
+  nao_aplicavel: { cor:C.textMid, txt:"requer nome" },
+  ok:            { cor:C.green,   txt:"ok" },
+  vazio:         { cor:C.textMid, txt:"sem registro" },
+  erro:          { cor:C.red,     txt:"erro" },
+  sem_permissao: { cor:C.gold,    txt:"sem permissão" },
+}
+
+// Campos exibidos por fonte (rótulo, chave em `dados`)
+const CAMPOS_INT = {
+  lista_negra: [["Situação","situacao"],["Unidade","unidade"],["Empresa","empresa"],["Data","data"],["Referência","referencia"],["CPF","cpf"],["Ano","ano"],["Descrição","descricao"]],
+  liderancas:  [["Facção","faccao"],["Cargo","cargo"],["Vulgo","vulgo"],["Status","status"],["Observação","observacao"]],
+  referencias: [["Tipo","tipo"],["Nº","numero"],["Ano","ano"],["Assunto","assunto"],["Arquivo","arquivo"]],
+  tse:         [["Nascimento","nascimento"],["CPF","cpf"]],
+  querido_diario:[["Município","municipio"],["UF","uf"],["Data","data"],["Edição","edicao"],["Tipo de ato","ato"]],
+  djen:        [["Tribunal","tribunal"],["Órgão","orgao"],["Classe","classe"],["Polo","polo"],["Parte (como consta)","parte"],["Primeira publicação","primeira"],["Última publicação","ultima"],["Publicações","publicacoes"],["Advogados","advogados"],["Outras partes","outras_partes"]],
+  receita_cnpj:[["Empresa","empresa"],["CNPJ (matriz)","cnpj"],["Qualificação","qualificacao"],["Entrada na sociedade","data_entrada"],["Situação","situacao"],["UF","uf"],["Município","municipio"],["Atividade","atividade"],["Abertura","abertura"],["Capital social","capital_social"],["Outros sócios","outros_socios"]],
+}
+
+const AchadoCard = ({ a }) => {
+  const nv = NIVEL[a.nivel] || NIVEL.possivel
+  const f  = FONTE_INT[a.fonte] || { label:a.fonte, icon:"•" }
+  const d  = a.dados || {}
+  const campos = (CAMPOS_INT[a.fonte]||[]).filter(([,k])=>d[k])
+  const loc = d.atual
+  const rot = {fontSize:11,color:C.textDim,fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.06em"}
+  return (
+    <div style={{padding:"12px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderLeft:`3px solid ${nv.cor}`,borderRadius:8,display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:12,fontWeight:800,padding:"3px 8px",borderRadius:4,background:nv.bg,color:nv.cor,fontFamily:MONO,letterSpacing:"0.06em"}}>{nv.label}</span>
+        <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO}}>{a.confianca}%</span>
+        <span style={{fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>{f.icon} {f.label.toUpperCase()}</span>
+        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{a.titulo}</span>
+        {d.criminal && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",color:C.red,fontFamily:MONO}}>⚠ CRIMINAL</span>}
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {(a.motivos||[]).map((m,i)=>(
+          <span key={i} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.textMid,fontFamily:MONO}}>{m}</span>
+        ))}
+      </div>
+      {(campos.length>0 || loc) && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:"6px 16px"}}>
+          {loc && (
+            <div>
+              <div style={rot}>Localização atual</div>
+              <div style={{fontSize:13,color:C.text}}>{[loc.unidade,loc.pavilhao,loc.ala,loc.cela&&`cela ${loc.cela}`].filter(Boolean).join(" · ")} <span style={{color:C.textDim,fontFamily:MONO}}>({loc.competencia})</span></div>
+            </div>
+          )}
+          {campos.map(([r,k])=>(
+            <div key={k}>
+              <div style={rot}>{r}</div>
+              <div style={{fontSize:13,color:C.text,wordBreak:"break-word"}}>{String(d[k])}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {d.candidaturas?.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={rot}>Candidaturas</div>
+          {d.candidaturas.map((c,i)=>(
+            <div key={i} style={{padding:"8px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6,border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",gap:8,alignItems:"baseline",flexWrap:"wrap"}}>
+                <span style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:MONO}}>{c.ano}</span>
+                <span style={{fontSize:13,fontWeight:600,color:C.text}}>{c.cargo}</span>
+                <span style={{fontSize:12,color:C.textMid}}>{[c.partido,c.municipio&&c.municipio!==c.uf?c.municipio:null,c.uf].filter(Boolean).join(" · ")}</span>
+                {(c.resultado||c.situacao) && <span style={{fontSize:11,fontFamily:MONO,color:C.textMid}}>[{c.resultado||c.situacao}]</span>}
+                {c.ocupacao && <span style={{fontSize:12,color:C.textDim}}>{c.ocupacao}</span>}
+              </div>
+              <div style={{fontSize:12,color:C.textMid,fontFamily:MONO,marginTop:3}}>
+                patrimônio declarado: <span style={{color:c.patrimonio>0?C.text:C.textDim,fontWeight:700}}>{c.patrimonio>0?c.patrimonio.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"não declarado"}</span>
+                {c.qtd_bens>0 && <> · {c.qtd_bens} bem(ns)</>}
+              </div>
+              {c.bens_top?.length>0 && (
+                <details style={{marginTop:4}}>
+                  <summary style={{fontSize:11,color:C.textDim,cursor:"pointer",fontFamily:MONO}}>maiores bens</summary>
+                  {c.bens_top.map((b,j)=>(
+                    <div key={j} style={{fontSize:12,color:C.textMid,padding:"2px 0",display:"flex",justifyContent:"space-between",gap:12}}>
+                      <span>{b.bem}</span><span style={{fontFamily:MONO,color:C.text,whiteSpace:"nowrap"}}>{b.valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.historico?.length>0 && (
+        <div style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>
+          histórico: {d.historico.map(h=>`${h.competencia} ${h.unidade}/${h.pavilhao}`).join(" · ")}
+        </div>
+      )}
+      {d.url && a.fonte==="querido_diario" && (
+        <a href={d.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ abrir diário oficial (PDF)</a>
+      )}
+      {d.trecho && (
+        <div style={{fontSize:13,color:C.textMid,lineHeight:1.6,padding:"8px 10px",background:"rgba(0,0,0,0.25)",borderRadius:6,fontStyle:"italic"}}>“…{d.trecho}…”</div>
+      )}
+    </div>
+  )
+}
+
 export default function OsintPesquisa({ onNavigate }) {
   const [nome,       setNome]       = useState("")
   const [cpf,        setCpf]        = useState("")
   const [finalidade, setFinalidade] = useState("seguranca_publica")
-  const [operador,   setOperador]   = useState("agente_001")
+  const [dataNasc,   setDataNasc]   = useState("")
+  const [nomeMae,    setNomeMae]    = useState("")
+  const [nomePai,    setNomePai]    = useState("")
   const [loading,    setLoading]    = useState(false)
   const [erro,       setErro]       = useState("")
   const [resultado,  setResultado]  = useState(null)
@@ -180,17 +308,24 @@ export default function OsintPesquisa({ onNavigate }) {
 
   async function pesquisar() {
     if (!nome.trim() && !cpf.trim()) { setErro("Informe nome ou CPF para pesquisar."); return }
+    if (cpf.trim() && cpf.replace(/\D/g,"").length !== 11) { setErro("CPF deve ter 11 dígitos."); return }
     setErro(""); setLoading(true); setResultado(null); setRelatorio(null)
     try {
       const res = await api.post("/osint/pesquisar", {
-        operator_id: operador||"agente_anonimo",
         lgpd_purpose: finalidade,
         nome: nome.trim()||undefined,
         cpf: cpf.replace(/\D/g,"")||undefined,
+        data_nascimento: dataNasc||undefined,
+        nome_mae: nomeMae.trim()||undefined,
+        nome_pai: nomePai.trim()||undefined,
       })
       const data = await res.json()
-      if (!res.ok) { setErro(data.detail||"Erro na pesquisa."); return }
+      if (!res.ok) {
+        const det = Array.isArray(data.detail) ? data.detail.map(d=>d.msg).join("; ") : data.detail
+        setErro(det||"Erro na pesquisa."); return
+      }
       setResultado(data)
+      setActiveTab(data.achados_internos>0 ? "interno" : "sumario")
       const r2 = await api.get(`/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
     } catch {
@@ -241,7 +376,7 @@ export default function OsintPesquisa({ onNavigate }) {
   }
 
   function limpar() {
-    setNome(""); setCpf(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
+    setNome(""); setCpf(""); setDataNasc(""); setNomeMae(""); setNomePai(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
     setNumProc(""); setTribunalProc(""); setProcResultado(null); setProcErro("")
   }
 
@@ -249,6 +384,7 @@ export default function OsintPesquisa({ onNavigate }) {
 
   const TABS = [
     {key:"sumario",   label:"Sumário"   },
+    {key:"interno",   label:`Base Interna${resultado?.achados_internos?` (${resultado.achados_internos})`:""}` },
     {key:"processos", label:"Processos" },
     {key:"empresas",  label:"Empresas"  },
     {key:"timeline",  label:"Timeline"  },
@@ -288,7 +424,7 @@ export default function OsintPesquisa({ onNavigate }) {
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
             </div>
-            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>nome e/ou CPF</span>
+            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>quanto mais dados, menos homônimos</span>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
@@ -302,23 +438,32 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr 1.4fr",gap:12,marginBottom:12}}>
             <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
-              <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
-                {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Data de Nascimento</label>
+              <input style={{...S.input,colorScheme:"dark"}} type="date" max={new Date().toISOString().slice(0,10)} value={dataNasc} onChange={e=>setDataNasc(e.target.value)}/>
             </div>
             <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>ID do Operador <span style={{color:C.red}}>*</span></label>
-              <input style={S.input} placeholder="Ex: agente_001" value={operador} onChange={e=>setOperador(e.target.value)}/>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Filiação — Mãe</label>
+              <input style={S.input} placeholder="Nome da mãe" value={nomeMae} onChange={e=>setNomeMae(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
             </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Filiação — Pai</label>
+              <input style={S.input} placeholder="Nome do pai" value={nomePai} onChange={e=>setNomePai(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
+            </div>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
+            <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
+              {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
           </div>
 
           <div style={{marginBottom:14}}>
             <label style={{display:"block",fontSize: 11,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {FONTES.map(f=>(
+              {[...FONTES, ...FONTES_INTERNAS].map(f=>(
                 <div key={f.key} className="o-chip" style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,cursor:"default",transition:"all 0.12s"}}>
                   <span style={{fontSize:11}}>{f.icon}</span>
                   <span style={{fontSize:11,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{f.label}</span>
@@ -373,6 +518,7 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <StatBadge label="Base Interna"         value={resultado.achados_internos} accent/>
               <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
               <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
               <StatBadge label="Empresas"            value={resultado.total_empresas}/>
@@ -428,6 +574,29 @@ export default function OsintPesquisa({ onNavigate }) {
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Base Interna */}
+                  {activeTab==="interno" && (
+                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {Object.entries(resultado.fontes_internas||{}).map(([k,v])=>{
+                          const st = STATUS_INT[v.status]||STATUS_INT.vazio
+                          return (
+                            <div key={k} title={v.erro||""} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`}}>
+                              <span style={{fontSize:11}}>{FONTE_INT[k]?.icon}</span>
+                              <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{FONTE_INT[k]?.label}</span>
+                              <span style={{fontSize:11,fontWeight:700,color:st.cor,fontFamily:MONO}}>{st.txt}{v.total>0?` · ${v.total}`:""}</span>
+                              {v.descartados_homonimo>0 && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {v.descartados_homonimo} homônimo(s) descartado(s) por CPF</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {(relatorio.achados_internos||[]).length===0
+                        ? <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum registro nas bases internas para os dados informados.</div>
+                        : (relatorio.achados_internos||[]).map((a,i)=><AchadoCard key={i} a={a}/>)
+                      }
                     </div>
                   )}
 
@@ -654,7 +823,7 @@ export default function OsintPesquisa({ onNavigate }) {
             <div style={{padding:"8px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
               <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.08em"}}>LGPD · ART.37</span>
               <span style={{fontSize:12,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
-                operador: <span style={{color:C.textMid}}>{operador}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
+                operador: <span style={{color:C.textMid}}>{relatorio?.operator_id||"sessão atual"}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
               </span>
             </div>
 
