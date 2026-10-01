@@ -18,6 +18,7 @@ Por que separar em endpoints distintos?
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import time
 from pathlib import Path
@@ -31,8 +32,10 @@ if "/app" not in sys.path:
     sys.path.insert(0, "/app")
 
 from dependencies import require_module
+from config.settings import GROQ_MODEL_CHAT
 from modules.osint.collectors import build_collectors, run_collectors_parallel
 from modules.osint.enrichment import OsintEnrichment
+from modules.osint.internal_search import buscar_internas
 from modules.osint.lgpd_gate import LgpdGate, LgpdViolationError
 from modules.osint.models import (
     LgpdPurpose,
@@ -67,11 +70,13 @@ class PesquisarRequest(BaseModel):
     Separado do OsintRequest interno para controlar
     o que fica exposto na API pública.
     """
-    operator_id: str
+    operator_id: str | None = None  # ignorado: o operador é sempre o usuário do token
     lgpd_purpose: LgpdPurpose
     nome: str | None = None
     cpf: str | None = None
-    data_nascimento: str | None = None
+    data_nascimento: str | None = None  # YYYY-MM-DD
+    nome_mae: str | None = None
+    nome_pai: str | None = None
     fontes_ativas: list[SourceName] | None = None
 
     model_config = {
@@ -102,6 +107,8 @@ class PesquisarResponse(BaseModel):
     nos_grafo: int
     arestas_grafo: int
     fontes_com_erro: list[str]
+    achados_internos: int
+    fontes_internas: dict
     execution_time_ms: float | None
     lgpd_purpose: str
 
@@ -131,12 +138,16 @@ async def pesquisar(body: PesquisarRequest, request: Request,
     start = time.monotonic()
 
     # Monta OsintRequest interno
+    # Operador vem do JWT (não do body) — o audit LGPD não pode ser forjado.
+    operador = user.get("sub") or "desconhecido"
     osint_req_kwargs = {
-        "operator_id": body.operator_id,
+        "operator_id": operador,
         "lgpd_purpose": body.lgpd_purpose,
         "nome": body.nome,
         "cpf": body.cpf,
         "data_nascimento": body.data_nascimento,
+        "nome_mae": body.nome_mae,
+        "nome_pai": body.nome_pai,
     }
     if body.fontes_ativas:
         osint_req_kwargs["fontes_ativas"] = body.fontes_ativas
@@ -160,12 +171,36 @@ async def pesquisar(body: PesquisarRequest, request: Request,
             detail=f"LGPD: {str(e)}",
         )
 
-    # Coleta paralela
+    # Coleta externa + busca nas bases internas, em paralelo
     collectors = build_collectors(osint_req)
-    source_results = await run_collectors_parallel(collectors, osint_req)
+    source_results, internas = await asyncio.gather(
+        run_collectors_parallel(collectors, osint_req),
+        asyncio.to_thread(buscar_internas, osint_req, user.get("modules", [])),
+    )
 
     # Enriquecimento IA
     report = await _enrichment.enrich(osint_req, source_results)
+    report.achados_internos = internas["achados"]
+    report.fontes_internas = internas["fontes"]
+    for a in internas["achados"]:
+        if a["fonte"] == "lista_negra" and a["nivel"] != "possivel":
+            report.risk_indicators.append(
+                f"Consta na Lista Negra ({a['nivel']}): {a['dados'].get('situacao') or 'sem situação'}"
+            )
+    penalidades = [a for a in internas["achados"] if a["fonte"] == "querido_diario"
+                   and (a["dados"].get("ato") or "").startswith("Penalidade") and a["nivel"] != "possivel"]
+    if penalidades:
+        report.risk_indicators.append(
+            f"Citado em ato de penalidade/processo administrativo em diário oficial "
+            f"({penalidades[0]['dados'].get('municipio')}, {penalidades[0]['dados'].get('data')})"
+        )
+    criminais = [a for a in internas["achados"]
+                 if a["fonte"] == "djen" and a["dados"].get("criminal") and a["nivel"] != "possivel"]
+    if criminais:
+        report.risk_indicators.append(
+            f"{len(criminais)} processo(s) de natureza criminal em publicações do DJEN "
+            f"({criminais[0]['nivel']}): confirmar identidade antes de usar"
+        )
     report.execution_time_ms = (time.monotonic() - start) * 1000
 
     # Salva no cache para GET /relatorio/{id}
@@ -173,9 +208,10 @@ async def pesquisar(body: PesquisarRequest, request: Request,
 
     try:
         from services.audit_service import registrar as audit
-        audit("osint_pesquisa", "consulta", usuario=body.operator_id,
-              alvo=body.nome or body.cpf or "?",
-              detalhe=f"risco={report.risk_level.value} finalidade={body.lgpd_purpose}",
+        audit("osint_pesquisa", "consulta", usuario=operador,
+              alvo=body.nome or osint_req.cpf_mascarado(),
+              detalhe=(f"risco={report.risk_level.value} finalidade={body.lgpd_purpose.value} "
+                       f"internos={len(report.achados_internos)}"),
               ip=ip)
     except Exception:
         pass
@@ -195,6 +231,8 @@ async def pesquisar(body: PesquisarRequest, request: Request,
         nos_grafo=len(report.graph.nodes),
         arestas_grafo=len(report.graph.edges),
         fontes_com_erro=report.fontes_com_erro,
+        achados_internos=len(report.achados_internos),
+        fontes_internas=report.fontes_internas,
         execution_time_ms=report.execution_time_ms,
         lgpd_purpose=report.lgpd_purpose.value,
     )
@@ -281,10 +319,33 @@ async def get_status(user: dict = Depends(_GATE)) -> dict:
         },
         "groq": {
             "api_key_configurada": bool(os.getenv("GROQ_API_KEY")),
-            "modelo": "llama-3.3-70b-versatile",
+            "modelo": GROQ_MODEL_CHAT,
             "gratuito": True,
             "nota": "Free tier generoso",
         },
+    }
+
+    from modules.osint.receita_cnpj import info_base
+    fontes["receita_cnpj"] = {
+        **info_base(),
+        "gratuito": True,
+        "nota": "Base local de sócios PF. Carga: scripts/carregar_cnpj_receita.py",
+    }
+
+    from modules.osint.tse import info_base as info_tse
+    fontes["tse"] = {
+        **info_tse(),
+        "gratuito": True,
+        "nota": "Base local de candidaturas e bens. Carga: scripts/carregar_tse.py",
+    }
+
+    fontes["querido_diario"] = {
+        "api_key_configurada": True, "url": "https://api.queridodiario.ok.org.br", "gratuito": True,
+        "nota": "Diários oficiais municipais (só municípios raspados). Nome enviado a serviço externo.",
+    }
+    fontes["djen"] = {
+        "api_key_configurada": True, "url": "https://comunicaapi.pje.jus.br", "gratuito": True,
+        "nota": "Publicações a partir de mai/2022. API do CNJ lenta/instável; nome enviado ao CNJ.",
     }
 
     modo_mock = os.getenv("OSINT_USE_MOCK", "false").lower() == "true"
