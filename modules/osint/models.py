@@ -99,6 +99,7 @@ class OsintRequest(BaseModel):
     cpf: str | None = Field(None, description="Somente dígitos: 11 chars")
     data_nascimento: str | None = Field(None, description="YYYY-MM-DD")
     nome_mae: str | None = None
+    nome_pai: str | None = None
 
     # Controle de fontes — permite desligar fontes individualmente
     fontes_ativas: list[SourceName] = Field(
@@ -122,6 +123,23 @@ class OsintRequest(BaseModel):
         if len(digits) != 11:
             raise ValueError("CPF deve ter exatamente 11 dígitos")
         return digits
+
+    @field_validator("data_nascimento")
+    @classmethod
+    def data_iso(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("data_nascimento deve estar no formato YYYY-MM-DD")
+        return v
+
+    @field_validator("nome_mae", "nome_pai")
+    @classmethod
+    def filiacao_limpa(cls, v: str | None) -> str | None:
+        v = (v or "").strip()
+        return v or None
 
     def cpf_mascarado(self) -> str:
         """Retorna CPF mascarado para logs — nunca loga CPF completo."""
@@ -241,6 +259,10 @@ class OsintReport(BaseModel):
     vinculos_empresariais: list[dict[str, Any]] = Field(default_factory=list)
     mencoes_midia: list[dict[str, Any]] = Field(default_factory=list)
     mencoes_dou: list[dict[str, Any]] = Field(default_factory=list)
+
+    # Busca nas bases internas (Lista Negra, Lideranças, Referências)
+    achados_internos: list[dict[str, Any]] = Field(default_factory=list)
+    fontes_internas: dict[str, Any] = Field(default_factory=dict)
 
     # Contadores rápidos para o dashboard
     @property

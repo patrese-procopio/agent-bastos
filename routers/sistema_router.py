@@ -23,6 +23,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from datetime import datetime
+from config.settings import GROQ_MODEL_CHAT
 
 
 def _parse_article_date(data_str: str, fallback: float) -> float:
@@ -74,7 +75,7 @@ async def health():
 
 @router.get("/status")
 def status(user: dict = Depends(get_current_user)):
-    return {"status": "online", "version": "1.0.0", "model": "llama-3.3-70b-versatile"}
+    return {"status": "online", "version": "1.0.0", "model": GROQ_MODEL_CHAT}
 
 
 @router.get("/status/firebase")

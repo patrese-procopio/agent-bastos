@@ -59,11 +59,13 @@ def _mascarar_cpf(cpf: str) -> str:
     return f"{limpo[:3]}.***.***-**"
 
 
-def _ler_lista_negra() -> list:
+def _ler_lista_negra(mascarar: bool = True) -> list:
     """
     Baixa o xlsx da Lista Negra do Drive e retorna registros ordenados A-Z.
     Detecta automaticamente a linha de cabeçalho (procura 'NOME' nas 5 primeiras).
-    CPF mascarado antes de retornar — nunca expõe dado completo.
+    CPF mascarado por padrão. `mascarar=False` é de uso EXCLUSIVO interno
+    (modules/osint/internal_search.py, p/ confirmar identidade por CPF) —
+    o resultado cru nunca pode ser devolvido por endpoint.
     """
     import openpyxl
     xlsx_bytes = download_bytes(_LISTA_NEGRA_FILE_ID)
@@ -123,7 +125,7 @@ def _ler_lista_negra() -> list:
                 "unidade":    _get("unidade"),
                 "empresa":    _get("empresa"),
                 "data":       _get("data"),
-                "cpf":        _mascarar_cpf(_get("cpf")),
+                "cpf":        _mascarar_cpf(_get("cpf")) if mascarar else _get("cpf"),
                 "descricao":  _get("descricao"),
                 "ano":        sheet_name,
             })

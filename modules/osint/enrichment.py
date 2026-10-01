@@ -43,8 +43,11 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-# Modelo Groq — llama3 é rápido e preciso para extração estruturada
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# Modelo vem de config.settings (GROQ_MODEL_CHAT) — a Groq já aposentou
+# modelos antes (llama-3.3-70b-versatile em 16/08/2026), então nada de nome fixo.
+from config.settings import GROQ_MODEL_CHAT as GROQ_MODEL
+# Reserva quando a Groq falha: Claude (mesma chave ANTHROPIC_API_KEY do projeto)
+CLAUDE_FALLBACK_MODEL = os.getenv("OSINT_CLAUDE_MODEL", "claude-sonnet-4-6")
 
 # Schema JSON que o Groq deve retornar — instrução explícita evita alucinação
 EXPECTED_SCHEMA = """
@@ -246,32 +249,52 @@ sem blocos de código. Use exatamente este schema:
         Usa temperature=0 para máxima consistência — análise de risco
         não é criativa, precisa ser determinística.
         """
+        content: str | None = None
         try:
             response = await self.client.chat.completions.create(
                 model=GROQ_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
-                max_tokens=4096,
+                # gpt-oss é modelo de raciocínio: o orçamento inclui os tokens de
+                # "pensamento", então 4096 truncava o JSON.
+                max_tokens=8192,
+                response_format={"type": "json_object"},
+                extra_body={"reasoning_effort": "low"},
             )
-
-            content = response.choices[0].message.content.strip()
-
-            # Remove markdown se o modelo ignorou a instrução
-            if content.startswith("```"):
-                lines = content.split("\n")
-                content = "\n".join(
-                    line for line in lines
-                    if not line.startswith("```")
-                )
-
-            return json.loads(content)
-
-        except json.JSONDecodeError as e:
-            logger.error("Groq retornou JSON inválido: %s", str(e))
-            return self._fallback_response(getattr(self, "_current_source_results", None))
+            content = response.choices[0].message.content
+            return self._parse_json(content)
         except Exception as e:
-            logger.error("Erro ao chamar Groq: %s", str(e))
+            logger.error("Groq falhou (%s): %s — tentando Claude", GROQ_MODEL, str(e)[:200])
+
+        # Reserva: Claude
+        try:
+            content = await self._call_claude(prompt)
+            return self._parse_json(content)
+        except Exception as e:
+            logger.error("Claude (reserva) falhou: %s", str(e)[:200])
             return self._fallback_response(getattr(self, "_current_source_results", None))
+
+    @staticmethod
+    def _parse_json(content: str | None) -> dict[str, Any]:
+        """Parseia a resposta do LLM, tolerando cercas de markdown."""
+        content = (content or "").strip()
+        if content.startswith("```"):
+            content = "\n".join(l for l in content.split("\n") if not l.startswith("```"))
+        return json.loads(content)
+
+    async def _call_claude(self, prompt: str) -> str:
+        from anthropic import AsyncAnthropic
+        from config.settings import ANTHROPIC_API_KEY
+        if not ANTHROPIC_API_KEY:
+            raise RuntimeError("ANTHROPIC_API_KEY ausente")
+        client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        resp = await client.messages.create(
+            model=CLAUDE_FALLBACK_MODEL,
+            max_tokens=8192,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
 
     def _build_report(
         self,
