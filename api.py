@@ -46,6 +46,7 @@ from routers.feedback_router    import router as feedback_router
 from routers.risco_score_router import router as risco_score_router
 from routers.subint_router      import router as subint_router
 from routers.drone_router       import router as drone_router
+from routers.bases_router       import router as bases_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
 from services.alertas_service import seed_alertas_iniciais
@@ -141,6 +142,7 @@ app.include_router(grupos_router,      prefix="/api")
 app.include_router(grafo_router,       prefix="/api")
 app.include_router(extrato_router,     prefix="/api")
 app.include_router(osint_router,       prefix="/api")
+app.include_router(bases_router,       prefix="/api")  # atualização das bases locais do OSINT
 app.include_router(processo_router,    prefix="/api")  # DataJud por número de processo
 app.include_router(human_loop_router,  prefix="/api")  # Human-in-the-Loop via WhatsApp
 app.include_router(audit_router,       prefix="/api")  # Log imutável de auditoria

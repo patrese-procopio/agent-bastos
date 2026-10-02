@@ -121,6 +121,8 @@ def main() -> int:
     ap.add_argument("--db", type=Path, default=DB_RECEITA)
     ap.add_argument("--competencia")
     ap.add_argument("--manter-zips", action="store_true")
+    ap.add_argument("--se-novo", action="store_true",
+                    help="com --receita: só carrega se houver mês mais novo que o do banco atual")
     a = ap.parse_args()
     if sum(map(bool, (a.dir, a.url_base, a.receita))) != 1:
         ap.error("informe exatamente um: --dir, --url-base ou --receita")
@@ -131,6 +133,16 @@ def main() -> int:
         a.competencia = a.competencia or mes
         auth = (RECEITA_TOKEN, "")
         print(f"Receita: mês {mes}", flush=True)
+        if a.se_novo and a.db.exists():
+            try:
+                _c = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
+                atual = dict(_c.execute("SELECT chave, valor FROM meta").fetchall()).get("competencia")
+                _c.close()
+            except Exception:
+                atual = None
+            if atual and atual >= mes:
+                print(f"já atualizado — base em {atual}, mais recente publicado: {mes}")
+                return 0
 
     a.db.parent.mkdir(parents=True, exist_ok=True)
     tmp = a.db.with_suffix(".db.tmp")
@@ -185,9 +197,14 @@ def main() -> int:
     con.execute("ANALYZE")
     con.close()
 
-    if a.db.exists():
-        a.db.unlink()
-    os.replace(tmp, a.db)  # troca atômica: a busca nunca vê banco pela metade
+    for tentativa in range(8):  # a busca pode estar com o arquivo aberto por instantes
+        try:
+            os.replace(tmp, a.db)  # troca atômica: a busca nunca vê banco pela metade
+            break
+        except PermissionError:
+            time.sleep(5)
+    else:
+        sys.exit("Não consegui trocar o banco (arquivo em uso). O novo ficou em " + str(tmp))
     print(f"OK — {tot_grav:,} sócios PF em {a.db} ({a.db.stat().st_size / 1e9:.2f} GB, {time.time() - t0:.0f}s)")
     return 0
 

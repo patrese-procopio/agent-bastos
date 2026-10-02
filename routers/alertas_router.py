@@ -36,7 +36,7 @@ from services.alertas_service import (
     ALERTAS_OSINT_PATH,
 )
 from fastapi import BackgroundTasks
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, require_module, require_module_or_scheduler
 from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA, LIMIT_ESCRITA
 from services.logging_service import get_logger
 import services.alvos_service as alvos_service
@@ -193,7 +193,7 @@ def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
 @router.post("/alertas/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_realtime(request: Request, alvo_id: str | None = None,
-                             user: dict = Depends(require_module("alertas"))):
+                             user: dict = Depends(require_module_or_scheduler("alertas"))):
     from modules.monitor import varrer_realtime
     _log_audit.info("varrer realtime", extra={"username": user.get("sub"), "alvo_id": alvo_id})
     return varrer_realtime(alvo_id=alvo_id)
@@ -202,7 +202,7 @@ def varrer_alertas_realtime(request: Request, alvo_id: str | None = None,
 @router.post("/alertas/osint/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_osint(request: Request, alvo_id: str | None = None,
-                          user: dict = Depends(require_module("osint"))):
+                          user: dict = Depends(require_module_or_scheduler("osint"))):
     from modules.monitor import varrer_osint
     _log_audit.info("varrer osint", extra={"username": user.get("sub"), "alvo_id": alvo_id})
     return varrer_osint(alvo_id=alvo_id)
@@ -221,7 +221,7 @@ def analisar_alertas_pendentes(request: Request, limite: int = 20,
 @router.post("/alertas/telegram/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_telegram(request: Request, alvo_id: str | None = None,
-                             user: dict = Depends(require_module("osint"))):
+                             user: dict = Depends(require_module_or_scheduler("osint"))):
     """Varre canais públicos do Telegram em busca de menções aos alvos (salva como OSINT)."""
     from modules.telegram_monitor import varrer_telegram
     _log_audit.info("varrer telegram", extra={"username": user.get("sub"), "alvo_id": alvo_id})

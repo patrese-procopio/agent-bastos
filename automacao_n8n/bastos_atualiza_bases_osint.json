@@ -1,0 +1,74 @@
+[
+  {
+    "active": true,
+    "connections": {
+      "Todo dia 03:30": {
+        "main": [
+          [
+            {
+              "node": "Atualizar bases OSINT",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "id": "BastosBasesOSINT1",
+    "name": "Bastos - Atualiza bases OSINT (diario 03h30, so recarrega se houver dado novo)",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "daysInterval": 1,
+                "triggerAtHour": 3,
+                "triggerAtMinute": 30
+              }
+            ]
+          }
+        },
+        "id": "a1b2c3d4-0001-4000-8000-000000000001",
+        "name": "Todo dia 03:30",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:8000/api/bases/atualizar?base=todas",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-Agendador-Token",
+                "value": "__TOKEN__"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "a1b2c3d4-0003-4000-8000-000000000003",
+        "name": "Atualizar bases OSINT",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          260,
+          0
+        ]
+      }
+    ],
+    "pinData": {},
+    "settings": {
+      "executionOrder": "v1"
+    }
+  }
+]
