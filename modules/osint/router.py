@@ -186,6 +186,15 @@ async def pesquisar(body: PesquisarRequest, request: Request,
     report.achados_internos = internas["achados"]
     report.fontes_internas = internas["fontes"]
     report.contexto_busca = internas.get("contexto", {})
+    # Nível de risco: só processos, lideranças e notícias de crime (ver modules/osint/risco.py)
+    from modules.osint import risco as risco_mod
+    av = risco_mod.avaliar(internas["achados"], internas["fontes"], mandado_ativo=bool(report.mandados_prisao))
+    report.risk_level = RiskLevel(av["nivel"])
+    report.risco_pilares = {**av["pilares"], "convergencia": av["convergencia"], "limiar": av["limiar"],
+                            "imprecisos_nao_considerados": av["imprecisos_nao_considerados"], "versao_regras": av["versao_regras"]}
+    report.resumo_risco = av["resumo"]
+    report.risk_indicators = [m for m in av["motivos"]] + [i for i in report.risk_indicators if i not in av["motivos"]
+                                                         and "IA indisponível" not in i]
     try:  # fotos de fontes oficiais/internas dos achados confirmados/prováveis
         report.fotos = await asyncio.to_thread(fotos_mod.coletar, str(report.report_id), internas["achados"])
     except Exception:
@@ -495,6 +504,10 @@ async def get_status(user: dict = Depends(_GATE)) -> dict:
     fontes["diario_am"] = {
         "api_key_configurada": True, "url": "https://diario.imprensaoficial.am.gov.br", "gratuito": True,
         "nota": "Diário Oficial do Estado do Amazonas (1956-hoje). Nome enviado a serviço externo.",
+    }
+    fontes["noticias"] = {
+        "api_key_configurada": True, "url": "https://news.google.com/rss", "gratuito": True,
+        "nota": "Alertas do monitor + feed de crimes (AM) + Google News pelo nome. Nome enviado a serviço externo.",
     }
     fontes["pegada_digital"] = {
         "maigret_instalado": pegada.ferramenta_disponivel(), "gratuito": True,
