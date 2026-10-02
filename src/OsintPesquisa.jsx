@@ -190,7 +190,7 @@ const CAMPOS_INT = {
   lista_negra: [["Situação","situacao"],["Unidade","unidade"],["Empresa","empresa"],["Data","data"],["Referência","referencia"],["CPF","cpf"],["Ano","ano"],["Descrição","descricao"]],
   liderancas:  [["Facção","faccao"],["Cargo","cargo"],["Vulgo","vulgo"],["Status","status"],["Observação","observacao"]],
   referencias: [["Tipo","tipo"],["Nº","numero"],["Ano","ano"],["Assunto","assunto"],["Arquivo","arquivo"]],
-  tse:         [["Nascimento","nascimento"],["CPF","cpf"]],
+  tse:         [["Nascimento","nascimento"],["CPF","cpf"],["E-mail de campanha (TSE)","emails_txt"]],
   diario_am:   [["Data","data"],["Edição","edicao"],["Página","pagina"],["Matéria","materia"],["Órgão","orgao"],["Caderno","caderno"],["Tipo de ato","ato"]],
   querido_diario:[["Município","municipio"],["UF","uf"],["Data","data"],["Edição","edicao"],["Tipo de ato","ato"]],
   djen:        [["Tribunal","tribunal"],["Órgão","orgao"],["Classe","classe"],["Polo","polo"],["Parte (como consta)","parte"],["Primeira publicação","primeira"],["Última publicação","ultima"],["Publicações","publicacoes"],["Advogados","advogados"],["Outras partes","outras_partes"]],
@@ -289,6 +289,204 @@ const AchadoCard = ({ a }) => {
   )
 }
 
+// ── Imagem autenticada (a rota /osint/foto exige token; busca como blob) ─────
+const FotoAuth = ({ id, w=64, h=80, radius=6, onClick }) => {
+  const [src, setSrc] = useState(null)
+  useEffect(() => {
+    let url = null, vivo = true
+    api.get(`/osint/foto/${id}`).then(r => (r.ok ? r.blob() : null)).then(b => {
+      if (b && vivo) { url = URL.createObjectURL(b); setSrc(url) }
+    }).catch(() => {})
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url) }
+  }, [id])
+  const base = { width:w, height:h, borderRadius:radius, objectFit:"cover", border:`1px solid ${C.border}`, background:"rgba(255,255,255,0.04)", flexShrink:0 }
+  return src
+    ? <img src={src} alt="" onClick={onClick} style={{...base, cursor:onClick?"zoom-in":"default"}}/>
+    : <div style={{...base, display:"flex", alignItems:"center", justifyContent:"center", color:C.textDim, fontSize:11}}>…</div>
+}
+
+const NIVEL_FOTO = { confirmado:"IDENTIDADE CONFIRMADA", provavel:"IDENTIDADE PROVÁVEL", confirmado_analista:"CONFIRMADA PELO ANALISTA" }
+
+const GaleriaFotos = ({ fotos }) => {
+  const [aberta, setAberta] = useState(null)
+  if (!fotos?.length) return null
+  return (
+    <div style={{padding:"12px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em",marginBottom:10}}>◈ FOTOS (fontes oficiais, internas e perfis confirmados)</div>
+      <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+        {fotos.map(f=>(
+          <div key={f.id} style={{display:"flex",gap:10,alignItems:"flex-start",maxWidth:300}}>
+            <FotoAuth id={f.id} w={72} h={92} onClick={()=>setAberta(f)}/>
+            <div style={{fontSize:12,lineHeight:1.45}}>
+              <div style={{color:C.text,fontWeight:600}}>{f.fonte}</div>
+              <div style={{color:C.textMid}}>{f.legenda}</div>
+              <div style={{color:C.textDim,fontFamily:MONO,fontSize:11,marginTop:2}}>{NIVEL_FOTO[f.nivel]||""}{f.confianca?` · ${f.confianca}%`:""}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO}}>A foto não é prova de identidade por si só: compare com os demais dados. Sem reconhecimento facial.</div>
+      {aberta && (
+        <div onClick={()=>setAberta(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",cursor:"zoom-out"}}>
+          <div style={{textAlign:"center"}}>
+            <FotoAuth id={aberta.id} w={360} h={460} radius={10}/>
+            <div style={{color:C.text,marginTop:8,fontSize:13}}>{aberta.fonte} — {aberta.legenda}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const mmss = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`
+
+// ── Aba "Pegada Digital" ──────────────────────────────────────────────────────
+const PainelPegada = ({ job, nada, onIniciar, onVariacoes, onConfirmar, iniciando, erro }) => {
+  const [mostrarPossiveis, setMostrarPossiveis] = useState(false)
+  const et = job?.etapas || {}
+  const mg = et.maigret || {}
+  const contas = mg.contas || []
+  const fortes = contas.filter(c => c.confirmada || c.confianca >= 55)
+  const fracas = contas.filter(c => !(c.confirmada || c.confianca >= 55))
+  const lista = mostrarPossiveis ? [...fortes, ...fracas] : fortes
+  const cartao = {padding:"12px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:8}
+  const rot = {fontSize:11,color:C.textDim,fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.06em"}
+  const usados = job ? ["usernames","emails","telefones"].flatMap(k => (job.entrada?.[k]||[]).map(x => ({tipo:k.slice(0,-1), ...x}))) : []
+
+  return (
+    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
+      {!job && !iniciando && (
+        <div style={{...cartao, borderLeft:`3px solid ${C.gold}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8}}>◈ PEGADA DIGITAL — REDES SOCIAIS, E-MAIL E TELEFONE</div>
+          <p style={{fontSize:13,color:C.textMid,lineHeight:1.7,margin:"0 0 10px"}}>
+            Roda <b>automaticamente</b> após a pesquisa quando ela encontra <b>vulgo, e-mail ou telefone</b> nos achados (Lideranças, documentos, publicações),
+            além do que você informar no formulário. Leva de 1 a 4 minutos, em segundo plano.
+            Uma conta só é "provável" quando o <b>nome do perfil</b> bate com o pesquisado; username igual não prova identidade.
+            O e-mail NÃO é testado em sites de cadastro (isso poderia alertar o dono).
+          </p>
+          {nada && (
+            <div style={{fontSize:13,color:C.gold,marginBottom:10,lineHeight:1.6}}>
+              {nada} Você pode informar um username, e-mail ou telefone em "Identificadores digitais" (formulário acima) e pesquisar de novo.
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <button style={S.btnPrimary} onClick={onIniciar}>Rodar de novo com os dados do formulário</button>
+            <button style={S.btnSecondary} onClick={onVariacoes} title="Gera usernames a partir do nome (ex.: nome.sobrenome). Muito ruído: use só se não houver outro caminho.">
+              Tentar variações do nome (baixíssima precisão)
+            </button>
+          </div>
+          {erro && <div style={{fontSize:12,color:C.red,marginTop:8}}>{erro}</div>}
+        </div>
+      )}
+      {iniciando && !job && <div style={{...cartao,color:C.textMid,fontSize:13}}>Procurando identificadores digitais nos achados…</div>}
+
+      {usados.length>0 && (
+        <div style={cartao}>
+          <div style={rot}>Identificadores usados {job?.auto && "(descobertos automaticamente + informados)"}</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+            {usados.map((u,i)=>(
+              <span key={i} style={{fontSize:12,padding:"3px 9px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.text,fontFamily:MONO}}>
+                {u.tipo==="username"?"@":u.tipo==="email"?"✉ ":"☎ "}{u.valor} <span style={{color:C.textDim}}>· {u.origem}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {job && job.estado==="executando" && (
+        <div style={{...cartao, display:"flex", alignItems:"center", gap:10}}>
+          <span className="o-spin" style={{display:"inline-block",width:14,height:14,border:"2px solid rgba(232,160,32,0.3)",borderTopColor:C.gold,borderRadius:"50%"}}/>
+          <span style={{fontSize:13,color:C.text}}>
+            {mg.estado==="executando"
+              ? <>Procurando contas… <b>{mg.progresso?.encontradas||0}</b> encontradas · {mmss(mg.progresso?.decorrido_s||0)}</>
+              : "Analisando telefones e e-mails…"}
+          </span>
+        </div>
+      )}
+
+      {(et.telefones||[]).map((t,i)=>(
+        <div key={i} style={cartao}>
+          <div style={rot}>Telefone (análise offline) · {t.origem}</div>
+          {t.erro && !t.formatado
+            ? <div style={{fontSize:13,color:C.red}}>{t.erro}</div>
+            : <>
+                <div style={{fontSize:14,color:C.text,margin:"4px 0"}}>
+                  <b>{t.formatado}</b> · {t.valido?"válido":"INVÁLIDO"} · {t.tipo}
+                  {t.regiao && <> · {t.regiao}{t.uf?` (${t.uf})`:""}</>}
+                </div>
+                <div style={{fontSize:12,color:C.textMid}}>Operadora de origem: {t.operadora_origem||"n/d"} <span style={{color:C.textDim}}>({t.nota_operadora})</span></div>
+                <div style={{display:"flex",gap:12,marginTop:6,flexWrap:"wrap"}}>
+                  {(t.links||[]).map((l,k)=><a key={k} href={l.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ {l.rotulo}</a>)}
+                </div>
+              </>}
+        </div>
+      ))}
+
+      {(et.emails||[]).map((e,i)=>(
+        <div key={i} style={{...cartao, display:"flex", gap:12, alignItems:"flex-start"}}>
+          {e.gravatar?.foto_id && <FotoAuth id={e.gravatar.foto_id} w={56} h={56}/>}
+          <div>
+            <div style={rot}>E-mail · {e.origem}</div>
+            {e.valido===false
+              ? <div style={{fontSize:13,color:C.red}}>{e.erro}</div>
+              : <>
+                  <div style={{fontSize:13,color:C.text,margin:"4px 0"}}>{e.email_mascarado} · {e.tipo} · domínio <b>{e.dominio}</b></div>
+                  <div style={{fontSize:12,color:C.textMid}}>
+                    Gravatar: {e.gravatar?.existe ? <b style={{color:C.green}}>avatar/perfil público encontrado</b> : "nenhum"}
+                    {e.gravatar?.nome && <> · {e.gravatar.nome}</>}
+                    {e.gravatar?.local && <> · {e.gravatar.local}</>}
+                  </div>
+                </>}
+          </div>
+        </div>
+      ))}
+
+      {mg.estado==="ferramenta_ausente" && <div style={{...cartao,color:C.gold,fontSize:13}}>Maigret não está instalado neste computador (veja scripts/instalar_ferramentas_osint.md). Telefone e e-mail funcionam sem ele.</div>}
+      {mg.estado==="sem_username" && job && <div style={{...cartao,color:C.textMid,fontSize:13}}>Nenhum username para pesquisar nas redes (só telefone/e-mail foram analisados).</div>}
+
+      {contas.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+            <SecLabel>Contas encontradas ({contas.length})</SecLabel>
+            <span style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>
+              {fortes.length} com indício além do username · {fracas.length} só username (podem ser de outras pessoas)
+            </span>
+            {fracas.length>0 && <button style={{...S.btnSecondary,padding:"4px 10px",fontSize:12}} onClick={()=>setMostrarPossiveis(v=>!v)}>{mostrarPossiveis?"ocultar":"mostrar"} as {fracas.length} só-username</button>}
+          </div>
+          {lista.map((c,i)=>{
+            const nv = NIVEL[c.nivel]||NIVEL.possivel
+            return (
+              <div key={c.url||i} style={{display:"flex",gap:12,padding:"10px 12px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderLeft:`3px solid ${c.confirmada?C.green:nv.cor}`,borderRadius:8}}>
+                {c.foto_id ? <FotoAuth id={c.foto_id} w={52} h={52}/> : <div style={{width:52,height:52,borderRadius:6,background:"rgba(255,255,255,0.04)",flexShrink:0}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:4,background:nv.bg,color:nv.cor,fontFamily:MONO}}>{c.confirmada?"CONFIRMADA":nv.label.split(" — ")[0]} · {c.confianca}%</span>
+                    <span style={{fontSize:13,fontWeight:700,color:C.text}}>{c.site}</span>
+                    {c.nome_perfil && <span style={{fontSize:13,color:C.text}}>{c.nome_perfil}</span>}
+                    {c.local && <span style={{fontSize:12,color:C.textMid}}>📍 {c.local}</span>}
+                    {c.origem_username && c.origem_username!=="informado" && <span style={{fontSize:11,color:C.gold,fontFamily:MONO}}>via {c.origem_username}</span>}
+                  </div>
+                  <a href={c.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none",wordBreak:"break-all"}}>↗ {c.url}</a>
+                  {c.bio && <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{String(c.bio).slice(0,160)}</div>}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+                    {(c.motivos||[]).map((m,j)=><span key={j} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.textMid,fontFamily:MONO}}>{m}</span>)}
+                  </div>
+                </div>
+                <button style={{...S.btnSecondary,alignSelf:"center",fontSize:12,padding:"6px 10px",whiteSpace:"nowrap",...(c.confirmada?{color:C.green,borderColor:"rgba(74,222,128,0.4)"}:{})}} onClick={()=>onConfirmar(c.url,!c.confirmada)}>
+                  {c.confirmada ? "✓ Confirmada (desfazer)" : "Confirmar que é a pessoa"}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {job?.estado==="concluido" && contas.length===0 && mg.estado==="concluido" && <div style={{...cartao,color:C.textDim,fontStyle:"italic",fontSize:13}}>Nenhuma conta encontrada para o(s) username(s) pesquisado(s).</div>}
+      {(job?.avisos||[]).map((a,i)=><div key={i} style={{fontSize:12,color:C.gold,padding:"6px 10px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:6}}>{a}</div>)}
+    </div>
+  )
+}
+
 export default function OsintPesquisa({ onNavigate }) {
   const [nome,       setNome]       = useState("")
   const [cpf,        setCpf]        = useState("")
@@ -296,6 +494,17 @@ export default function OsintPesquisa({ onNavigate }) {
   const [dataNasc,   setDataNasc]   = useState("")
   const [nomeMae,    setNomeMae]    = useState("")
   const [nomePai,    setNomePai]    = useState("")
+  const [username,   setUsername]   = useState("")
+  const [email,      setEmail]      = useState("")
+  const [telefone,   setTelefone]   = useState("")
+  const [usarVulgo,  setUsarVulgo]  = useState(true)
+  const [identAberto, setIdentAberto] = useState(true)
+  const [pegNada,    setPegNada]    = useState("")
+  const [profund,    setProfund]    = useState("padrao")
+  const [jobId,      setJobId]      = useState(null)
+  const [job,        setJob]        = useState(null)
+  const [pegIniciando, setPegIniciando] = useState(false)
+  const [pegErro,    setPegErro]    = useState("")
   const [loading,    setLoading]    = useState(false)
   const [erro,       setErro]       = useState("")
   const [resultado,  setResultado]  = useState(null)
@@ -323,10 +532,57 @@ export default function OsintPesquisa({ onNavigate }) {
     if (resultado) resultRef.current?.scrollIntoView({ behavior:"smooth", block:"start" })
   }, [resultado])
 
+  const temIdentDigital = () => !!(username.trim() || email.trim() || telefone.trim() || usarVulgo)
+
+  async function iniciarPegada(reportId, extra = {}) {
+    setPegErro(""); setPegNada(""); setPegIniciando(true); setJob(null); setJobId(null)
+    try {
+      const res = await api.post("/osint/pegada-digital", {
+        report_id: reportId, auto: true,
+        username: username.trim()||undefined, email: email.trim()||undefined, telefone: telefone.trim()||undefined,
+        usar_vulgo: usarVulgo, profundidade: profund, ...extra,
+      })
+      const d = await res.json()
+      if (!res.ok) { setPegErro(Array.isArray(d.detail) ? d.detail.map(x=>x.msg).join("; ") : (d.detail||"Erro ao iniciar.")); return }
+      if (d.nada_encontrado || !d.job_id) { setPegNada(d.mensagem || "Nenhum identificador digital encontrado."); return }
+      setJobId(d.job_id)
+    } catch { setPegErro("Falha de conexão com o backend.") }
+    finally { setPegIniciando(false) }
+  }
+
+  async function atualizarRelatorio(reportId) {
+    try { const r = await api.get(`/osint/relatorio/${reportId}`); if (r.ok) setRelatorio(await r.json()) } catch {}
+  }
+
+  async function confirmarConta(url, confirmar) {
+    if (!jobId) return
+    try {
+      await api.post(`/osint/pegada-digital/${jobId}/confirmar`, { url, confirmar })
+      const r = await api.get(`/osint/pegada-digital/${jobId}`); if (r.ok) setJob(await r.json())
+      if (resultado?.report_id) atualizarRelatorio(resultado.report_id)
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (!jobId) return
+    let parar = false
+    const tick = async () => {
+      try {
+        const r = await api.get(`/osint/pegada-digital/${jobId}`)
+        if (r.ok && !parar) {
+          const j = await r.json(); setJob(j)
+          if (j.estado !== "executando") { parar = true; clearInterval(t); if (resultado?.report_id) atualizarRelatorio(resultado.report_id) }
+        } else if (r.status === 404) { parar = true; clearInterval(t) }
+      } catch {}
+    }
+    const t = setInterval(tick, 3000); tick()
+    return () => { parar = true; clearInterval(t) }
+  }, [jobId])
+
   async function pesquisar() {
     if (!nome.trim() && !cpf.trim()) { setErro("Informe nome ou CPF para pesquisar."); return }
     if (cpf.trim() && cpf.replace(/\D/g,"").length !== 11) { setErro("CPF deve ter 11 dígitos."); return }
-    setErro(""); setLoading(true); setResultado(null); setRelatorio(null)
+    setErro(""); setLoading(true); setResultado(null); setRelatorio(null); setJobId(null); setJob(null); setPegErro(""); setPegNada("")
     try {
       const res = await api.post("/osint/pesquisar", {
         lgpd_purpose: finalidade,
@@ -345,6 +601,7 @@ export default function OsintPesquisa({ onNavigate }) {
       setActiveTab(data.achados_internos>0 ? "interno" : "sumario")
       const r2 = await api.get(`/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
+      iniciarPegada(data.report_id)
     } catch {
       setErro("Falha de conexão com o backend.")
     } finally {
@@ -393,7 +650,7 @@ export default function OsintPesquisa({ onNavigate }) {
   }
 
   function limpar() {
-    setNome(""); setCpf(""); setDataNasc(""); setNomeMae(""); setNomePai(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
+    setNome(""); setCpf(""); setDataNasc(""); setNomeMae(""); setNomePai(""); setUsername(""); setEmail(""); setTelefone(""); setUsarVulgo(true); setJobId(null); setJob(null); setPegErro(""); setPegNada(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
     setNumProc(""); setTribunalProc(""); setProcResultado(null); setProcErro("")
   }
 
@@ -402,6 +659,7 @@ export default function OsintPesquisa({ onNavigate }) {
   const TABS = [
     {key:"sumario",   label:"Sumário"   },
     {key:"interno",   label:`Base Interna${resultado?.achados_internos?` (${resultado.achados_internos})`:""}` },
+    {key:"pegada",    label:`Pegada Digital${job?.etapas?.maigret?.contas?.length?` (${job.etapas.maigret.contas.length})`:(job?.estado==="executando"||pegIniciando)?" …":""}` },
     {key:"processos", label:"Processos" },
     {key:"empresas",  label:"Empresas"  },
     {key:"timeline",  label:"Timeline"  },
@@ -489,6 +747,35 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
           </div>
 
+          <details style={{marginBottom:14}} open={identAberto} onToggle={e=>setIdentAberto(e.currentTarget.open)}>
+            <summary style={{cursor:"pointer",fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICADORES DIGITAIS (opcional — a busca também os procura sozinha nos achados)</summary>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginTop:12}}>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Username / apelido</label>
+                <input style={S.input} placeholder="ex.: joaosilva92" value={username} onChange={e=>setUsername(e.target.value)}/></div>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>E-mail</label>
+                <input style={S.input} placeholder="pessoa@exemplo.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Telefone</label>
+                <input style={S.input} placeholder="(92) 99999-9999" value={telefone} onChange={e=>setTelefone(e.target.value)}/></div>
+            </div>
+            <div style={{display:"flex",gap:18,alignItems:"center",marginTop:10,flexWrap:"wrap"}}>
+              <label style={{fontSize:12,color:C.textMid,display:"flex",gap:6,alignItems:"center",cursor:"pointer"}}>
+                <input type="checkbox" checked={usarVulgo} onChange={e=>setUsarVulgo(e.target.checked)}/>
+                incluir o vulgo encontrado nas Lideranças como username <span style={{color:C.gold}}>(baixa precisão)</span>
+              </label>
+              <label style={{fontSize:12,color:C.textMid,display:"flex",gap:6,alignItems:"center"}}>
+                profundidade
+                <select style={{...S.select,width:"auto",padding:"5px 10px",fontSize:12}} value={profund} onChange={e=>setProfund(e.target.value)}>
+                  <option value="rapida">rápida (~100 sites · ~1 min)</option>
+                  <option value="padrao">padrão (~250 sites · ~2 min)</option>
+                  <option value="completa">completa (~500 sites · ~4 min)</option>
+                </select>
+              </label>
+            </div>
+            <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO}}>
+              Parte de identificadores informados por você ou encontrados nos achados (vulgo, e-mails e telefones em documentos). O e-mail não é testado em sites de cadastro. Cada uso é registrado no audit LGPD.
+            </div>
+          </details>
+
           {erro && (
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.25)",borderRadius:7,marginBottom:12,color:C.red}}>
               <IcoAlert/><span style={{fontSize:11,fontWeight:500}}>{erro}</span>
@@ -533,6 +820,8 @@ export default function OsintPesquisa({ onNavigate }) {
                 </button>
               </div>
             </div>
+
+            <GaleriaFotos fotos={relatorio?.fotos}/>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <StatBadge label="Base Interna"         value={resultado.achados_internos} accent/>
@@ -592,6 +881,14 @@ export default function OsintPesquisa({ onNavigate }) {
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Pegada Digital */}
+                  {activeTab==="pegada" && (
+                    <PainelPegada job={job} nada={pegNada} iniciando={pegIniciando} erro={pegErro}
+                      onIniciar={()=>iniciarPegada(resultado.report_id)}
+                      onVariacoes={()=>iniciarPegada(resultado.report_id, { variacoes_nome: true })}
+                      onConfirmar={confirmarConta}/>
                   )}
 
                   {/* Base Interna */}
