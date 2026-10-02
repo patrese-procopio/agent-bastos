@@ -77,6 +77,7 @@ const FONTES_INTERNAS = [
   { key:"diario_am",   label:"DOE-AM", icon:"🏛" },
   { key:"pep_cgu",     label:"PEP (CGU)", icon:"🎖" },
   { key:"sancoes_cgu", label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
+  { key:"noticias",    label:"Notícias", icon:"📰" },
 ]
 
 const TRIBUNAIS = [
@@ -159,6 +160,30 @@ const SecLabel = ({ children, color=C.gold }) => (
   </div>
 )
 
+// Resultados com precisão abaixo deste valor ficam atrás do botão "Resultados imprecisos"
+const LIMIAR = 50
+
+// Abas por TIPO de resultado (cada uma filtra os achados da pesquisa)
+const ABAS_ACHADOS = [
+  { key:"liderancas",label:"Lideranças",       fontes:["liderancas"] },
+  { key:"processos", label:"Processos",        fontes:["djen"] },
+  { key:"noticias",  label:"Notícias",         fontes:["noticias"] },
+  { key:"interno",   label:"Bases internas",   fontes:["lista_negra","referencias"] },
+  { key:"empresas",  label:"Empresas",         fontes:["receita_cnpj"], extra:a=>a.fonte==="sancoes_cgu"&&a.dados?.tipo==="empresa" },
+  { key:"diarios",   label:"Diários oficiais", fontes:["diario_am","querido_diario"] },
+  { key:"tse",       label:"TSE",              fontes:["tse"] },
+  { key:"sancoes",   label:"PEP e sanções",    fontes:["pep_cgu"], extra:a=>a.fonte==="sancoes_cgu"&&a.dados?.tipo!=="empresa" },
+]
+const doGrupo = (g, a) => g.fontes.includes(a.fonte) || (g.extra ? g.extra(a) : false)
+const NIVEL_RISCO = {
+  critico:{ label:"CRÍTICO", cor:"#EF4444", bg:"rgba(239,68,68,0.14)" },
+  alto:   { label:"ALTO",    cor:"#F97316", bg:"rgba(249,115,22,0.14)" },
+  medio:  { label:"MÉDIO",   cor:"#E8A020", bg:"rgba(232,160,32,0.14)" },
+  baixo:  { label:"BAIXO",   cor:"#4ADE80", bg:"rgba(74,222,128,0.12)" },
+}
+const PAPEL_NOTICIA = { autor:{ label:"AUTOR / SUSPEITO", cor:"#EF4444" }, vitima:{ label:"VÍTIMA", cor:"#60A5FA" }, citado:{ label:"APENAS CITADO", cor:"#94A3B8" } }
+const RISCO_RESULTADOS = { border:"#60A5FA", badge:"#60A5FA", badgeBg:"rgba(96,165,250,0.10)", text:"#93C5FD", label:"● COM RESULTADOS" }
+
 const NIVEL = {
   confirmado: { cor:"#4ADE80", bg:"rgba(74,222,128,0.12)",  label:"CONFIRMADO" },
   provavel:   { cor:"#E8A020", bg:"rgba(232,160,32,0.12)",  label:"PROVÁVEL"   },
@@ -175,6 +200,7 @@ const FONTE_INT = {
   diario_am:   { label:"DOE-AM", icon:"🏛" },
   pep_cgu:     { label:"PEP (CGU)", icon:"🎖" },
   sancoes_cgu: { label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
+  noticias:    { label:"Notícias", icon:"📰" },
 }
 const STATUS_INT = {
   nao_carregada: { cor:C.gold,    txt:"base não carregada" },
@@ -233,6 +259,19 @@ const AchadoCard = ({ a }) => {
               <div style={{fontSize:13,color:C.text,wordBreak:"break-word"}}>{String(d[k])}</div>
             </div>
           ))}
+        </div>
+      )}
+      {a.fonte==="noticias" && (
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            {d.papel && <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,color:(PAPEL_NOTICIA[d.papel]||{}).cor,border:`1px solid ${(PAPEL_NOTICIA[d.papel]||{}).cor}55`,fontFamily:MONO}}>{(PAPEL_NOTICIA[d.papel]||{}).label}</span>}
+            {(d.crime_tipos||[]).map((t,i)=><span key={i} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:d.grave?"rgba(239,68,68,0.12)":"rgba(255,255,255,0.05)",border:`1px solid ${d.grave?"rgba(239,68,68,0.3)":C.border}`,color:d.grave?"#FCA5A5":C.textMid,fontFamily:MONO}}>{t}</span>)}
+            <span style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>{d.fonte} · {d.data} · {d.origem}</span>
+            {d.risco_monitor && <span style={{fontSize:11,color:C.gold,fontFamily:MONO}}>risco do monitor: {d.risco_monitor}</span>}
+          </div>
+          {d.resumo && d.resumo!==d.titulo && <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>{d.resumo}</div>}
+          {d.analise_ia && <div style={{fontSize:12,color:C.textMid,fontStyle:"italic"}}>Análise do monitor: {d.analise_ia}</div>}
+          {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none",wordBreak:"break-all"}}>↗ abrir notícia</a>}
         </div>
       )}
       {d.linhas?.length>0 && (
@@ -340,14 +379,44 @@ const GaleriaFotos = ({ fotos }) => {
 
 const mmss = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`
 
+// ── Lista de resultados de uma aba: ≥50% em destaque; o resto atrás de um botão ──
+const AbaAchados = ({ achados, vazioMsg, children }) => {
+  const [aberto, setAberto] = useState(false)
+  const ord = [...achados].sort((x,y)=>y.confianca-x.confianca)
+  const rel = ord.filter(a=>a.confianca>=LIMIAR)
+  const imp = ord.filter(a=>a.confianca<LIMIAR)
+  return (
+    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:10}}>
+      {rel.length===0 && !children && (
+        <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"8px 0"}}>
+          {vazioMsg || `Nenhum resultado com ${LIMIAR}% ou mais de precisão.`}{imp.length>0 ? " Há resultados imprecisos abaixo." : ""}
+        </div>
+      )}
+      {rel.map((a,i)=><AchadoCard key={"r"+i} a={a}/>)}
+      {children}
+      {imp.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:4}}>
+          <div>
+            <button style={{...S.btnSecondary,fontSize:12,padding:"7px 14px"}} onClick={()=>setAberto(v=>!v)}>
+              {aberto?"▲":"▼"} Resultados imprecisos ({imp.length})
+            </button>
+            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO,marginLeft:10}}>abaixo de {LIMIAR}% de precisão — podem ser de outras pessoas</span>
+          </div>
+          {aberto && imp.map((a,i)=><AchadoCard key={"i"+i} a={a}/>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Aba "Pegada Digital" ──────────────────────────────────────────────────────
 const PainelPegada = ({ job, nada, onIniciar, onVariacoes, onConfirmar, iniciando, erro }) => {
   const [mostrarPossiveis, setMostrarPossiveis] = useState(false)
   const et = job?.etapas || {}
   const mg = et.maigret || {}
   const contas = mg.contas || []
-  const fortes = contas.filter(c => c.confirmada || c.confianca >= 55)
-  const fracas = contas.filter(c => !(c.confirmada || c.confianca >= 55))
+  const fortes = contas.filter(c => c.confirmada || c.confianca >= LIMIAR)
+  const fracas = contas.filter(c => !(c.confirmada || c.confianca >= LIMIAR))
   const lista = mostrarPossiveis ? [...fortes, ...fracas] : fortes
   const cartao = {padding:"12px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:8}
   const rot = {fontSize:11,color:C.textDim,fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.06em"}
@@ -449,10 +518,10 @@ const PainelPegada = ({ job, nada, onIniciar, onVariacoes, onConfirmar, iniciand
           <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
             <SecLabel>Contas encontradas ({contas.length})</SecLabel>
             <span style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>
-              {fortes.length} com indício além do username · {fracas.length} só username (podem ser de outras pessoas)
+              {fortes.length} com {LIMIAR}% ou mais · {fracas.length} imprecisas (só o username bate)
             </span>
-            {fracas.length>0 && <button style={{...S.btnSecondary,padding:"4px 10px",fontSize:12}} onClick={()=>setMostrarPossiveis(v=>!v)}>{mostrarPossiveis?"ocultar":"mostrar"} as {fracas.length} só-username</button>}
           </div>
+          {fortes.length===0 && <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO}}>Nenhuma conta com {LIMIAR}% ou mais de precisão.</div>}
           {lista.map((c,i)=>{
             const nv = NIVEL[c.nivel]||NIVEL.possivel
             return (
@@ -478,6 +547,14 @@ const PainelPegada = ({ job, nada, onIniciar, onVariacoes, onConfirmar, iniciand
               </div>
             )
           })}
+          {fracas.length>0 && (
+            <div>
+              <button style={{...S.btnSecondary,fontSize:12,padding:"7px 14px"}} onClick={()=>setMostrarPossiveis(v=>!v)}>
+                {mostrarPossiveis?"▲":"▼"} Resultados imprecisos ({fracas.length})
+              </button>
+              <span style={{fontSize:11,color:C.textDim,fontFamily:MONO,marginLeft:10}}>só o username bate — podem ser de outras pessoas</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -598,7 +675,7 @@ export default function OsintPesquisa({ onNavigate }) {
         setErro(det||"Erro na pesquisa."); return
       }
       setResultado(data)
-      setActiveTab(data.achados_internos>0 ? "interno" : "sumario")
+      setActiveTab("sumario")
       const r2 = await api.get(`/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
       iniciarPegada(data.report_id)
@@ -654,14 +731,25 @@ export default function OsintPesquisa({ onNavigate }) {
     setNumProc(""); setTribunalProc(""); setProcResultado(null); setProcErro("")
   }
 
-  const risco = resultado ? (RISCO[resultado.risk_level]||RISCO.sem_dado) : null
+  const achados = relatorio?.achados_internos || []
+  const relTotal = achados.filter(a=>a.confianca>=LIMIAR).length
+  const impTotal = achados.length - relTotal
+  const grupos = ABAS_ACHADOS.map(g => {
+    const itens = achados.filter(a=>doGrupo(g,a))
+    return { ...g, itens, rel: itens.filter(a=>a.confianca>=LIMIAR).length, imp: itens.filter(a=>a.confianca<LIMIAR).length }
+  })
+  const temLegProc = !!(relatorio?.mandados_prisao?.length || relatorio?.processos_criminais?.length || relatorio?.processos_civeis?.length)
+  const temLegEmp = !!(relatorio?.vinculos_empresariais?.length || relatorio?.mencoes_dou?.length)
+  const risco = resultado
+    ? ((resultado.risk_level==="sem_dado" && relTotal>0) ? RISCO_RESULTADOS : (RISCO[resultado.risk_level]||RISCO.sem_dado))
+    : null
 
   const TABS = [
-    {key:"sumario",   label:"Sumário"   },
-    {key:"interno",   label:`Base Interna${resultado?.achados_internos?` (${resultado.achados_internos})`:""}` },
-    {key:"pegada",    label:`Pegada Digital${job?.etapas?.maigret?.contas?.length?` (${job.etapas.maigret.contas.length})`:(job?.estado==="executando"||pegIniciando)?" …":""}` },
-    {key:"processos", label:"Processos" },
-    {key:"empresas",  label:"Empresas"  },
+    {key:"sumario", label:"Sumário"},
+    ...grupos
+      .filter(g => g.itens.length>0 || (g.key==="processos" && temLegProc) || (g.key==="empresas" && temLegEmp))
+      .map(g => ({ key:g.key, label:`${g.label} (${g.rel})` })),
+    {key:"pegada",    label:`Pegada Digital${job?.etapas?.maigret?.contas?.length?` (${job.etapas.maigret.contas.filter(c=>c.confirmada||c.confianca>=LIMIAR).length})`:(job?.estado==="executando"||pegIniciando)?" …":""}` },
     {key:"timeline",  label:"Timeline"  },
     {key:"grafo",     label:"Grafo"     },
     {key:"processo",  label:"Processo CNJ" },
@@ -824,7 +912,7 @@ export default function OsintPesquisa({ onNavigate }) {
             <GaleriaFotos fotos={relatorio?.fotos}/>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <StatBadge label="Base Interna"         value={resultado.achados_internos} accent/>
+              <StatBadge label={`Resultados ≥${LIMIAR}%${impTotal>0?` · +${impTotal} imprecisos`:""}`} value={relatorio?relTotal:resultado.achados_internos} accent/>
               <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
               <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
               <StatBadge label="Empresas"            value={resultado.total_empresas}/>
@@ -832,15 +920,6 @@ export default function OsintPesquisa({ onNavigate }) {
               <StatBadge label="D.O.U."              value={resultado.total_dou}/>
               <StatBadge label="Nós no Grafo"        value={resultado.nos_grafo}/>
             </div>
-
-            {resultado.fontes_com_erro?.length>0 && (
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
-                <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
-                {resultado.fontes_com_erro.map(f=>(
-                  <span key={f} style={{fontSize: 12,fontWeight:700,padding:"3px 8px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
-                ))}
-              </div>
-            )}
 
             {relatorio && (
               <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
@@ -862,9 +941,52 @@ export default function OsintPesquisa({ onNavigate }) {
                   {/* Sumário */}
                   {activeTab==="sumario" && (
                     <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
-                      {relatorio.risk_summary && (
+                      {relatorio.risco_pilares && Object.keys(relatorio.risco_pilares).length>0 && (
+                        <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${risco.border}`}}>
+                          <div style={{fontSize:12,fontWeight:700,color:risco.badge,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ AVALIAÇÃO DE RISCO — PROCESSOS · LIDERANÇAS · NOTÍCIAS DE CRIME</div>
+                          {relatorio.resumo_risco && <p style={{fontSize:14,color:C.text,lineHeight:1.7,margin:"0 0 10px"}}>{relatorio.resumo_risco}</p>}
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:10}}>
+                            {[["processos","Processos"],["liderancas","Lideranças"],["noticias","Notícias de crime"]].map(([k,rot])=>{
+                              const pl = relatorio.risco_pilares[k]||{}
+                              const nv = NIVEL_RISCO[pl.nivel]
+                              return (
+                                <button key={k} className="o-chip" onClick={()=>setActiveTab(k)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:SANS}}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                                    <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.06em"}}>{rot.toUpperCase()}</span>
+                                    <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,background:nv?nv.bg:"rgba(255,255,255,0.05)",color:nv?nv.cor:C.textDim,fontFamily:MONO}}>{nv?nv.label:"SEM OCORRÊNCIA"}</span>
+                                  </div>
+                                  {(pl.motivos||[]).length>0
+                                    ? (pl.motivos||[]).map((m,i)=><div key={i} style={{fontSize:12,color:C.text,lineHeight:1.5}}>• {m}</div>)
+                                    : <div style={{fontSize:12,color:C.textDim}}>nada com {relatorio.risco_pilares.limiar||50}% ou mais</div>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO,lineHeight:1.6}}>
+                            {relatorio.risco_pilares.convergencia && "Dois ou mais pilares em nível alto/crítico elevam o risco a CRÍTICO. "}
+                            {relatorio.risco_pilares.imprecisos_nao_considerados>0 && `${relatorio.risco_pilares.imprecisos_nao_considerados} resultado(s) impreciso(s) (<${relatorio.risco_pilares.limiar||50}%) não entram no cálculo. `}
+                            Lista Negra, sanções, PEP, empresas, TSE e diários oficiais são informativos e não alteram o nível.
+                          </div>
+                        </div>
+                      )}
+                      {relTotal>0 && (
+                        <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.blue}`}}>
+                          <div style={{fontSize:12,fontWeight:700,color:C.blue,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ RESUMO DOS RESULTADOS (≥{LIMIAR}% de precisão)</div>
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                            {grupos.filter(g=>g.rel>0).map(g=>(
+                              <button key={g.key} className="o-chip" onClick={()=>setActiveTab(g.key)} style={{fontSize:13,padding:"6px 12px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,color:C.text,cursor:"pointer",fontFamily:SANS}}>
+                                {g.label}: <b style={{color:C.gold}}>{g.rel}</b>
+                              </button>
+                            ))}
+                          </div>
+                          {impTotal>0 && <div style={{fontSize:12,color:C.textDim,marginTop:8,fontFamily:MONO}}>+ {impTotal} resultado(s) imprecisos (&lt;{LIMIAR}%) disponíveis em cada aba, no botão "Resultados imprecisos".</div>}
+                        </div>
+                      )}
+                      {relatorio.risk_summary && !/nenhum dado|impossibilit/i.test(relatorio.risk_summary) && (
                         <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
-                          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}</div>
+                          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>
+                            ◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}{relTotal>0 ? " · considera só as fontes externas antigas (as bases novas estão no resumo acima)" : ""}
+                          </div>
                           <p style={{fontSize:14,color:C.text,lineHeight:1.8,margin:0}}>{relatorio.risk_summary}</p>
                         </div>
                       )}
@@ -880,33 +1002,6 @@ export default function OsintPesquisa({ onNavigate }) {
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {/* Pegada Digital */}
-                  {activeTab==="pegada" && (
-                    <PainelPegada job={job} nada={pegNada} iniciando={pegIniciando} erro={pegErro}
-                      onIniciar={()=>iniciarPegada(resultado.report_id)}
-                      onVariacoes={()=>iniciarPegada(resultado.report_id, { variacoes_nome: true })}
-                      onConfirmar={confirmarConta}/>
-                  )}
-
-                  {/* Base Interna */}
-                  {activeTab==="interno" && (
-                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {Object.entries(resultado.fontes_internas||{}).map(([k,v])=>{
-                          const st = STATUS_INT[v.status]||STATUS_INT.vazio
-                          return (
-                            <div key={k} title={v.erro||""} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`}}>
-                              <span style={{fontSize:11}}>{FONTE_INT[k]?.icon}</span>
-                              <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{FONTE_INT[k]?.label}</span>
-                              <span style={{fontSize:11,fontWeight:700,color:st.cor,fontFamily:MONO}}>{st.txt}{v.total>0?` · ${v.total}`:""}</span>
-                              {v.descartados_homonimo>0 && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {v.descartados_homonimo} homônimo(s) descartado(s) por CPF</span>}
-                            </div>
-                          )
-                        })}
-                      </div>
                       {relatorio.contexto_busca?.principais?.length>0 && (
                         <div style={{padding:"8px 12px",background:C.blueSoft,border:"1px solid rgba(96,165,250,0.25)",borderRadius:7,display:"flex",gap:10,alignItems:"baseline",flexWrap:"wrap"}}>
                           <span style={{fontSize:11,fontWeight:700,color:C.blue,fontFamily:MONO,letterSpacing:"0.08em"}}>CONTEXTO CRUZADO</span>
@@ -919,47 +1014,94 @@ export default function OsintPesquisa({ onNavigate }) {
                           <span style={{fontSize:12,color:C.textDim}}>Achados de fontes externas na mesma UF sobem; em UF diferente, descem.</span>
                         </div>
                       )}
-                      {(relatorio.achados_internos||[]).length===0
-                        ? <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum registro nas bases internas para os dados informados.</div>
-                        : (relatorio.achados_internos||[]).map((a,i)=><AchadoCard key={i} a={a}/>)
-                      }
+                      <div>
+                        <SecLabel>Fontes consultadas</SecLabel>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {Object.entries(resultado.fontes_internas||{}).map(([k,v])=>{
+                            const st = STATUS_INT[v.status]||STATUS_INT.vazio
+                            return (
+                              <div key={k} title={v.erro||""} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`}}>
+                                <span style={{fontSize:11}}>{FONTE_INT[k]?.icon}</span>
+                                <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{FONTE_INT[k]?.label}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:st.cor,fontFamily:MONO}}>{st.txt}{v.total>0?` · ${v.total}`:""}</span>
+                                {v.descartados_homonimo>0 && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {v.descartados_homonimo} homônimo(s) descartado(s) por CPF</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {resultado.fontes_com_erro?.length>0 && (
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
+                            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>coletores antigos indisponíveis (não afetam as bases acima):</span>
+                            {resultado.fontes_com_erro.map(f=>(
+                              <span key={f} style={{fontSize:11,padding:"2px 8px",borderRadius:3,background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#FCA5A5",fontFamily:MONO}}>{f}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Processos */}
+                  {/* Pegada Digital */}
+                  {activeTab==="pegada" && (
+                    <PainelPegada job={job} nada={pegNada} iniciando={pegIniciando} erro={pegErro}
+                      onIniciar={()=>iniciarPegada(resultado.report_id)}
+                      onVariacoes={()=>iniciarPegada(resultado.report_id, { variacoes_nome: true })}
+                      onConfirmar={confirmarConta}/>
+                  )}
+
+                  {/* Abas por tipo de resultado */}
+                  {["interno","liderancas","noticias","diarios","tse","sancoes"].includes(activeTab) && (
+                    <AbaAchados key={activeTab} achados={grupos.find(g=>g.key===activeTab)?.itens||[]}/>
+                  )}
+
+                  {/* Processos: achados do DJEN + processos das fontes antigas (se houver) */}
                   {activeTab==="processos" && (
-                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
-                      {relatorio.mandados_prisao?.length>0 && (
-                        <div>
-                          <SecLabel color={C.red}>⚠ Mandados de Prisão</SecLabel>
-                          <Tabela cols={["Nº Mandado","Tipo","Status","Data"]} rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])} gridCols="2fr 1.5fr 1fr 1.2fr"/>
+                    <AbaAchados key="processos" achados={grupos.find(g=>g.key==="processos")?.itens||[]}>
+                      {temLegProc && (
+                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                          {relatorio.mandados_prisao?.length>0 && (
+                            <div>
+                              <SecLabel color={C.red}>⚠ Mandados de Prisão</SecLabel>
+                              <Tabela cols={["Nº Mandado","Tipo","Status","Data"]} rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])} gridCols="2fr 1.5fr 1fr 1.2fr"/>
+                            </div>
+                          )}
+                          {relatorio.processos_criminais?.length>0 && (
+                            <div>
+                              <SecLabel>Processos Criminais (fontes antigas)</SecLabel>
+                              <Tabela cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]} rows={relatorio.processos_criminais.map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])} gridCols="2.2fr 1fr 2fr 1fr 1fr"/>
+                            </div>
+                          )}
+                          {relatorio.processos_civeis?.length>0 && (
+                            <div>
+                              <SecLabel>Processos Cíveis (fontes antigas)</SecLabel>
+                              <Tabela cols={["Nº Processo","Tribunal","Assunto","Data"]} rows={relatorio.processos_civeis.map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])} gridCols="2.2fr 1fr 2.5fr 1fr"/>
+                            </div>
+                          )}
                         </div>
                       )}
-                      <div>
-                        <SecLabel>Processos Criminais</SecLabel>
-                        <Tabela cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]} rows={(relatorio.processos_criminais||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])} gridCols="2.2fr 1fr 2fr 1fr 1fr"/>
-                      </div>
-                      <div>
-                        <SecLabel>Processos Cíveis</SecLabel>
-                        <Tabela cols={["Nº Processo","Tribunal","Assunto","Data"]} rows={(relatorio.processos_civeis||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])} gridCols="2.2fr 1fr 2.5fr 1fr"/>
-                      </div>
-                    </div>
+                    </AbaAchados>
                   )}
 
-                  {/* Empresas */}
+                  {/* Empresas: sócios (Receita), empresas sancionadas e vínculos das fontes antigas (se houver) */}
                   {activeTab==="empresas" && (
-                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
-                      <div>
-                        <SecLabel>Vínculos Empresariais</SecLabel>
-                        <Tabela cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]} rows={(relatorio.vinculos_empresariais||[]).map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])} gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"/>
-                      </div>
-                      {relatorio.mencoes_dou?.length>0 && (
-                        <div>
-                          <SecLabel>Diário Oficial da União</SecLabel>
-                          <Tabela cols={["Data","Tipo","Órgão","Título"]} rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])} gridCols="0.8fr 1fr 1.2fr 3fr"/>
+                    <AbaAchados key="empresas" achados={grupos.find(g=>g.key==="empresas")?.itens||[]}>
+                      {temLegEmp && (
+                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                          {relatorio.vinculos_empresariais?.length>0 && (
+                            <div>
+                              <SecLabel>Vínculos Empresariais (fontes antigas)</SecLabel>
+                              <Tabela cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]} rows={relatorio.vinculos_empresariais.map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])} gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"/>
+                            </div>
+                          )}
+                          {relatorio.mencoes_dou?.length>0 && (
+                            <div>
+                              <SecLabel>Diário Oficial da União</SecLabel>
+                              <Tabela cols={["Data","Tipo","Órgão","Título"]} rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])} gridCols="0.8fr 1fr 1.2fr 3fr"/>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </AbaAchados>
                   )}
 
                   {/* Timeline */}
