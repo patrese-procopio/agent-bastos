@@ -81,6 +81,23 @@ def classificar(texto: str, nome_norm: str) -> dict[str, Any]:
     return {"crime_tipos": crimes, "grave": bool(set(crimes) & GRAVES), "papel": papel}
 
 
+def _data_br(v: Any) -> str:
+    """'Mon, 28 Sep 2026 13:54:33 GMT' ou '2026-09-22T16:38:18+00:00' → '28/09/2026'."""
+    v = str(v or "").strip()
+    if not v:
+        return ""
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(v).strftime("%d/%m/%Y")
+    except Exception:
+        pass
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(v.replace("Z", "+00:00")).strftime("%d/%m/%Y")
+    except Exception:
+        return v[:16]
+
+
 def _limpa(s: str | None) -> str:
     s = re.sub(r"<[^>]+>", " ", s or "")
     return re.sub(r"\s+", " ", s).strip()
@@ -119,7 +136,7 @@ def _montar(item: dict[str, Any], origem: str, pontos: int, motivos: list[str], 
         pontos_f += 10; motivos.append("notícia do Amazonas, coerente com o contexto da pesquisa")
     return {"pontos": max(0, min(100, pontos_f)), "motivos": motivos, "origem": origem,
             "titulo": _limpa(item.get("titulo"))[:200], "resumo": _limpa(item.get("resumo"))[:300],
-            "fonte": item.get("fonte") or origem, "data": str(item.get("data") or item.get("timestamp") or "")[:16],
+            "fonte": item.get("fonte") or origem, "data": _data_br(item.get("data") or item.get("timestamp") or item.get("data_pub")),
             "link": item.get("link"), "risco_monitor": item.get("risco"), "analise_ia": (item.get("analise_ia") or "")[:300] or None,
             **cls}
 
