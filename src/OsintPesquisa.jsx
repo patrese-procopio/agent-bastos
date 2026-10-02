@@ -236,7 +236,9 @@ const AchadoCard = ({ a }) => {
         <span style={{fontSize:12,fontWeight:800,padding:"3px 8px",borderRadius:4,background:nv.bg,color:nv.cor,fontFamily:MONO,letterSpacing:"0.06em"}}>{nv.label}</span>
         <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO}}>{a.confianca}%</span>
         <span style={{fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>{f.icon} {f.label.toUpperCase()}</span>
-        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{a.titulo}</span>
+        {a.fonte==="noticias" && d.link
+          ? <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:14,fontWeight:700,color:C.text,textDecoration:"none"}}>{a.titulo} <span style={{color:C.blue,fontSize:12}}>↗</span></a>
+          : <span style={{fontSize:14,fontWeight:700,color:C.text}}>{a.titulo}</span>}
         {d.seap && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>SEAP</span>}
         {d.criminal && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",color:C.red,fontFamily:MONO}}>⚠ CRIMINAL</span>}
       </div>
@@ -262,16 +264,30 @@ const AchadoCard = ({ a }) => {
         </div>
       )}
       {a.fonte==="noticias" && (
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-            {d.papel && <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,color:(PAPEL_NOTICIA[d.papel]||{}).cor,border:`1px solid ${(PAPEL_NOTICIA[d.papel]||{}).cor}55`,fontFamily:MONO}}>{(PAPEL_NOTICIA[d.papel]||{}).label}</span>}
-            {(d.crime_tipos||[]).map((t,i)=><span key={i} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:d.grave?"rgba(239,68,68,0.12)":"rgba(255,255,255,0.05)",border:`1px solid ${d.grave?"rgba(239,68,68,0.3)":C.border}`,color:d.grave?"#FCA5A5":C.textMid,fontFamily:MONO}}>{t}</span>)}
-            <span style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>{d.fonte} · {d.data} · {d.origem}</span>
-            {d.risco_monitor && <span style={{fontSize:11,color:C.gold,fontFamily:MONO}}>risco do monitor: {d.risco_monitor}</span>}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:"6px 16px"}}>
+            <div>
+              <div style={rot}>Tema</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:2}}>
+                {(d.crime_tipos||[]).length>0
+                  ? d.crime_tipos.map((t,i)=><span key={i} style={{fontSize:12,padding:"2px 8px",borderRadius:10,background:d.grave?"rgba(239,68,68,0.12)":"rgba(255,255,255,0.05)",border:`1px solid ${d.grave?"rgba(239,68,68,0.3)":C.border}`,color:d.grave?"#FCA5A5":C.text}}>{t}</span>)
+                  : <span style={{fontSize:13,color:C.textMid}}>sem crime identificado — veja o título</span>}
+              </div>
+            </div>
+            <div>
+              <div style={rot}>Papel da pessoa</div>
+              {d.papel && <span style={{display:"inline-block",marginTop:2,fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,color:(PAPEL_NOTICIA[d.papel]||{}).cor,border:`1px solid ${(PAPEL_NOTICIA[d.papel]||{}).cor}55`,fontFamily:MONO}}>{(PAPEL_NOTICIA[d.papel]||{}).label}</span>}
+            </div>
+            <div><div style={rot}>Fonte</div><div style={{fontSize:13,color:C.text}}>{d.fonte||"—"}</div></div>
+            <div><div style={rot}>Data</div><div style={{fontSize:13,color:C.text}}>{d.data||"—"}</div></div>
+            <div><div style={rot}>Origem</div><div style={{fontSize:13,color:C.text}}>{d.origem||"—"}</div></div>
+            {d.risco_monitor && <div><div style={rot}>Risco do monitor</div><div style={{fontSize:13,color:C.gold}}>{d.risco_monitor}</div></div>}
           </div>
-          {d.resumo && d.resumo!==d.titulo && <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>{d.resumo}</div>}
+          {d.resumo && d.resumo.replace(/\s+/g," ").trim()!==String(a.titulo||"").replace(/\s+/g," ").trim() && (
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.6,padding:"8px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6}}>{d.resumo}</div>
+          )}
           {d.analise_ia && <div style={{fontSize:12,color:C.textMid,fontStyle:"italic"}}>Análise do monitor: {d.analise_ia}</div>}
-          {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none",wordBreak:"break-all"}}>↗ abrir notícia</a>}
+          {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ Ler a notícia completa (abre no navegador)</a>}
         </div>
       )}
       {d.linhas?.length>0 && (
@@ -378,6 +394,22 @@ const GaleriaFotos = ({ fotos }) => {
 }
 
 const mmss = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`
+
+// ── Cards do topo: total por tipo, com os imprecisos à vista (o operador confere manualmente) ──
+const CardResumo = ({ label, rel, imp, onClick, aviso }) => {
+  const confere = rel===0 && imp>0
+  return (
+    <button onClick={onClick} title={imp>0?`${imp} resultado(s) abaixo de ${LIMIAR}% de precisão — podem ser relevantes. Confira manualmente.`:""}
+      style={{textAlign:"center",padding:"10px 14px",background:C.surfaceUp,borderRadius:8,minWidth:132,flex:1,cursor:"pointer",fontFamily:SANS,
+              border:`1px solid ${confere?C.goldBorder:C.border}`}}>
+      <div style={{fontSize:28,fontWeight:800,color:rel>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{rel}</div>
+      <div style={{fontSize:12,fontWeight:700,color:C.textDim,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
+      {imp>0
+        ? <div style={{fontSize:11,fontWeight:700,color:C.gold,marginTop:4,fontFamily:MONO}}>+{imp} impreciso{imp>1?"s":""} · conferir</div>
+        : <div style={{fontSize:11,color:C.textDim,marginTop:4,fontFamily:MONO}}>{aviso||"\u00a0"}</div>}
+    </button>
+  )
+}
 
 // ── Lista de resultados de uma aba: ≥50% em destaque; o resto atrás de um botão ──
 const AbaAchados = ({ achados, vazioMsg, children }) => {
@@ -911,15 +943,29 @@ export default function OsintPesquisa({ onNavigate }) {
 
             <GaleriaFotos fotos={relatorio?.fotos}/>
 
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <StatBadge label={`Resultados ≥${LIMIAR}%${impTotal>0?` · +${impTotal} imprecisos`:""}`} value={relatorio?relTotal:resultado.achados_internos} accent/>
-              <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
-              <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
-              <StatBadge label="Empresas"            value={resultado.total_empresas}/>
-              <StatBadge label="Notícias"            value={resultado.total_noticias}/>
-              <StatBadge label="D.O.U."              value={resultado.total_dou}/>
-              <StatBadge label="Nós no Grafo"        value={resultado.nos_grafo}/>
-            </div>
+            {relatorio ? (
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {grupos.filter(g=>g.itens.length>0||["processos","liderancas","noticias"].includes(g.key)).map(g=>(
+                    <CardResumo key={g.key} label={g.label} rel={g.rel} imp={g.imp} onClick={()=>setActiveTab(g.key)}/>
+                  ))}
+                  {(job||pegIniciando) && (()=>{
+                    const cs = job?.etapas?.maigret?.contas||[]
+                    const r = cs.filter(c=>c.confirmada||c.confianca>=LIMIAR).length
+                    return <CardResumo label="Pegada digital" rel={r} imp={cs.length-r} onClick={()=>setActiveTab("pegada")} aviso={job?.estado==="executando"||pegIniciando?"buscando…":""}/>
+                  })()}
+                  {resultado.tem_mandado_ativo && <CardResumo label="Mandado ativo" rel={1} imp={0} onClick={()=>setActiveTab("processos")}/>}
+                </div>
+                <div style={{fontSize:11,color:C.textDim,fontFamily:MONO,lineHeight:1.6}}>
+                  Número grande = resultados com {LIMIAR}% ou mais de precisão. “+N imprecisos” = resultados abaixo de {LIMIAR}% que <b style={{color:C.gold}}>não entram no risco</b>,
+                  mas podem ser relevantes: <b style={{color:C.gold}}>confira-os manualmente</b> (aba do tipo → “Resultados imprecisos”).
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <StatBadge label="Resultados" value={resultado.achados_internos} accent/>
+              </div>
+            )}
 
             {relatorio && (
               <section style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
