@@ -11,6 +11,9 @@ Fontes consultadas (cada uma só se o usuário tiver o módulo correspondente):
   tse             → candidaturas e bens declarados (local)    módulo "osint"
   djen            → publicações judiciais por nome (CNJ, EXTERNA) módulo "osint"
   querido_diario  → menções em diários oficiais municipais (EXT.)  módulo "osint"
+  diario_am       → Diário Oficial do Estado do Amazonas (EXT.)   módulo "osint"
+  pep_cgu         → PEPs (CGU, local)                              módulo "osint"
+  sancoes_cgu     → CEIS/CNEP/CEAF (CGU, local) + empresas da pessoa  módulo "osint"
 
 NÃO escreve em nenhuma base e NÃO cria nós/arestas no grafo de vínculos —
 o grafo é reservado a alvos criminais.
@@ -43,6 +46,9 @@ MODULO_FONTE = {
     "tse": "osint",
     "djen": "osint",
     "querido_diario": "osint",
+    "diario_am": "osint",
+    "pep_cgu": "osint",
+    "sancoes_cgu": "osint",
 }
 
 
@@ -423,9 +429,9 @@ def _buscar_tse(req: OsintRequest):
 # DJEN — publicações judiciais por nome (CNJ; fonte externa)
 # ─────────────────────────────────────────────
 
-def _buscar_djen(req: OsintRequest):
+def _buscar_djen(req: OsintRequest, ctx: dict | None = None):
     from . import djen as D
-    r = D.buscar_publicacoes(req)
+    r = D.buscar_publicacoes(req, ufs=(ctx or {}).get("principais") or None)
     if r["status"] == "nao_aplicavel":
         return [], 0, "nao_aplicavel"
     achados = []
@@ -443,7 +449,7 @@ def _buscar_djen(req: OsintRequest):
 # QUERIDO DIÁRIO — diários oficiais municipais (fonte externa)
 # ─────────────────────────────────────────────
 
-def _buscar_querido_diario(req: OsintRequest):
+def _buscar_querido_diario(req: OsintRequest, ctx: dict | None = None):
     from . import querido_diario as Q
     r = Q.buscar_diarios(req)
     if r["status"] == "nao_aplicavel":
@@ -459,6 +465,56 @@ def _buscar_querido_diario(req: OsintRequest):
 
 
 # ─────────────────────────────────────────────
+# DOE-AM — Diário Oficial do Estado do Amazonas (fonte externa)
+# ─────────────────────────────────────────────
+
+def _buscar_diario_am(req: OsintRequest, ctx: dict | None = None):
+    from . import diario_am as DA
+    r = DA.buscar_diario_am(req)
+    if r["status"] == "nao_aplicavel":
+        return [], 0, "nao_aplicavel"
+    achados = []
+    for h in r["achados"]:
+        achados.append(_achado(
+            "diario_am", f"DOE-AM {h['data']} — {h['materia'] or 'matéria'}",
+            h["pontos"], h["motivos"],
+            {k: h[k] for k in ("data", "edicao", "pagina", "caderno", "materia", "orgao",
+                               "ato", "seap", "url", "trecho")}))
+    return achados, r["descartados"], None
+
+
+# ─────────────────────────────────────────────
+# PEP e SANÇÕES (CGU) — bases locais
+# ─────────────────────────────────────────────
+
+def _achado_cgu(fonte: str, h: dict, titulo: str) -> dict:
+    return _achado(fonte, titulo, h["pontos"], h["motivos"],
+                   {k: h.get(k) for k in ("lista", "tipo", "nome", "cnpj", "linhas", "total_registros", "orgaos", "ufs")})
+
+
+def _buscar_pep(req: OsintRequest):
+    from . import sancoes_cgu as S
+    r = S.buscar_pessoa(req, ("pep",))
+    if r["status"] in ("nao_carregada", "nao_aplicavel"):
+        return [], 0, r["status"]
+    return [_achado_cgu("pep_cgu", h, f"PEP — {h['nome']}") for h in r["achados"]], r["descartados"], None
+
+
+def _buscar_sancoes(req: OsintRequest, vinculos: list[dict] | None = None):
+    """CEIS/CNEP/CEAF da pessoa + CEIS/CNEP das empresas em que ela é sócia (vínculos vindos da Receita)."""
+    from . import sancoes_cgu as S
+    r = S.buscar_pessoa(req, ("ceis", "cnep", "ceaf"))
+    if r["status"] == "nao_carregada":
+        return [], 0, "nao_carregada"
+    achados = [] if r["status"] == "nao_aplicavel" else \
+        [_achado_cgu("sancoes_cgu", h, f"{h['lista']} — {h['nome']}") for h in r["achados"]]
+    for h in S.buscar_empresas(vinculos or [])["achados"]:
+        achados.append(_achado_cgu("sancoes_cgu", h, f"{h['lista']} (empresa vinculada) — {h['nome']}"))
+    status = "nao_aplicavel" if (r["status"] == "nao_aplicavel" and not achados) else None
+    return achados, r.get("descartados", 0), status
+
+
+# ─────────────────────────────────────────────
 # ORQUESTRAÇÃO
 # ─────────────────────────────────────────────
 
@@ -470,15 +526,25 @@ _BUSCADORES = {
     "tse": _buscar_tse,
     "djen": _buscar_djen,
     "querido_diario": _buscar_querido_diario,
+    "diario_am": _buscar_diario_am,
+    "pep_cgu": _buscar_pep,
+    "sancoes_cgu": _buscar_sancoes,
 }
 
 
-def _rodar(nome: str, fn, req: OsintRequest, user_modules: list[str]) -> tuple[str, list, dict]:
+# Fontes externas: rodam DEPOIS das locais, já com o contexto cruzado
+_EXTERNAS = {"djen", "querido_diario", "diario_am"}
+# Local que depende do resultado de outra fonte local (empresas da Receita)
+_DEPENDENTES = {"sancoes_cgu"}
+UF_AGENCIA = (os.getenv("OSINT_UF_AGENCIA") or "AM").upper()
+
+
+def _rodar(nome: str, fn, req: OsintRequest, user_modules: list[str], ctx: Any = None):
     if MODULO_FONTE[nome] not in user_modules:
         return nome, [], {"status": "sem_permissao", "total": 0, "descartados_homonimo": 0}
     t0 = time.monotonic()
     try:
-        saida = fn(req)
+        saida = fn(req, ctx) if (nome in _EXTERNAS or nome in _DEPENDENTES) else fn(req)
         res, desc = saida[0], saida[1]
         override = saida[2] if len(saida) > 2 else None  # ex.: base não carregada
         return nome, res, {"status": override or ("ok" if res else "vazio"), "total": len(res),
@@ -489,19 +555,125 @@ def _rodar(nome: str, fn, req: OsintRequest, user_modules: list[str]) -> tuple[s
                           "erro": str(exc)[:200], "ms": round((time.monotonic() - t0) * 1000)}
 
 
+# ─────────────────────────────────────────────
+# CONTEXTO CRUZADO ENTRE FONTES
+# ─────────────────────────────────────────────
+
+def derivar_contexto(achados: list[dict]) -> dict[str, Any]:
+    """
+    Deduz onde a pessoa atua a partir dos achados locais JÁ identificados
+    (confirmado=peso 3, provável=2; "possível" não conta, pode ser homônimo):
+      TSE → UF das candidaturas · Receita → UF das empresas · Lista Negra/Lideranças → UF da agência.
+    Se UM único achado do TSE for "confirmado", adota o nascimento dele.
+    """
+    from .geo import UFS
+    pesos: dict[str, int] = {}
+    fontes: list[str] = []
+    nasc_tse: list[str] = []
+
+    def somar(uf: str | None, w: int, fonte: str):
+        if uf and uf.upper() in UFS:
+            pesos[uf.upper()] = pesos.get(uf.upper(), 0) + w
+            if fonte not in fontes:
+                fontes.append(fonte)
+
+    for a in achados:
+        w = {"confirmado": 3, "provavel": 2}.get(a["nivel"], 0)
+        if not w:
+            continue
+        d = a["dados"]
+        if a["fonte"] == "tse":
+            for uf in {c.get("uf") for c in d.get("candidaturas", [])}:
+                somar(uf, w, "TSE")
+            if a["nivel"] == "confirmado" and d.get("nascimento"):
+                nasc_tse.append(d["nascimento"])
+        elif a["fonte"] == "receita_cnpj":
+            somar(d.get("uf"), w, "Receita")
+        elif a["fonte"] in ("lista_negra", "liderancas"):
+            somar(UF_AGENCIA, w, "Lista Negra" if a["fonte"] == "lista_negra" else "Lideranças")
+
+    maximo = max(pesos.values(), default=0)
+    principais = sorted((uf for uf, w in pesos.items() if w >= max(2, maximo / 2)), key=lambda u: -pesos[u])
+    return {
+        "ufs": pesos, "principais": principais, "forte": maximo >= 3, "fontes": fontes,
+        "nascimento": nasc_tse[0] if len(nasc_tse) == 1 else None,
+    }
+
+
+def _ufs_do_achado(a: dict) -> set[str]:
+    d = a["dados"]
+    if a["fonte"] == "djen":
+        from .geo import ufs_do_tribunal
+        return ufs_do_tribunal(d.get("tribunal"))
+    if a["fonte"] == "querido_diario":
+        return {d["uf"]} if d.get("uf") else set()
+    if a["fonte"] == "diario_am":
+        return {"AM"}
+    return set()
+
+
+def _ajustar_por_contexto(a: dict, ctx: dict) -> None:
+    """Sobe a confiança de achados na mesma UF do contexto e desce a dos de outra UF."""
+    princ = set(ctx.get("principais") or [])
+    uf_a = _ufs_do_achado(a)
+    if not princ or not uf_a:
+        return
+    via = ", ".join(ctx.get("fontes") or [])
+    if uf_a & princ:
+        novo = a["confianca"] + 15
+        if any("nome comum" in m for m in a["motivos"]):
+            novo = min(novo, 50)  # UF ajuda a ordenar, mas não prova identidade de nome comum
+        a["motivos"].append(f"mesma UF do contexto ({'/'.join(sorted(uf_a & princ))}, via {via})")
+    elif ctx.get("forte"):
+        novo = a["confianca"] - 15
+        a["motivos"].append(f"UF diferente do contexto confirmado ({'/'.join(sorted(princ))}, via {via})")
+    else:
+        return
+    a["confianca"] = max(0, min(100, novo))
+    a["nivel"] = _classificar(a["confianca"])
+
+
 def buscar_internas(req: OsintRequest, user_modules: list[str]) -> dict[str, Any]:
     """
-    Executa as buscas permitidas ao usuário, em paralelo (síncrono — chamar via
-    asyncio.to_thread). Nunca levanta: falha de uma fonte vira status "erro".
+    Executa as buscas permitidas ao usuário (síncrono — chamar via asyncio.to_thread).
+    Fase 1: bases LOCAIS em paralelo → deriva o contexto (UF, nascimento).
+    Fase 2: fontes EXTERNAS em paralelo, já com o contexto → ajusta a confiança.
+    Nunca levanta: falha de uma fonte vira status "erro".
     """
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=len(_BUSCADORES)) as ex:
-        futs = [ex.submit(_rodar, n, fn, req, user_modules) for n, fn in _BUSCADORES.items()]
-        saidas = [f.result() for f in futs]
+    locais = {n: f for n, f in _BUSCADORES.items() if n not in _EXTERNAS and n not in _DEPENDENTES}
+    dependentes = {n: f for n, f in _BUSCADORES.items() if n in _DEPENDENTES}
+    externas = {n: f for n, f in _BUSCADORES.items() if n in _EXTERNAS}
+
+    with ThreadPoolExecutor(max_workers=len(locais)) as ex:
+        fase1 = [f.result() for f in [ex.submit(_rodar, n, fn, req, user_modules) for n, fn in locais.items()]]
+    # Fase 1b: usa as empresas (Receita) já identificadas — só vínculos confirmados/prováveis
+    vinculos = [{"cnpj_basico": a["dados"].get("cnpj_basico"), "empresa": a["dados"].get("empresa"), "nivel": a["nivel"]}
+                for _, res, _ in fase1 for a in res
+                if a["fonte"] == "receita_cnpj" and a["nivel"] in ("confirmado", "provavel")
+                and a["dados"].get("cnpj_basico")]
+    fase1 += [_rodar(n, fn, req, user_modules, vinculos) for n, fn in dependentes.items()]
+    achados_locais = [a for _, res, _ in fase1 for a in res]
+    ctx = derivar_contexto(achados_locais)
+
+    req2, adotado = req, None
+    if ctx["nascimento"] and not req.data_nascimento:
+        req2 = req.model_copy(update={"data_nascimento": ctx["nascimento"]})
+        adotado = ctx["nascimento"]
+    ctx["nascimento_adotado"] = adotado
+
+    with ThreadPoolExecutor(max_workers=len(externas)) as ex:
+        fase2 = [f.result() for f in [ex.submit(_rodar, n, fn, req2, user_modules, ctx) for n, fn in externas.items()]]
+    for _, res, _ in fase2:
+        for a in res:
+            _ajustar_por_contexto(a, ctx)
+
+    saidas = {n: (res, st) for n, res, st in fase1 + fase2}
     achados: list[dict] = []
     fontes: dict[str, dict] = {}
-    for nome, res, st in saidas:  # ordem estável das fontes
+    for nome in _BUSCADORES:  # ordem estável das fontes
+        res, st = saidas[nome]
         achados.extend(res)
         fontes[nome] = st
     achados.sort(key=lambda a: a["confianca"], reverse=True)
-    return {"achados": achados, "fontes": fontes}
+    return {"achados": achados, "fontes": fontes, "contexto": ctx}

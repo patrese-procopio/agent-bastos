@@ -263,6 +263,7 @@ class OsintReport(BaseModel):
     # Busca nas bases internas (Lista Negra, Lideranças, Referências)
     achados_internos: list[dict[str, Any]] = Field(default_factory=list)
     fontes_internas: dict[str, Any] = Field(default_factory=dict)
+    contexto_busca: dict[str, Any] = Field(default_factory=dict)  # UF/nascimento cruzados entre fontes
 
     # Contadores rápidos para o dashboard
     @property
