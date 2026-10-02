@@ -183,13 +183,13 @@ def _buscar_liderancas(req: OsintRequest) -> tuple[list[dict], int]:
     con.row_factory = sqlite3.Row
     try:
         unidade = con.execute(
-            "SELECT unidade, pavilhao, ala, cela, faccao, cargo, nome, vulgo, "
+            "SELECT id, foto_ext, unidade, pavilhao, ala, cela, faccao, cargo, nome, vulgo, "
             "observacao, competencia FROM liderancas "
             "WHERE nome IS NOT NULL AND nome != '' ORDER BY competencia DESC"
         ).fetchall()
         try:
             rua = con.execute(
-                "SELECT l.cargo, l.nome, l.vulgo, l.status, l.observacao, f.nome AS faccao "
+                "SELECT l.id, l.foto_ext, l.cargo, l.nome, l.vulgo, l.status, l.observacao, f.nome AS faccao "
                 "FROM lideres_rua l LEFT JOIN faccoes_rua f ON f.id = l.faccao_id "
                 "WHERE l.nome IS NOT NULL AND l.nome != ''"
             ).fetchall()
@@ -218,12 +218,15 @@ def _buscar_liderancas(req: OsintRequest) -> tuple[list[dict], int]:
         loc = {k: r[k] for k in ("unidade", "pavilhao", "ala", "cela", "competencia")}
         if chave in vistos:
             vistos[chave]["dados"]["historico"].append(loc)
+            if r["foto_ext"] and not vistos[chave]["dados"].get("foto_ext"):  # foto de competência anterior
+                vistos[chave]["dados"].update(lider_id=r["id"], foto_ext=r["foto_ext"])
             continue
         a = _achado(
             "liderancas", f"Liderança (unidade) — {r['nome']}", m[1], [m[0]],
             {"nome": r["nome"], "vulgo": r["vulgo"], "faccao": r["faccao"],
              "cargo": r["cargo"], "observacao": r["observacao"],
-             "atual": loc, "historico": []},
+             "atual": loc, "historico": [], "escopo": "unidade",
+             "lider_id": r["id"], "foto_ext": r["foto_ext"]},
         )
         vistos[chave] = a
         achados.append(a)
@@ -236,7 +239,8 @@ def _buscar_liderancas(req: OsintRequest) -> tuple[list[dict], int]:
             "liderancas", f"Liderança (rua) — {r['nome']}", m[1], [m[0]],
             {"nome": r["nome"], "vulgo": r["vulgo"], "faccao": r["faccao"],
              "cargo": r["cargo"], "status": r["status"],
-             "observacao": r["observacao"]},
+             "observacao": r["observacao"], "escopo": "rua",
+             "lider_id": r["id"], "foto_ext": r["foto_ext"]},
         ))
     # Lideranças não guardam CPF/filiação: só dá para casar por nome/vulgo.
     if req.cpf or req.nome_mae or req.data_nascimento:
@@ -419,7 +423,8 @@ def _buscar_tse(req: OsintRequest):
     achados = [
         _achado("tse", f"TSE — {h['nome']}", h["pontos"], h["motivos"],
                 {"nome": h["nome"], "cpf": h["cpf"], "nascimento": h["dt_nasc"],
-                 "candidaturas": h["candidaturas"]})
+                 "candidaturas": h["candidaturas"], "emails": h.get("emails") or [],
+                 "emails_txt": ", ".join(h.get("emails") or [])})
         for h in r["achados"]
     ]
     return achados, r["descartados"], None
