@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from xml.sax.saxutils import escape
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
@@ -106,6 +108,7 @@ class OsintReportGenerator:
         # ── Seções ──────────────────────────────────────────────────────────
         story += self._secao_capa(report)
         story += self._secao_sumario(report)
+        story += self._secao_bases(report)
         story += self._secao_processos(report)
         story += self._secao_empresas(report)
         story += self._secao_timeline(report)
@@ -264,7 +267,7 @@ class OsintReportGenerator:
         items = [Spacer(1, 0.5*cm)]
 
         cabecalho = [
-            Paragraph("2. PROCESSOS E MANDADOS", s["titulo_secao"]),
+            Paragraph("3. PROCESSOS E MANDADOS", s["titulo_secao"]),
             HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
             Spacer(1, 0.3*cm),
         ]
@@ -323,7 +326,7 @@ class OsintReportGenerator:
             items.append(KeepTogether(bloco))
 
         if not report.processos_criminais and not report.processos_civeis and not report.mandados_prisao:
-            items += cabecalho
+            # o cabeçalho já foi incluído acima (ramo sem mandados)
             items.append(Paragraph("Nenhum processo ou mandado identificado nas fontes consultadas.", s["sem_dados"]))
 
         return items
@@ -332,7 +335,7 @@ class OsintReportGenerator:
         """Tabela de vínculos empresariais."""
         s = self.styles
         items = [Spacer(1, 0.5*cm)]
-        items.append(Paragraph("3. VÍNCULOS EMPRESARIAIS", s["titulo_secao"]))
+        items.append(Paragraph("4. VÍNCULOS EMPRESARIAIS", s["titulo_secao"]))
         items.append(HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO))
         items.append(Spacer(1, 0.3*cm))
 
@@ -359,7 +362,7 @@ class OsintReportGenerator:
         """Linha do tempo de eventos ordenados por data."""
         s = self.styles
         items = [Spacer(1, 0.5*cm)]
-        items.append(Paragraph("4. LINHA DO TEMPO", s["titulo_secao"]))
+        items.append(Paragraph("5. LINHA DO TEMPO", s["titulo_secao"]))
         items.append(HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO))
         items.append(Spacer(1, 0.3*cm))
 
@@ -427,7 +430,7 @@ class OsintReportGenerator:
         if not graph.nodes:
             return [
                 Spacer(1, 0.5*cm),
-                Paragraph("5. GRAFO DE VÍNCULOS", s["titulo_secao"]),
+                Paragraph("6. GRAFO DE VÍNCULOS", s["titulo_secao"]),
                 HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
                 Spacer(1, 0.3*cm),
                 Paragraph("Grafo não disponível.", s["sem_dados"]),
@@ -450,7 +453,7 @@ class OsintReportGenerator:
         # Monta bloco inteiro — KeepTogether evita quebra no meio
         bloco = [
             Spacer(1, 0.5*cm),
-            Paragraph("5. GRAFO DE VÍNCULOS", s["titulo_secao"]),
+            Paragraph("6. GRAFO DE VÍNCULOS", s["titulo_secao"]),
             HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
             Spacer(1, 0.3*cm),
             Paragraph(
@@ -494,6 +497,162 @@ class OsintReportGenerator:
             ),
         ]
         return [Spacer(1, 0.6*cm), KeepTogether(bloco)]
+
+    # ── BASES CONSULTADAS E ACHADOS ───────────────────────────────────────────
+
+    _FONTE_ROTULO = {
+        "lista_negra": "Lista Negra", "liderancas": "Lideranças", "referencias": "Referências (documentos)",
+        "receita_cnpj": "Receita Federal — sócios", "tse": "TSE — candidaturas e bens",
+        "djen": "DJEN (CNJ) — publicações judiciais", "querido_diario": "Diários Oficiais municipais",
+        "diario_am": "Diário Oficial do Estado do AM",
+        "pep_cgu": "PEP — Pessoas Expostas Politicamente (CGU)",
+        "sancoes_cgu": "Sanções — CEIS / CNEP / CEAF (CGU)",
+    }
+    _STATUS_ROTULO = {
+        "ok": "consultada", "vazio": "sem registro", "erro": "ERRO", "sem_permissao": "sem permissão",
+        "nao_carregada": "base não carregada", "nao_aplicavel": "requer nome",
+    }
+    _NIVEL = {"confirmado": ("CONFIRMADO", "#3B6D11"), "provavel": ("PROVÁVEL", "#BA7517"),
+              "possivel": ("POSSÍVEL", "#5F5E5A")}
+    MAX_POR_FONTE = 10
+
+    def _cel(self, txt: Any, estilo: str = "cel") -> Paragraph:
+        """Parágrafo seguro (escapa &, <, >) para uso em células de tabela."""
+        return Paragraph(escape(str(txt if txt is not None else "—")), self.styles[estilo])
+
+    def _descricao_achado(self, a: dict) -> str:
+        """Resumo textual (várias linhas separadas por \\n) de um achado, por fonte."""
+        d, f = a.get("dados") or {}, a.get("fonte")
+        brl = lambda v: f"R$ {v:,.0f}".replace(",", ".") if v else "não declarado"
+        L: list[str] = []
+        if f == "lista_negra":
+            L = [f"{d.get('nome', '')} — {d.get('situacao') or 'sem situação'}",
+                 f"Unidade: {d.get('unidade') or '—'} | Empresa: {d.get('empresa') or '—'} | Data: {d.get('data') or '—'}",
+                 f"CPF: {d.get('cpf') or '—'} | Ref.: {d.get('referencia') or '—'}"]
+            if d.get("descricao"):
+                L.append(str(d["descricao"])[:220])
+        elif f == "liderancas":
+            at = d.get("atual") or {}
+            L = [f"{d.get('nome', '')}" + (f' (vulgo "{d["vulgo"]}")' if d.get("vulgo") else ""),
+                 f"{d.get('faccao') or '—'} — {d.get('cargo') or '—'}" + (f" | {d['status']}" if d.get("status") else "")]
+            if at:
+                L.append("Local: " + " / ".join(str(at.get(k)) for k in ("unidade", "pavilhao", "ala", "cela") if at.get(k))
+                         + f" ({at.get('competencia')})")
+        elif f == "referencias":
+            L = [a.get("titulo", "")]
+            if d.get("assunto"):
+                L.append(str(d["assunto"])[:200])
+            if d.get("trecho"):
+                L.append("“" + str(d["trecho"])[:230] + "”")
+        elif f == "receita_cnpj":
+            L = [f"{d.get('empresa') or 'Empresa'} — CNPJ {d.get('cnpj')}",
+                 f"{d.get('qualificacao') or '—'} desde {d.get('data_entrada') or '—'} | situação: {d.get('situacao') or '—'}"
+                 f" | {d.get('municipio') or ''}/{d.get('uf') or ''}"]
+            if d.get("atividade"):
+                L.append(str(d["atividade"])[:110])
+            if d.get("outros_socios"):
+                L.append("Outros sócios: " + str(d["outros_socios"])[:160])
+        elif f == "tse":
+            L = [f"{d.get('nome', '')} — nascimento {d.get('nascimento') or '—'} — CPF {d.get('cpf') or '—'}"]
+            for c in (d.get("candidaturas") or [])[:6]:
+                L.append(f"{c.get('ano')} {c.get('cargo')} — {c.get('partido')}/{c.get('uf')} — "
+                         f"{c.get('resultado') or c.get('situacao') or '—'} — patrimônio {brl(c.get('patrimonio'))}")
+        elif f == "djen":
+            L = [f"Processo {d.get('processo')} — {d.get('tribunal')} — {d.get('classe') or '—'}"
+                 + ("  [CRIMINAL]" if d.get("criminal") else ""),
+                 f"{d.get('polo') or '—'} | {d.get('orgao') or '—'}",
+                 f"{d.get('publicacoes')} publicação(ões): {d.get('primeira')} a {d.get('ultima')}"]
+            if d.get("advogados"):
+                L.append("Adv.: " + str(d["advogados"])[:120])
+        elif f == "querido_diario":
+            L = [f"{d.get('municipio')}/{d.get('uf')} — {d.get('data')} — {d.get('ato') or 'ato não classificado'}",
+                 "“" + str(d.get("trecho") or "")[:240] + "”"]
+        elif f in ("pep_cgu", "sancoes_cgu"):
+            tipo = "EMPRESA VINCULADA — " if d.get("tipo") == "empresa" else ""
+            L = [f"{tipo}{d.get('nome', '')}" + (f" (CNPJ {d['cnpj']})" if d.get("cnpj") else "")]
+            L += [str(x)[:230] for x in (d.get("linhas") or [])]
+            if (d.get("total_registros") or 0) > len(d.get("linhas") or []):
+                L.append(f"(+{d['total_registros'] - len(d['linhas'])} registro(s) não listados)")
+        elif f == "diario_am":
+            L = [f"DOE-AM {d.get('data')} ed. {d.get('edicao')} p. {d.get('pagina')} — {d.get('materia') or '—'}"
+                 + ("  [SEAP]" if d.get("seap") else ""),
+                 f"{d.get('orgao') or '—'} | {d.get('ato') or '—'}",
+                 "“" + str(d.get("trecho") or "")[:230] + "”"]
+        else:
+            L = [a.get("titulo", "")]
+        return "\n".join(x for x in L if x)
+
+    def _secao_bases(self, report: OsintReport) -> list:
+        """Resultado das bases internas/locais e fontes externas: contexto, status e achados por fonte."""
+        s = self.styles
+        items = [Spacer(1, 0.5*cm), Paragraph("2. BASES CONSULTADAS E ACHADOS", s["titulo_secao"]),
+                 HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO), Spacer(1, 0.3*cm)]
+
+        fontes = report.fontes_internas or {}
+        achados = report.achados_internos or []
+        if not fontes:
+            items.append(Paragraph("As bases internas não foram consultadas nesta pesquisa.", s["sem_dados"]))
+            return items
+
+        # contexto cruzado
+        ctx = report.contexto_busca or {}
+        if ctx.get("principais"):
+            txt = (f"<b>Contexto cruzado:</b> UF provável <b>{escape(', '.join(ctx['principais']))}</b> "
+                   f"(via {escape(', '.join(ctx.get('fontes') or []))}). Achados de fontes externas na mesma UF "
+                   f"tiveram a confiança aumentada; em UF diferente, reduzida.")
+            if ctx.get("nascimento_adotado"):
+                nasc = "/".join(reversed(str(ctx["nascimento_adotado"]).split("-")))
+                txt += f" Data de nascimento obtida do TSE: {escape(nasc)}."
+            items += [Paragraph(txt, s["aviso"]), Spacer(1, 0.2*cm)]
+
+        # status por fonte
+        header = [[self._cel(h, "cel_cab") for h in ("FONTE", "STATUS", "ACHADOS", "OBSERVAÇÃO")]]
+        linhas = []
+        for chave, rot in self._FONTE_ROTULO.items():
+            st = fontes.get(chave)
+            if not st:
+                continue
+            obs = st.get("erro") or ""
+            if st.get("descartados_homonimo"):
+                obs = (obs + " " if obs else "") + f"{st['descartados_homonimo']} homônimo(s) descartado(s)"
+            linhas.append([self._cel(rot), self._cel(self._STATUS_ROTULO.get(st.get("status"), st.get("status"))),
+                           self._cel(st.get("total", 0)), self._cel(obs or "—")])
+        t = self._tabela_padrao(header + linhas, [5.2*cm, 3*cm, 1.8*cm, 7*cm])
+        t.repeatRows = 1
+        items += [t, Spacer(1, 0.3*cm)]
+
+        items.append(Paragraph(
+            "Níveis de confiança: <b>CONFIRMADO</b> (≥ 90%: identidade comprovada por CPF ou equivalente), "
+            "<b>PROVÁVEL</b> (55–89%), <b>POSSÍVEL</b> (&lt; 55%: pode ser homônimo — verificar antes de usar).",
+            s["lgpd"]))
+        items.append(Spacer(1, 0.3*cm))
+
+        # achados por fonte
+        for chave, rot in self._FONTE_ROTULO.items():
+            lista = [a for a in achados if a.get("fonte") == chave]
+            if not lista:
+                continue
+            bloco = [Paragraph(f"{escape(rot)} — {len(lista)} achado(s)", s["subtitulo"])]
+            cab = [[self._cel(h, "cel_cab") for h in ("CONFIANÇA", "DESCRIÇÃO", "POR QUE FOI CONSIDERADO")]]
+            rows = []
+            for a in lista[: self.MAX_POR_FONTE]:
+                rotulo, cor = self._NIVEL.get(a.get("nivel"), ("—", "#5F5E5A"))
+                conf = Paragraph(f'<font color="{cor}"><b>{rotulo}</b></font><br/>{a.get("confianca")}%', s["cel"])
+                desc = Paragraph("<br/>".join(escape(l) for l in self._descricao_achado(a).split("\n")), s["cel"])
+                mot = Paragraph("<br/>".join("• " + escape(str(m)) for m in (a.get("motivos") or [])), s["cel"])
+                rows.append([conf, desc, mot])
+            t2 = self._tabela_padrao(cab + rows, [2.3*cm, 8.7*cm, 6*cm])
+            t2.repeatRows = 1
+            bloco.append(t2)
+            if len(lista) > self.MAX_POR_FONTE:
+                bloco.append(Paragraph(f"+ {len(lista) - self.MAX_POR_FONTE} achado(s) de menor confiança omitido(s) "
+                                       f"(disponíveis na tela).", s["sem_dados"]))
+            items += [KeepTogether(bloco[:2]), *bloco[2:], Spacer(1, 0.3*cm)]
+
+        if not achados:
+            items.append(Paragraph("Nenhum registro encontrado nas bases consultadas para os dados informados.",
+                                   s["sem_dados"]))
+        return items
 
     # ── HELPERS ───────────────────────────────────────────────────────────────
 
@@ -594,6 +753,12 @@ class OsintReportGenerator:
                 "bullet", fontName="Helvetica",
                 fontSize=9, textColor=CINZA_TEXTO,
                 leftIndent=12, leading=13,
+            ),
+            "cel": ParagraphStyle(
+                "cel", fontName="Helvetica", fontSize=7.5, leading=9.5, textColor=CINZA_TEXTO,
+            ),
+            "cel_cab": ParagraphStyle(
+                "cel_cab", fontName="Helvetica-Bold", fontSize=8, leading=10, textColor=BRANCO,
             ),
             "sem_dados": ParagraphStyle(
                 "sem_dados", fontName="Helvetica-Oblique",

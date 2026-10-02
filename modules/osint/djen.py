@@ -57,7 +57,7 @@ def _nivel_nome(consulta: str, cand: str) -> tuple[str, int] | None:
 
 
 def _limpa(html: str) -> str:
-    t = re.sub(r"(?is)<(style|script).*?</>", " ", html or "")
+    t = re.sub(r"(?is)<(style|script)\b.*?</\1>", " ", html or "")
     t = re.sub(r"<[^>]+>", " ", t)
     t = t.replace("�", "")
     return re.sub(r"\s+", " ", t).strip()
@@ -82,29 +82,44 @@ def _get(params: dict, deadline: float) -> dict[str, Any]:
     raise RuntimeError(f"DJEN indisponível ({ultimo}) — tente de novo em alguns minutos")
 
 
-def buscar_publicacoes(req: OsintRequest) -> dict[str, Any]:
-    if not req.nome or len(tokens(req.nome)) < 2:
-        return {"status": "nao_aplicavel", "achados": [], "descartados": 0}
-
-    deadline = time.monotonic() + ORCAMENTO_S
-    params = {
-        "nomeParte": req.nome.strip(), "itensPorPagina": POR_PAGINA, "pagina": 1,
-        "dataDisponibilizacaoInicio": INICIO_DJEN,
-        "dataDisponibilizacaoFim": date.today().isoformat(),
-    }
-    j = _get(params, deadline)
-    total_api = j.get("count") or 0
-    itens = list(j.get("items") or [])
-
-    # nomes raros: busca mais páginas; nome comum (ou teto da API): só a 1ª, sem varrer tudo
-    if 0 < total_api <= POR_PAGINA * MAX_PAGINAS:
-        for pg in range(2, -(-total_api // POR_PAGINA) + 1):
+def _paginas(params: dict, total: int, deadline: float, primeira: list) -> list:
+    """Completa as páginas seguintes quando o total é pequeno o bastante para varrer."""
+    itens = list(primeira)
+    if 0 < total <= POR_PAGINA * MAX_PAGINAS:
+        for pg in range(2, -(-total // POR_PAGINA) + 1):
             try:
                 itens += _get({**params, "pagina": pg}, deadline).get("items") or []
             except RuntimeError:
                 break  # devolve o que já temos
+    return itens
 
-    # ── confere contra as PARTES e agrupa por processo ──
+
+def _consulta_restrita(req: OsintRequest, ufs: list[str], deadline: float) -> tuple[list, list[str]]:
+    """Mesma busca, mas só nos tribunais das UFs do contexto (justiça comum, trabalho e federal)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .geo import tribunais_da_uf
+    siglas: list[str] = []
+    for uf in ufs[:2]:
+        siglas += [t for t in tribunais_da_uf(uf) if t not in siglas]
+    base = {"nomeParte": req.nome.strip(), "itensPorPagina": POR_PAGINA, "pagina": 1,
+            "dataDisponibilizacaoInicio": INICIO_DJEN, "dataDisponibilizacaoFim": date.today().isoformat()}
+
+    def uma(sigla: str) -> list:
+        try:
+            p = {**base, "siglaTribunal": sigla}
+            j = _get(p, deadline)
+            return _paginas(p, j.get("count") or 0, deadline, j.get("items") or [])
+        except RuntimeError:
+            return []
+
+    with ThreadPoolExecutor(max_workers=max(1, len(siglas))) as ex:
+        partes = list(ex.map(uma, siglas))
+    return [it for parte in partes for it in parte], siglas
+
+
+def _agrupar(itens: list, req: OsintRequest) -> tuple[list[dict[str, Any]], int, bool]:
+    """Confere contra as PARTES, agrupa por processo e pontua. Retorna (achados, fora, comum)."""
     procs: dict[str, dict[str, Any]] = {}
     fora = 0
     for it in itens:
@@ -174,7 +189,43 @@ def buscar_publicacoes(req: OsintRequest) -> dict[str, Any]:
             "advogados": "; ".join(advs[:3]) or None, "outras_partes": ", ".join(outras) or None,
             "trecho": trecho,
         })
+    return achados, fora, comum
+
+
+def buscar_publicacoes(req: OsintRequest, ufs: list[str] | None = None) -> dict[str, Any]:
+    """
+    `ufs`: UFs do contexto cruzado (TSE, Receita, Lista Negra…). Se o nome for comum na busca
+    geral, refaz a busca só nos tribunais dessas UFs — o que costuma tirar a ambiguidade.
+    """
+    if not req.nome or len(tokens(req.nome)) < 2:
+        return {"status": "nao_aplicavel", "achados": [], "descartados": 0}
+
+    deadline = time.monotonic() + ORCAMENTO_S
+    params = {
+        "nomeParte": req.nome.strip(), "itensPorPagina": POR_PAGINA, "pagina": 1,
+        "dataDisponibilizacaoInicio": INICIO_DJEN,
+        "dataDisponibilizacaoFim": date.today().isoformat(),
+    }
+    j = _get(params, deadline)
+    total_api = j.get("count") or 0
+    itens = _paginas(params, total_api, deadline, j.get("items") or [])
+    achados, fora, comum = _agrupar(itens, req)
+
+    restrita = None
+    if comum and ufs:
+        try:
+            itens_r, siglas = _consulta_restrita(req, ufs, deadline)
+            ach_r, fora_r, comum_r = _agrupar(itens_r, req)
+            if ach_r:
+                # a busca restrita só vale se realmente reduziu a ambiguidade
+                achados, fora, comum = ach_r, fora_r, comum_r
+                restrita = siglas
+                rotulo = f"busca restrita aos tribunais de {'/'.join(ufs[:2])} (contexto cruzado): {', '.join(siglas)}"
+                for a in achados:
+                    a["motivos"].append(rotulo)
+        except Exception:
+            pass  # a busca geral continua valendo
 
     achados.sort(key=lambda a: (a["pontos"], a["ultima"] or ""), reverse=True)
     return {"status": "ok" if achados else "vazio", "achados": achados[:25], "descartados": fora,
-            "total_api": total_api, "comum": comum, "processos": len(procs)}
+            "total_api": total_api, "comum": comum, "processos": len(achados), "restrita": restrita}

@@ -182,17 +182,35 @@ async def pesquisar(body: PesquisarRequest, request: Request,
     report = await _enrichment.enrich(osint_req, source_results)
     report.achados_internos = internas["achados"]
     report.fontes_internas = internas["fontes"]
+    report.contexto_busca = internas.get("contexto", {})
     for a in internas["achados"]:
         if a["fonte"] == "lista_negra" and a["nivel"] != "possivel":
             report.risk_indicators.append(
                 f"Consta na Lista Negra ({a['nivel']}): {a['dados'].get('situacao') or 'sem situação'}"
             )
-    penalidades = [a for a in internas["achados"] if a["fonte"] == "querido_diario"
+    for a in internas["achados"]:
+        if a["nivel"] == "possivel":
+            continue
+        if a["fonte"] == "pep_cgu":
+            report.risk_indicators.append(
+                f"Pessoa Exposta Politicamente ({a['nivel']}): {(a['dados'].get('linhas') or [''])[0][:140]}")
+        elif a["fonte"] == "sancoes_cgu":
+            tipo = "Empresa vinculada sancionada" if a["dados"].get("tipo") == "empresa" else "Sancionado"
+            report.risk_indicators.append(
+                f"{tipo} em {a['dados'].get('lista')} ({a['nivel']}): {(a['dados'].get('linhas') or [''])[0][:140]}")
+    penalidades = [a for a in internas["achados"] if a["fonte"] in ("querido_diario", "diario_am")
                    and (a["dados"].get("ato") or "").startswith("Penalidade") and a["nivel"] != "possivel"]
     if penalidades:
         report.risk_indicators.append(
             f"Citado em ato de penalidade/processo administrativo em diário oficial "
-            f"({penalidades[0]['dados'].get('municipio')}, {penalidades[0]['dados'].get('data')})"
+            f"({penalidades[0]['dados'].get('municipio') or 'DOE-AM'}, {penalidades[0]['dados'].get('data')})"
+        )
+    seap = [a for a in internas["achados"] if a["fonte"] == "diario_am"
+            and a["dados"].get("seap") and a["nivel"] != "possivel"]
+    if seap:
+        report.risk_indicators.append(
+            f"{len(seap)} ato(s) da SEAP no DOE-AM citam esta pessoa (possível vínculo com o sistema "
+            f"penitenciário): confirmar identidade"
         )
     criminais = [a for a in internas["achados"]
                  if a["fonte"] == "djen" and a["dados"].get("criminal") and a["nivel"] != "possivel"]
@@ -339,6 +357,15 @@ async def get_status(user: dict = Depends(_GATE)) -> dict:
         "nota": "Base local de candidaturas e bens. Carga: scripts/carregar_tse.py",
     }
 
+    from modules.osint.sancoes_cgu import info_base as info_sanc
+    fontes["pep_cgu"] = fontes["sancoes_cgu"] = {
+        **info_sanc(), "gratuito": True,
+        "nota": "PEP/CEIS/CNEP/CEAF (CGU). Carga: scripts/carregar_sancoes_cgu.py",
+    }
+    fontes["diario_am"] = {
+        "api_key_configurada": True, "url": "https://diario.imprensaoficial.am.gov.br", "gratuito": True,
+        "nota": "Diário Oficial do Estado do Amazonas (1956-hoje). Nome enviado a serviço externo.",
+    }
     fontes["querido_diario"] = {
         "api_key_configurada": True, "url": "https://api.queridodiario.ok.org.br", "gratuito": True,
         "nota": "Diários oficiais municipais (só municípios raspados). Nome enviado a serviço externo.",
