@@ -12,7 +12,8 @@ Fonte: https://cdn.tse.jus.br/estatistica/sead/odsele/  (portal oficial de dados
 
 Cada zip traz um CSV por UF E um *_BRASIL.csv consolidado (duplicado): usa-se só o
 consolidado quando existir. Os zips são lidos em streaming (nada é extraído em disco).
-Não guarda e-mail nem título de eleitor. Bens são agregados por candidatura
+Guarda o e-mail público de campanha (DS_EMAIL), o código do município (SG_UE) e o código da eleição;
+NÃO guarda título de eleitor. Bens são agregados por candidatura
 (total, quantidade e os 10 maiores).
 """
 
@@ -56,6 +57,12 @@ def _leitores(caminho: Path):
 def _nulo(v: str | None) -> str:
     v = (v or "").strip()
     return "" if v in ("-1", "-3", "-4", "#NULO#", "#NE#", "#NI#") else v
+
+
+def _email(v: str | None) -> str:
+    """E-mail público de campanha (publicado pelo TSE). Descarta valores nulos/mascarados/inválidos."""
+    v = _nulo(v).strip().lower()
+    return v if re.fullmatch(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}", v) else ""
 
 
 def _iso(d: str) -> str:
@@ -116,6 +123,7 @@ def main() -> int:
             ano INTEGER NOT NULL, sq TEXT NOT NULL, cpf TEXT, nome TEXT NOT NULL, chave TEXT,
             urna_norm TEXT, dt_nasc TEXT, cargo TEXT, uf TEXT, municipio TEXT, partido TEXT,
             situacao TEXT, resultado TEXT, ocupacao TEXT,
+            email TEXT, sg_ue TEXT, cd_eleicao TEXT,
             patrimonio REAL DEFAULT 0, qtd_bens INTEGER DEFAULT 0, bens_top TEXT,
             PRIMARY KEY (ano, sq));
         CREATE TABLE meta (chave TEXT PRIMARY KEY, valor TEXT);
@@ -145,6 +153,7 @@ def main() -> int:
                     r.get("DS_CARGO", ""), r.get("SG_UF", ""), _nulo(r.get("NM_UE")),
                     r.get("SG_PARTIDO", ""), r.get("DS_SITUACAO_CANDIDATURA", ""),
                     _nulo(r.get("DS_SIT_TOT_TURNO")), _nulo(r.get("DS_OCUPACAO")),
+                    _email(r.get("DS_EMAIL")), _nulo(r.get("SG_UE")), _nulo(r.get("CD_ELEICAO")),
                 )
         if not a.manter_zips and not a.dir:
             zc.unlink(missing_ok=True)
@@ -175,7 +184,7 @@ def main() -> int:
             top = json.dumps([{"valor": v, "bem": d} for v, d in sorted(g[2], reverse=True)],
                              ensure_ascii=False) if g else "[]"
             lote.append(row + ((round(g[0], 2), g[1], top) if g else (0.0, 0, "[]")))
-        con.executemany("INSERT OR REPLACE INTO candidatos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", lote)
+        con.executemany("INSERT OR REPLACE INTO candidatos VALUES (" + ",".join("?" * 20) + ")", lote)
         con.commit()
         total_cand += len(lote); anos_ok.append(ano)
         print(f"[{ano}] candidaturas={len(lote):,} com bens={len(agg):,} | total={total_cand:,} "
@@ -197,8 +206,14 @@ def main() -> int:
         ("carregado_em", datetime.now().isoformat(timespec="seconds"))])
     con.commit(); con.execute("ANALYZE"); con.close()
 
-    a.db.unlink(missing_ok=True)
-    os.replace(tmpdb, a.db)
+    for _ in range(8):  # a busca pode estar com o arquivo aberto por instantes
+        try:
+            os.replace(tmpdb, a.db)
+            break
+        except PermissionError:
+            time.sleep(5)
+    else:
+        sys.exit("Não consegui trocar o banco (arquivo em uso). O novo ficou em " + str(tmpdb))
     print(f"OK — {total_cand:,} candidaturas ({', '.join(map(str, anos_ok))}) em {a.db} "
           f"({a.db.stat().st_size / 1e6:.0f} MB, {time.time() - t0:.0f}s)")
     return 0

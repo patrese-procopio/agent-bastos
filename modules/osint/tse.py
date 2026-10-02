@@ -10,6 +10,9 @@ Banco: data/tse/tse.db  (carga: scripts/carregar_tse.py)
 Diferente da base da Receita, aqui o CPF vem COMPLETO → dá para confirmar a identidade
 por CPF e até buscar só pelo CPF. Sem CPF, a data de nascimento separa homônimos.
 
+Guarda também o e-mail PÚBLICO de campanha publicado pelo TSE (usado como identificador na pegada
+digital) e o código do município (necessário para a foto oficial das eleições municipais).
+
 Atenção: a partir de 2024 o TSE NÃO publica mais o CPF (só a data de nascimento).
 Essas candidaturas são vinculadas à pessoa por nome + data de nascimento idênticos.
 
@@ -81,7 +84,7 @@ def _mascara(cpf: str | None) -> str:
 
 def _cand_dict(r: sqlite3.Row) -> dict[str, Any]:
     return {
-        "ano": r["ano"], "cargo": r["cargo"], "uf": r["uf"], "municipio": r["municipio"],
+        "sq": r["sq"], "sg_ue": r["sg_ue"], "ano": r["ano"], "cargo": r["cargo"], "uf": r["uf"], "municipio": r["municipio"],
         "partido": r["partido"], "situacao": r["situacao"], "resultado": r["resultado"],
         "ocupacao": r["ocupacao"], "patrimonio": r["patrimonio"], "qtd_bens": r["qtd_bens"],
         "bens_top": json.loads(r["bens_top"] or "[]"),
@@ -182,6 +185,8 @@ def buscar_candidaturas(req: OsintRequest) -> dict[str, Any]:
             "pontos": max(0, min(100, pontos)), "motivos": motivos,
             "nome": base["nome"], "cpf": _mascara(next((r["cpf"] for r in linhas if r["cpf"]), "")),
             "dt_nasc": base["dt_nasc"], "candidaturas": cands,
+            # e-mail público de campanha (TSE), do mais recente ao mais antigo, sem repetição
+            "emails": list(dict.fromkeys(r["email"] for r in linhas if r["email"]))[:3],
         })
     achados.sort(key=lambda a: a["pontos"], reverse=True)
     return {"status": "ok" if achados else "vazio", "achados": achados[:25],
