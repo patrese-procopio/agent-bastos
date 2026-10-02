@@ -12,6 +12,7 @@ Fontes consultadas (cada uma só se o usuário tiver o módulo correspondente):
   djen            → publicações judiciais por nome (CNJ, EXTERNA) módulo "osint"
   querido_diario  → menções em diários oficiais municipais (EXT.)  módulo "osint"
   diario_am       → Diário Oficial do Estado do Amazonas (EXT.)   módulo "osint"
+  noticias        → notícias/alertas por tipo de crime e papel (EXT.)  módulo "osint"
   pep_cgu         → PEPs (CGU, local)                              módulo "osint"
   sancoes_cgu     → CEIS/CNEP/CEAF (CGU, local) + empresas da pessoa  módulo "osint"
 
@@ -49,6 +50,7 @@ MODULO_FONTE = {
     "diario_am": "osint",
     "pep_cgu": "osint",
     "sancoes_cgu": "osint",
+    "noticias": "osint",
 }
 
 
@@ -489,6 +491,22 @@ def _buscar_diario_am(req: OsintRequest, ctx: dict | None = None):
 
 
 # ─────────────────────────────────────────────
+# NOTÍCIAS e ALERTAS (por tipo de crime e papel da pessoa)
+# ─────────────────────────────────────────────
+
+def _buscar_noticias(req: OsintRequest, ctx: dict | None = None):
+    from . import noticias_crimes as N
+    r = N.buscar_noticias(req, (ctx or {}).get("principais") or [])
+    if r["status"] == "nao_aplicavel":
+        return [], 0, "nao_aplicavel"
+    achados = [_achado("noticias", h["titulo"] or "Notícia", h["pontos"], h["motivos"],
+                       {k: h.get(k) for k in ("titulo", "resumo", "fonte", "data", "link", "origem", "crime_tipos",
+                                              "papel", "grave", "risco_monitor", "analise_ia")})
+               for h in r["achados"]]
+    return achados, 0, None
+
+
+# ─────────────────────────────────────────────
 # PEP e SANÇÕES (CGU) — bases locais
 # ─────────────────────────────────────────────
 
@@ -534,11 +552,12 @@ _BUSCADORES = {
     "diario_am": _buscar_diario_am,
     "pep_cgu": _buscar_pep,
     "sancoes_cgu": _buscar_sancoes,
+    "noticias": _buscar_noticias,
 }
 
 
 # Fontes externas: rodam DEPOIS das locais, já com o contexto cruzado
-_EXTERNAS = {"djen", "querido_diario", "diario_am"}
+_EXTERNAS = {"djen", "querido_diario", "diario_am", "noticias"}
 # Local que depende do resultado de outra fonte local (empresas da Receita)
 _DEPENDENTES = {"sancoes_cgu"}
 UF_AGENCIA = (os.getenv("OSINT_UF_AGENCIA") or "AM").upper()

@@ -223,6 +223,31 @@ class OsintReportGenerator:
                 items.append(Paragraph(f"• {ind}", s["bullet"]))
             items.append(Spacer(1, 0.4*cm))
 
+        # Avaliação de risco por pilar (processos, lideranças e notícias)
+        pil = report.risco_pilares or {}
+        if pil:
+            items.append(Paragraph("Avaliação de risco (processos, lideranças e notícias de crime)", s["subtitulo"]))
+            if report.resumo_risco:
+                items.append(Paragraph(escape(report.resumo_risco), s["corpo"]))
+            rot = {"processos": "PROCESSOS", "liderancas": "LIDERANÇAS", "noticias": "NOTÍCIAS DE CRIME"}
+            niv = {"critico": ("CRÍTICO", "#A32D2D"), "alto": ("ALTO", "#D85A30"), "medio": ("MÉDIO", "#BA7517"),
+                   "baixo": ("BAIXO", "#3B6D11")}
+            cab = [[self._cel(h, "cel_cab") for h in ("PILAR", "NÍVEL", "BASE (resultados com 50% ou mais)")]]
+            linhas = []
+            for k in ("processos", "liderancas", "noticias"):
+                p = pil.get(k) or {}
+                n, cor = niv.get(p.get("nivel"), ("sem ocorrência", "#5F5E5A"))
+                linhas.append([self._cel(rot[k]),
+                               Paragraph(f'<font color="{cor}"><b>{n}</b></font>', s["cel"]),
+                               self._cel("; ".join(p.get("motivos") or []) or "—")])
+            t = self._tabela_padrao(cab + linhas, [3.6*cm, 2.6*cm, 10.8*cm])
+            t.repeatRows = 1
+            items += [t, Spacer(1, 0.2*cm)]
+            nota = ("Convergência: dois ou mais pilares em nível alto ou crítico elevam o risco a CRÍTICO. " if pil.get("convergencia") else "")
+            nota += (f"{pil.get('imprecisos_nao_considerados', 0)} resultado(s) impreciso(s) (< 50%) não entram no cálculo. "
+                     "Lista Negra, sanções, PEP, empresas, TSE e diários oficiais são informativos.")
+            items += [Paragraph(escape(nota), s["lgpd"]), Spacer(1, 0.3*cm)]
+
         # Painel de contadores
         contadores = [
             ["PROCESSOS CRIMINAIS", "PROCESSOS CÍVEIS", "MANDADOS ATIVOS", "EMPRESAS", "NOTÍCIAS"],
@@ -506,6 +531,7 @@ class OsintReportGenerator:
         "receita_cnpj": "Receita Federal — sócios", "tse": "TSE — candidaturas e bens",
         "djen": "DJEN (CNJ) — publicações judiciais", "querido_diario": "Diários Oficiais municipais",
         "diario_am": "Diário Oficial do Estado do AM",
+        "noticias": "Notícias e alertas (por tipo de crime e papel)",
         "pep_cgu": "PEP — Pessoas Expostas Politicamente (CGU)",
         "sancoes_cgu": "Sanções — CEIS / CNEP / CEAF (CGU)",
     }
@@ -516,6 +542,7 @@ class OsintReportGenerator:
     _NIVEL = {"confirmado": ("CONFIRMADO", "#3B6D11"), "provavel": ("PROVÁVEL", "#BA7517"),
               "possivel": ("POSSÍVEL", "#5F5E5A")}
     MAX_POR_FONTE = 10
+    LIMIAR = 50   # abaixo disto o resultado é "impreciso" e só é contado no PDF (não listado)
 
     def _cel(self, txt: Any, estilo: str = "cel") -> Paragraph:
         """Parágrafo seguro (escapa &, <, >) para uso em células de tabela."""
@@ -568,6 +595,13 @@ class OsintReportGenerator:
         elif f == "querido_diario":
             L = [f"{d.get('municipio')}/{d.get('uf')} — {d.get('data')} — {d.get('ato') or 'ato não classificado'}",
                  "“" + str(d.get("trecho") or "")[:240] + "”"]
+        elif f == "noticias":
+            L = [str(d.get("titulo") or "")[:170],
+                 f"{d.get('fonte') or ''} · {d.get('data') or ''} · papel: {d.get('papel') or '—'}"
+                 + (f" · crime: {', '.join(d.get('crime_tipos') or [])}" if d.get("crime_tipos") else "")
+                 + (f" · risco do monitor: {d['risco_monitor']}" if d.get("risco_monitor") else "")]
+            if d.get("link"):
+                L.append(str(d["link"])[:120])
         elif f in ("pep_cgu", "sancoes_cgu"):
             tipo = "EMPRESA VINCULADA — " if d.get("tipo") == "empresa" else ""
             L = [f"{tipo}{d.get('nome', '')}" + (f" (CNPJ {d['cnpj']})" if d.get("cnpj") else "")]
@@ -630,10 +664,17 @@ class OsintReportGenerator:
 
         # achados por fonte
         for chave, rot in self._FONTE_ROTULO.items():
-            lista = [a for a in achados if a.get("fonte") == chave]
-            if not lista:
+            todos = [a for a in achados if a.get("fonte") == chave]
+            if not todos:
                 continue
-            bloco = [Paragraph(f"{escape(rot)} — {len(lista)} achado(s)", s["subtitulo"])]
+            lista = sorted((a for a in todos if (a.get("confianca") or 0) >= self.LIMIAR),
+                           key=lambda a: a.get("confianca") or 0, reverse=True)
+            imprecisos = len(todos) - len(lista)
+            if not lista:
+                items.append(Paragraph(f"<b>{escape(rot)}</b>: nenhum resultado com {self.LIMIAR}% ou mais de precisão "
+                                       f"({imprecisos} impreciso(s) omitido(s)).", s["sem_dados"]))
+                continue
+            bloco = [Paragraph(f"{escape(rot)} — {len(lista)} achado(s) com {self.LIMIAR}% ou mais", s["subtitulo"])]
             cab = [[self._cel(h, "cel_cab") for h in ("CONFIANÇA", "DESCRIÇÃO", "POR QUE FOI CONSIDERADO")]]
             rows = []
             for a in lista[: self.MAX_POR_FONTE]:
@@ -645,9 +686,14 @@ class OsintReportGenerator:
             t2 = self._tabela_padrao(cab + rows, [2.3*cm, 8.7*cm, 6*cm])
             t2.repeatRows = 1
             bloco.append(t2)
-            if len(lista) > self.MAX_POR_FONTE:
-                bloco.append(Paragraph(f"+ {len(lista) - self.MAX_POR_FONTE} achado(s) de menor confiança omitido(s) "
-                                       f"(disponíveis na tela).", s["sem_dados"]))
+            omitidos = max(0, len(lista) - self.MAX_POR_FONTE) + imprecisos
+            if omitidos:
+                partes = []
+                if len(lista) > self.MAX_POR_FONTE:
+                    partes.append(f"{len(lista) - self.MAX_POR_FONTE} acima de {self.LIMIAR}% não listado(s)")
+                if imprecisos:
+                    partes.append(f"{imprecisos} impreciso(s) (< {self.LIMIAR}%)")
+                bloco.append(Paragraph("+ " + "; ".join(partes) + " — disponíveis na tela.", s["sem_dados"]))
             items += [KeepTogether(bloco[:2]), *bloco[2:], Spacer(1, 0.3*cm)]
 
         if not achados:
@@ -731,7 +777,7 @@ class OsintReportGenerator:
                     + (f" — {gv.get('nome')}" if gv.get("nome") else "") + f" — origem: {em.get('origem') or '—'}"), s["corpo"]))
             contas = mg.get("contas") or []
             if contas:
-                relevantes = [c for c in contas if c.get("confirmada") or c.get("confianca", 0) >= 55]
+                relevantes = [c for c in contas if c.get("confirmada") or c.get("confianca", 0) >= self.LIMIAR]
                 restantes = len(contas) - len(relevantes)
                 items.append(Paragraph(f"Contas encontradas pelo username ({len(contas)}) — "
                                        f"{len(relevantes)} relevante(s)", s["subtitulo"]))
