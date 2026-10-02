@@ -13,7 +13,10 @@ Como funciona a injeção de dependência do FastAPI:
   Se lançar HTTPException, a rota nem chega a executar.
 """
 
-from fastapi import Depends, HTTPException, Query, Request, status
+import os
+import secrets
+
+from fastapi import Depends, Header, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError
@@ -105,6 +108,39 @@ def require_module(module: str):
     Se o token for inválido → 401 Unauthorized (via get_current_user).
     """
     def checker(user: dict = Depends(get_current_user)) -> dict:
+        if module not in user.get("modules", []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso ao módulo '{module}' não autorizado para o nível '{user.get('level')}'",
+            )
+        return user
+    return checker
+
+
+_bearer_opcional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+
+def require_module_or_scheduler(module: str):
+    """
+    Como require_module, mas também aceita o AGENDADOR (n8n) pelo header X-Agendador-Token,
+    igual a BASTOS_AGENDADOR_TOKEN do .env. Existe para que os fluxos agendados não precisem
+    guardar a senha de nenhum usuário.
+
+    ATENÇÃO — use SOMENTE nas rotas que o agendador realmente chama (varreduras, reindexação,
+    atualização de bases, salvar notícias). O token dá acesso a essas rotas e a mais nada.
+    Quem não manda o token cai no fluxo normal (JWT + módulo).
+    """
+    def checker(
+        x_agendador_token: str | None = Header(default=None),
+        token: str | None = Depends(_bearer_opcional),
+    ) -> dict:
+        esperado = os.getenv("BASTOS_AGENDADOR_TOKEN", "")
+        if esperado and x_agendador_token and secrets.compare_digest(x_agendador_token, esperado):
+            return {"sub": "agendador-n8n", "level": "agendador", "modules": [module]}
+        if not token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Credenciais ausentes ou inválidas")
+        user = get_current_user(token)  # levanta 401 se inválido/expirado
         if module not in user.get("modules", []):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

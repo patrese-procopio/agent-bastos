@@ -45,7 +45,7 @@ def _parse_article_date(data_str: str, fallback: float) -> float:
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, require_module, require_module_or_scheduler
 
 router = APIRouter(tags=["sistema"])
 
@@ -466,7 +466,7 @@ async def atualizar_noticias(user: dict = Depends(get_current_user)):
 
 
 @router.post("/noticias/salvar")
-async def salvar_noticias(dados: dict, user: dict = Depends(require_module("dashboard"))):
+async def salvar_noticias(dados: dict, user: dict = Depends(require_module_or_scheduler("dashboard"))):
     caminho = os.path.join(PASTA_RELATORIOS, "noticias_crimes.json")
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=2)

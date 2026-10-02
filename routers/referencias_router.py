@@ -24,7 +24,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from services.drive_service import download_bytes, get_service
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, require_module, require_module_or_scheduler
 from services.rate_limit_service import limiter, LIMIT_REINDEX
 from services.logging_service import get_logger
 
@@ -247,7 +247,7 @@ def download_referencia_pdf(
 
 @router.post("/referencias/reindexar")
 @limiter.limit(LIMIT_REINDEX)
-def reindexar_drive(request: Request, user: dict = Depends(require_module("referencias"))):
+def reindexar_drive(request: Request, user: dict = Depends(require_module_or_scheduler("referencias"))):
     """
     Re-indexa o Google Drive: regenera indice_documentos.json.
     Roda o indexer como subprocesso com -X utf8 (evita crash de encoding no
