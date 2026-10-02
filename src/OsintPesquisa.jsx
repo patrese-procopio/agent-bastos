@@ -74,6 +74,9 @@ const FONTES_INTERNAS = [
   { key:"tse",         label:"TSE (candidaturas)", icon:"🗳" },
   { key:"djen",        label:"DJEN (CNJ)", icon:"⚖" },
   { key:"querido_diario",label:"Diários Oficiais", icon:"📰" },
+  { key:"diario_am",   label:"DOE-AM", icon:"🏛" },
+  { key:"pep_cgu",     label:"PEP (CGU)", icon:"🎖" },
+  { key:"sancoes_cgu", label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
 ]
 
 const TRIBUNAIS = [
@@ -169,6 +172,9 @@ const FONTE_INT = {
   tse:         { label:"TSE (candidaturas)", icon:"🗳" },
   djen:        { label:"DJEN (CNJ)", icon:"⚖" },
   querido_diario:{ label:"Diários Oficiais", icon:"📰" },
+  diario_am:   { label:"DOE-AM", icon:"🏛" },
+  pep_cgu:     { label:"PEP (CGU)", icon:"🎖" },
+  sancoes_cgu: { label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
 }
 const STATUS_INT = {
   nao_carregada: { cor:C.gold,    txt:"base não carregada" },
@@ -185,6 +191,7 @@ const CAMPOS_INT = {
   liderancas:  [["Facção","faccao"],["Cargo","cargo"],["Vulgo","vulgo"],["Status","status"],["Observação","observacao"]],
   referencias: [["Tipo","tipo"],["Nº","numero"],["Ano","ano"],["Assunto","assunto"],["Arquivo","arquivo"]],
   tse:         [["Nascimento","nascimento"],["CPF","cpf"]],
+  diario_am:   [["Data","data"],["Edição","edicao"],["Página","pagina"],["Matéria","materia"],["Órgão","orgao"],["Caderno","caderno"],["Tipo de ato","ato"]],
   querido_diario:[["Município","municipio"],["UF","uf"],["Data","data"],["Edição","edicao"],["Tipo de ato","ato"]],
   djen:        [["Tribunal","tribunal"],["Órgão","orgao"],["Classe","classe"],["Polo","polo"],["Parte (como consta)","parte"],["Primeira publicação","primeira"],["Última publicação","ultima"],["Publicações","publicacoes"],["Advogados","advogados"],["Outras partes","outras_partes"]],
   receita_cnpj:[["Empresa","empresa"],["CNPJ (matriz)","cnpj"],["Qualificação","qualificacao"],["Entrada na sociedade","data_entrada"],["Situação","situacao"],["UF","uf"],["Município","municipio"],["Atividade","atividade"],["Abertura","abertura"],["Capital social","capital_social"],["Outros sócios","outros_socios"]],
@@ -204,6 +211,7 @@ const AchadoCard = ({ a }) => {
         <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO}}>{a.confianca}%</span>
         <span style={{fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>{f.icon} {f.label.toUpperCase()}</span>
         <span style={{fontSize:14,fontWeight:700,color:C.text}}>{a.titulo}</span>
+        {d.seap && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>SEAP</span>}
         {d.criminal && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",color:C.red,fontFamily:MONO}}>⚠ CRIMINAL</span>}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -224,6 +232,15 @@ const AchadoCard = ({ a }) => {
               <div style={rot}>{r}</div>
               <div style={{fontSize:13,color:C.text,wordBreak:"break-word"}}>{String(d[k])}</div>
             </div>
+          ))}
+        </div>
+      )}
+      {d.linhas?.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <div style={rot}>{d.tipo==="empresa"?"Empresa vinculada":"Registros"} {d.lista?`· ${d.lista}`:""} {d.total_registros>d.linhas.length?`(${d.total_registros} no total)`:""}</div>
+          {d.tipo==="empresa" && <div style={{fontSize:13,color:C.text}}>{d.nome} {d.cnpj?<span style={{color:C.textDim,fontFamily:MONO}}>({d.cnpj})</span>:null}</div>}
+          {d.linhas.map((l,i)=>(
+            <div key={i} style={{fontSize:13,color:C.textMid,padding:"6px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6,border:`1px solid ${C.border}`,lineHeight:1.5}}>{l}</div>
           ))}
         </div>
       )}
@@ -262,8 +279,8 @@ const AchadoCard = ({ a }) => {
           histórico: {d.historico.map(h=>`${h.competencia} ${h.unidade}/${h.pavilhao}`).join(" · ")}
         </div>
       )}
-      {d.url && a.fonte==="querido_diario" && (
-        <a href={d.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ abrir diário oficial (PDF)</a>
+      {d.url && (a.fonte==="querido_diario" || a.fonte==="diario_am") && (
+        <a href={d.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ abrir diário oficial (PDF{a.fonte==="diario_am"?", na página citada":""})</a>
       )}
       {d.trecho && (
         <div style={{fontSize:13,color:C.textMid,lineHeight:1.6,padding:"8px 10px",background:"rgba(0,0,0,0.25)",borderRadius:6,fontStyle:"italic"}}>“…{d.trecho}…”</div>
@@ -593,6 +610,18 @@ export default function OsintPesquisa({ onNavigate }) {
                           )
                         })}
                       </div>
+                      {relatorio.contexto_busca?.principais?.length>0 && (
+                        <div style={{padding:"8px 12px",background:C.blueSoft,border:"1px solid rgba(96,165,250,0.25)",borderRadius:7,display:"flex",gap:10,alignItems:"baseline",flexWrap:"wrap"}}>
+                          <span style={{fontSize:11,fontWeight:700,color:C.blue,fontFamily:MONO,letterSpacing:"0.08em"}}>CONTEXTO CRUZADO</span>
+                          <span style={{fontSize:13,color:C.text}}>
+                            UF provável: <b>{relatorio.contexto_busca.principais.join(", ")}</b> <span style={{color:C.textMid}}>(via {relatorio.contexto_busca.fontes.join(", ")})</span>
+                          </span>
+                          {relatorio.contexto_busca.nascimento_adotado && (
+                            <span style={{fontSize:12,color:C.textMid,fontFamily:MONO}}>nascimento obtido do TSE: {relatorio.contexto_busca.nascimento_adotado.split("-").reverse().join("/")}</span>
+                          )}
+                          <span style={{fontSize:12,color:C.textDim}}>Achados de fontes externas na mesma UF sobem; em UF diferente, descem.</span>
+                        </div>
+                      )}
                       {(relatorio.achados_internos||[]).length===0
                         ? <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"16px 0"}}>Nenhum registro nas bases internas para os dados informados.</div>
                         : (relatorio.achados_internos||[]).map((a,i)=><AchadoCard key={i} a={a}/>)
