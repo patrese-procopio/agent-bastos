@@ -86,3 +86,6 @@ _to_delete/
 backups/
 *.bkp
 *.bkp.parcial
+
+# ambiente isolado das ferramentas OSINT (maigret) — recriavel
+tools/

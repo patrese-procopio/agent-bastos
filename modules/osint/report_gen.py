@@ -109,6 +109,7 @@ class OsintReportGenerator:
         story += self._secao_capa(report)
         story += self._secao_sumario(report)
         story += self._secao_bases(report)
+        story += self._secao_pegada(report)
         story += self._secao_processos(report)
         story += self._secao_empresas(report)
         story += self._secao_timeline(report)
@@ -267,7 +268,7 @@ class OsintReportGenerator:
         items = [Spacer(1, 0.5*cm)]
 
         cabecalho = [
-            Paragraph("3. PROCESSOS E MANDADOS", s["titulo_secao"]),
+            Paragraph("4. PROCESSOS E MANDADOS", s["titulo_secao"]),
             HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
             Spacer(1, 0.3*cm),
         ]
@@ -335,7 +336,7 @@ class OsintReportGenerator:
         """Tabela de vínculos empresariais."""
         s = self.styles
         items = [Spacer(1, 0.5*cm)]
-        items.append(Paragraph("4. VÍNCULOS EMPRESARIAIS", s["titulo_secao"]))
+        items.append(Paragraph("5. VÍNCULOS EMPRESARIAIS", s["titulo_secao"]))
         items.append(HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO))
         items.append(Spacer(1, 0.3*cm))
 
@@ -362,7 +363,7 @@ class OsintReportGenerator:
         """Linha do tempo de eventos ordenados por data."""
         s = self.styles
         items = [Spacer(1, 0.5*cm)]
-        items.append(Paragraph("5. LINHA DO TEMPO", s["titulo_secao"]))
+        items.append(Paragraph("6. LINHA DO TEMPO", s["titulo_secao"]))
         items.append(HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO))
         items.append(Spacer(1, 0.3*cm))
 
@@ -430,7 +431,7 @@ class OsintReportGenerator:
         if not graph.nodes:
             return [
                 Spacer(1, 0.5*cm),
-                Paragraph("6. GRAFO DE VÍNCULOS", s["titulo_secao"]),
+                Paragraph("7. GRAFO DE VÍNCULOS", s["titulo_secao"]),
                 HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
                 Spacer(1, 0.3*cm),
                 Paragraph("Grafo não disponível.", s["sem_dados"]),
@@ -453,7 +454,7 @@ class OsintReportGenerator:
         # Monta bloco inteiro — KeepTogether evita quebra no meio
         bloco = [
             Spacer(1, 0.5*cm),
-            Paragraph("6. GRAFO DE VÍNCULOS", s["titulo_secao"]),
+            Paragraph("7. GRAFO DE VÍNCULOS", s["titulo_secao"]),
             HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO),
             Spacer(1, 0.3*cm),
             Paragraph(
@@ -652,6 +653,107 @@ class OsintReportGenerator:
         if not achados:
             items.append(Paragraph("Nenhum registro encontrado nas bases consultadas para os dados informados.",
                                    s["sem_dados"]))
+        return items
+
+    # ── FOTOS E PEGADA DIGITAL ────────────────────────────────────────────────
+
+    def _secao_pegada(self, report: OsintReport) -> list:
+        """Galeria de fotos (com a origem de cada uma) e resultado da pegada digital (redes, e-mail, telefone)."""
+        from io import BytesIO
+
+        from reportlab.lib.utils import ImageReader
+        from reportlab.platypus import Image
+
+        from . import fotos as fotos_mod
+        s = self.styles
+        fotos = report.fotos or []
+        pd = report.pegada_digital or {}
+        if not fotos and not pd:
+            return []
+        items = [Spacer(1, 0.5*cm), Paragraph("3. FOTOS E PEGADA DIGITAL", s["titulo_secao"]),
+                 HRFlowable(width="100%", thickness=1, color=AZUL_MEDIO), Spacer(1, 0.3*cm)]
+
+        # ── fotos
+        if fotos:
+            items.append(Paragraph(
+                "Fotos de fontes oficiais/internas e de perfis confirmados pelo analista. O nível indica a "
+                "confiança na IDENTIDADE da pessoa, não uma comparação facial. Não foi usado reconhecimento facial.",
+                s["lgpd"]))
+            items.append(Spacer(1, 0.2*cm))
+            celulas = []
+            for f in fotos[:12]:
+                dado = fotos_mod.obter(f.get("id", ""))
+                if not dado:
+                    continue
+                try:
+                    w, h = ImageReader(BytesIO(dado["bytes"])).getSize()
+                    img = Image(BytesIO(dado["bytes"]), width=3.0*cm, height=3.0*cm * h / w)
+                except Exception:
+                    continue
+                rot = {"confirmado": "CONFIRMADO", "provavel": "PROVÁVEL", "confirmado_analista": "CONFIRMADO PELO ANALISTA"}.get(f.get("nivel"), "")
+                legenda = Paragraph(f"<b>{escape(str(f.get('fonte', '')))[:60]}</b><br/>{escape(str(f.get('legenda', '')))[:70]}"
+                                    + (f"<br/>{rot}" if rot else ""), s["cel"])
+                celulas.append([img, legenda])
+            if celulas:
+                linhas = []
+                for i in range(0, len(celulas), 3):
+                    grupo = celulas[i:i + 3]
+                    while len(grupo) < 3:
+                        grupo.append(["", ""])
+                    linhas.append([c[0] for c in grupo])
+                    linhas.append([c[1] for c in grupo])
+                t = Table(linhas, colWidths=[5.6*cm] * 3)
+                t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 3),
+                                       ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+                items += [t, Spacer(1, 0.3*cm)]
+
+        # ── pegada digital
+        if pd:
+            et = pd.get("etapas") or {}
+            mg = et.get("maigret") or {}
+            ent = pd.get("entrada") or {}
+            usados = [f"{x.get('valor')} ({x.get('origem')})" for k in ("usernames", "emails", "telefones") for x in (ent.get(k) or [])]
+            if usados:
+                items.append(Paragraph("Identificadores usados", s["subtitulo"]))
+                items.append(Paragraph(escape("; ".join(usados)), s["corpo"]))
+            for tel in et.get("telefones") or []:
+                items.append(Paragraph("Telefone (análise offline)", s["subtitulo"]))
+                items.append(Paragraph(escape(
+                    f"{tel.get('formatado') or ''} — {'válido' if tel.get('valido') else 'inválido'}; {tel.get('tipo') or ''}; "
+                    f"região {tel.get('regiao') or '—'} ({tel.get('uf') or '—'}); operadora de origem {tel.get('operadora_origem') or '—'} "
+                    f"({tel.get('nota_operadora') or ''}) — origem: {tel.get('origem') or '—'}"), s["corpo"]))
+            for em in et.get("emails") or []:
+                gv = em.get("gravatar") or {}
+                items.append(Paragraph("E-mail", s["subtitulo"]))
+                items.append(Paragraph(escape(
+                    f"{em.get('email_mascarado') or ''} — {em.get('tipo') or ''}; domínio {em.get('dominio') or ''}; Gravatar: "
+                    f"{'perfil/avatar público encontrado' if gv.get('existe') else 'nenhum'}"
+                    + (f" — {gv.get('nome')}" if gv.get("nome") else "") + f" — origem: {em.get('origem') or '—'}"), s["corpo"]))
+            contas = mg.get("contas") or []
+            if contas:
+                relevantes = [c for c in contas if c.get("confirmada") or c.get("confianca", 0) >= 55]
+                restantes = len(contas) - len(relevantes)
+                items.append(Paragraph(f"Contas encontradas pelo username ({len(contas)}) — "
+                                       f"{len(relevantes)} relevante(s)", s["subtitulo"]))
+                cab = [[self._cel(h, "cel_cab") for h in ("CONFIANÇA", "SITE / PERFIL", "POR QUE", "STATUS")]]
+                rows = []
+                for c in relevantes[:15]:
+                    rotulo, cor = self._NIVEL.get(c.get("nivel"), ("—", "#5F5E5A"))
+                    conf = Paragraph(f'<font color="{cor}"><b>{rotulo}</b></font><br/>{c.get("confianca")}%', s["cel"])
+                    perfil = Paragraph(f"<b>{escape(str(c.get('site')))}</b><br/>{escape(str(c.get('nome_perfil') or c.get('username') or ''))}"
+                                       f"<br/>{escape(str(c.get('url') or ''))[:70]}", s["cel"])
+                    motivos = Paragraph("<br/>".join("• " + escape(str(m)) for m in (c.get("motivos") or [])), s["cel"])
+                    status = "CONFIRMADA pelo analista" if c.get("confirmada") else "a confirmar"
+                    rows.append([conf, perfil, motivos, self._cel(status)])
+                if rows:
+                    t2 = self._tabela_padrao(cab + rows, [2.3*cm, 6.2*cm, 5.5*cm, 3.0*cm])
+                    t2.repeatRows = 1
+                    items.append(t2)
+                if restantes:
+                    items.append(Paragraph(f"+ {restantes} conta(s) apenas com username igual (sem outro indício) — "
+                                           f"não listadas; podem ser de outras pessoas.", s["sem_dados"]))
+            for av in pd.get("avisos") or []:
+                items.append(Paragraph(escape(str(av)), s["aviso"]))
         return items
 
     # ── HELPERS ───────────────────────────────────────────────────────────────

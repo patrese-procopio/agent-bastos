@@ -264,6 +264,8 @@ class OsintReport(BaseModel):
     achados_internos: list[dict[str, Any]] = Field(default_factory=list)
     fontes_internas: dict[str, Any] = Field(default_factory=dict)
     contexto_busca: dict[str, Any] = Field(default_factory=dict)  # UF/nascimento cruzados entre fontes
+    fotos: list[dict[str, Any]] = Field(default_factory=list)      # galeria (fontes oficiais/internas + perfis confirmados)
+    pegada_digital: dict[str, Any] = Field(default_factory=dict)   # resultado do job (redes, e-mail, telefone)
 
     # Contadores rápidos para o dashboard
     @property
