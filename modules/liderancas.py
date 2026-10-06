@@ -353,7 +353,8 @@ FACCOES_RUA_FIXAS = [
     "CDN",     # Cartel do Norte
 ]
 
-CARGOS_RUA = ["Presidente", "Vice-Presidente, Pilar, Conselheiro, Liderança, Sintonia, Representante"]
+CARGOS_RUA = ["Presidente", "Vice-Presidente", "Pilar", "Conselheiro", "Liderança", "Sintonia", "Representante"]
+_CARGO_RUA_LEGADO = "Vice-Presidente, Pilar, Conselheiro, Liderança, Sintonia, Representante"
 
 STATUS_LIDER_RUA = ["Ativo", "Preso", "Foragido", "Morto"]
 
@@ -392,10 +393,23 @@ def init_db_faccoes():
         con.execute("CREATE INDEX IF NOT EXISTS idx_faccao_id ON lideres_rua(faccao_id)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_status_rua ON lideres_rua(status)")
 
+        # Migrações: CV/AM virou "Conselho Permanente CVAM" (mantém id e líderes);
+        # cargo legado com vários cargos num só valor vira "Vice-Presidente".
+        con.execute(
+            "UPDATE faccoes_rua SET nome='Conselho Permanente CVAM', sigla='CVAM' "
+            "WHERE nome='CV/AM' AND NOT EXISTS "
+            "(SELECT 1 FROM faccoes_rua WHERE nome='Conselho Permanente CVAM')"
+        )
+        con.execute(
+            "UPDATE lideres_rua SET cargo='Vice-Presidente' WHERE cargo=?",
+            (_CARGO_RUA_LEGADO,),
+        )
+
         # Popula facções fixas se ainda não existem
         agora = datetime.now(timezone.utc).isoformat()
         fixas = [
-            ("CV/AM",  "CV/AM"),
+            ("Conselho Permanente CVAM", "CVAM"),
+            ("Conselho Rotativo CVAM",   "CVAM"),
             ("PCC/AM", "PCC/AM"),
             ("RDA",    "RDA"),
             ("TDA",    "TDA"),
@@ -601,3 +615,4 @@ def carregar_foto_rua(lider_id: str, foto_ext: str) -> bytes | None:
     
 # Inicializa banco ao importar
 init_db()
+init_db_faccoes()

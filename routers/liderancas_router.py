@@ -579,7 +579,178 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     return buf.read()
 
 
+def _chave_cor_faccao_rua(nome: str) -> str:
+    """Mapeia o nome de uma facção de rua para a chave de cor do PDF."""
+    n = (nome or "").upper()
+    if "CV" in n or "COMANDO VERMELHO" in n: return "CV/AM"
+    if "PCC" in n:                            return "PCC"
+    if "RDA" in n:                            return "RDA"
+    if "TDA" in n or "JACK" in n:             return "JACK/TDA"
+    return "NEUTROS"
+
+
+def _gerar_pdf_lideres_rua(faccao_id: str | None = None) -> bytes:
+    """Relatório de Líderes Gerais (facções de rua) — mesmo padrão do PDF por unidade."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        HRFlowable, Image as RLImage, KeepTogether,
+    )
+
+    if faccao_id:
+        f = buscar_faccao_rua(faccao_id)
+        if not f:
+            raise ValueError("Facção não encontrada.")
+        grupos = [{"nome": f["nome"], "sigla": f["sigla"],
+                   "lideres": listar_lideres_por_faccao(faccao_id)}]
+        escopo = f["nome"].upper()
+    else:
+        grupos = [g for g in listar_lideres_agrupados() if g["lideres"]]
+        escopo = "TODOS OS GRUPOS"
+
+    total     = sum(len(g["lideres"]) for g in grupos)
+    gerado_em = datetime.now().strftime("%d/%m/%Y às %H:%M")
+
+    AZUL   = colors.HexColor("#0F172A")
+    GOLD   = colors.HexColor("#B45309")
+    CINZA  = colors.HexColor("#64748B")
+    BORDA  = colors.HexColor("#E2E8F0")
+    BRANCO = colors.white
+
+    S = {
+        "titulo": ParagraphStyle("titulo", fontSize=14, fontName="Helvetica-Bold", alignment=TA_CENTER, textColor=BRANCO),
+        "sec":    ParagraphStyle("sec",    fontSize=13, fontName="Helvetica-Bold", textColor=BRANCO),
+        "vulgo":  ParagraphStyle("vulgo",  fontSize=17, leading=20, fontName="Helvetica-Bold", textColor=GOLD),
+        "nome":   ParagraphStyle("nome",   fontSize=13, leading=16, fontName="Helvetica-Bold", textColor=AZUL),
+        "campo":  ParagraphStyle("campo",  fontSize=10, leading=13, fontName="Helvetica",      textColor=CINZA),
+        "data":   ParagraphStyle("data",   fontSize=8.5, fontName="Helvetica",      textColor=colors.HexColor("#94A3B8")),
+        "rodape": ParagraphStyle("rodape", fontSize=8.5, fontName="Helvetica",      textColor=CINZA, alignment=TA_CENTER),
+        "sfoto":  ParagraphStyle("sfoto",  fontSize=8,  fontName="Helvetica",      textColor=CINZA, alignment=TA_CENTER),
+        "cnt":    ParagraphStyle("cnt",    fontSize=10, fontName="Helvetica",      textColor=colors.HexColor("#CBD5E1"), alignment=TA_RIGHT),
+        "h1":     ParagraphStyle("h1",     fontSize=12, fontName="Helvetica-Bold", textColor=AZUL),
+        "h2":     ParagraphStyle("h2",     fontSize=10, fontName="Helvetica",      textColor=CINZA, alignment=TA_RIGHT),
+    }
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+        topMargin=2*cm, bottomMargin=2*cm, leftMargin=2*cm, rightMargin=2*cm)
+    el = []
+
+    cab = Table([[Paragraph("AGENT BASTOS", S["titulo"])]], colWidths=[17*cm])
+    cab.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,-1), AZUL),
+        ("TOPPADDING", (0,0), (-1,-1), 10), ("BOTTOMPADDING", (0,0), (-1,-1), 10)]))
+    el += [cab, Spacer(1, 4)]
+
+    sub = Table([[
+        Paragraph(f"MAPEAMENTO DE LIDERANÇAS GERAIS — {escopo}", S["h1"]),
+        Paragraph(f"{total} líder{'es' if total != 1 else ''}  ·  {gerado_em}", S["h2"]),
+    ]], colWidths=[10.5*cm, 6.5*cm])
+    sub.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
+        ("TOPPADDING", (0,0), (-1,-1), 8), ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("LEFTPADDING", (0,0), (0,-1), 10), ("RIGHTPADDING", (-1,0), (-1,-1), 10),
+        ("BOX", (0,0), (-1,-1), 0.5, BORDA)]))
+    el += [sub, Spacer(1, 12), HRFlowable(width="100%", thickness=0.5, color=BORDA), Spacer(1, 8)]
+
+    if not grupos:
+        el.append(Paragraph("Nenhum líder cadastrado.", S["campo"]))
+
+    for g in grupos:
+        cor = _cor_faccao(_chave_cor_faccao_rua(g["nome"]))
+        cor_bg, cor_txt, cor_dot = (colors.Color(*cor[k]) for k in ("bg", "text", "dot"))
+
+        ph = Table([[Paragraph(f"{g['nome'].upper()} ({g['sigla']})", S["sec"]),
+                     Paragraph(f"{len(g['lideres'])} líder{'es' if len(g['lideres']) != 1 else ''}", S["cnt"])]],
+                   colWidths=[13*cm, 4*cm])
+        ph.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), AZUL),
+            ("LINEBEFORE", (0,0), (0,-1), 4, cor_dot),
+            ("TOPPADDING", (0,0), (-1,-1), 6), ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+            ("LEFTPADDING", (0,0), (0,-1), 10), ("RIGHTPADDING", (-1,0), (-1,-1), 10)]))
+        el += [ph, Spacer(1, 4)]
+
+        for lider in g["lideres"]:
+            try:
+                p = (lider.get("criado_em") or "")[:10].split("-")
+                data_fmt = f"{p[2]}/{p[1]}/{p[0]}"
+            except Exception:
+                data_fmt = (lider.get("criado_em") or "")[:10]
+
+            foto_cell = Paragraph("S/FOTO", S["sfoto"])
+            if lider.get("foto_ext"):
+                try:
+                    fb = carregar_foto_rua(lider["id"], lider["foto_ext"])
+                    if fb:
+                        foto_cell = RLImage(io.BytesIO(fb), width=2.4*cm, height=3.0*cm)
+                except Exception:
+                    pass
+
+            badge = Table([[Paragraph(g["nome"], ParagraphStyle(
+                "bf", fontSize=9, fontName="Helvetica-Bold", textColor=cor_txt))]], colWidths=[6.5*cm])
+            badge.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,-1), cor_bg),
+                ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+                ("LEFTPADDING", (0,0), (-1,-1), 5), ("RIGHTPADDING", (0,0), (-1,-1), 5),
+                ("BOX", (0,0), (-1,-1), 0.5, cor_dot)]))
+
+            dados = [
+                [Paragraph(lider.get("vulgo") or "—", S["vulgo"])],
+                [Paragraph(lider.get("nome") or "", S["nome"])],
+                [badge],
+                [Paragraph(f"{lider.get('cargo') or ''}  ·  Status: {lider.get('status') or '—'}", S["campo"])],
+            ]
+            if lider.get("observacao"):
+                obs = lider["observacao"]
+                if len(obs) > 220: obs = obs[:220] + "..."
+                dados.append([Paragraph(f"Obs: {obs}", S["campo"])])
+            dados.append([Paragraph(f"Cadastrado em: {data_fmt}", S["data"])])
+
+            dt = Table(dados, colWidths=[13.4*cm])
+            dt.setStyle(TableStyle([("TOPPADDING", (0,0), (-1,-1), 2),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 3), ("LEFTPADDING", (0,0), (-1,-1), 0)]))
+            row = Table([[foto_cell, dt]], colWidths=[3.2*cm, 13.8*cm])
+            row.setStyle(TableStyle([
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("TOPPADDING", (0,0), (-1,-1), 8), ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+                ("LEFTPADDING", (0,0), (-1,-1), 8),
+                ("BOX", (0,0), (-1,-1), 0.3, BORDA), ("BACKGROUND", (0,0), (-1,-1), BRANCO)]))
+            el.append(KeepTogether(row))
+
+        el.append(Spacer(1, 12))
+
+    el += [HRFlowable(width="100%", thickness=0.5, color=BORDA), Spacer(1, 4),
+           Paragraph(f"Agent Bastos — AIPEN/SEAP-AM  ·  CONFIDENCIAL  ·  Líderes Gerais  ·  {gerado_em}", S["rodape"])]
+    doc.build(el)
+    return buf.getvalue()
+
+
 # ── Endpoints de exportação ───────────────────────────────────────────────────
+
+@liderancas_router.get("/rua/pdf")
+def exportar_pdf_lideres_rua(
+    faccao_id: str = Query(default=None),
+    user: dict = Depends(require_module("alertas")),
+):
+    """PDF dos Líderes Gerais — todos os grupos ou uma facção (faccao_id)."""
+    try:
+        pdf = _gerar_pdf_lideres_rua(faccao_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e}")
+    if faccao_id:
+        sufixo = (buscar_faccao_rua(faccao_id) or {}).get("sigla", "grupo")
+    else:
+        sufixo = "todos"
+    sufixo = "".join(c if c.isalnum() else "_" for c in sufixo)
+    ts = datetime.now().strftime("%Y_%m_%d")
+    return Response(content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="lideres_gerais_{sufixo}_{ts}.pdf"'})
+
 
 @liderancas_router.get("/pdf/{unidade}")
 def exportar_pdf_unidade(

@@ -6,7 +6,9 @@ Prefixo: /api/extrato   |   Gate: require_module("alertas") (admin tem)
 Submissão / processamento:
   POST   /api/extrato/submeter                 → grava bruto e já enriquece
   POST   /api/extrato/criar                     → só grava o bruto
-  POST   /api/extrato/{eid}/processar           → (re)processa via LLM
+  POST   /api/extrato/{eid}/processar           → (re)processa via LLM (em background)
+  PUT    /api/extrato/{eid}                      → edita (registra quem/quando/o quê)
+  DELETE /api/extrato/{eid}                      → exclui extrato + derivados (auditado)
   GET    /api/extrato/listar                     → lista de extratos
   GET    /api/extrato/{eid}                       → extrato completo
   GET    /api/extrato/{eid}/rae                   → dados estruturados do RAE
@@ -35,6 +37,7 @@ from modules import extrato, grafo, lexico
 from services import llm_extracao, export_service
 from dependencies import require_module
 from services.rate_limit_service import limiter, LIMIT_IA_PESADA, LIMIT_ESCRITA
+from services.scoping_service import is_admin
 from services.logging_service import get_logger
 
 # ── Correlação automática: importação opcional ────────────────────────────────
@@ -62,6 +65,20 @@ class ExtratoIn(BaseModel):
     topicos: Optional[list[str]] = None
     nucleos_destino: Optional[list[str]] = None
     classificacao: Optional[str] = "reservado"
+
+
+class ExtratoEdit(BaseModel):
+    """Edição parcial — só os campos enviados (não nulos) são considerados."""
+    corpo: Optional[str] = None
+    data: Optional[str] = None
+    unidade: Optional[str] = None
+    nucleo: Optional[str] = None
+    autor: Optional[str] = None
+    assunto: Optional[str] = None
+    topicos: Optional[list[str]] = None
+    nucleos_destino: Optional[list[str]] = None
+    classificacao: Optional[str] = None
+    reprocessar: bool = False
 
 
 class ValidarJargaoIn(BaseModel):
@@ -109,14 +126,7 @@ def submeter(request: Request, body: ExtratoIn,
     eid = reg["id"]
 
     # 2. Processa em thread daemon (LLM, grafo, RAE) — nao bloqueia a request
-    import threading
-    def _rodar():
-        try:
-            extrato.processar(eid, usuario=usuario)
-        except Exception as exc:
-            _log_audit.error(f"extrato {eid} processar falhou em background: {exc}")
-    threading.Thread(target=_rodar, daemon=True,
-                     name=f"extrato-processar-{eid[:8]}").start()
+    extrato.iniciar_processamento(eid, usuario=usuario)
 
     # 3. Correlacao tambem em background (nao impacta o cliente)
     if _CORRELACAO_OK:
@@ -163,10 +173,64 @@ def criar(request: Request, body: ExtratoIn,
 @router.post("/{eid}/processar")
 @limiter.limit(LIMIT_IA_PESADA)
 def processar(request: Request, eid: str, user: dict = Depends(_GATE)):
+    """Reprocessa em BACKGROUND (LLM pode levar minutos, principalmente no provedor
+    local): responde na hora e o front acompanha o status pela lista."""
     _log_audit.info("extrato reprocessado", extra={"username": user.get("sub"), "eid": eid})
-    res = extrato.processar(eid, usuario=user.get("sub", "?"))
+    reg = extrato.obter(eid, user=user)
+    if not reg:
+        raise HTTPException(status_code=404, detail="Extrato não encontrado.")
+    res = extrato.iniciar_processamento(eid, usuario=user.get("sub", "?"))
     if not res.get("ok"):
+        if res.get("erro") == "ja_processando":
+            raise HTTPException(status_code=409, detail={"erro": "Este extrato já está sendo processado."})
         raise HTTPException(status_code=422, detail=res)
+    return res
+
+
+def _exigir_dono_ou_admin(reg: dict, user: dict) -> None:
+    """Editar/excluir: só quem criou o extrato ou admin."""
+    if not (is_admin(user) or reg.get("criado_por") == user.get("sub")):
+        raise HTTPException(status_code=403,
+                            detail="Apenas o autor do registro ou um administrador pode alterar este extrato.")
+
+
+@router.put("/{eid}")
+@limiter.limit(LIMIT_ESCRITA)
+def editar(request: Request, eid: str, body: ExtratoEdit, user: dict = Depends(_GATE)):
+    """Edita o extrato registrando data/hora, usuário e valores anterior/novo."""
+    reg = extrato.obter(eid, user=user)
+    if not reg:
+        raise HTTPException(status_code=404, detail="Extrato não encontrado.")
+    _exigir_dono_ou_admin(reg, user)
+    usuario = user.get("sub", "?")
+    campos = body.model_dump(exclude={"reprocessar"})
+    res = extrato.editar(eid, campos, usuario=usuario)
+    if not res.get("ok"):
+        code = 409 if res.get("erro") == "processando" else 400
+        raise HTTPException(status_code=code, detail=res.get("detalhe") or res.get("erro"))
+    _log_audit.info("extrato editado", extra={"username": usuario, "eid": eid,
+                                              "campos": res.get("campos")})
+    if body.reprocessar and res.get("alterado"):
+        res["reprocessamento"] = extrato.iniciar_processamento(eid, usuario=usuario)
+        res["extrato"] = extrato.obter(eid)
+    return res
+
+
+@router.delete("/{eid}")
+@limiter.limit(LIMIT_ESCRITA)
+def excluir(request: Request, eid: str, user: dict = Depends(_GATE)):
+    """Exclui o extrato e seus derivados (grafo, léxico, índice). A exclusão
+    fica registrada na trilha de auditoria (append-only)."""
+    reg = extrato.obter(eid, user=user)
+    if not reg:
+        raise HTTPException(status_code=404, detail="Extrato não encontrado.")
+    _exigir_dono_ou_admin(reg, user)
+    usuario = user.get("sub", "?")
+    res = extrato.excluir(eid, usuario=usuario)
+    if not res.get("ok"):
+        code = 409 if res.get("erro") == "processando" else 400
+        raise HTTPException(status_code=code, detail=res.get("detalhe") or res.get("erro"))
+    _log_audit.info("extrato excluido", extra={"username": usuario, "eid": eid})
     return res
 
 
