@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import api from "./api"
 import { C, MONO, SANS, RISK_COLORS } from "./theme"
 import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
 
 /*
   MÓDULO EXTRATO — submissão, RAE e fusão de homônimos
@@ -60,6 +61,17 @@ const Tag = ({children}) => (
   </span>
 )
 
+const fmtDT = iso => {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return isNaN(d) ? iso : d.toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
+}
+const CAMPO_LABEL = {
+  corpo:"Corpo", assunto:"Assunto", unidade:"Unidade", nucleo:"Núcleo", autor:"Autor",
+  data:"Data", topicos:"Tópicos", nucleos_destino:"Núcleos de destino", classificacao:"Classificação",
+}
+const PENDENTE = s => s === "recebido" || s === "processando"
+
 // ── SectionBar ────────────────────────────────────────────────────────────────
 const SectionBar = ({label}) => (
   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
@@ -108,7 +120,9 @@ const NoFusao = ({no}) => (
 )
 
 // ── Visualização do RAE ───────────────────────────────────────────────────────
-function RaeView({ rae, onPdf, onGrafo, onReproc, busy }) {
+function RaeView({ rae, onPdf, onGrafo, onReproc, onEditar, onExcluir, busy }) {
+  const [verHist, setVerHist] = useState(false)
+  const bloqueado = busy || PENDENTE(rae.status)
   const rk = RISK_COLORS[rae.risk_nivel] || RISK_COLORS.MÉDIO
   const ex = rae.extrato || {}
   return (
@@ -131,6 +145,37 @@ function RaeView({ rae, onPdf, onGrafo, onReproc, busy }) {
           <span style={badge(rk.color, rk.bg, rk.border)}>{rae.risk_nivel}</span>
         </div>
       </div>
+
+      {/* Controle de criação / edição */}
+      <div style={{display:"flex",gap:14,flexWrap:"wrap",margin:"4px 0 10px",fontSize:13,
+        color:C.textMid,fontFamily:MONO}}>
+        <span>Criado em <b style={{color:C.text}}>{fmtDT(ex.criado_em)}</b>{ex.criado_por?` · por ${ex.criado_por}`:""}</span>
+        {ex.edicoes>0 && (
+          <span style={{color:"#FBBF24"}}>
+            ✎ Editado em <b>{fmtDT(ex.editado_em)}</b> · por {ex.editado_por||"—"} · {ex.edicoes} {ex.edicoes===1?"edição":"edições"}
+          </span>
+        )}
+      </div>
+
+      {PENDENTE(rae.status) && (
+        <div style={{marginBottom:10,padding:"10px 14px",borderRadius:7,fontSize:14,color:C.gold,
+          background:C.goldSoft,border:`1px solid ${C.goldBorder}`}}>
+          ⏳ Análise em andamento… esta tela atualiza sozinha quando terminar.
+        </div>
+      )}
+      {rae.status==="erro" && (
+        <div style={{marginBottom:10,padding:"10px 14px",borderRadius:7,fontSize:14,color:"#FCA5A5",
+          background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.3)"}}>
+          ● Falha no processamento: {rae.erro||"erro desconhecido"} — use <b>Reprocessar</b>.
+        </div>
+      )}
+      {rae.analise_desatualizada && rae.status==="processado" && (
+        <div style={{marginBottom:10,padding:"10px 14px",borderRadius:7,fontSize:14,color:"#FBBF24",
+          background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)"}}>
+          ⚠ O texto foi editado depois da última análise — entidades, risco e vínculos abaixo
+          podem estar desatualizados. Use <b>Reprocessar</b> para atualizar.
+        </div>
+      )}
 
       {/* Tags */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:4}}>
@@ -254,12 +299,135 @@ function RaeView({ rae, onPdf, onGrafo, onReproc, busy }) {
             cursor:"pointer",fontFamily:MONO}}>
           🕸 Ver no Grafo
         </button>
-        <button className="ex-btn" disabled={busy} onClick={onReproc}
+        <button className="ex-btn" disabled={bloqueado} onClick={onReproc}
           style={{padding:"10px 18px",borderRadius:8,border:`1px solid ${C.borderUp}`,
             background:"rgba(255,255,255,0.04)",color:C.textMid,fontSize:14,fontWeight:700,
-            cursor:"pointer",fontFamily:MONO}}>
+            cursor:bloqueado?"not-allowed":"pointer",fontFamily:MONO,opacity:bloqueado?0.5:1}}>
           ↻ Reprocessar
         </button>
+        <button className="ex-btn" disabled={bloqueado} onClick={onEditar}
+          style={{padding:"10px 18px",borderRadius:8,border:"1px solid rgba(251,191,36,0.4)",
+            background:"rgba(251,191,36,0.08)",color:"#FBBF24",fontSize:14,fontWeight:700,
+            cursor:bloqueado?"not-allowed":"pointer",fontFamily:MONO,opacity:bloqueado?0.5:1}}>
+          ✎ Editar
+        </button>
+        <button className="ex-btn" disabled={bloqueado} onClick={onExcluir}
+          style={{padding:"10px 18px",borderRadius:8,border:"1px solid rgba(239,68,68,0.4)",
+            background:"rgba(239,68,68,0.08)",color:"#F87171",fontSize:14,fontWeight:700,
+            cursor:bloqueado?"not-allowed":"pointer",fontFamily:MONO,opacity:bloqueado?0.5:1,
+            marginLeft:"auto"}}>
+          🗑 Excluir
+        </button>
+      </div>
+
+      {/* Histórico de edições */}
+      {(rae.historico_edicoes||[]).length>0 && (
+        <Bloco titulo={`Histórico de edições (${rae.historico_edicoes.length})`}>
+          <button onClick={()=>setVerHist(v=>!v)} className="ex-btn"
+            style={{fontSize:13,color:C.gold,background:"transparent",border:"none",cursor:"pointer",
+              fontFamily:MONO,padding:0,marginBottom:8}}>
+            {verHist?"▾ ocultar":"▸ mostrar"}
+          </button>
+          {verHist && rae.historico_edicoes.map((h,i)=>(
+            <div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`,fontSize:13}}>
+              <div style={{color:C.textMid,fontFamily:MONO}}>
+                {fmtDT(h.ts)} · {h.usuario||"—"} · <b style={{color:C.text}}>{CAMPO_LABEL[h.campo]||h.campo}</b>
+              </div>
+              <div style={{color:"#FCA5A5",marginTop:3,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                − {(h.anterior||"(vazio)").slice(0,300)}{(h.anterior||"").length>300?"…":""}
+              </div>
+              <div style={{color:"#86EFAC",marginTop:2,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                + {(h.novo||"(vazio)").slice(0,300)}{(h.novo||"").length>300?"…":""}
+              </div>
+            </div>
+          ))}
+        </Bloco>
+      )}
+    </div>
+  )
+}
+
+// ── Modal de edição ───────────────────────────────────────────────────────────
+function ModalEditar({ rae, classificacoes, onSalvar, onFechar, salvando }) {
+  const ex = rae.extrato || {}
+  const [f, setF] = useState({
+    data: ex.data||"", unidade: ex.unidade||"", nucleo: ex.nucleo||"", autor: ex.autor||"",
+    assunto: ex.assunto||"", corpo: ex.corpo||"", classificacao: ex.classificacao||"reservado",
+    topicos: (ex.topicos||[]).join("\n"), nucleos_destino: (ex.nucleos_destino||[]).join(", "),
+  })
+  const [reproc, setReproc] = useState(true)
+  const set = (k,v) => setF(p=>({...p,[k]:v}))
+  const mudouAnalise = f.corpo!==(ex.corpo||"") || f.assunto!==(ex.assunto||"") ||
+    f.classificacao!==(ex.classificacao||"") || f.topicos!==(ex.topicos||[]).join("\n")
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",
+      alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
+      <div style={{background:C.surface,borderRadius:12,width:"100%",maxWidth:760,maxHeight:"92vh",
+        border:`1px solid ${C.borderUp}`,display:"flex",flexDirection:"column",overflow:"hidden",
+        boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"16px 22px",borderBottom:`1px solid ${C.border}`,display:"flex",
+          justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div>
+            <div style={{fontSize:16,fontWeight:800,color:C.text,fontFamily:MONO}}>EDITAR EXTRATO</div>
+            <div style={{fontSize:13,color:C.textMid,marginTop:3}}>
+              {ex.id} · a edição fica registrada (quem, quando e valor anterior)
+            </div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:`1px solid ${C.border}`,
+            borderRadius:6,width:32,height:32,cursor:"pointer",color:C.textMid,fontSize:18}}>×</button>
+        </div>
+        <div className="ex-scroll" style={{padding:22,overflowY:"auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <Campo label="Data"><input style={S.input} type="date" value={f.data} onChange={e=>set("data",e.target.value)}/></Campo>
+            <Campo label="Unidade"><input style={S.input} value={f.unidade} onChange={e=>set("unidade",e.target.value)}/></Campo>
+            <Campo label="Núcleo (origem)"><input style={S.input} value={f.nucleo} onChange={e=>set("nucleo",e.target.value)}/></Campo>
+            <Campo label="Autor"><input style={S.input} value={f.autor} onChange={e=>set("autor",e.target.value)}/></Campo>
+          </div>
+          <Campo label="Assunto"><input style={S.input} value={f.assunto} onChange={e=>set("assunto",e.target.value)}/></Campo>
+          <Campo label="Tópicos (um por linha)">
+            <textarea style={{...S.input,height:72,resize:"vertical"}} value={f.topicos} onChange={e=>set("topicos",e.target.value)}/>
+          </Campo>
+          <Campo label="Corpo do extrato">
+            <textarea style={{...S.input,height:220,resize:"vertical",lineHeight:1.65}} value={f.corpo} onChange={e=>set("corpo",e.target.value)}/>
+          </Campo>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <Campo label="Classificação do dado">
+              <select style={S.input} value={f.classificacao} onChange={e=>set("classificacao",e.target.value)}>
+                {(classificacoes||["teste","interno","reservado","sigiloso","secreto"]).map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Núcleos de destino (vírgula)">
+              <input style={S.input} value={f.nucleos_destino} onChange={e=>set("nucleos_destino",e.target.value)}/>
+            </Campo>
+          </div>
+          {mudouAnalise && (
+            <label style={{display:"flex",gap:10,alignItems:"center",fontSize:14,color:C.text,cursor:"pointer",
+              padding:"10px 14px",borderRadius:8,background:"rgba(251,191,36,0.07)",border:"1px solid rgba(251,191,36,0.28)"}}>
+              <input type="checkbox" checked={reproc} onChange={e=>setReproc(e.target.checked)}/>
+              Reprocessar a análise após salvar (o texto mudou — recomendado)
+            </label>
+          )}
+        </div>
+        <div style={{padding:"14px 22px",borderTop:`1px solid ${C.border}`,display:"flex",
+          justifyContent:"flex-end",gap:8,flexShrink:0}}>
+          <button onClick={onFechar} className="ex-btn" style={{padding:"9px 18px",borderRadius:7,
+            border:`1px solid ${C.border}`,background:"transparent",fontSize:14,color:C.textMid,cursor:"pointer",fontFamily:MONO}}>
+            Cancelar
+          </button>
+          <button disabled={salvando||!f.corpo.trim()} className="ex-btn"
+            onClick={()=>onSalvar({
+              ...f,
+              topicos: f.topicos.split("\n").map(t=>t.trim()).filter(Boolean),
+              nucleos_destino: f.nucleos_destino.split(",").map(t=>t.trim()).filter(Boolean),
+              reprocessar: mudouAnalise && reproc,
+            })}
+            style={{padding:"9px 22px",borderRadius:7,border:"none",fontSize:14,fontWeight:800,fontFamily:MONO,
+              background:`linear-gradient(135deg,${C.gold},#C9851A)`,color:"#1A1206",
+              cursor:(salvando||!f.corpo.trim())?"not-allowed":"pointer",opacity:(salvando||!f.corpo.trim())?0.6:1}}>
+            {salvando?"Salvando…":"Salvar edição"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -275,6 +443,8 @@ export default function Extrato({ onNavigate }) {
   const [busy,   setBusy]   = useState(false)
   // [toast local removido — usa toast global de ./Toast]
   const [cand,   setCand]   = useState([])
+  const [editando, setEditando] = useState(false)
+  const statusAnt = useRef({})
 
   const [form, setForm] = useState({
     data: new Date().toISOString().slice(0,10),
@@ -306,6 +476,22 @@ export default function Extrato({ onNavigate }) {
 
   useEffect(() => { carregarMeta(); carregarLista() }, [carregarMeta, carregarLista])
   useEffect(() => { if (tab==="fusao") carregarCand() }, [tab, carregarCand])
+
+  // Atualiza sozinho enquanto houver extrato em processamento (a cada 5s) e
+  // recarrega o RAE aberto quando ele termina.
+  const recarregarRae = useCallback(async (eid) => {
+    try { const r = await api.get(`/extrato/${eid}/rae`); if (r.ok) setSel(await r.json()) } catch {}
+  }, [])
+  useEffect(() => {
+    const ant = statusAnt.current
+    lista.forEach(e => {
+      if (e.id === selId && PENDENTE(ant[e.id]) && !PENDENTE(e.status)) recarregarRae(e.id)
+    })
+    statusAnt.current = Object.fromEntries(lista.map(e => [e.id, e.status]))
+    if (!lista.some(e => PENDENTE(e.status))) return
+    const t = setInterval(carregarLista, 5000)
+    return () => clearInterval(t)
+  }, [lista, selId, carregarLista, recarregarRae])
 
   const abrirRae = async (eid) => {
     setSelId(eid); setSel(null); setTab("rae")
@@ -371,11 +557,47 @@ export default function Extrato({ onNavigate }) {
   const reprocessar = async (eid) => {
     setBusy(true)
     try {
+      // O backend responde na hora e processa em segundo plano; a lista faz o polling.
       const r = await api.post(`/extrato/${eid}/processar`)
-      if (r.ok) { aviso("Reprocessado.", C.green); abrirRae(eid); carregarLista() }
-      else { const d=await r.json(); aviso(d?.detail?.erro||"Falha ao reprocessar.", C.red) }
+      if (r.ok) {
+        aviso("Reprocessamento iniciado — acompanhe o status na lista.", C.gold)
+        await carregarLista(); recarregarRae(eid)
+      } else { const d=await r.json().catch(()=>({})); aviso(d?.detail?.erro||d?.detail||"Falha ao reprocessar.", C.red) }
     } catch { aviso("Erro de conexão.", C.red) }
     setBusy(false)
+  }
+
+  const salvarEdicao = async (dados) => {
+    setBusy(true)
+    try {
+      const r = await api.put(`/extrato/${selId}`, dados)
+      const d = await r.json().catch(()=>({}))
+      if (!r.ok) { aviso(typeof d?.detail==="string"?d.detail:"Falha ao salvar edição.", C.red); setBusy(false); return }
+      setEditando(false)
+      aviso(d.alterado ? (dados.reprocessar ? "Edição salva — reprocessando análise…" : "Edição salva e registrada.") : "Nada foi alterado.",
+            d.alterado ? C.green : C.gold)
+      await carregarLista(); recarregarRae(selId)
+    } catch { aviso("Erro de conexão.", C.red) }
+    setBusy(false)
+  }
+
+  const excluirExtrato = (eid) => {
+    const item = lista.find(e => e.id === eid)
+    confirm({
+      title: "Excluir extrato",
+      description: `"${item?.assunto_sintetizado||item?.assunto||eid}" será excluído junto com as entidades, vínculos do grafo e sinais fracos gerados por ele. A exclusão fica registrada na trilha de auditoria. Esta ação não pode ser desfeita.`,
+      confirmLabel: "Excluir",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const r = await api.delete(`/extrato/${eid}`)
+          if (r.ok) {
+            aviso("Extrato excluído.", C.green)
+            setSel(null); setSelId(null); carregarLista(); carregarCand()
+          } else { const d=await r.json().catch(()=>({})); aviso(typeof d?.detail==="string"?d.detail:"Falha ao excluir.", C.red) }
+        } catch { aviso("Erro de conexão.", C.red) }
+      },
+    })
   }
 
   const baixarPdf = async (eid) => {
@@ -668,7 +890,10 @@ export default function Extrato({ onNavigate }) {
                       <div style={{display:"flex",gap:8,marginTop:7,flexWrap:"wrap",alignItems:"center"}}>
                         <Tag>{e.unidade||"—"}</Tag>
                         {classifTag(e.classificacao)}
-                        {e.status==="recebido" && <span style={{fontSize:13,color:C.gold}}>⏳ processando…</span>}
+                        {PENDENTE(e.status) && <span style={{fontSize:13,color:C.gold}}>⏳ processando…</span>}
+                        {e.edicoes>0 && <span title={`Editado em ${fmtDT(e.editado_em)} por ${e.editado_por||"—"}`}
+                          style={{fontSize:13,color:"#FBBF24"}}>✎ editado</span>}
+                        {e.analise_desatualizada && <span title="Texto editado após a análise" style={{fontSize:13,color:"#FBBF24"}}>⚠</span>}
                         {e.status==="erro" && <span style={{fontSize:13,color:C.red}}>● erro</span>}
                         {e.bloqueado && <span style={{fontSize:13,color:C.red}}>🔒 bloqueado</span>}
                         {e.forcado_local && <span style={{fontSize:13,color:C.green}}>🔒 local</span>}
@@ -702,6 +927,8 @@ export default function Extrato({ onNavigate }) {
                     onPdf={()=>baixarPdf(selId)}
                     onGrafo={()=>{ if(selId) localStorage.setItem("grafo_foco_alvo",`extrato_${selId}`); onNavigate?.("Análise de Vínculo") }}
                     onReproc={()=>reprocessar(selId)}
+                    onEditar={()=>setEditando(true)}
+                    onExcluir={()=>excluirExtrato(selId)}
                     busy={busy}/>
                 )}
               </div>
@@ -758,6 +985,11 @@ export default function Extrato({ onNavigate }) {
       </div>
 
       </div>
+
+      {editando && sel && (
+        <ModalEditar rae={sel} classificacoes={meta?.classificacoes} salvando={busy}
+          onSalvar={salvarEdicao} onFechar={()=>setEditando(false)}/>
+      )}
     </div>
   )
 }

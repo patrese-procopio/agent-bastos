@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "./api"
 import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
 
 const MONO = "'JetBrains Mono','Roboto Mono','Courier New',monospace"
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
@@ -115,18 +116,23 @@ export default function Dashboard() {
   const [formDoc, setFormDoc] = useState({ nome_arquivo: "", tipo_codigo: "RELINT", nucleo_sigla: "NI", unidade_sigla: "", ano: ANO_ATUAL, mes: MES_ATUAL, observacao: "" })
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState("")
+  const [pendPedidos, setPendPedidos] = useState(0)
+  const [menuPdf, setMenuPdf] = useState(false)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro("")
     const safe = async (p, def) => { try { const r = await api.get(p); return (r && r.ok) ? await r.json() : def } catch { return def } }
     try {
-      const [p, k, l, c] = await Promise.all([
+      const [p, k, l, c, ped] = await Promise.all([
         safe(`/dashboard/producao?ano=${ano}`, { por_nucleo: [], por_mes_tipo: [], por_unidade: [], ranking_unidades: [] }),
         safe(`/dashboard/kpi?ano=${ano}&mes=${mes}`, null),
         safe(`/dashboard/lancamentos?ano=${ano}`, []),
         safe(`/dashboard/catalogos`, { tipos: [], nucleos: [], unidades: [] }),
+        safe(`/dashboard/pedidos?ano=${ano}`, null),
       ])
       setProd(p || {}); setKpi(k); setLancs(Array.isArray(l) ? l : []); setCat(c || {})
+      setPendPedidos(ped?.resumo?.pendentes || 0)
       if (!k) setErro("Backend indisponível — verifique se o servidor está rodando.")
     } catch {
       setErro("Falha ao carregar dados do servidor.")
@@ -163,6 +169,9 @@ export default function Dashboard() {
   const totalTipoAno = (cod) => linhasTipo.filter(r => r.tipo === cod).reduce((s, r) => s + r.total, 0)
   const tiposComDado = [...new Set(linhasTipo.map(r => r.tipo))].sort((a, b) => totalTipoAno(b) - totalTipoAno(a))
 
+  // Lista suspensa de anos: garante o ano atual e o ano selecionado mesmo se o backend não responder.
+  const anosLista = [...new Set([...(cat.anos || []), ANO_ATUAL, ano])].sort((a, b) => b - a)
+
   const variacao = kpi ? kpi.variacao_pct : null
   const totalMes = kpi ? kpi.total_mes : totalMesIdx(mes)
   const mediaMensal = kpi ? kpi.media_mensal : (totalAno ? Math.round(totalAno / 12) : 0)
@@ -176,7 +185,11 @@ export default function Dashboard() {
     try {
       const nome = formDoc.nome_arquivo || (formDoc.tipo_codigo + "_" + formDoc.nucleo_sigla + "_" + MESES[formDoc.mes - 1] + "_" + formDoc.ano)
       const res = await api.post("/dashboard/lancar", { ...formDoc, nome_arquivo: nome })
-      if (!res || !res.ok) throw new Error(res ? await res.text() : "sem resposta")
+      if (!res || !res.ok) {
+        let det = res ? await res.text() : "sem resposta"
+        try { const j = JSON.parse(det); if (typeof j.detail === "string") det = j.detail } catch {}
+        throw new Error(det)
+      }
       setMsg("OK — Documento registrado!")
       setFormDoc(p => ({ ...p, nome_arquivo: "", observacao: "" }))
       await carregar()
@@ -185,6 +198,24 @@ export default function Dashboard() {
     } finally {
       setSalvando(false)
     }
+  }
+
+  async function gerarRelatorio(periodo) {
+    setMenuPdf(false); setGerandoPdf(true)
+    try {
+      const res = await api.get(`/dashboard/relatorio/pdf?ano=${ano}&mes=${mes}&periodo=${periodo}`)
+      if (!res || !res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = periodo === "ano" ? `relatorio_produtividade_${ano}_anual.pdf`
+        : `relatorio_produtividade_${ano}_${String(mes).padStart(2, "0")}.pdf`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success("Relatório de produtividade gerado.")
+    } catch { toast.error("Falha ao gerar o relatório. Tente novamente.") }
+    finally { setGerandoPdf(false) }
   }
 
   async function excluir(id) {
@@ -200,7 +231,7 @@ export default function Dashboard() {
     }
   }
 
-  const TABS = [["geral", "Visão Geral"], ["documentos", "Por Documento"], ["lancamentos", "Lançamentos"], ["lancamento", "+ Lançamento"], ["radar", "📡 Radar de Risco"], ["autonomia", "⚡ Autonomia"]]
+  const TABS = [["geral", "Visão Geral"], ["documentos", "Por Documento"], ["lancamentos", "Lançamentos"], ["lancamento", "+ Lançamento"], ["pedidos", "📨 Pedidos de Pesquisa"], ["sync", "🔄 Sincronizar Drive"], ["radar", "📡 Radar de Risco"], ["autonomia", "⚡ Autonomia"]]
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%", overflow: "hidden", background: "#0B1120" }}>
@@ -215,11 +246,45 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 3 }}>
-            {[2025, 2026].map(a => (
-              <button key={a} onClick={() => setAno(a)} style={{ padding: "3px 9px", borderRadius: 5, border: "1px solid", fontSize: 11, fontFamily: MONO, cursor: "pointer", background: ano === a ? "#E8A020" : "#111827", color: ano === a ? "#0B1120" : "#94A3B8", borderColor: ano === a ? "#E8A020" : "rgba(255,255,255,0.1)", fontWeight: ano === a ? 700 : 400 }}>{a}</button>
-            ))}
+          <div style={{ position: "relative" }}>
+            <button disabled={gerandoPdf} onClick={() => setMenuPdf(v => !v)}
+              title="Gerar relatório de produtividade em PDF (para auditoria)"
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 6, cursor: gerandoPdf ? "not-allowed" : "pointer",
+                background: gerandoPdf ? "#1A2236" : "linear-gradient(135deg,#E8A020,#B45309)", border: "1px solid rgba(232,160,32,0.5)",
+                color: gerandoPdf ? "#94A3B8" : "#FFF", fontSize: 13, fontWeight: 700 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
+              </svg>
+              {gerandoPdf ? "Gerando…" : "Relatório PDF"} <span style={{ fontSize: 10 }}>▾</span>
+            </button>
+            {menuPdf && (
+              <>
+                <div onClick={() => setMenuPdf(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, width: 270, background: "#111827",
+                  border: "1px solid rgba(255,255,255,0.13)", borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  {[["mes", `Mensal — ${MESES[mes - 1]}/${ano}`, "Só o mês selecionado, com comparação"],
+                    ["ano", `Anual — ${ano}`, "Consolidado do ano, mês a mês"]].map(([per, tit, sub]) => (
+                    <button key={per} onClick={() => gerarRelatorio(per)}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "transparent",
+                        border: "none", borderBottom: "1px solid rgba(255,255,255,0.06)", cursor: "pointer" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(232,160,32,0.08)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#F1F5F9" }}>{tit}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
+          <select value={ano} onChange={e => setAno(parseInt(e.target.value))} title="Ano de referência"
+            style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #E8A020", background: "#0B1120", color: "#E8A020",
+              fontSize: 13, fontWeight: 700, fontFamily: MONO, cursor: "pointer", outline: "none", colorScheme: "dark" }}>
+            {anosLista.map(a => (
+              <option key={a} value={a}>{a}{(cat.anos_com_dados || []).includes(a) ? "" : " (sem lançamentos)"}</option>
+            ))}
+          </select>
           <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
             {MESES.map((m, i) => (
               <button key={i} onClick={() => setMes(i + 1)} style={{ padding: "3px 7px", borderRadius: 5, border: "1px solid", fontSize: 11, fontFamily: MONO, cursor: "pointer", background: mes === i + 1 ? "#0F172A" : "#111827", color: mes === i + 1 ? "#F1F5F9" : "#94A3B8", borderColor: mes === i + 1 ? "#475569" : "rgba(255,255,255,0.1)", fontWeight: mes === i + 1 ? 700 : 400 }}>{m}</button>
@@ -231,7 +296,10 @@ export default function Dashboard() {
       {/* ABAS */}
       <div style={{ display: "flex", gap: 4, padding: "8px 20px", background: "#111827", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
         {TABS.map(([id, label]) => (
-          <button key={id} onClick={() => setAba(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid", fontSize: 14.3, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: aba === id ? "#E8A020" : "transparent", color: aba === id ? "#0B1120" : "#94A3B8", borderColor: aba === id ? "#E8A020" : "transparent" }}>{label}</button>
+          <button key={id} onClick={() => setAba(id)} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid", fontSize: 14.3, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: aba === id ? "#E8A020" : "transparent", color: aba === id ? "#0B1120" : "#94A3B8", borderColor: aba === id ? "#E8A020" : "transparent" }}>{label}{id === "pedidos" && pendPedidos > 0 && (
+            <span style={{ marginLeft: 7, fontSize: 11, fontWeight: 800, fontFamily: MONO, padding: "1px 7px", borderRadius: 10,
+              background: aba === id ? "#0B1120" : "rgba(248,113,113,0.18)", color: aba === id ? "#E8A020" : "#F87171" }}>{pendPedidos}</span>
+          )}</button>
         ))}
       </div>
 
@@ -386,10 +454,16 @@ export default function Dashboard() {
                   <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                     <span style={{ fontSize: 11, fontWeight: 700, fontFamily: MONO, color: "#E8A020", background: "rgba(232,160,32,0.1)", padding: "2px 7px", borderRadius: 4, width: 90, textAlign: "center", flexShrink: 0 }}>{d.tipo}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nome_arquivo}</div>
+                      <div style={{ fontSize: 13.5, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nome_arquivo}
+                        {d.origem === "drive" && <span title="Importado das pastas do Drive" style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 800, fontFamily: MONO, padding: "1px 6px", borderRadius: 4, color: "#60A5FA", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.3)" }}>DRIVE</span>}
+                      </div>
                       <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: MONO }}>{d.nucleo}{d.unidade ? " · " + d.unidade : ""} · {MESES[(d.mes || 1) - 1]}/{d.ano}</div>
                     </div>
-                    <button onClick={() => excluir(d.id)} title="Excluir" style={{ padding: "5px 9px", borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.08)", color: "#F87171", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>✕</button>
+                    <button onClick={() => confirm({
+                      title: "Excluir lançamento",
+                      description: `"${(d.nome_arquivo || "").trim()}" será removido do Dashboard.` + (d.origem === "drive" ? " Como veio do Drive, ele não será importado de novo nas próximas sincronizações (dá para desfazer isso na aba Sincronizar Drive)." : ""),
+                      confirmLabel: "Excluir", destructive: true, onConfirm: () => excluir(d.id),
+                    })} title="Excluir" style={{ padding: "5px 9px", borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.08)", color: "#F87171", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>✕</button>
                   </div>
                 ))}
               </div>
@@ -427,7 +501,7 @@ export default function Dashboard() {
                     </Campo>
                     <Campo label="ANO" flex>
                       <select value={formDoc.ano} onChange={e => setFormDoc(p => ({ ...p, ano: parseInt(e.target.value) }))} style={selStyle}>
-                        <option value={2025}>2025</option><option value={2026}>2026</option>
+                        {anosLista.map(a => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </Campo>
                   </div>
@@ -444,6 +518,12 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* ═══ ABA: SINCRONIZAR COM O DRIVE ═══ */}
+            {aba === "sync" && <SyncDriveTab ano={ano} onAplicado={carregar} />}
+
+            {/* ═══ ABA: PEDIDOS DE PESQUISA SOCIAL ═══ */}
+            {aba === "pedidos" && <PedidosTab ano={ano} onResumo={r => setPendPedidos(r?.pendentes || 0)} />}
+
             {/* ═══ ABA: RADAR DE RISCO ═══ */}
             {aba === "radar" && <RadarRiscoTab />}
 
@@ -451,6 +531,482 @@ export default function Dashboard() {
             {aba === "autonomia" && <AutonomiTab />}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Sincronização com as pastas anuais do Drive ──────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function SyncDriveTab({ ano, onAplicado }) {
+  const [anos, setAnos] = useState([ano])
+  const [prev, setPrev] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [aplicando, setAplicando] = useState(false)
+  const [lendo, setLendo] = useState(false)
+  const [verNovos, setVerNovos] = useState(false)
+  const [verLac, setVerLac] = useState(false)
+  const [lotes, setLotes] = useState([])
+
+  const carregarLotes = useCallback(async () => {
+    try {
+      const r = await api.get("/dashboard/sync-drive/lotes")
+      if (r?.ok) setLotes((await r.json()).lotes || [])
+    } catch {}
+  }, [])
+  useEffect(() => { carregarLotes() }, [carregarLotes])
+
+  const analisar = useCallback(async (lista) => {
+    setLoading(true)
+    try {
+      const r = await api.get(`/dashboard/sync-drive/previa?anos=${lista.join(",")}`)
+      if (!r?.ok) throw new Error()
+      setPrev(await r.json())
+    } catch { toast.error("Falha ao analisar as pastas do Drive.") }
+    finally { setLoading(false) }
+  }, [])
+  useEffect(() => { analisar(anos) }, [anos, analisar])
+
+  const toggleAno = (a) => setAnos(l => l.includes(a) ? (l.length > 1 ? l.filter(x => x !== a) : l) : [...l, a].sort())
+
+  async function atualizarIndice() {
+    setLendo(true)
+    try {
+      const r = await api.post("/dashboard/sync-drive/atualizar-indice", {})
+      if (!r?.ok) { const d = await r?.json().catch(() => ({})); throw new Error(d?.detail || "Falha ao iniciar") }
+      toast.warn("Lendo as pastas do Drive… pode levar alguns minutos.")
+      for (let i = 0; i < 450; i++) {          // até ~30 min
+        await new Promise(res => setTimeout(res, 4000))
+        const st = await api.get("/dashboard/sync-drive/status").then(x => x.json()).catch(() => null)
+        if (st && !st.rodando) {
+          if (st.erro) toast.error("Leitura do Drive falhou: " + st.erro)
+          else toast.success("Leitura do Drive atualizada.")
+          break
+        }
+      }
+      await analisar(anos)
+    } catch (e) { toast.error(e.message || "Erro ao atualizar a leitura do Drive.") }
+    finally { setLendo(false) }
+  }
+
+  const totalNovos = prev ? prev.resumo.reduce((s2, r) => s2 + r.novos, 0) : 0
+  const totalIgnorados = prev ? prev.resumo.reduce((s2, r) => s2 + (r.ignorados || 0), 0) : 0
+
+  function desfazerLote(l) {
+    confirm({
+      title: "Desfazer lançamento em lote",
+      description: `Os ${l.restantes} documento(s) lançados em ${new Date(l.criado_em).toLocaleString("pt-BR")} serão REMOVIDOS do Dashboard. Seus lançamentos manuais e os de outros lotes não são afetados. Os números voltam a aparecer como "novos" na próxima análise.`,
+      confirmLabel: "Desfazer lote", destructive: true,
+      onConfirm: async () => {
+        try {
+          const r = await api.delete(`/dashboard/sync-drive/lotes/${l.id}`)
+          if (!r?.ok) throw new Error()
+          const d = await r.json()
+          toast.success(`${d.removidos} lançamento(s) removido(s).`)
+          await analisar(anos); carregarLotes(); onAplicado?.()
+        } catch { toast.error("Falha ao desfazer o lote.") }
+      },
+    })
+  }
+
+  async function restaurarIgnorados() {
+    try {
+      const r = await api.post("/dashboard/sync-drive/restaurar-ignorados", { anos })
+      if (!r?.ok) throw new Error()
+      const d = await r.json()
+      toast.success(`${d.restaurados} número(s) voltaram a ser considerados.`)
+      analisar(anos)
+    } catch { toast.error("Falha ao restaurar.") }
+  }
+
+  function aplicar() {
+    confirm({
+      title: `Lançar ${totalNovos} documento(s) novo(s)`,
+      description: "Serão lançados apenas os números que ainda não existem no Dashboard (um por tipo + número + ano). RELINT entra no NI e RELTEC no NCI. Documentos já lançados e os que estão em revisão não são tocados. Dá para repetir sem risco de duplicar.",
+      confirmLabel: "Lançar",
+      onConfirm: async () => {
+        setAplicando(true)
+        try {
+          const r = await api.post("/dashboard/sync-drive/aplicar", { anos, permitir_mes_estimado: true })
+          if (!r?.ok) throw new Error()
+          const d = await r.json()
+          toast.success(`${d.inseridos} documento(s) lançado(s). Se se arrepender, use "Desfazer este lote" logo abaixo.`)
+          await analisar(anos); carregarLotes(); onAplicado?.()
+        } catch { toast.error("Falha ao lançar os documentos.") }
+        finally { setAplicando(false) }
+      },
+    })
+  }
+
+  const card = { background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10 }
+  const th = { fontSize: 12, fontWeight: 700, color: "#94A3B8", textAlign: "right", padding: "8px 12px", fontFamily: MONO, letterSpacing: "0.06em" }
+  const td = { fontSize: 14, color: "#F1F5F9", textAlign: "right", padding: "9px 12px", fontFamily: MONO, borderTop: "1px solid rgba(255,255,255,0.05)" }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ ...card, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#E8A020", letterSpacing: "0.08em", textTransform: "uppercase" }}>Sincronizar com as pastas do Drive</div>
+          <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4, lineHeight: 1.55 }}>
+            Lê as pastas anuais de RELINTs e RELTECs e lança o que ainda não está no controle. Cada documento é identificado por <b style={{ color: "#CBD5E1" }}>tipo + número + ano</b> (ex.: RELINT 084-2025): cópias em PDF/DOCX do mesmo número contam <b style={{ color: "#CBD5E1" }}>uma vez só</b>.
+            {" "}RELINT → <b style={{ color: "#CBD5E1" }}>NI</b> · RELTEC → <b style={{ color: "#CBD5E1" }}>NCI</b>.
+          </div>
+          <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: MONO, marginTop: 6 }}>
+            Leitura do Drive de: <b style={{ color: "#F1F5F9" }}>{prev?.indice?.gerado_em || prev?.gerado_em_indice || "—"}</b>
+          </div>
+        </div>
+        <button disabled={lendo} onClick={atualizarIndice} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
+          color: lendo ? "#94A3B8" : "#CBD5E1", fontSize: 13.5, fontWeight: 700, cursor: lendo ? "not-allowed" : "pointer" }}>
+          {lendo ? "Lendo o Drive…" : "↻ Atualizar leitura do Drive"}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", fontFamily: MONO }}>ANOS:</span>
+        {(prev?.anos_disponiveis || [ano]).slice().reverse().map(a => (
+          <button key={a} onClick={() => toggleAno(a)} style={{ padding: "4px 12px", borderRadius: 14, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: MONO,
+            border: "1px solid " + (anos.includes(a) ? "#E8A020" : "rgba(255,255,255,0.1)"),
+            background: anos.includes(a) ? "rgba(232,160,32,0.14)" : "transparent", color: anos.includes(a) ? "#E8A020" : "#94A3B8" }}>{a}</button>
+        ))}
+      </div>
+
+      {loading && <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 13, padding: 16 }}>Analisando as pastas…</div>}
+
+      {!loading && prev && (
+        <>
+          <div style={{ ...card, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                  <th style={{ ...th, textAlign: "left" }}>DOCUMENTO</th><th style={th}>NÚCLEO</th><th style={th}>NO DRIVE</th>
+                  <th style={th}>JÁ LANÇADOS</th><th style={th}>NOVOS</th><th style={th}>A REVISAR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prev.resumo.length === 0 && <tr><td colSpan={6} style={{ ...td, textAlign: "center", color: "#94A3B8" }}>Nenhum RELINT/RELTEC encontrado nos anos selecionados.</td></tr>}
+                {prev.resumo.map(r => (
+                  <tr key={r.tipo + r.ano}>
+                    <td style={{ ...td, textAlign: "left", fontWeight: 700 }}>{r.tipo} {r.ano}</td>
+                    <td style={td}>{r.nucleo}</td>
+                    <td style={td}>{r.no_drive}</td>
+                    <td style={td}>{r.ja_lancados}</td>
+                    <td style={{ ...td, color: r.novos ? "#4ADE80" : "#94A3B8", fontWeight: 800 }}>{r.novos}</td>
+                    <td style={{ ...td, color: r.revisar ? "#FBBF24" : "#94A3B8", fontWeight: 800 }}>{r.revisar}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {prev.resumo.some(r => r.lancados_fora_do_drive?.length > 0) && (
+            <div style={{ ...card, padding: "12px 16px", fontSize: 13.5, color: "#FBBF24", borderColor: "rgba(251,191,36,0.3)" }}>
+              ⚠ Há números lançados no Dashboard que não aparecem no Drive:{" "}
+              {prev.resumo.filter(r => r.lancados_fora_do_drive?.length).map(r => `${r.tipo} ${r.ano} (${r.lancados_fora_do_drive.join(", ")})`).join(" · ")}
+            </div>
+          )}
+
+          <div style={{ ...card, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ fontSize: 15, color: "#F1F5F9", fontWeight: 700 }}>
+                {totalNovos > 0 ? `${totalNovos} documento(s) novo(s) pronto(s) para lançar` : "Tudo em dia: nada novo para lançar nos anos selecionados."}
+              </div>
+              {prev.mes_estimado > 0 && (
+                <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: 4 }}>
+                  {prev.mes_estimado} deles estão sem pasta de mês no Drive; o mês será estimado pela data do arquivo.
+                </div>
+              )}
+            </div>
+            {totalNovos > 0 && (
+              <button onClick={() => setVerNovos(v => !v)} style={{ background: "transparent", border: "none", color: "#E8A020", cursor: "pointer", fontSize: 13, fontFamily: MONO }}>
+                {verNovos ? "▾ ocultar lista" : "▸ ver lista"}
+              </button>
+            )}
+            <button disabled={totalNovos === 0 || aplicando} onClick={aplicar} style={{ padding: "10px 22px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 14,
+              background: totalNovos === 0 || aplicando ? "#1A2236" : "linear-gradient(135deg,#E8A020,#B45309)", color: totalNovos === 0 || aplicando ? "#94A3B8" : "#FFF",
+              cursor: totalNovos === 0 || aplicando ? "not-allowed" : "pointer" }}>
+              {aplicando ? "Lançando…" : `Lançar ${totalNovos} novo(s)`}
+            </button>
+          </div>
+
+          {verNovos && (
+            <div style={{ ...card, maxHeight: 340, overflowY: "auto" }}>
+              {prev.novos.map(n => (
+                <div key={n.nome} style={{ display: "flex", gap: 10, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13.5 }}>
+                  <span style={{ fontFamily: MONO, color: "#E8A020", width: 215, flexShrink: 0 }}>{n.nome}</span>
+                  <span style={{ flex: 1, minWidth: 0, color: "#E2E8F0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.assunto}</span>
+                  <span style={{ fontFamily: MONO, color: "#94A3B8", flexShrink: 0 }}>{MESES[n.mes - 1]}{n.mes_estimado ? "*" : ""} · {n.nucleo}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {prev.revisar.length > 0 && (
+            <div style={{ ...card, borderColor: "rgba(251,191,36,0.3)", overflow: "hidden" }}>
+              <div style={{ padding: "10px 16px", fontSize: 13, fontWeight: 800, color: "#FBBF24", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                A revisar — não serão lançados automaticamente ({prev.revisar.length})
+              </div>
+              {prev.revisar.map(n => (
+                <div key={n.nome} style={{ padding: "8px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 13.5 }}>
+                  <span style={{ fontFamily: MONO, color: "#FBBF24" }}>{n.nome}</span>
+                  <div style={{ color: "#CBD5E1", marginTop: 2 }}>{n.motivo}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {totalIgnorados > 0 && (
+            <div style={{ ...card, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ flex: 1, minWidth: 240, fontSize: 13.5, color: "#CBD5E1" }}>
+                {totalIgnorados} documento(s) foram excluídos por você e <b>não serão importados de novo</b>.
+              </span>
+              <button onClick={restaurarIgnorados} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "#CBD5E1", fontSize: 13, cursor: "pointer" }}>
+                Voltar a considerar
+              </button>
+            </div>
+          )}
+
+          {lotes.length > 0 && (
+            <div style={{ ...card, overflow: "hidden" }}>
+              <div style={{ padding: "10px 16px", fontSize: 13, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Lançamentos feitos por esta tela
+              </div>
+              {lotes.map(l => (
+                <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 240 }}>
+                    <div style={{ fontSize: 14, color: "#F1F5F9" }}>
+                      {new Date(l.criado_em).toLocaleString("pt-BR")} · {l.usuario || "—"} · anos {l.anos}
+                    </div>
+                    <div style={{ fontSize: 12.5, fontFamily: MONO, color: l.desfeito_em ? "#94A3B8" : "#4ADE80", marginTop: 2 }}>
+                      {l.desfeito_em
+                        ? `desfeito em ${new Date(l.desfeito_em).toLocaleString("pt-BR")} por ${l.desfeito_por || "—"}`
+                        : `${l.inseridos} lançado(s) · ${l.restantes} ainda no Dashboard`}
+                    </div>
+                  </div>
+                  {!l.desfeito_em && l.restantes > 0 && (
+                    <button onClick={() => desfazerLote(l)} style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.08)", color: "#F87171", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      ↶ Desfazer este lote
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {prev.lacunas.length > 0 && (
+            <div style={{ ...card, padding: "12px 16px" }}>
+              <button onClick={() => setVerLac(v => !v)} style={{ background: "transparent", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: 13.5, padding: 0 }}>
+                {verLac ? "▾" : "▸"} Lacunas na numeração ({prev.lacunas.reduce((s2, l) => s2 + l.numeros.length, 0)} números ausentes no Drive)
+              </button>
+              {verLac && prev.lacunas.map(l => (
+                <div key={l.tipo + l.ano} style={{ marginTop: 8, fontSize: 13, color: "#CBD5E1", fontFamily: MONO, lineHeight: 1.6 }}>
+                  <b>{l.tipo} {l.ano}</b> (até o nº {l.maior}): {l.numeros.map(n => String(n).padStart(3, "0")).join(", ")}
+                </div>
+              ))}
+              {verLac && <div style={{ marginTop: 8, fontSize: 12.5, color: "#94A3B8" }}>Números que não existem nas pastas — podem nunca ter sido emitidos ou estar fora do Drive. Nada é lançado para eles.</div>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Pedidos de pesquisa social (e-mail institucional) ────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+const hojeISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+const fmtData = (iso) => iso ? iso.slice(0, 10).split("-").reverse().join("/") : "—"
+const PED_VAZIO = () => ({ autor: "", email_solicitante: "", data_pedido: hojeISO(), assunto: "", respondido: false, data_resposta: hojeISO(), email_resposta: "" })
+
+function PedidosTab({ ano, onResumo }) {
+  const [dados, setDados] = useState({ pedidos: [], resumo: { total: 0, respondidos: 0, pendentes: 0, prazo_medio: null } })
+  const [loading, setLoading] = useState(true)
+  const [filtro, setFiltro] = useState("todos")
+  const [busca, setBusca] = useState("")
+  const [form, setForm] = useState(null)      // null = fechado | {id?, ...campos}
+  const [salvando, setSalvando] = useState(false)
+  const [aberto, setAberto] = useState(null)  // id com texto do e-mail expandido
+
+  const carregar = useCallback(async () => {
+    try {
+      const r = await api.get(`/dashboard/pedidos?ano=${ano}`)
+      if (r?.ok) { const d = await r.json(); setDados(d); onResumo?.(d.resumo) }
+      else toast.error("Falha ao carregar pedidos.")
+    } catch { toast.error("Erro de conexão ao carregar pedidos.") }
+    finally { setLoading(false) }
+  }, [ano])
+  useEffect(() => { setLoading(true); carregar() }, [carregar])
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function salvar() {
+    if (!form.autor.trim()) return toast.error("Informe o autor do pedido.")
+    if (!form.assunto.trim()) return toast.error("Informe o assunto.")
+    if (!form.data_pedido) return toast.error("Informe a data do pedido.")
+    if (form.respondido && form.data_resposta < form.data_pedido) return toast.error("A data da resposta não pode ser anterior à do pedido.")
+    setSalvando(true)
+    try {
+      const { id, ...corpo } = form
+      const r = id ? await api.put(`/dashboard/pedidos/${id}`, corpo) : await api.post("/dashboard/pedidos", corpo)
+      if (!r?.ok) { const d = await r?.json().catch(() => ({})); throw new Error(typeof d?.detail === "string" ? d.detail : "Falha ao salvar.") }
+      toast.success(id ? "Pedido atualizado." : "Pedido registrado.")
+      setForm(null); await carregar()
+    } catch (e) { toast.error(e.message || "Erro ao salvar o pedido.") }
+    finally { setSalvando(false) }
+  }
+
+  function excluirPedido(p) {
+    confirm({
+      title: "Excluir pedido",
+      description: `O pedido "${p.assunto}" (${p.autor}) será removido do registro. Esta ação não pode ser desfeita.`,
+      confirmLabel: "Excluir", destructive: true,
+      onConfirm: async () => {
+        try {
+          const r = await api.delete(`/dashboard/pedidos/${p.id}`)
+          if (r?.ok) { toast.success("Pedido excluído."); carregar() } else toast.error("Falha ao excluir.")
+        } catch { toast.error("Erro de conexão.") }
+      },
+    })
+  }
+
+  const abrirEdicao = (p, responder = false) => setForm({
+    id: p.id, autor: p.autor, email_solicitante: p.email_solicitante || "", data_pedido: p.data_pedido, assunto: p.assunto,
+    respondido: responder ? true : p.respondido, data_resposta: p.data_resposta || hojeISO(), email_resposta: p.email_resposta || "",
+  })
+
+  const q = busca.trim().toLowerCase()
+  const lista = dados.pedidos.filter(p =>
+    (filtro === "todos" || (filtro === "pendente" ? !p.respondido : p.respondido)) &&
+    (!q || p.autor.toLowerCase().includes(q) || p.assunto.toLowerCase().includes(q) || (p.email_solicitante || "").toLowerCase().includes(q)))
+  const r = dados.resumo
+
+  const kpis = [
+    ["Recebidos", r.total, "#60A5FA", `em ${ano}`],
+    ["Pendentes", r.pendentes, r.pendentes ? "#F87171" : "#4ADE80", "aguardando resposta"],
+    ["Respondidos", r.respondidos, "#4ADE80", r.total ? `${Math.round(r.respondidos / r.total * 100)}% do total` : "—"],
+    ["Prazo médio", r.prazo_medio != null ? String(r.prazo_medio).replace(".", ",") + " d" : "—", "#E8A020", "dias até responder"],
+  ]
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+        {kpis.map(([t, v, cor, sub]) => (
+          <div key={t} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderTop: `3px solid ${cor}`, borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO, marginBottom: 6 }}>{t}</div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: "#F1F5F9", lineHeight: 1, fontFamily: MONO }}>{v}</div>
+            <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 5, fontFamily: MONO }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {[["todos", "Todos"], ["pendente", "Pendentes"], ["respondido", "Respondidos"]].map(([id, lb]) => (
+          <button key={id} onClick={() => setFiltro(id)} style={{ padding: "5px 13px", borderRadius: 16, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            border: "1px solid " + (filtro === id ? "#E8A020" : "rgba(255,255,255,0.1)"),
+            background: filtro === id ? "rgba(232,160,32,0.14)" : "transparent", color: filtro === id ? "#E8A020" : "#94A3B8" }}>{lb}</button>
+        ))}
+        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar autor, assunto ou e-mail…" style={{ ...inpStyle, width: 260, marginLeft: 6 }} />
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setForm(PED_VAZIO())} style={{ padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer",
+          background: "linear-gradient(135deg,#E8A020,#B45309)", color: "#FFF", fontWeight: 800, fontSize: 14 }}>+ Novo pedido</button>
+      </div>
+
+      {form && (
+        <div style={{ background: "#111827", border: "1px solid rgba(232,160,32,0.35)", borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#E8A020", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
+            {form.id ? "Editar pedido" : "Registrar pedido de pesquisa social"}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+            <Campo label="AUTOR DO PEDIDO *"><input value={form.autor} onChange={e => set("autor", e.target.value)} placeholder="Quem solicitou (nome / órgão)" style={inpStyle} /></Campo>
+            <Campo label="DATA DO PEDIDO *"><input type="date" value={form.data_pedido} onChange={e => set("data_pedido", e.target.value)} style={{ ...inpStyle, colorScheme: "dark" }} /></Campo>
+            <Campo label="E-MAIL DO SOLICITANTE"><input value={form.email_solicitante} onChange={e => set("email_solicitante", e.target.value)} placeholder="opcional" style={inpStyle} /></Campo>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Campo label="ASSUNTO *"><input value={form.assunto} onChange={e => set("assunto", e.target.value)} placeholder="Resumo do pedido de pesquisa" style={inpStyle} /></Campo>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", marginBottom: 6 }}>SITUAÇÃO</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[[false, "Pendente", "#F87171"], [true, "Respondido", "#4ADE80"]].map(([val, lb, cor]) => (
+                <button key={lb} onClick={() => set("respondido", val)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: "pointer",
+                  border: `1px solid ${form.respondido === val ? cor : "rgba(255,255,255,0.1)"}`,
+                  background: form.respondido === val ? cor + "22" : "transparent", color: form.respondido === val ? cor : "#94A3B8" }}>
+                  {val ? "✓ " : "● "}{lb}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.respondido && (
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 3fr", gap: 12 }}>
+              <Campo label="DATA DA RESPOSTA"><input type="date" value={form.data_resposta} onChange={e => set("data_resposta", e.target.value)} style={{ ...inpStyle, colorScheme: "dark" }} /></Campo>
+              <Campo label="E-MAIL RESPONDIDO (texto enviado / resumo da resposta)">
+                <textarea value={form.email_resposta} onChange={e => set("email_resposta", e.target.value)} rows={4}
+                  placeholder="Cole aqui o e-mail que foi enviado em resposta…" style={{ ...inpStyle, resize: "vertical", lineHeight: 1.55 }} />
+              </Campo>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+            <button onClick={() => setForm(null)} style={{ padding: "8px 18px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "#94A3B8", cursor: "pointer", fontSize: 14 }}>Cancelar</button>
+            <button disabled={salvando} onClick={salvar} style={{ padding: "8px 22px", borderRadius: 7, border: "none", fontWeight: 800, fontSize: 14,
+              background: salvando ? "#1A2236" : "#B45309", color: salvando ? "#94A3B8" : "#FFF", cursor: salvando ? "not-allowed" : "pointer" }}>
+              {salvando ? "Salvando…" : form.id ? "Salvar alterações" : "Registrar pedido"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+        {loading && <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 13, padding: 20 }}>Carregando pedidos…</div>}
+        {!loading && lista.length === 0 && (
+          <div style={{ color: "#94A3B8", fontFamily: MONO, fontSize: 13, padding: 28, textAlign: "center" }}>
+            {dados.pedidos.length === 0 ? `Nenhum pedido registrado em ${ano}.` : "Nenhum pedido corresponde ao filtro."}
+          </div>
+        )}
+        {lista.map(p => {
+          const cor = p.respondido ? "#4ADE80" : "#F87171"
+          return (
+            <div key={p.id} style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)", borderLeft: `3px solid ${cor}` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, fontFamily: MONO, padding: "3px 10px", borderRadius: 5, flexShrink: 0, marginTop: 2,
+                  color: cor, background: cor + "1F", border: `1px solid ${cor}55` }}>{p.respondido ? "RESPONDIDO" : "PENDENTE"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 700, color: "#F1F5F9", lineHeight: 1.35 }}>{p.assunto}</div>
+                  <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4, fontFamily: MONO, lineHeight: 1.6 }}>
+                    {p.autor}{p.email_solicitante ? ` · ${p.email_solicitante}` : ""} · pedido em <b style={{ color: "#CBD5E1" }}>{fmtData(p.data_pedido)}</b>
+                    {p.respondido
+                      ? <> · respondido em <b style={{ color: "#4ADE80" }}>{fmtData(p.data_resposta)}</b> ({p.dias_resposta} {p.dias_resposta === 1 ? "dia" : "dias"})</>
+                      : <> · <b style={{ color: "#F87171" }}>há {p.dias_em_aberto} {p.dias_em_aberto === 1 ? "dia" : "dias"} em aberto</b></>}
+                  </div>
+                  {p.respondido && p.email_resposta && (
+                    <div style={{ marginTop: 8 }}>
+                      <button onClick={() => setAberto(aberto === p.id ? null : p.id)} style={{ background: "transparent", border: "none", color: "#E8A020", cursor: "pointer", fontSize: 13, fontFamily: MONO, padding: 0 }}>
+                        {aberto === p.id ? "▾ ocultar e-mail respondido" : "▸ ver e-mail respondido"}
+                      </button>
+                      {aberto === p.id && (
+                        <div style={{ marginTop: 6, whiteSpace: "pre-wrap", fontSize: 14, color: "#E2E8F0", lineHeight: 1.6, background: "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: "10px 14px" }}>{p.email_resposta}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {!p.respondido && (
+                    <button onClick={() => abrirEdicao(p, true)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(74,222,128,0.4)", background: "rgba(74,222,128,0.1)", color: "#4ADE80", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✓ Marcar respondido</button>
+                  )}
+                  <button onClick={() => abrirEdicao(p)} title="Editar" style={{ padding: "6px 10px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer" }}>✎</button>
+                  <button onClick={() => excluirPedido(p)} title="Excluir" style={{ padding: "6px 10px", borderRadius: 7, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.08)", color: "#F87171", fontSize: 13, cursor: "pointer" }}>✕</button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
