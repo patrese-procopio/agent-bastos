@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import api from "./api"
 import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
 
 // Líderes Gerais agora vive como aba interna — lazy-loaded on demand
 const LideresGerais = lazy(() => import("./LideresGerais"))
@@ -92,6 +93,182 @@ function Campo({ label, children, required }) {
         {label}{required&&<span style={{color:"#EF4444"}}> *</span>}
       </label>
       {children}
+    </div>
+  )
+}
+
+// ── Modal Copiar para outro mês ───────────────────────────────────────────────
+const proxMes = c => {
+  try { const [a, m] = c.split("-").map(Number); const d = new Date(a, m, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` } catch { return "" }
+}
+
+function ModalCopiar({ unidade, unidadeLabel, competencia, competencias, onFechar, onConcluido }) {
+  const [origem,  setOrigem]  = useState(competencia)
+  const [destino, setDestino] = useState(proxMes(competencia))
+  const [escopo,  setEscopo]  = useState("unidade")        // "unidade" | "todas"
+  const [previa,  setPrevia]  = useState(null)
+  const [carregando, setCarregando] = useState(false)
+  const [copiando,   setCopiando]   = useState(false)
+  const [lotes, setLotes] = useState([])
+  const [erroPrevia, setErroPrevia] = useState(null)
+  const [recarga, setRecarga] = useState(0)     // força recalcular a prévia após copiar/desfazer
+
+  const valido = /^\d{4}-(0[1-9]|1[0-2])$/.test(destino) && !!origem && origem !== destino
+  const param  = escopo === "todas" ? "todas" : unidade
+
+  const carregarLotes = async () => {
+    try { const r = await api.get("/liderancas/copia/lotes"); if (r.ok) setLotes((await r.json()).lotes || []) } catch {}
+  }
+  useEffect(() => { carregarLotes() }, [])
+
+  useEffect(() => {
+    if (!valido) { setPrevia(null); return }
+    let vivo = true
+    setCarregando(true); setErroPrevia(null)
+    api.get(`/liderancas/copia/previa?origem=${origem}&destino=${destino}&unidades=${param}`)
+      .then(r => { if (!r.ok) { if (vivo) setErroPrevia(r.status); return null } return r.json() })
+      .then(d => { if (vivo) { setPrevia(d); setCarregando(false) } })
+      .catch(() => { if (vivo) { setErroPrevia(0); setCarregando(false) } })
+    return () => { vivo = false }
+  }, [origem, destino, escopo, unidade, recarga])
+
+  async function copiar() {
+    setCopiando(true)
+    try {
+      const r = await api.post("/liderancas/copia", { origem, destino, unidades: escopo === "todas" ? null : [unidade] })
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Falha ao copiar.") }
+      const d = await r.json()
+      toast.success(d.copiados
+        ? `${d.copiados} líder(es) copiado(s) para ${fmtComp(destino)}` + (d.ignorados ? ` · ${d.ignorados} já existiam e foram pulados` : "")
+        : "Nada novo para copiar: todos já existem no destino.")
+      await carregarLotes()
+      setRecarga(n => n + 1)
+      if (d.copiados) onConcluido?.(destino)
+    } catch (e) { toast.error(e.message || "Erro ao copiar.") }
+    finally { setCopiando(false) }
+  }
+
+  function desfazer(l) {
+    confirm({
+      title: "Desfazer cópia",
+      description: `Remove os líderes que esta cópia criou em ${fmtComp(l.destino)}. Quem foi editado depois fica como está, e os meses de origem não são afetados.`,
+      confirmLabel: "Desfazer", destructive: true,
+      onConfirm: async () => {
+        try {
+          const r = await api.delete(`/liderancas/copia/lotes/${l.id}`)
+          if (!r.ok) throw new Error()
+          const d = await r.json()
+          toast.success(`${d.removidos} removido(s)` + (d.mantidos_por_edicao ? ` · ${d.mantidos_por_edicao} mantido(s) por já terem sido editados` : ""))
+          await carregarLotes(); setRecarga(n => n + 1); onConcluido?.(l.destino)
+        } catch { toast.error("Falha ao desfazer a cópia.") }
+      },
+    })
+  }
+
+  const rotulo = { fontSize: 11, fontWeight: 700, color: C.textMid, fontFamily: MONO, letterSpacing: "0.1em", marginBottom: 6 }
+  const chip = ativo => ({ padding: "7px 14px", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: MONO,
+    border: `1px solid ${ativo ? C.accent : C.border}`, background: ativo ? "rgba(232,160,32,0.14)" : "transparent", color: ativo ? C.accent : C.textMid })
+  const aCopiar = previa?.a_copiar ?? 0
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
+      <div style={{background:C.surface,borderRadius:8,width:"100%",maxWidth:600,maxHeight:"92vh",border:`1px solid ${C.border}`,
+        display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"14px 20px",background:C.surfaceUp,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>COPIAR LIDERANÇAS PARA OUTRO MÊS</div>
+            <div style={{fontSize:12,color:C.textMid,marginTop:3}}>Quem já está no mês de destino é pulado — nada é duplicado.</div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,width:30,height:30,cursor:"pointer",color:C.textMid,fontSize:16}}>×</button>
+        </div>
+
+        <div style={{padding:20,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <div style={rotulo}>COPIAR DE</div>
+              <select value={origem} onChange={e=>setOrigem(e.target.value)} style={iStyle}>
+                {(competencias.length ? competencias : [competencia]).map(c => <option key={c} value={c}>{fmtComp(c)}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={rotulo}>PARA O MÊS</div>
+              <input type="month" value={destino} onChange={e=>setDestino(e.target.value)} style={{...iStyle,colorScheme:"dark"}}/>
+            </div>
+          </div>
+
+          <div>
+            <div style={rotulo}>O QUE COPIAR</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setEscopo("unidade")} style={chip(escopo==="unidade")}>Só {unidadeLabel}</button>
+              <button onClick={()=>setEscopo("todas")}   style={chip(escopo==="todas")}>Todas as unidades</button>
+            </div>
+          </div>
+
+          <div style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"14px 16px",minHeight:70}}>
+            {!valido && <div style={{fontSize:13,color:C.textMid}}>{origem === destino ? "Escolha um mês de destino diferente do de origem." : "Escolha o mês de destino."}</div>}
+            {valido && carregando && <div style={{fontSize:13,color:C.textMid}}>Calculando…</div>}
+            {valido && !carregando && !previa && erroPrevia !== null && (
+              <div style={{fontSize:13,color:"#FBBF24",lineHeight:1.5}}>
+                {erroPrevia === 404
+                  ? "O servidor ainda não tem esta função ativada. Reinicie o backend (iniciar.bat) e abra esta janela de novo."
+                  : erroPrevia === 0 ? "Sem conexão com o servidor." : `Não foi possível calcular a prévia (erro ${erroPrevia}).`}
+              </div>
+            )}
+            {valido && !carregando && previa && (
+              previa.na_origem === 0
+                ? <div style={{fontSize:13,color:"#FBBF24"}}>Não há líderes em {fmtComp(origem)} {escopo==="unidade" ? `na unidade ${unidadeLabel}` : ""} para copiar.</div>
+                : <>
+                    <div style={{fontSize:15,color:C.text,lineHeight:1.5}}>
+                      <b style={{color:C.accent}}>{previa.a_copiar}</b> líder(es) serão copiados de {fmtComp(origem)} para {fmtComp(destino)}
+                      {previa.ja_existem > 0 && <> · <b>{previa.ja_existem}</b> já existem no destino e serão pulados</>}.
+                    </div>
+                    <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
+                      {previa.por_unidade.map(d => (
+                        <div key={d.unidade} style={{display:"flex",justifyContent:"space-between",fontSize:12.5,fontFamily:MONO,color:C.textMid}}>
+                          <span>{d.label}</span>
+                          <span><b style={{color:d.a_copiar?"#4ADE80":C.textDim}}>{d.a_copiar}</b> a copiar · {d.ja_existem} já existem</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+            )}
+            {valido && destino < origem && (
+              <div style={{marginTop:10,fontSize:11,color:C.textDim}}>Mês anterior: os cartões copiados ficam com uma marca discreta de origem.</div>
+            )}
+          </div>
+
+          {lotes.length > 0 && (
+            <div>
+              <div style={rotulo}>CÓPIAS RECENTES</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {lotes.map(l => (
+                  <div key={l.id} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",border:`1px solid ${C.border}`,borderRadius:4,fontSize:12,color:C.textMid,fontFamily:MONO}}>
+                    <span style={{flex:1}}>
+                      {new Date(l.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · {fmtComp(l.origem)} → <b style={{color:C.text}}>{fmtComp(l.destino)}</b> · {l.copiados} líder(es) · {l.usuario||"—"}
+                      {l.desfeito_em && <span style={{color:C.textDim}}> · desfeita</span>}
+                    </span>
+                    {!l.desfeito_em && l.intactos > 0 && (
+                      <button onClick={()=>desfazer(l)} style={{padding:"3px 10px",borderRadius:4,border:"1px solid rgba(248,113,113,0.35)",background:"rgba(248,113,113,0.08)",color:"#F87171",fontSize:11,cursor:"pointer",fontFamily:MONO}}>↶ desfazer</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"flex-end",gap:8,background:C.surfaceUp}}>
+          <button onClick={onFechar} style={{padding:"8px 16px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textMid,fontSize:12,cursor:"pointer",fontFamily:MONO}}>Fechar</button>
+          <button disabled={!valido || copiando || carregando || aCopiar === 0} onClick={copiar}
+            style={{padding:"8px 20px",borderRadius:4,border:"none",fontSize:12,fontWeight:700,fontFamily:MONO,
+              background:(!valido||copiando||carregando||aCopiar===0)?C.surfaceUp:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+              color:(!valido||copiando||carregando||aCopiar===0)?C.textDim:"#FFF",
+              cursor:(!valido||copiando||carregando||aCopiar===0)?"not-allowed":"pointer"}}>
+            {copiando ? "Copiando…" : `Copiar ${aCopiar} líder(es)`}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -452,6 +629,10 @@ function CardLider({ lider, onEditar, onDeletar }) {
           {lider.ala && <span style={chipMeta}>{lider.ala}</span>}
           {lider.cela && <span style={chipMeta}>Cela {lider.cela}</span>}
           {lider.competencia && <span style={{color:"#E8A020",fontWeight:700}}>{fmtComp(lider.competencia)}</span>}
+          {lider.copiado_de && (
+            <span title={`Copiado de ${fmtComp(lider.copiado_de)}. A marca some quando o cartão é editado.`}
+              style={{fontSize:10.5,color:"#64748B",opacity:0.75,cursor:"help"}}>↳ {fmtComp(lider.copiado_de)}</span>
+          )}
         </div>
 
         {lider.observacao && (
@@ -542,6 +723,7 @@ export default function LiderancasUnidade({ onNavigate }) {
   const [loading,     setLoading]     = useState(true)
   const [modal,       setModal]       = useState(null)
   const [modalPDF,    setModalPDF]    = useState(false)
+  const [modalCopia,  setModalCopia]  = useState(false)
   const [busca,       setBusca]       = useState("")
   // [toast local removido — usa toast global de ./Toast]
   const [compAtual,   setCompAtual]   = useState("")
@@ -701,6 +883,11 @@ export default function LiderancasUnidade({ onNavigate }) {
             fontSize:12,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",gap:5}}>
             <span style={{color:"#EF4444"}}>PDF</span>
           </button>
+          <button onClick={()=>setModalCopia(true)} title="Copiar as lideranças deste mês para outro mês (pula quem já existe)"
+            style={{padding:"7px 12px",borderRadius:4,border:`1px solid ${C.border}`,background:C.surface,color:C.textMid,
+              fontSize:12,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",gap:5}}>
+            <span style={{color:"#E8A020"}}>⧉</span> Copiar p/ outro mês
+          </button>
           <button onClick={()=>setModal({pavilhao:"",ala:""})} style={{
             padding:"7px 16px",borderRadius:4,border:"none",
             background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
@@ -787,6 +974,13 @@ export default function LiderancasUnidade({ onNavigate }) {
           cargosPorFaccao={cargosPorFaccao} unidadeAtiva={unidade}
           pavilhaoInicial={modal.pavilhao} alaInicial={modal.ala}
           competenciaAtiva={competencia||compAtual} onSalvar={aoSalvar} onFechar={()=>setModal(null)}/>
+      )}
+
+      {modalCopia && (
+        <ModalCopiar unidade={unidade} unidadeLabel={unidadesLabel[unidade]||unidade}
+          competencia={competencia||compAtual} competencias={competencias}
+          onFechar={()=>setModalCopia(false)}
+          onConcluido={async (dest)=>{ await carregarCompetencias(unidade); setCompetencia(dest); carregarDados(unidade,dest) }}/>
       )}
 
       {modalPDF && (
