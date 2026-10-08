@@ -19,7 +19,7 @@ from fastapi.responses import Response
 
 from services.export_service import build_txt, build_pdf, build_docx
 from services.logging_service import get_logger
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, require_module, require_module_or_scheduler
 from modules.decifrar import transcrever_documento_bytes, TipoDocumento
 
 _log = get_logger("transcricao")
@@ -319,6 +319,68 @@ async def transcribe(
             os.unlink(tmp_path)
         except Exception:
             pass
+
+
+# ─── Rota: Processar pasta de áudios (usada pelo n8n "Extrator de Audio") ─────
+# O n8n 2.x só lê arquivos dentro de ~/.n8n-files, então a pasta data/audios é
+# varrida aqui no backend: cada áudio novo é transcrito pelo MESMO fluxo de
+# /transcribe, gera um relatório .txt em data/relatorios e é movido para
+# data/audios/processados (nunca é processado duas vezes).
+
+def _relatorio_txt(res: dict, filename: str) -> str:
+    linhas = [
+        "RELATÓRIO DE INTELIGÊNCIA — TRANSCRIÇÃO DE ÁUDIO",
+        f"Laudo: {res.get('laudo_number', '')}    Data: {res.get('date', '')}",
+        f"Arquivo: {filename}    Duração: {res.get('duration', '')}",
+        f"Risco: {res.get('risk_level', '')}    Classificação: {res.get('classification', '')}",
+        "", "RESUMO", res.get("summary", ""), "", "PONTOS DE ATENÇÃO",
+    ]
+    flags = res.get("red_flags") or []
+    linhas += [f"- {f.get('title', '')}: {f.get('text', '')}" for f in flags] or ["(nenhum)"]
+    linhas += ["", "TRANSCRIÇÃO INTEGRAL"]
+    linhas += [f"[{s.get('ts', '')}] {s.get('speaker', '')}: {s.get('text', '')}"
+               for s in res.get("segments") or []]
+    return "\n".join(linhas) + "\n"
+
+
+@router.post("/transcricao/processar-pasta")
+async def processar_pasta_audios(
+    limite: int = 3,
+    user: dict = Depends(require_module_or_scheduler("transcricao")),
+):
+    from config.paths import DIR_RELATORIOS
+    pasta      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "audios")
+    processados = os.path.join(pasta, "processados")
+    os.makedirs(processados, exist_ok=True)
+
+    pendentes = sorted(
+        f for f in os.listdir(pasta)
+        if os.path.isfile(os.path.join(pasta, f)) and os.path.splitext(f)[1].lower() in _AUDIO_EXTS
+    )[:max(1, limite)]
+
+    feitos, erros = [], []
+    for nome in pendentes:
+        origem = os.path.join(pasta, nome)
+        try:
+            bg = BackgroundTasks()
+            with open(origem, "rb") as fh:
+                res = await transcribe(UploadFile(file=fh, filename=nome), bg, user)
+            await bg()   # roda HITL + cruzamento que /transcribe agenda em background
+
+            stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            base  = os.path.splitext(_sanitize_filename(nome))[0]
+            rel   = os.path.join(str(DIR_RELATORIOS), f"relatorio_audio_{stamp}_{base}.txt")
+            with open(rel, "w", encoding="utf-8") as f:
+                f.write(_relatorio_txt(res, nome))
+
+            os.replace(origem, os.path.join(processados, f"{stamp}_{nome}"))
+            feitos.append({"arquivo": nome, "risco": res.get("risk_level"), "relatorio": os.path.basename(rel)})
+        except Exception as e:
+            # Arquivo fica na pasta para nova tentativa; o erro aparece na resposta e no log.
+            _log.error(f"processar-pasta: falha em {nome}: {e}")
+            erros.append({"arquivo": nome, "erro": str(getattr(e, "detail", e))[:200]})
+
+    return {"ok": not erros, "processados": len(feitos), "erros": erros, "itens": feitos}
 
 
 # ─── Rota: Exportação de Laudos ───────────────────────────────────────────────

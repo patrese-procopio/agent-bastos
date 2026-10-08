@@ -155,24 +155,35 @@ async def salvar_alerta_osint(alerta: dict, user: dict = Depends(require_module(
     return {"status": "salvo", "total": len(alertas)}
 
 
+def _marcar_local(alerta_id: str | None = None) -> None:
+    """Marca como lido no JSON local (fonte que GET /alertas lê quando o Firestore falha)."""
+    for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
+        alertas = ler_alertas(caminho)
+        mudou = False
+        for a in alertas:
+            if (alerta_id is None or a.get("id") == alerta_id) and not a.get("lido"):
+                a["lido"] = True
+                mudou = True
+        if mudou:
+            salvar_alertas(caminho, alertas)
+
+
 @router.patch("/alertas/{alerta_id}/lido")
 def marcar_alerta_lido(alerta_id: str, user: dict = Depends(get_current_user)):
+    # Sempre grava no local: o GET /alertas cai nele quando a query do Firestore
+    # falha (índice composto ausente), então só o Firestore não persistia o "lido".
+    _marcar_local(alerta_id)
     try:
         db = _get_firestore_safe()
         db.collection("alertas").document(alerta_id).update({"lido": True})
-        return {"ok": True}
     except Exception:
-        for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
-            alertas = ler_alertas(caminho)
-            for a in alertas:
-                if a.get("id") == alerta_id:
-                    a["lido"] = True
-            salvar_alertas(caminho, alertas)
-        return {"ok": True, "id": alerta_id}
+        pass
+    return {"ok": True, "id": alerta_id}
 
 
 @router.patch("/alertas/marcar-todos-lidos")
 def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
+    _marcar_local()
     try:
         db        = _get_firestore_safe()
         nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
@@ -180,14 +191,9 @@ def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
         for doc in nao_lidos:
             batch.update(doc.reference, {"lido": True})
         batch.commit()
-        return {"ok": True}
     except Exception:
-        for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
-            alertas = ler_alertas(caminho)
-            for a in alertas:
-                a["lido"] = True
-            salvar_alertas(caminho, alertas)
-        return {"ok": True}
+        pass
+    return {"ok": True}
 
 
 @router.post("/alertas/varrer")
