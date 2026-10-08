@@ -19,7 +19,7 @@ import secrets
 from fastapi import Depends, Header, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
-from jose import JWTError
+from jwt import PyJWTError as JWTError
 
 from services.auth_service import decode_token
 
