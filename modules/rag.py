@@ -17,6 +17,7 @@ import socket
 from datetime import datetime, timezone
 from config.settings import GROQ_MODEL_CHAT, RAG_HYBRID_SEARCH
 from modules.hybrid_retriever import HybridRetriever
+from modules.rag_formato import REGRAS_FORMATO, deduplicar_trechos, limpar_resposta
 
 load_dotenv()
 
@@ -168,6 +169,7 @@ def _montar_prompt_doutrinario(pergunta: str, contexto: str, historico: str) -> 
         "Quando a doutrina nao cobrir completamente a pergunta, complemente com seu "
         "conhecimento tecnico na area de inteligencia e seguranca. "
         "Seja direto, tecnico e objetivo. Use linguagem profissional.\n\n"
+        f"{REGRAS_FORMATO}\n"
         f"### DOUTRINA RECUPERADA\n{contexto}\n\n"
         f"### HISTORICO RECENTE\n{historico}\n\n"
         f"### PERGUNTA\n{pergunta}\n\n"
@@ -190,6 +192,7 @@ def _montar_prompt_geral(pergunta: str, historico: str) -> str:
         "Para perguntas tecnicas da area de inteligencia, seja aprofundado. "
         "Para perguntas operacionais do dia a dia, seja pratico e objetivo. "
         "Mantenha sempre o contexto de um analista de inteligencia de seguranca.\n\n"
+        f"{REGRAS_FORMATO}\n"
         f"### HISTORICO RECENTE\n{historico}\n\n"
         f"### PERGUNTA\n{pergunta}\n\n"
         "### RESPOSTA:"
@@ -222,12 +225,15 @@ def conversar_com_fontes(pergunta: str) -> dict:
     if resultados_relevantes:
         modo = "doutrina"
         partes_contexto = []
+        # Trechos quase idênticos só poluem o contexto (e fazem o modelo se repetir)
+        unicos = {id(doc) for doc, _ in deduplicar_trechos(resultados_relevantes)}
         for i, (doc, score) in enumerate(resultados_relevantes, 1):
             fonte = doc.metadata.get("fonte", "desconhecida")
-            partes_contexto.append(
-                f"[TRECHO {i} - FONTE: {fonte} - RELEVANCIA: {round(score*100)}%]\n"
-                f"{doc.page_content}"
-            )
+            if id(doc) in unicos:
+                partes_contexto.append(
+                    f"[TRECHO {i} - FONTE: {fonte}]\n"
+                    f"{doc.page_content}"
+                )
             fontes.append({
                 "id":     i,
                 "fonte":  fonte,
@@ -259,9 +265,9 @@ def conversar_com_fontes(pergunta: str) -> dict:
             model=GROQ_MODEL_CHAT,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=1500,
+            max_tokens=1100,
         )
-        resposta = completion.choices[0].message.content
+        resposta = limpar_resposta(completion.choices[0].message.content)
     except Exception as e:
         return {"resposta": f"FALHA: {e}", "fontes": fontes, "confianca": 0, "modo": modo}
 
