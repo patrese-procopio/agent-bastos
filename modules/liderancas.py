@@ -172,6 +172,33 @@ def init_db():
             con.execute("ALTER TABLE liderancas ADD COLUMN copiado_de TEXT")
         if "lote_copia" not in cols:
             con.execute("ALTER TABLE liderancas ADD COLUMN lote_copia TEXT")
+        # Tempo na liderança: identidade fixa da pessoa + "passagens" (início/fim)
+        if "pessoa_id" not in cols:
+            con.execute("ALTER TABLE liderancas ADD COLUMN pessoa_id TEXT")
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS lideranca_passagens (
+                id              TEXT PRIMARY KEY,
+                pessoa_id       TEXT NOT NULL,
+                inicio          TEXT NOT NULL,          -- AAAA-MM-DD
+                fim             TEXT,                   -- NULL = em andamento
+                motivo_saida    TEXT,
+                inicio_estimado INTEGER NOT NULL DEFAULT 0,
+                criado_em       TEXT NOT NULL,
+                criado_por      TEXT,
+                fechado_por     TEXT,
+                atualizado_em   TEXT
+            )
+        """)
+        con.execute("CREATE INDEX IF NOT EXISTS idx_pass_pessoa ON lideranca_passagens(pessoa_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_lid_pessoa  ON liderancas(pessoa_id)")
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS liderancas_nao_iguais (
+                a TEXT NOT NULL, b TEXT NOT NULL, PRIMARY KEY (a, b)
+            )
+        """)
+        _backfill_pessoas(con)
+        _recalcular_inicios_estimados(con)
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS liderancas_copias (
                 id          TEXT PRIMARY KEY,
@@ -224,12 +251,23 @@ def criar_lider(dados: dict) -> dict:
     agora    = datetime.now(timezone.utc).isoformat()
     lider_id = str(uuid.uuid4())
     comp     = dados.get("competencia") or _competencia_atual()
+    pessoa_id = dados.get("pessoa_id") or str(uuid.uuid4())
+    informado = (dados.get("inicio_lideranca") or "")[:10]
+    hoje_s    = _date.today().isoformat()
+    if informado:
+        inicio, estimado = informado, 0
+    elif _RX_COMP.match(comp) and comp < hoje_s[:7]:
+        inicio, estimado = f"{comp}-01", 1       # lançado depois do mês que representa: desde o 1º dia daquele mês
+    else:
+        inicio, estimado = hoje_s, 0
+    _validar_data(inicio, "Data de início")
     with _conn() as con:
+        _preparar_passagem_nova(con, pessoa_id, inicio, estimado=estimado)
         con.execute("""
             INSERT INTO liderancas
               (id, unidade, pavilhao, ala, cela, faccao, cargo,
-               nome, vulgo, foto_ext, observacao, competencia, criado_em, atualizado_em)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               nome, vulgo, foto_ext, observacao, competencia, criado_em, atualizado_em, pessoa_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             lider_id,
             dados["unidade"], dados["pavilhao"], dados["ala"], dados.get("cela", ""),
@@ -237,7 +275,7 @@ def criar_lider(dados: dict) -> dict:
             dados.get("nome"), dados.get("vulgo"),
             dados.get("foto_ext"),
             dados.get("observacao"),
-            comp, agora, agora,
+            comp, agora, agora, pessoa_id,
         ))
     return buscar_lider(lider_id)
 
@@ -296,6 +334,10 @@ def listar_por_unidade(unidade: str, competencia: str | None = None) -> dict:
             (unidade, competencia),
         ).fetchall()
 
+    with _conn() as con:
+        tempos = _tempo_map(con, {r["pessoa_id"] for r in rows if r["pessoa_id"]},
+                            min(_date.today(), _ult_dia_comp(competencia)))
+
     estrutura_unidade = ESTRUTURA.get(unidade, {}).get("pavilhoes", {})
     resultado: dict = {}
 
@@ -315,7 +357,9 @@ def listar_por_unidade(unidade: str, competencia: str | None = None) -> dict:
             resultado[pav][ala] = {}
         if cela not in resultado[pav][ala]:
             resultado[pav][ala][cela] = []
-        resultado[pav][ala][cela].append(_serializar(r))
+        item = _serializar(r)
+        item["tempo"] = tempos.get(r.get("pessoa_id"))
+        resultado[pav][ala][cela].append(item)
 
     return resultado
 
@@ -729,11 +773,11 @@ def copiar_competencia(origem: str, destino: str, unidades=None, usuario: str = 
                 con.execute("""
                     INSERT INTO liderancas
                       (id, unidade, pavilhao, ala, cela, faccao, cargo, nome, vulgo, foto_ext,
-                       observacao, competencia, criado_em, atualizado_em, copiado_de, lote_copia)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       observacao, competencia, criado_em, atualizado_em, copiado_de, lote_copia, pessoa_id)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (novo_id, r["unidade"], r["pavilhao"], r["ala"], r.get("cela") or "", r["faccao"], r["cargo"],
                       r.get("nome"), r.get("vulgo"), foto_ext, r.get("observacao"), destino, agora, agora,
-                      origem, lote))
+                      origem, lote, r.get("pessoa_id")))
                 copiados += 1
             if copiados:
                 con.execute("""INSERT INTO liderancas_copias
@@ -780,6 +824,356 @@ def desfazer_copia(lote_id: str, usuario: str = "") -> dict:
         con.execute("UPDATE liderancas_copias SET desfeito_em = ?, desfeito_por = ? WHERE id = ?",
                     (datetime.now(timezone.utc).isoformat(), usuario, lote_id))
     return {"ok": True, "removidos": len(alvo), "mantidos_por_edicao": mantidos}
+
+
+# ══ Tempo na liderança (passagens) ═══════════════════════════════════════════
+# Cada PESSOA tem identidade fixa (pessoa_id) que a cópia de mês herda. O tempo vem das
+# "passagens" (início → fim). Copiar um mês não inicia nem encerra nada; a contagem só
+# para quando alguém REGISTRA a saída (com data, inclusive retroativa).
+# Dias corridos, contando o dia de início e o dia da saída.
+
+import calendar as _cal
+from datetime import date as _date
+from difflib import SequenceMatcher as _SM
+
+MOTIVOS_SAIDA = {"saiu": "Saiu da liderança", "transferido": "Transferido",
+                 "alvara": "Alvará", "falecido": "Falecido"}
+
+
+def _d(s: str) -> _date:
+    return _date.fromisoformat(str(s)[:10])
+
+
+def _fmt_br(s: str) -> str:
+    try:
+        return _d(s).strftime("%d/%m/%Y")
+    except Exception:
+        return str(s)
+
+
+def _validar_data(s: str, rotulo: str = "Data") -> None:
+    try:
+        d = _d(s)
+    except Exception:
+        raise ValueError(f"{rotulo} inválida (use AAAA-MM-DD).")
+    if d > _date.today():
+        raise ValueError(f"{rotulo} não pode ser no futuro.")
+
+
+def _ult_dia_comp(comp: str) -> _date:
+    try:
+        y, m = (int(x) for x in comp.split("-"))
+        return _date(y, m, _cal.monthrange(y, m)[1])
+    except Exception:
+        return _date.today()
+
+
+def _dias(ini: str, fim, ate: _date | None = None) -> int:
+    a = _d(ini)
+    b = _d(fim) if fim else (ate or _date.today())
+    if ate and b > ate:
+        b = ate
+    return (b - a).days + 1 if b >= a else 0
+
+
+def _local_date(iso: str) -> str:
+    try:
+        return datetime.fromisoformat(iso).astimezone().date().isoformat()
+    except Exception:
+        return str(iso)[:10]
+
+
+def _backfill_pessoas(con) -> None:
+    """Dá identidade aos registros antigos e abre uma passagem 'desde o registro'.
+    Só agrupa sozinho quando o NOME COMPLETO (2+ palavras), a facção e a unidade coincidem;
+    o resto vira pessoa própria e pode ser unido depois, por confirmação."""
+    rows = con.execute("SELECT id, unidade, faccao, nome FROM liderancas "
+                       "WHERE pessoa_id IS NULL OR pessoa_id = '' ORDER BY criado_em").fetchall()
+    grupos: dict = {}
+    for r in rows:
+        nome = _nk(r["nome"])
+        chave = ("n", r["unidade"], _nk(r["faccao"]), nome) if len(nome.split()) >= 2 else None
+        if chave and chave in grupos:
+            pid = grupos[chave]
+        else:
+            pid = str(uuid.uuid4())
+            if chave:
+                grupos[chave] = pid
+        con.execute("UPDATE liderancas SET pessoa_id = ? WHERE id = ?", (pid, r["id"]))
+    sem = con.execute("""SELECT pessoa_id, MIN(criado_em) AS primeiro FROM liderancas
+                         WHERE pessoa_id IS NOT NULL AND pessoa_id != ''
+                         GROUP BY pessoa_id
+                         HAVING pessoa_id NOT IN (SELECT pessoa_id FROM lideranca_passagens)""").fetchall()
+    agora = datetime.now(timezone.utc).isoformat()
+    for r in sem:
+        inicio = _inicio_sugerido(con, r["pessoa_id"]) or _local_date(r["primeiro"])
+        con.execute("""INSERT INTO lideranca_passagens
+                       (id, pessoa_id, inicio, fim, inicio_estimado, criado_em, criado_por, atualizado_em)
+                       VALUES (?,?,?,NULL,1,?,?,?)""",
+                    (str(uuid.uuid4()), r["pessoa_id"], inicio, agora, "migracao", agora))
+
+
+def _inicio_sugerido(con, pessoa_id: str) -> str | None:
+    """Início estimado de quem não tem data real: o dia do 1º cadastro, mas nunca DEPOIS do mês
+    em que a pessoa já aparece (cadastro feito depois do mês que representa => 1º dia daquele mês).
+    Cópias de mês não entram na conta (uma cópia para o passado não muda o início sozinha)."""
+    r = con.execute("SELECT MIN(criado_em) AS reg, MIN(competencia) AS comp FROM liderancas "
+                    "WHERE pessoa_id = ? AND copiado_de IS NULL", (pessoa_id,)).fetchone()
+    if not r or not r["reg"]:
+        return None
+    reg, comp = _local_date(r["reg"]), r["comp"]
+    if comp and _RX_COMP.match(comp) and _d(reg) > _ult_dia_comp(comp):
+        return f"{comp}-01"
+    return reg
+
+
+def _recalcular_inicios_estimados(con) -> None:
+    """Corrige, só para trás, inícios que ainda são estimativa (nunca mexe em data que alguém informou)."""
+    agora = datetime.now(timezone.utc).isoformat()
+    for p in con.execute("SELECT id, pessoa_id, inicio FROM lideranca_passagens WHERE inicio_estimado = 1").fetchall():
+        novo = _inicio_sugerido(con, p["pessoa_id"])
+        if not novo or novo >= p["inicio"]:
+            continue
+        ant = con.execute("SELECT MAX(fim) FROM lideranca_passagens WHERE pessoa_id = ? AND id != ? AND fim IS NOT NULL AND fim < ?",
+                          (p["pessoa_id"], p["id"], p["inicio"])).fetchone()[0]
+        if ant and novo <= ant:
+            continue
+        con.execute("UPDATE lideranca_passagens SET inicio = ?, atualizado_em = ? WHERE id = ?", (novo, agora, p["id"]))
+
+
+def _preparar_passagem_nova(con, pessoa_id: str, inicio: str, usuario: str = "", estimado: int = 0) -> None:
+    """Ao cadastrar um líder: se a pessoa não tem passagem aberta, abre uma (retorno ou 1ª vez)."""
+    aberta = con.execute("SELECT 1 FROM lideranca_passagens WHERE pessoa_id = ? AND fim IS NULL", (pessoa_id,)).fetchone()
+    if aberta:
+        return
+    ult = con.execute("SELECT MAX(fim) FROM lideranca_passagens WHERE pessoa_id = ?", (pessoa_id,)).fetchone()[0]
+    if ult and _d(inicio) <= _d(ult):
+        raise ValueError(f"O início precisa ser depois da última saída ({_fmt_br(ult)}).")
+    agora = datetime.now(timezone.utc).isoformat()
+    con.execute("""INSERT INTO lideranca_passagens (id, pessoa_id, inicio, fim, inicio_estimado, criado_em, criado_por, atualizado_em)
+                   VALUES (?,?,?,NULL,?,?,?,?)""", (str(uuid.uuid4()), pessoa_id, inicio, estimado, agora, usuario, agora))
+
+
+def _tempo_map(con, pessoa_ids, ate: _date) -> dict:
+    ids = [p for p in pessoa_ids if p]
+    if not ids:
+        return {}
+    q = ",".join("?" * len(ids))
+    rows = con.execute(f"SELECT * FROM lideranca_passagens WHERE pessoa_id IN ({q}) ORDER BY inicio", ids).fetchall()
+    out: dict = {}
+    hoje = _date.today()
+    for r in rows:
+        t = out.setdefault(r["pessoa_id"], {"dias": 0, "dias_hoje": 0, "passagens": 0, "ativo": False, "desde": r["inicio"],
+                                           "estimado": bool(r["inicio_estimado"]), "ultima_saida": None, "motivo": None})
+        t["dias"] += _dias(r["inicio"], r["fim"], ate)
+        t["dias_hoje"] += _dias(r["inicio"], r["fim"], hoje)
+        t["passagens"] += 1
+        if r["fim"] is None:
+            t["ativo"] = True
+        else:
+            t["ultima_saida"], t["motivo"] = r["fim"], r["motivo_saida"]
+    return out
+
+
+def _passagens(con, pessoa_id: str) -> list[dict]:
+    hoje = _date.today()
+    return [dict(r) | {"dias": _dias(r["inicio"], r["fim"], hoje), "inicio_estimado": bool(r["inicio_estimado"])}
+            for r in con.execute("SELECT * FROM lideranca_passagens WHERE pessoa_id = ? ORDER BY inicio", (pessoa_id,))]
+
+
+def detalhe_pessoa(pessoa_id: str) -> dict | None:
+    with _conn() as con:
+        ult = con.execute("SELECT * FROM liderancas WHERE pessoa_id = ? ORDER BY competencia DESC, criado_em DESC LIMIT 1",
+                          (pessoa_id,)).fetchone()
+        if not ult:
+            return None
+        pas = _passagens(con, pessoa_id)
+        meses = [r[0] for r in con.execute("SELECT DISTINCT competencia FROM liderancas WHERE pessoa_id = ? ORDER BY competencia",
+                                           (pessoa_id,))]
+    u = dict(ult)
+    ativo = any(p["fim"] is None for p in pas)
+    return {"pessoa_id": pessoa_id, "vulgo": u.get("vulgo"), "nome": u.get("nome"), "unidade": u["unidade"],
+            "faccao": u["faccao"], "cargo": u["cargo"], "lider_id": u["id"], "foto_url": f"/api/liderancas/foto/{u['id']}" if u.get("foto_ext") else None,
+            "passagens": pas, "total_dias": sum(p["dias"] for p in pas), "ativo": ativo, "meses": meses,
+            "motivos": MOTIVOS_SAIDA}
+
+
+def registrar_saida(pessoa_id: str, data: str | None, motivo: str, usuario: str = "", se_ja_fechada_ignora: bool = False) -> dict:
+    if motivo not in MOTIVOS_SAIDA:
+        raise ValueError("Motivo de saída inválido.")
+    data = (data or _date.today().isoformat())[:10]
+    _validar_data(data, "Data da saída")
+    with _conn() as con:
+        p = con.execute("SELECT * FROM lideranca_passagens WHERE pessoa_id = ? AND fim IS NULL", (pessoa_id,)).fetchone()
+        if not p:
+            if se_ja_fechada_ignora:
+                return {"ok": True, "ja_fechada": True}
+            raise ValueError("Este líder já está com a saída registrada.")
+        if _d(data) < _d(p["inicio"]):
+            raise ValueError(f"A saída não pode ser anterior ao início ({_fmt_br(p['inicio'])}).")
+        con.execute("UPDATE lideranca_passagens SET fim = ?, motivo_saida = ?, fechado_por = ?, atualizado_em = ? WHERE id = ?",
+                    (data, motivo, usuario, datetime.now(timezone.utc).isoformat(), p["id"]))
+        dias = _dias(p["inicio"], data)
+    return {"ok": True, "fim": data, "dias_passagem": dias}
+
+
+def registrar_retorno(pessoa_id: str, data: str | None, usuario: str = "") -> dict:
+    data = (data or _date.today().isoformat())[:10]
+    _validar_data(data, "Data do retorno")
+    with _conn() as con:
+        if not con.execute("SELECT 1 FROM lideranca_passagens WHERE pessoa_id = ?", (pessoa_id,)).fetchone():
+            raise ValueError("Líder não encontrado.")
+        if con.execute("SELECT 1 FROM lideranca_passagens WHERE pessoa_id = ? AND fim IS NULL", (pessoa_id,)).fetchone():
+            raise ValueError("Este líder já está ativo.")
+        _preparar_passagem_nova(con, pessoa_id, data, usuario)
+    return {"ok": True}
+
+
+def editar_passagem(passagem_id: str, inicio: str | None = None, fim: str | None = None, usuario: str = "") -> dict:
+    with _conn() as con:
+        p = con.execute("SELECT * FROM lideranca_passagens WHERE id = ?", (passagem_id,)).fetchone()
+        if not p:
+            raise ValueError("Passagem não encontrada.")
+        novo_ini = (inicio or p["inicio"])[:10]
+        novo_fim = (fim[:10] if fim else p["fim"])
+        _validar_data(novo_ini, "Data de início")
+        if novo_fim:
+            _validar_data(novo_fim, "Data da saída")
+            if _d(novo_fim) < _d(novo_ini):
+                raise ValueError("A saída não pode ser anterior ao início.")
+        for o in con.execute("SELECT * FROM lideranca_passagens WHERE pessoa_id = ? AND id != ?", (p["pessoa_id"], passagem_id)):
+            o_fim = _d(o["fim"]) if o["fim"] else _date.max
+            n_fim = _d(novo_fim) if novo_fim else _date.max
+            if _d(novo_ini) <= o_fim and _d(o["inicio"]) <= n_fim:
+                raise ValueError("As datas se sobrepõem a outra passagem deste líder.")
+        estimado = 0 if (inicio and inicio[:10] != p["inicio"]) else p["inicio_estimado"]
+        con.execute("UPDATE lideranca_passagens SET inicio = ?, fim = ?, inicio_estimado = ?, atualizado_em = ? WHERE id = ?",
+                    (novo_ini, novo_fim, estimado, datetime.now(timezone.utc).isoformat(), passagem_id))
+    return {"ok": True}
+
+
+def remover_lider(lider_id: str, motivo: str | None = None, data: str | None = None, usuario: str = "") -> dict:
+    """Remove o cartão do mês. 'engano' = só apaga (sem tempo); os demais motivos encerram a passagem."""
+    lider = buscar_lider(lider_id)
+    if not lider:
+        return {"ok": False, "erro": "nao_encontrado"}
+    motivo = motivo or "engano"
+    if motivo != "engano" and motivo not in MOTIVOS_SAIDA:
+        raise ValueError("Motivo inválido.")
+    pid = lider.get("pessoa_id")
+    if motivo != "engano" and pid:
+        registrar_saida(pid, data, motivo, usuario, se_ja_fechada_ignora=True)
+    deletar_lider(lider_id)
+    if motivo == "engano" and pid:
+        with _conn() as con:
+            if not con.execute("SELECT 1 FROM liderancas WHERE pessoa_id = ?", (pid,)).fetchone():
+                con.execute("DELETE FROM lideranca_passagens WHERE pessoa_id = ?", (pid,))   # cadastro errado: não conta
+    return {"ok": True, "motivo": motivo}
+
+
+def _ultimo_registro_por_pessoa(con) -> list[dict]:
+    rows = con.execute("""SELECT l.* FROM liderancas l
+        WHERE l.pessoa_id IS NOT NULL AND l.id = (SELECT l2.id FROM liderancas l2 WHERE l2.pessoa_id = l.pessoa_id
+                                                  ORDER BY l2.competencia DESC, l2.criado_em DESC LIMIT 1)""").fetchall()
+    return [dict(r) for r in rows]
+
+
+def buscar_pessoas(q: str, limite: int = 6) -> list[dict]:
+    qn = _nk(q)
+    if len(qn) < 3:
+        return []
+    with _conn() as con:
+        ultimos = _ultimo_registro_por_pessoa(con)
+        tempos = _tempo_map(con, [u["pessoa_id"] for u in ultimos], _date.today())
+    res = []
+    for u in ultimos:
+        alvos = [_nk(u.get("vulgo")), _nk(u.get("nome"))] + [_nk(x) for x in (u.get("vulgo") or "").split("/")]
+        if any(a and (qn in a or a in qn or _SM(None, qn, a).ratio() >= 0.8) for a in alvos):
+            t = tempos.get(u["pessoa_id"]) or {}
+            res.append({"pessoa_id": u["pessoa_id"], "vulgo": u.get("vulgo"), "nome": u.get("nome"), "unidade": u["unidade"],
+                        "faccao": u["faccao"], "cargo": u["cargo"], "ativo": t.get("ativo", False),
+                        "ultima_saida": t.get("ultima_saida"), "motivo": t.get("motivo"), "total_dias": t.get("dias_hoje", 0),
+                        "foto_url": f"/api/liderancas/foto/{u['id']}" if u.get("foto_ext") else None})
+    return sorted(res, key=lambda x: (not x["ativo"], x["vulgo"] or ""))[:limite]
+
+
+def sugestoes_mesmo_lider() -> list[dict]:
+    """Pares de identidades que PARECEM a mesma pessoa. Só sugere: quem une é o usuário."""
+    with _conn() as con:
+        ultimos = _ultimo_registro_por_pessoa(con)
+        recusados = {(r[0], r[1]) for r in con.execute("SELECT a, b FROM liderancas_nao_iguais")}
+        comps: dict = {}
+        for r in con.execute("SELECT pessoa_id, unidade, competencia FROM liderancas WHERE pessoa_id IS NOT NULL"):
+            comps.setdefault(r[0], set()).add((r[1], r[2]))
+        tempos = _tempo_map(con, [u["pessoa_id"] for u in ultimos], _date.today())
+
+    def vulgos(u):
+        return {_nk(x) for x in (u.get("vulgo") or "").split("/") if _nk(x)}
+    pares = []
+    for i, a in enumerate(ultimos):
+        for b in ultimos[i + 1:]:
+            if a["unidade"] != b["unidade"] or _nk(a["faccao"]) != _nk(b["faccao"]):
+                continue
+            if comps.get(a["pessoa_id"], set()) & comps.get(b["pessoa_id"], set()):
+                continue            # aparecem no mesmo mês/unidade: são pessoas diferentes
+            par = tuple(sorted((a["pessoa_id"], b["pessoa_id"])))
+            if par in recusados:
+                continue
+            motivo = None
+            if vulgos(a) & vulgos(b):
+                motivo = "mesmo vulgo"
+            else:
+                na, nb = _nk(a.get("nome")), _nk(b.get("nome"))
+                if na and nb and _SM(None, na, nb).ratio() >= 0.88:
+                    motivo = "nome parecido"
+            if motivo:
+                def ficha(x):
+                    t = tempos.get(x["pessoa_id"]) or {}
+                    return {"pessoa_id": x["pessoa_id"], "vulgo": x.get("vulgo"), "nome": x.get("nome"), "cargo": x["cargo"],
+                            "unidade": x["unidade"], "faccao": x["faccao"], "competencia": x["competencia"],
+                            "desde": t.get("desde"), "foto_url": f"/api/liderancas/foto/{x['id']}" if x.get("foto_ext") else None}
+                pares.append({"motivo": motivo, "a": ficha(a), "b": ficha(b)})
+    return pares
+
+
+def _normalizar_passagens(con, pessoa_id: str) -> None:
+    pas = [dict(r) for r in con.execute("SELECT * FROM lideranca_passagens WHERE pessoa_id = ? ORDER BY inicio", (pessoa_id,))]
+    unidas: list[dict] = []
+    for p in pas:
+        if unidas:
+            u = unidas[-1]
+            u_fim = _d(u["fim"]) if u["fim"] else _date.max
+            if _d(p["inicio"]) <= u_fim:                 # sobreposta ou contínua: junta
+                if u["fim"] is None or p["fim"] is None:
+                    u["fim"], u["motivo_saida"] = None, None
+                elif _d(p["fim"]) > _d(u["fim"]):
+                    u["fim"], u["motivo_saida"] = p["fim"], p["motivo_saida"]
+                con.execute("DELETE FROM lideranca_passagens WHERE id = ?", (p["id"],))
+                continue
+        unidas.append(p)
+    for u in unidas:
+        con.execute("UPDATE lideranca_passagens SET fim = ?, motivo_saida = ? WHERE id = ?", (u["fim"], u["motivo_saida"], u["id"]))
+
+
+def unir_pessoas(manter: str, unir: str) -> dict:
+    if manter == unir:
+        raise ValueError("Escolha duas pessoas diferentes.")
+    with _conn() as con:
+        if not con.execute("SELECT 1 FROM liderancas WHERE pessoa_id = ?", (manter,)).fetchone() or \
+           not con.execute("SELECT 1 FROM liderancas WHERE pessoa_id = ?", (unir,)).fetchone():
+            raise ValueError("Líder não encontrado.")
+        con.execute("UPDATE liderancas SET pessoa_id = ? WHERE pessoa_id = ?", (manter, unir))
+        con.execute("UPDATE lideranca_passagens SET pessoa_id = ? WHERE pessoa_id = ?", (manter, unir))
+        con.execute("DELETE FROM liderancas_nao_iguais WHERE a IN (?,?) OR b IN (?,?)", (unir, unir, unir, unir))
+        _normalizar_passagens(con, manter)
+    return {"ok": True}
+
+
+def marcar_nao_iguais(a: str, b: str) -> dict:
+    a, b = sorted((a, b))
+    with _conn() as con:
+        con.execute("INSERT OR IGNORE INTO liderancas_nao_iguais (a, b) VALUES (?,?)", (a, b))
+    return {"ok": True}
 
 
 # Inicializa banco ao importar

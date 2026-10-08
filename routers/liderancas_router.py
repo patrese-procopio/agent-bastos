@@ -37,6 +37,8 @@ from modules.liderancas import (
     listar_lideres_agrupados, listar_lideres_por_faccao,
     salvar_foto_rua, carregar_foto_rua,
     previa_copia, copiar_competencia, listar_copias, desfazer_copia,
+    detalhe_pessoa, registrar_saida, registrar_retorno, editar_passagem, remover_lider,
+    buscar_pessoas, sugestoes_mesmo_lider, unir_pessoas, marcar_nao_iguais,
 )
 from dependencies import get_current_user, get_current_user_media, require_module
 
@@ -159,6 +161,99 @@ def delete_copia_lote(lote_id: str, user: dict = Depends(require_module("alertas
     return res
 
 
+# ── Tempo na liderança ────────────────────────────────────────────────────────
+
+class SaidaIn(BaseModel):
+    motivo: str
+    data: Optional[str] = None
+
+
+class RetornoIn(BaseModel):
+    data: Optional[str] = None
+
+
+class PassagemIn(BaseModel):
+    inicio: Optional[str] = None
+    fim: Optional[str] = None
+
+
+class UniaoIn(BaseModel):
+    manter: str
+    unir: str
+
+
+def _auditar(user, acao, alvo, detalhe):
+    try:
+        from services.audit_service import registrar as audit
+        audit(acao, "liderancas", usuario=user.get("sub", "?"), alvo=alvo, detalhe=detalhe)
+    except Exception:
+        pass
+
+
+@liderancas_router.get("/pessoa/{pessoa_id}")
+def get_pessoa(pessoa_id: str, user: dict = Depends(require_module("alertas"))):
+    d = detalhe_pessoa(pessoa_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Líder não encontrado.")
+    return d
+
+
+@liderancas_router.post("/pessoa/{pessoa_id}/saida")
+def post_saida(pessoa_id: str, body: SaidaIn, user: dict = Depends(require_module("alertas"))):
+    try:
+        res = registrar_saida(pessoa_id, body.data, body.motivo, usuario=user.get("sub", "?"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _auditar(user, "lideranca_saida", pessoa_id, f"{body.motivo} em {body.data or 'hoje'}")
+    return res
+
+
+@liderancas_router.post("/pessoa/{pessoa_id}/retorno")
+def post_retorno(pessoa_id: str, body: RetornoIn, user: dict = Depends(require_module("alertas"))):
+    try:
+        res = registrar_retorno(pessoa_id, body.data, usuario=user.get("sub", "?"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _auditar(user, "lideranca_retorno", pessoa_id, f"retorno em {body.data or 'hoje'}")
+    return res
+
+
+@liderancas_router.put("/passagem/{passagem_id}")
+def put_passagem(passagem_id: str, body: PassagemIn, user: dict = Depends(require_module("alertas"))):
+    try:
+        res = editar_passagem(passagem_id, body.inicio, body.fim, usuario=user.get("sub", "?"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _auditar(user, "lideranca_passagem_editada", passagem_id, f"inicio={body.inicio} fim={body.fim}")
+    return res
+
+
+@liderancas_router.get("/pessoas/buscar")
+def get_buscar_pessoas(q: str, user: dict = Depends(require_module("alertas"))):
+    """Líderes que já existiram com nome/vulgo parecido (para reaproveitar a identidade)."""
+    return {"pessoas": buscar_pessoas(q)}
+
+
+@liderancas_router.get("/pessoas/sugestoes")
+def get_sugestoes(user: dict = Depends(require_module("alertas"))):
+    return {"pares": sugestoes_mesmo_lider()}
+
+
+@liderancas_router.post("/pessoas/unir")
+def post_unir(body: UniaoIn, user: dict = Depends(require_module("alertas"))):
+    try:
+        res = unir_pessoas(body.manter, body.unir)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _auditar(user, "lideranca_unida", body.manter, f"unida a {body.unir}")
+    return res
+
+
+@liderancas_router.post("/pessoas/nao-iguais")
+def post_nao_iguais(body: UniaoIn, user: dict = Depends(require_module("alertas"))):
+    return marcar_nao_iguais(body.manter, body.unir)
+
+
 # ── Estrutura e metadados ─────────────────────────────────────────────────────
 
 @liderancas_router.get("/estrutura")
@@ -209,11 +304,13 @@ async def post_lider(
     faccao:      str = Form(...), cargo:       str = Form(...),
     nome:        str = Form(""),  vulgo:       str = Form(""),
     observacao:  str = Form(""),  competencia: str = Form(""),
+    pessoa_id:   str = Form(""),  inicio_lideranca: str = Form(""),
     foto: UploadFile = File(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     user: dict = Depends(require_module("alertas")),
 ):
     dados = {
+        "pessoa_id": pessoa_id or None, "inicio_lideranca": inicio_lideranca or None,
         "unidade": unidade, "pavilhao": pavilhao, "ala": ala, "cela": cela,
         "faccao": faccao, "cargo": cargo,
         "nome": nome or None, "vulgo": vulgo or None,
@@ -221,7 +318,10 @@ async def post_lider(
         "competencia": competencia or _competencia_atual(),
         "foto_ext": None,
     }
-    lider = criar_lider(dados)
+    try:
+        lider = criar_lider(dados)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if foto and foto.filename:
         ext = os.path.splitext(foto.filename)[1] or ".jpg"
         conteudo = await foto.read()
@@ -285,10 +385,23 @@ async def put_lider(
 
 
 @liderancas_router.delete("/{lider_id}")
-def delete_lider(lider_id: str, user: dict = Depends(require_module("alertas"))):
-    if not deletar_lider(lider_id):
+def delete_lider(lider_id: str, motivo: str = "engano", data: str = "",
+                 user: dict = Depends(require_module("alertas"))):
+    """Remove o cartão do mês. motivo: engano (só apaga) | saiu | transferido | alvara | falecido
+    (os quatro últimos encerram o tempo na liderança na `data` informada, que pode ser retroativa)."""
+    try:
+        res = remover_lider(lider_id, motivo, data or None, usuario=user.get("sub", "?"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not res.get("ok"):
         raise HTTPException(status_code=404, detail="Líder não encontrado.")
-    return {"ok": True}
+    try:
+        from services.audit_service import registrar as audit
+        audit("lideranca_removida", "liderancas", usuario=user.get("sub", "?"), alvo=lider_id,
+              detalhe=f"motivo={motivo} data={data or 'hoje'}")
+    except Exception:
+        pass
+    return res
 
 
 @liderancas_router.get("/foto/{lider_id}")
@@ -454,6 +567,26 @@ def get_foto_lider_rua(
 
 # ── Geração de PDF ────────────────────────────────────────────────────────────
 
+def _foto_pdf(fb: bytes, largura, altura):
+    """Retrato padronizado 4:5 (corte centralizado, ancorado no topo para pegar o rosto).
+    As fotos originais são pequenas: amplia com suavização para não pixelar na impressão."""
+    from PIL import Image
+    from reportlab.platypus import Image as RLImage
+    im = Image.open(io.BytesIO(fb)).convert("RGB")
+    w, h = im.size
+    alvo = 4 / 5
+    if w / h > alvo:
+        nw = int(h * alvo); x0 = (w - nw) // 2
+        im = im.crop((x0, 0, x0 + nw, h))
+    else:
+        im = im.crop((0, 0, w, int(w / alvo)))
+    im = im.resize((im.width * 3, im.height * 3), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=90)
+    buf.seek(0)
+    return RLImage(buf, width=largura, height=altura)
+
+
 def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
@@ -462,7 +595,7 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        HRFlowable, Image as RLImage,
+        HRFlowable, Image as RLImage, KeepTogether, CondPageBreak,
     )
 
     label     = ESTRUTURA[unidade_key]["label"]
@@ -478,17 +611,17 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     S = {
         "titulo":  ParagraphStyle("titulo",  fontSize=14, fontName="Helvetica-Bold",
                                   alignment=TA_CENTER, textColor=BRANCO),
-        "sec":     ParagraphStyle("sec",     fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO),
-        "ala":     ParagraphStyle("ala",     fontSize=9,  fontName="Helvetica-Bold", textColor=AZUL),
-        "vulgo":   ParagraphStyle("vulgo",   fontSize=13, fontName="Helvetica-Bold", textColor=GOLD),
-        "nome":    ParagraphStyle("nome",    fontSize=10, fontName="Helvetica-Bold", textColor=AZUL),
-        "campo":   ParagraphStyle("campo",   fontSize=8,  fontName="Helvetica",      textColor=CINZA),
-        "data":    ParagraphStyle("data",    fontSize=7,  fontName="Helvetica",      textColor=colors.HexColor("#94A3B8")),
-        "rodape":  ParagraphStyle("rodape",  fontSize=7,  fontName="Helvetica",      textColor=CINZA, alignment=TA_CENTER),
+        "sec":     ParagraphStyle("sec",     fontSize=12.5, fontName="Helvetica-Bold", textColor=BRANCO),
+        "ala":     ParagraphStyle("ala",     fontSize=10.5, fontName="Helvetica-Bold", textColor=AZUL),
+        "vulgo":   ParagraphStyle("vulgo",   fontSize=14.5, leading=17, fontName="Helvetica-Bold", textColor=GOLD),
+        "nome":    ParagraphStyle("nome",    fontSize=10, leading=12.5, fontName="Helvetica-Bold", textColor=AZUL),
+        "campo":   ParagraphStyle("campo",   fontSize=9, leading=11.5, fontName="Helvetica",      textColor=CINZA),
+        "data":    ParagraphStyle("data",    fontSize=8,  fontName="Helvetica",      textColor=colors.HexColor("#94A3B8")),
+        "rodape":  ParagraphStyle("rodape",  fontSize=8,  fontName="Helvetica",      textColor=CINZA, alignment=TA_CENTER),
         "sfoto":   ParagraphStyle("sfoto",   fontSize=6,  fontName="Helvetica",      textColor=CINZA, alignment=TA_CENTER),
-        "cnt":     ParagraphStyle("cnt",     fontSize=8,  fontName="Helvetica",      textColor=CINZA, alignment=TA_RIGHT),
-        "h1":      ParagraphStyle("h1",      fontSize=10, fontName="Helvetica-Bold", textColor=AZUL),
-        "h2":      ParagraphStyle("h2",      fontSize=8,  fontName="Helvetica",      textColor=CINZA, alignment=TA_RIGHT),
+        "cnt":     ParagraphStyle("cnt",     fontSize=9.5, fontName="Helvetica",      textColor=CINZA, alignment=TA_RIGHT),
+        "h1":      ParagraphStyle("h1",      fontSize=11.5, fontName="Helvetica-Bold", textColor=AZUL),
+        "h2":      ParagraphStyle("h2",      fontSize=8.5, fontName="Helvetica",      textColor=CINZA, alignment=TA_RIGHT),
     }
 
     buf = io.BytesIO()
@@ -509,7 +642,7 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
     sub = Table([[
         Paragraph(f"MAPEAMENTO DE LIDERANÇAS — {label.upper()}", S["h1"]),
         Paragraph(f"Competência: {comp_fmt}  ·  {gerado_em}", S["h2"]),
-    ]], colWidths=[10*cm, 7*cm])
+    ]], colWidths=[9.3*cm, 7.7*cm])
     sub.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
         ("TOPPADDING", (0,0), (-1,-1), 8), ("BOTTOMPADDING", (0,0), (-1,-1), 8),
@@ -532,6 +665,7 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
             ("TOPPADDING", (0,0), (-1,-1), 6), ("BOTTOMPADDING", (0,0), (-1,-1), 6),
             ("LEFTPADDING", (0,0), (-1,-1), 10),
         ]))
+        elements.append(CondPageBreak(7.4 * cm))
         elements.append(ph)
         elements.append(Spacer(1, 4))
 
@@ -550,11 +684,14 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                 ("LEFTPADDING", (0,0), (0,-1), 10), ("RIGHTPADDING", (-1,0), (-1,-1), 10),
                 ("BOX", (0,0), (-1,-1), 0.3, colors.HexColor("#E2E8F0")),
             ]))
+            elements.append(CondPageBreak(6.2 * cm))
             elements.append(ala_row)
 
+            from xml.sax.saxutils import escape as _esc
+            FW, FH = 2.9 * cm, 3.625 * cm          # retrato 4:5
+            cards = []
             for lider in lideres:
                 faccao  = lider.get("faccao", "")
-                cargo   = lider.get("cargo", "")
                 cor     = _cor_faccao(faccao)
                 cor_bg  = colors.Color(*cor["bg"])
                 cor_txt = colors.Color(*cor["text"])
@@ -567,64 +704,85 @@ def _gerar_pdf_unidade(unidade_key: str, competencia: str) -> bytes:
                 except Exception:
                     data_fmt = criado_iso[:10]
 
-                foto_cell = Paragraph("S/FOTO", S["sfoto"])
+                foto_cell = None
                 if lider.get("foto_ext"):
                     try:
                         fb = carregar_foto(lider["id"], lider["foto_ext"])
                         if fb:
-                            foto_cell = RLImage(io.BytesIO(fb), width=1.6*cm, height=2*cm)
+                            foto_cell = _foto_pdf(fb, FW, FH)
                     except Exception:
-                        pass
+                        foto_cell = None
+                if foto_cell is None:                      # sem foto: monograma na cor da facção
+                    inicial = ((lider.get("vulgo") or lider.get("nome") or "?").strip()[:1] or "?").upper()
+                    foto_cell = Table([[Paragraph(_esc(inicial), ParagraphStyle(
+                        "mono", fontSize=42, leading=46, fontName="Helvetica-Bold", textColor=cor_txt, alignment=TA_CENTER))]],
+                        colWidths=[FW], rowHeights=[FH])
+                    foto_cell.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,-1), cor_bg),
+                                                   ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (0,0), (-1,-1), "CENTER")]))
+                moldura = Table([[foto_cell]], colWidths=[FW], rowHeights=[FH])
+                moldura.setStyle(TableStyle([("BOX", (0,0), (-1,-1), 1.1, GOLD),
+                                             ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                                             ("TOPPADDING", (0,0), (-1,-1), 0), ("BOTTOMPADDING", (0,0), (-1,-1), 0)]))
 
+                larg_badge = min(4.7 * cm, max(1.9 * cm, (len(faccao) * 0.21 + 0.8) * cm))
                 badge_faccao = Table(
-                    [[Paragraph(faccao, ParagraphStyle(
-                        "bf", fontSize=7, fontName="Helvetica-Bold", textColor=cor_txt))]],
-                    colWidths=[3.5*cm]
-                )
+                    [[Paragraph(_esc(faccao), ParagraphStyle("bf", fontSize=9, leading=11, fontName="Helvetica-Bold", textColor=cor_txt))]],
+                    colWidths=[larg_badge], hAlign="LEFT")
                 badge_faccao.setStyle(TableStyle([
                     ("BACKGROUND", (0,0), (-1,-1), cor_bg),
-                    ("TOPPADDING", (0,0), (-1,-1), 2),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-                    ("LEFTPADDING", (0,0), (-1,-1), 5),
-                    ("RIGHTPADDING", (0,0), (-1,-1), 5),
-                    ("BOX", (0,0), (-1,-1), 0.5, cor_dot),
-                    ("ROUNDEDCORNERS", [3,3,3,3]),
+                    ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                    ("LEFTPADDING", (0,0), (-1,-1), 6), ("RIGHTPADDING", (0,0), (-1,-1), 6),
+                    ("BOX", (0,0), (-1,-1), 0.6, cor_dot),
                 ]))
 
-                cargo_cela = cargo
+                cargo_cela = _esc(lider.get("cargo", ""))
                 if lider.get("cela"):
-                    cargo_cela += f"  ·  Custódia: {lider['cela']}"
+                    cargo_cela += f"  ·  Cela {_esc(str(lider['cela']).replace('Cela ', ''))}"
 
                 dados_inner = [
-                    [Paragraph(lider.get("vulgo") or "—", S["vulgo"])],
-                    [Paragraph(lider.get("nome") or "", S["nome"])],
+                    [Paragraph(_esc(lider.get("vulgo") or "—"), S["vulgo"])],
+                    [Paragraph(_esc(lider.get("nome") or ""), S["nome"])],
                     [badge_faccao],
                     [Paragraph(cargo_cela, S["campo"])],
                 ]
                 if lider.get("observacao"):
                     obs = lider["observacao"]
-                    if len(obs) > 120: obs = obs[:120] + "..."
-                    dados_inner.append([Paragraph(f"Obs: {obs}", S["campo"])])
+                    if len(obs) > 90: obs = obs[:90] + "..."
+                    dados_inner.append([Paragraph(f"Obs: {_esc(obs)}", S["campo"])])
+                tp = lider.get("tempo")
+                if tp:
+                    dados_inner.append([Paragraph(
+                        f"Na liderança: <b>{tp['dias']} dia(s)</b>" + (" (desde o registro)" if tp.get("estimado") else ""),
+                        S["campo"])])
+                dados_inner.append([Paragraph(f"Cadastrado em {data_fmt}", S["data"])])
 
-                dados_inner.append([Paragraph(f"Cadastrado em: {data_fmt}", S["data"])])
-
-                dados_tbl = Table(dados_inner, colWidths=[14*cm])
+                dados_tbl = Table(dados_inner, colWidths=[4.5 * cm])
                 dados_tbl.setStyle(TableStyle([
-                    ("TOPPADDING", (0,0), (-1,-1), 1),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-                    ("LEFTPADDING", (0,0), (-1,-1), 0),
+                    ("TOPPADDING", (0,0), (-1,-1), 1), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                    ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0),
                 ]))
+                card = Table([[moldura, dados_tbl]], colWidths=[3.15 * cm, 4.5 * cm])
+                card.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"),
+                                          ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                                          ("TOPPADDING", (0,0), (-1,-1), 0), ("BOTTOMPADDING", (0,0), (-1,-1), 0)]))
+                cards.append((card, cor_dot))
 
-                row_tbl = Table([[foto_cell, dados_tbl]], colWidths=[2.2*cm, 14.8*cm])
-                row_tbl.setStyle(TableStyle([
-                    ("VALIGN", (0,0), (-1,-1), "TOP"),
-                    ("TOPPADDING", (0,0), (-1,-1), 8),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-                    ("LEFTPADDING", (0,0), (-1,-1), 8),
-                    ("BOX", (0,0), (-1,-1), 0.3, colors.HexColor("#E2E8F0")),
-                    ("BACKGROUND", (0,0), (-1,-1), colors.white),
-                ]))
-                elements.append(row_tbl)
+            # dois cartões por linha; cada linha não se parte entre páginas
+            for k in range(0, len(cards), 2):
+                par = cards[k:k + 2]
+                fila = [par[0][0], "", par[1][0] if len(par) > 1 else ""]
+                linha = Table([fila], colWidths=[8.3 * cm, 0.4 * cm, 8.3 * cm])
+                est = [("VALIGN", (0,0), (-1,-1), "TOP"),
+                       ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                       ("TOPPADDING", (0,0), (-1,-1), 0), ("BOTTOMPADDING", (0,0), (-1,-1), 0)]
+                for col, (_, cdot) in zip((0, 2), par):
+                    est += [("BOX", (col,0), (col,0), 0.6, colors.HexColor("#CBD5E1")),
+                            ("BACKGROUND", (col,0), (col,0), colors.white),
+                            ("LEFTPADDING", (col,0), (col,0), 8), ("RIGHTPADDING", (col,0), (col,0), 4),
+                            ("TOPPADDING", (col,0), (col,0), 9), ("BOTTOMPADDING", (col,0), (col,0), 9)]
+                linha.setStyle(TableStyle(est))
+                elements.append(KeepTogether(linha))
+                elements.append(Spacer(1, 7))
 
             elements.append(Spacer(1, 6))
 
