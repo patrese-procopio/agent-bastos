@@ -30,7 +30,10 @@ router = APIRouter(tags=["agenda"])
 _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Hash lido do .env. Se não configurado em produção, recusa todos os logins.
-_CHEFE_HASH = os.getenv("CHEFE_PASSWORD_HASH", "")
+# `$$` e o escape de `$` do docker-compose/.env; rodando nativo o valor chega com
+# `$$2b$12$...` e o passlib nao reconhece (UnknownHashError -> HTTP 500). Um hash
+# bcrypt valido nunca contem `$$`, entao normalizar e seguro nos dois cenarios.
+_CHEFE_HASH = os.getenv("CHEFE_PASSWORD_HASH", "").strip().replace("$$", "$")
 
 
 # ─── Modelos ─────────────────────────────────────────────────────────────────
@@ -58,7 +61,13 @@ def agenda_login(req: AgendaLoginRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Autenticação do chefe não configurada. Contate o administrador.",
         )
-    ok = _pwd_ctx.verify(req.senha, _CHEFE_HASH)
+    try:
+        ok = _pwd_ctx.verify(req.senha, _CHEFE_HASH)
+    except ValueError:  # hash malformado no .env (UnknownHashError herda de ValueError)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Autenticação do chefe mal configurada. Contate o administrador.",
+        )
     return {"ok": ok}
 
 

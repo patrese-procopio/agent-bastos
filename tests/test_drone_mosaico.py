@@ -142,7 +142,13 @@ def test_retencao_mantem_apenas_ultimos(missao_grade):
         assert job["status"] == "concluido"
         ids.append(r["job_id"])
 
+    # a limpeza de antigos roda na thread do job DEPOIS de marcar 'concluido':
+    # espera ela terminar em vez de conferir na hora (evita flake)
+    limite = time.time() + 10
     restantes = dm.listar_mosaicos(missao_grade)
+    while len(restantes) != dm._MANTER_MOSAICOS and time.time() < limite:
+        time.sleep(0.1)
+        restantes = dm.listar_mosaicos(missao_grade)
     assert len(restantes) == dm._MANTER_MOSAICOS
     assert [m["id"] for m in restantes][0] == ids[-1]      # mais recente vivo
     # os expurgados não têm mais registro nem arquivo

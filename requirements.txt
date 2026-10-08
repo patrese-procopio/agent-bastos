@@ -28,7 +28,6 @@ diskcache==5.6.3
 distro==1.9.0
 docstring_parser==0.18.0
 durationpy==0.10
-ecdsa==0.19.2
 et_xmlfile==2.0.0
 fastapi==0.136.1
 filelock==3.28.0
@@ -146,7 +145,6 @@ pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2
-python-jose==3.5.0
 python-multipart==0.0.31
 PyYAML==6.0.3
 referencing==0.37.0
