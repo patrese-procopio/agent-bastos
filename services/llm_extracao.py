@@ -31,7 +31,7 @@ import urllib.error
 PROMPT_VERSAO = "rae-v1"
 
 # Modelos por provedor (sobrescrevíveis por env)
-GROQ_MODEL   = os.getenv("EXTRATO_GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL   = os.getenv("EXTRATO_GROQ_MODEL") or os.getenv("GROQ_MODEL_CHAT", "openai/gpt-oss-120b")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3:latest")
 OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
 CLAUDE_MODEL = os.getenv("EXTRATO_CLAUDE_MODEL", "claude-sonnet-4-6")
@@ -191,7 +191,8 @@ def _extrair_groq(texto: str, lexico: str, system_prompt: str = SYSTEM_PROMPT) -
         ],
         response_format={"type": "json_object"},
         temperature=0.2,
-        max_tokens=4000,
+        max_tokens=8000,  # gpt-oss gasta parte do orçamento raciocinando
+        extra_body={"reasoning_effort": "low"},
     )
     return resp.choices[0].message.content, GROQ_MODEL
 

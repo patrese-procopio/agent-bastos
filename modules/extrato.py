@@ -27,6 +27,7 @@ import uuid
 import hashlib
 import sqlite3
 import unicodedata
+import threading
 from datetime import datetime, timezone
 from contextlib import contextmanager
 
@@ -108,6 +109,36 @@ def init_db():
             # inter-analistas. Admin pode reatribuir manualmente via SQL se quiser.
             con.execute("UPDATE extratos SET criado_por='admin' WHERE criado_por IS NULL OR criado_por=''")
             con.execute("CREATE INDEX IF NOT EXISTS idx_extr_criado_por ON extratos(criado_por)")
+        # Migração 2026-10-06: controle de edição/exclusão e estado de processamento.
+        for col, ddl in (
+            ("editado_em",            "TEXT"),
+            ("editado_por",           "TEXT"),
+            ("edicoes",               "INTEGER DEFAULT 0"),
+            ("analise_desatualizada", "INTEGER DEFAULT 0"),
+            ("processando_desde",     "TEXT"),
+        ):
+            if col not in _cols:
+                con.execute(f"ALTER TABLE extratos ADD COLUMN {col} {ddl}")
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS extrato_edicoes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                extrato_id  TEXT NOT NULL,
+                ts          TEXT NOT NULL,
+                usuario     TEXT,
+                campo       TEXT NOT NULL,
+                anterior    TEXT,
+                novo        TEXT
+            )
+        """)
+        con.execute("CREATE INDEX IF NOT EXISTS idx_edic_extrato ON extrato_edicoes(extrato_id)")
+        # Recuperação: o processamento roda em thread daemon — se o backend foi
+        # reiniciado, nenhuma thread sobrevive. Extratos presos em
+        # 'recebido'/'processando' nunca terminariam sozinhos; viram 'erro'
+        # reprocessável em vez de ficar "processando…" para sempre.
+        con.execute(
+            """UPDATE extratos SET status='erro', processando_desde=NULL,
+                   erro='Processamento interrompido (o sistema foi reiniciado antes de concluir). Use Reprocessar.'
+               WHERE status IN ('recebido','processando')""")
         con.execute("""
             CREATE TABLE IF NOT EXISTS extrato_entidades (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -318,7 +349,8 @@ def _registrar_resultado(eid: str, corpo: str, reg: dict, extr: dict) -> dict:
                    modelo=?, prompt_versao=?, forcado_local=?, bloqueado=?,
                    assunto_sintetizado=?, risk_score=?, risk_nivel=?, risco_forcado=?,
                    justificativa_risco=?, tags=?, evidencias_ok=?, evidencias_total=?,
-                   resultado_json=?, erro=NULL WHERE id=?""",
+                   resultado_json=?, erro=NULL,
+                   analise_desatualizada=0, processando_desde=NULL WHERE id=?""",
             (_agora(), extr.get("provedor"), extr.get("modelo"), extr.get("prompt_versao"),
              1 if extr.get("forcado_local") else 0, 1 if extr.get("bloqueado") else 0,
              ea.get("assunto_sintetizado"), score, nivel, 1 if forcado else 0,
@@ -353,7 +385,7 @@ def processar(eid: str, usuario: str = "sistema") -> dict:
         with _conn() as con:
             con.execute(
                 """UPDATE extratos SET status='erro', erro=?, provedor=?, modelo=?,
-                       forcado_local=?, bloqueado=? WHERE id=?""",
+                       forcado_local=?, bloqueado=?, processando_desde=NULL WHERE id=?""",
                 (extr.get("erro"), extr.get("provedor"), extr.get("modelo"),
                  1 if extr.get("forcado_local") else 0,
                  1 if extr.get("bloqueado") else 0, eid),
@@ -376,6 +408,164 @@ def processar(eid: str, usuario: str = "sistema") -> dict:
     resumo.update({"ok": True, "provedor": extr.get("provedor"),
                    "modelo": extr.get("modelo"), "forcado_local": extr.get("forcado_local")})
     return resumo
+
+
+_ATIVOS: set[str] = set()
+_ATIVOS_LOCK = threading.Lock()
+
+
+def em_processamento(eid: str) -> bool:
+    with _ATIVOS_LOCK:
+        return eid in _ATIVOS
+
+
+def iniciar_processamento(eid: str, usuario: str = "sistema") -> dict:
+    """Dispara processar() em thread daemon, marcando status 'processando'.
+    Recusa se o mesmo extrato já estiver em processamento neste processo."""
+    if not obter(eid):
+        return {"ok": False, "erro": "extrato_nao_encontrado"}
+    with _ATIVOS_LOCK:
+        if eid in _ATIVOS:
+            return {"ok": False, "erro": "ja_processando"}
+        _ATIVOS.add(eid)
+    with _conn() as con:
+        con.execute("UPDATE extratos SET status='processando', processando_desde=?, erro=NULL WHERE id=?",
+                    (_agora(), eid))
+
+    def _rodar():
+        try:
+            processar(eid, usuario=usuario)
+        except Exception as exc:  # nunca deixar preso em 'processando'
+            try:
+                with _conn() as con:
+                    con.execute(
+                        "UPDATE extratos SET status='erro', processando_desde=NULL, erro=? WHERE id=?",
+                        (f"Falha inesperada no processamento: {exc}", eid))
+                    _auditar(con, eid, usuario, "ERRO_EXTRACAO", str(exc)[:300])
+            except Exception:
+                pass
+        finally:
+            with _ATIVOS_LOCK:
+                _ATIVOS.discard(eid)
+
+    threading.Thread(target=_rodar, daemon=True, name=f"extrato-processar-{eid[:8]}").start()
+    return {"ok": True, "status": "iniciado"}
+
+
+# Campos editáveis pelo analista. Mudar qualquer um de _CAMPOS_ANALISE deixa a
+# análise (entidades/risco/grafo) desatualizada em relação ao texto.
+_CAMPOS_EDITAVEIS = ("data", "unidade", "nucleo", "autor", "assunto", "corpo",
+                     "topicos", "nucleos_destino", "classificacao")
+_CAMPOS_ANALISE = {"corpo", "assunto", "topicos", "classificacao"}
+_CAMPOS_JSON = {"topicos", "nucleos_destino"}
+
+
+def editar(eid: str, campos: dict, usuario: str = "sistema") -> dict:
+    """Edita um extrato registrando QUEM/QUANDO/O QUÊ (valor anterior e novo) em
+    extrato_edicoes + trilha de auditoria. `criado_em` nunca é alterado."""
+    atual = obter(eid)
+    if not atual:
+        return {"ok": False, "erro": "extrato_nao_encontrado"}
+    if em_processamento(eid):
+        return {"ok": False, "erro": "processando",
+                "detalhe": "Aguarde o processamento terminar para editar."}
+
+    novos: dict = {}
+    for k in _CAMPOS_EDITAVEIS:
+        if campos.get(k) is None:
+            continue
+        v = campos[k]
+        if k in _CAMPOS_JSON:
+            v = [str(x).strip() for x in (v or []) if str(x).strip()]
+        elif k == "classificacao":
+            v = str(v).strip().lower()
+        else:
+            v = str(v).strip()
+        if k == "corpo" and not v:
+            return {"ok": False, "erro": "corpo_vazio",
+                    "detalhe": "O corpo do extrato não pode ficar vazio."}
+        antigo = atual.get(k) if k in _CAMPOS_JSON else (atual.get(k) or "")
+        if v != antigo:
+            novos[k] = v
+    if not novos:
+        return {"ok": True, "alterado": False, "extrato": atual}
+
+    agora = _agora()
+    with _conn() as con:
+        sets, vals = [], []
+        for k, v in novos.items():
+            ant = atual.get(k)
+            ant_s = json.dumps(ant, ensure_ascii=False) if k in _CAMPOS_JSON else (ant or "")
+            novo_s = json.dumps(v, ensure_ascii=False) if k in _CAMPOS_JSON else v
+            con.execute(
+                "INSERT INTO extrato_edicoes (extrato_id, ts, usuario, campo, anterior, novo) "
+                "VALUES (?,?,?,?,?,?)", (eid, agora, usuario, k, ant_s, novo_s))
+            sets.append(f"{k}=?")
+            vals.append(novo_s)
+        sets += ["editado_em=?", "editado_por=?", "edicoes=COALESCE(edicoes,0)+1"]
+        vals += [agora, usuario]
+        desatualiza = bool(novos.keys() & _CAMPOS_ANALISE)
+        if desatualiza:
+            sets.append("analise_desatualizada=1")
+        con.execute(f"UPDATE extratos SET {', '.join(sets)} WHERE id=?", vals + [eid])
+        h_ant = hashlib.sha256((atual.get("corpo") or "").encode("utf-8")).hexdigest()[:16]
+        h_novo = hashlib.sha256((novos.get("corpo", atual.get("corpo")) or "").encode("utf-8")).hexdigest()[:16]
+        _auditar(con, eid, usuario, "EDITADO",
+                 f"campos={','.join(sorted(novos))} corpo_sha {h_ant}->{h_novo}")
+    return {"ok": True, "alterado": True, "campos": sorted(novos),
+            "analise_desatualizada": desatualiza, "extrato": obter(eid)}
+
+
+def historico_edicoes(eid: str, limite: int = 100) -> list[dict]:
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT ts, usuario, campo, anterior, novo FROM extrato_edicoes "
+            "WHERE extrato_id=? ORDER BY id DESC LIMIT ?", (eid, limite)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def excluir(eid: str, usuario: str = "sistema") -> dict:
+    """Exclui o extrato e tudo que ele gerou (entidades, nós/vínculos auto no grafo,
+    ocorrências do léxico, índice RAG). A trilha de auditoria é APPEND-ONLY e
+    mantém o registro da exclusão (quem, quando e um resumo do que foi apagado)."""
+    reg = obter(eid)
+    if not reg:
+        return {"ok": False, "erro": "extrato_nao_encontrado"}
+    if em_processamento(eid):
+        return {"ok": False, "erro": "processando",
+                "detalhe": "Aguarde o processamento terminar para excluir."}
+
+    sha = hashlib.sha256((reg.get("corpo") or "").encode("utf-8")).hexdigest()[:16]
+    resumo = (f"assunto={(reg.get('assunto') or '')[:80]!r} unidade={reg.get('unidade')} "
+              f"classif={reg.get('classificacao')} criado_em={reg.get('criado_em')} "
+              f"criado_por={reg.get('criado_por')} corpo_sha={sha}")
+
+    # 1) grafo (banco próprio) — em transação separada, antes de apagar o extrato
+    try:
+        grafo_res = grafo.remover_extrato(eid)
+    except Exception as exc:
+        grafo_res = {"erro": str(exc)}
+
+    # 2) extrato.db
+    with _conn() as con:
+        con.execute("DELETE FROM extrato_entidades WHERE extrato_id=?", (eid,))
+        try:
+            con.execute("DELETE FROM lexico_ocorrencias WHERE extrato_id=?", (eid,))
+        except sqlite3.OperationalError:
+            pass  # léxico ainda não inicializado neste banco
+        con.execute("DELETE FROM extrato_edicoes WHERE extrato_id=?", (eid,))
+        con.execute("DELETE FROM extratos WHERE id=?", (eid,))
+        _auditar(con, eid, usuario, "EXCLUIDO", resumo)
+
+    # 3) índice RAG (best-effort, só se já carregado)
+    try:
+        import sys
+        rag = sys.modules.get("modules.rag")
+        if rag is not None and hasattr(rag, "_db"):
+            rag._db.delete(where={"fonte": f"EXTRATO {eid}"})
+    except Exception:
+        pass
+    return {"ok": True, "grafo": grafo_res}
 
 
 def criar_e_processar(payload: dict, usuario: str = "sistema") -> dict:
@@ -417,7 +607,7 @@ def _extrato_dict(row) -> dict:
     d["nucleos_destino"] = _loads(d.get("nucleos_destino"), [])
     d["tags"] = _loads(d.get("tags"), [])
     d["resultado_json"] = _loads(d.get("resultado_json"), {})
-    for b in ("forcado_local", "bloqueado", "risco_forcado", "rae_gerado"):
+    for b in ("forcado_local", "bloqueado", "risco_forcado", "rae_gerado", "analise_desatualizada"):
         d[b] = bool(d.get(b))
     return d
 
@@ -455,7 +645,9 @@ def listar(limite: int = 200, user: dict | None = None) -> list[dict]:
     sql = (
         "SELECT id, data, unidade, nucleo, autor, assunto, assunto_sintetizado, "
         "       classificacao, status, risk_score, risk_nivel, criado_em, "
-        "       processado_em, provedor, forcado_local, bloqueado, rae_gerado "
+        "       processado_em, provedor, forcado_local, bloqueado, rae_gerado, "
+        "       editado_em, editado_por, edicoes, analise_desatualizada, "
+        "       processando_desde, criado_por "
         "FROM extratos "
         "ORDER BY criado_em DESC LIMIT ?"
     )
@@ -467,6 +659,8 @@ def listar(limite: int = 200, user: dict | None = None) -> list[dict]:
             d["forcado_local"] = bool(d["forcado_local"])
             d["bloqueado"] = bool(d["bloqueado"])
             d["rae_gerado"] = bool(d["rae_gerado"])
+            d["analise_desatualizada"] = bool(d.get("analise_desatualizada"))
+            d["edicoes"] = d.get("edicoes") or 0
             out.append(d)
     return out
 
@@ -524,8 +718,13 @@ def rae_dados(eid: str) -> dict | None:
     return {
         "extrato": {k: reg.get(k) for k in (
             "id", "data", "unidade", "nucleo", "autor", "assunto", "corpo",
-            "classificacao", "criado_em", "processado_em", "provedor", "modelo",
-            "prompt_versao", "forcado_local")},
+            "topicos", "nucleos_destino", "classificacao", "criado_em",
+            "criado_por", "editado_em", "editado_por", "edicoes",
+            "processado_em", "provedor", "modelo", "prompt_versao", "forcado_local")},
+        "status": reg.get("status"),
+        "erro": reg.get("erro"),
+        "analise_desatualizada": reg.get("analise_desatualizada"),
+        "historico_edicoes": historico_edicoes(eid),
         "assunto_sintetizado": reg.get("assunto_sintetizado"),
         "risk_score": reg.get("risk_score"),
         "risk_nivel": reg.get("risk_nivel"),

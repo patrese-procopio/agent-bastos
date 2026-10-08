@@ -81,3 +81,11 @@ SNAPSHOT_*.tar.gz
 # ─── Auditoria operacional (LGPD — nunca sai da máquina local) ──────────────
 *.jsonl
 _to_delete/
+
+# Backups criptografados do servidor (nunca versionar)
+backups/
+*.bkp
+*.bkp.parcial
+
+# ambiente isolado das ferramentas OSINT (maigret) — recriavel
+tools/

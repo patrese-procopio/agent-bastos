@@ -597,27 +597,21 @@ def _hitl_automatico(alertas: list) -> None:
             )
 
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
+                coro = notificar_aprovacao_pendente(
+                    aprovacao_id=aprov_id, tipo_evento="alerta_watchlist",
+                    descricao=descricao, risco="ALTO",
+                    operador="watchlist_engine", detalhes=a,
+                )
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    # Thread sem loop (caso normal: varredura roda no threadpool).
+                    # get_event_loop() lança RuntimeError no Python 3.14.
+                    sucesso = asyncio.run(coro)
+                else:
                     import concurrent.futures
                     with concurrent.futures.ThreadPoolExecutor() as pool:
-                        fut = pool.submit(
-                            asyncio.run,
-                            notificar_aprovacao_pendente(
-                                aprovacao_id=aprov_id, tipo_evento="alerta_watchlist",
-                                descricao=descricao, risco="ALTO",
-                                operador="watchlist_engine", detalhes=a,
-                            )
-                        )
-                        sucesso = fut.result(timeout=10)
-                else:
-                    sucesso = loop.run_until_complete(
-                        notificar_aprovacao_pendente(
-                            aprovacao_id=aprov_id, tipo_evento="alerta_watchlist",
-                            descricao=descricao, risco="ALTO",
-                            operador="watchlist_engine", detalhes=a,
-                        )
-                    )
+                        sucesso = pool.submit(asyncio.run, coro).result(timeout=10)
             except Exception:
                 sucesso = False
 

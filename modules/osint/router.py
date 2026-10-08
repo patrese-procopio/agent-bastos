@@ -18,6 +18,7 @@ Por que separar em endpoints distintos?
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import time
 from pathlib import Path
@@ -30,9 +31,14 @@ from pydantic import BaseModel
 if "/app" not in sys.path:
     sys.path.insert(0, "/app")
 
-from dependencies import require_module
+from dependencies import get_current_user_media, require_module
+from modules.osint import fotos as fotos_mod
+from modules.osint import pegada_digital as pegada
+from services.rate_limit_service import LIMIT_VARREDURA, limiter
+from config.settings import GROQ_MODEL_CHAT
 from modules.osint.collectors import build_collectors, run_collectors_parallel
 from modules.osint.enrichment import OsintEnrichment
+from modules.osint.internal_search import buscar_internas
 from modules.osint.lgpd_gate import LgpdGate, LgpdViolationError
 from modules.osint.models import (
     LgpdPurpose,
@@ -67,11 +73,13 @@ class PesquisarRequest(BaseModel):
     Separado do OsintRequest interno para controlar
     o que fica exposto na API pública.
     """
-    operator_id: str
+    operator_id: str | None = None  # ignorado: o operador é sempre o usuário do token
     lgpd_purpose: LgpdPurpose
     nome: str | None = None
     cpf: str | None = None
-    data_nascimento: str | None = None
+    data_nascimento: str | None = None  # YYYY-MM-DD
+    nome_mae: str | None = None
+    nome_pai: str | None = None
     fontes_ativas: list[SourceName] | None = None
 
     model_config = {
@@ -102,6 +110,8 @@ class PesquisarResponse(BaseModel):
     nos_grafo: int
     arestas_grafo: int
     fontes_com_erro: list[str]
+    achados_internos: int
+    fontes_internas: dict
     execution_time_ms: float | None
     lgpd_purpose: str
 
@@ -131,12 +141,16 @@ async def pesquisar(body: PesquisarRequest, request: Request,
     start = time.monotonic()
 
     # Monta OsintRequest interno
+    # Operador vem do JWT (não do body) — o audit LGPD não pode ser forjado.
+    operador = user.get("sub") or "desconhecido"
     osint_req_kwargs = {
-        "operator_id": body.operator_id,
+        "operator_id": operador,
         "lgpd_purpose": body.lgpd_purpose,
         "nome": body.nome,
         "cpf": body.cpf,
         "data_nascimento": body.data_nascimento,
+        "nome_mae": body.nome_mae,
+        "nome_pai": body.nome_pai,
     }
     if body.fontes_ativas:
         osint_req_kwargs["fontes_ativas"] = body.fontes_ativas
@@ -160,12 +174,67 @@ async def pesquisar(body: PesquisarRequest, request: Request,
             detail=f"LGPD: {str(e)}",
         )
 
-    # Coleta paralela
+    # Coleta externa + busca nas bases internas, em paralelo
     collectors = build_collectors(osint_req)
-    source_results = await run_collectors_parallel(collectors, osint_req)
+    source_results, internas = await asyncio.gather(
+        run_collectors_parallel(collectors, osint_req),
+        asyncio.to_thread(buscar_internas, osint_req, user.get("modules", [])),
+    )
 
     # Enriquecimento IA
     report = await _enrichment.enrich(osint_req, source_results)
+    report.achados_internos = internas["achados"]
+    report.fontes_internas = internas["fontes"]
+    report.contexto_busca = internas.get("contexto", {})
+    # Nível de risco: só processos, lideranças e notícias de crime (ver modules/osint/risco.py)
+    from modules.osint import risco as risco_mod
+    av = risco_mod.avaliar(internas["achados"], internas["fontes"], mandado_ativo=bool(report.mandados_prisao))
+    report.risk_level = RiskLevel(av["nivel"])
+    report.risco_pilares = {**av["pilares"], "convergencia": av["convergencia"], "limiar": av["limiar"],
+                            "imprecisos_nao_considerados": av["imprecisos_nao_considerados"], "versao_regras": av["versao_regras"]}
+    report.resumo_risco = av["resumo"]
+    report.risk_indicators = [m for m in av["motivos"]] + [i for i in report.risk_indicators if i not in av["motivos"]
+                                                         and "IA indisponível" not in i]
+    try:  # fotos de fontes oficiais/internas dos achados confirmados/prováveis
+        report.fotos = await asyncio.to_thread(fotos_mod.coletar, str(report.report_id), internas["achados"])
+    except Exception:
+        report.fotos = []
+    for a in internas["achados"]:
+        if a["fonte"] == "lista_negra" and a["nivel"] != "possivel":
+            report.risk_indicators.append(
+                f"Consta na Lista Negra ({a['nivel']}): {a['dados'].get('situacao') or 'sem situação'}"
+            )
+    for a in internas["achados"]:
+        if a["nivel"] == "possivel":
+            continue
+        if a["fonte"] == "pep_cgu":
+            report.risk_indicators.append(
+                f"Pessoa Exposta Politicamente ({a['nivel']}): {(a['dados'].get('linhas') or [''])[0][:140]}")
+        elif a["fonte"] == "sancoes_cgu":
+            tipo = "Empresa vinculada sancionada" if a["dados"].get("tipo") == "empresa" else "Sancionado"
+            report.risk_indicators.append(
+                f"{tipo} em {a['dados'].get('lista')} ({a['nivel']}): {(a['dados'].get('linhas') or [''])[0][:140]}")
+    penalidades = [a for a in internas["achados"] if a["fonte"] in ("querido_diario", "diario_am")
+                   and (a["dados"].get("ato") or "").startswith("Penalidade") and a["nivel"] != "possivel"]
+    if penalidades:
+        report.risk_indicators.append(
+            f"Citado em ato de penalidade/processo administrativo em diário oficial "
+            f"({penalidades[0]['dados'].get('municipio') or 'DOE-AM'}, {penalidades[0]['dados'].get('data')})"
+        )
+    seap = [a for a in internas["achados"] if a["fonte"] == "diario_am"
+            and a["dados"].get("seap") and a["nivel"] != "possivel"]
+    if seap:
+        report.risk_indicators.append(
+            f"{len(seap)} ato(s) da SEAP no DOE-AM citam esta pessoa (possível vínculo com o sistema "
+            f"penitenciário): confirmar identidade"
+        )
+    criminais = [a for a in internas["achados"]
+                 if a["fonte"] == "djen" and a["dados"].get("criminal") and a["nivel"] != "possivel"]
+    if criminais:
+        report.risk_indicators.append(
+            f"{len(criminais)} processo(s) de natureza criminal em publicações do DJEN "
+            f"({criminais[0]['nivel']}): confirmar identidade antes de usar"
+        )
     report.execution_time_ms = (time.monotonic() - start) * 1000
 
     # Salva no cache para GET /relatorio/{id}
@@ -173,9 +242,10 @@ async def pesquisar(body: PesquisarRequest, request: Request,
 
     try:
         from services.audit_service import registrar as audit
-        audit("osint_pesquisa", "consulta", usuario=body.operator_id,
-              alvo=body.nome or body.cpf or "?",
-              detalhe=f"risco={report.risk_level.value} finalidade={body.lgpd_purpose}",
+        audit("osint_pesquisa", "consulta", usuario=operador,
+              alvo=body.nome or osint_req.cpf_mascarado(),
+              detalhe=(f"risco={report.risk_level.value} finalidade={body.lgpd_purpose.value} "
+                       f"internos={len(report.achados_internos)}"),
               ip=ip)
     except Exception:
         pass
@@ -195,9 +265,134 @@ async def pesquisar(body: PesquisarRequest, request: Request,
         nos_grafo=len(report.graph.nodes),
         arestas_grafo=len(report.graph.edges),
         fontes_com_erro=report.fontes_com_erro,
+        achados_internos=len(report.achados_internos),
+        fontes_internas=report.fontes_internas,
         execution_time_ms=report.execution_time_ms,
         lgpd_purpose=report.lgpd_purpose.value,
     )
+
+
+# ─────────────────────────────────────────────
+# PEGADA DIGITAL (redes sociais, e-mail, telefone) e FOTOS
+# ─────────────────────────────────────────────
+
+class PegadaRequest(BaseModel):
+    report_id: str | None = None   # se informado, usa nome/UF do relatório e DESCOBRE identificadores nos achados
+    nome: str | None = None
+    username: str | None = None
+    email: str | None = None
+    telefone: str | None = None
+    auto: bool = True              # descobrir identificadores nos achados (vulgo, e-mails e telefones em documentos)
+    usar_vulgo: bool = True        # incluir o vulgo das Lideranças como username (baixa precisão)
+    variacoes_nome: bool = False   # opt-in: usernames derivados do NOME (baixíssima precisão)
+    profundidade: str = "padrao"   # rapida | padrao | completa
+
+
+def _mascara_email(e: str | None) -> str:
+    if not e or "@" not in e:
+        return "-"
+    a, d = e.split("@", 1)
+    return f"{a[:2]}***@{d}"
+
+
+def _mascara_tel(t: str | None) -> str:
+    d = "".join(c for c in (t or "") if c.isdigit())
+    return f"***{d[-4:]}" if len(d) >= 4 else "-"
+
+
+@router.post("/pegada-digital", summary="Inicia a busca de redes sociais/e-mail/telefone (segundo plano)")
+@limiter.limit(LIMIT_VARREDURA)
+async def iniciar_pegada(request: Request, body: PegadaRequest, user: dict = Depends(_GATE)) -> dict:
+    if body.profundidade not in pegada.PROFUNDIDADE:
+        raise HTTPException(status_code=422, detail=f"profundidade inválida: {', '.join(pegada.PROFUNDIDADE)}")
+    report = _report_cache.get(body.report_id) if body.report_id else None
+    nome = report.subject_name if report else body.nome
+    ufs = list((report.contexto_busca or {}).get("principais") or []) if report else []
+
+    # 1) o que o operador informou
+    usernames = [(body.username.strip(), "informado")] if body.username and body.username.strip() else []
+    emails = [(body.email.strip(), "informado")] if body.email and body.email.strip() else []
+    telefones = [(body.telefone.strip(), "informado")] if body.telefone and body.telefone.strip() else []
+
+    # 2) o que a própria pesquisa encontrou (confirmados/prováveis)
+    descobertos = {"usernames": [], "emails": [], "telefones": []}
+    if report and body.auto:
+        d = pegada.descobrir_identificadores(report.achados_internos)
+        if not body.usar_vulgo:
+            d["usernames"] = [x for x in d["usernames"] if not x[1].startswith("vulgo")]
+        descobertos = d
+        usernames += d["usernames"]; emails += d["emails"]; telefones += d["telefones"]
+
+    # 3) opt-in: variações do nome (só se pedido; baixíssima precisão)
+    if body.variacoes_nome and nome:
+        usernames += [(u, "variação do nome (baixíssima precisão)") for u in pegada.variacoes_nome(nome)]
+
+    if not (usernames or emails or telefones):
+        return {"job_id": None, "nada_encontrado": True, "maigret_disponivel": pegada.ferramenta_disponivel(),
+                "mensagem": "Nenhum identificador digital (vulgo, e-mail ou telefone) encontrado nos achados desta pesquisa."}
+
+    operador = user.get("sub") or "desconhecido"
+    jid = pegada.iniciar(operador, body.report_id, nome, usernames, emails, telefones, ufs, body.profundidade,
+                         auto=bool(report and body.auto))
+    try:
+        from services.audit_service import registrar as audit
+        audit("osint_pegada_digital", "consulta", usuario=operador, alvo=nome or "-",
+              detalhe=(f"usernames={len(usernames)} emails={[_mascara_email(e) for e, _ in emails]} "
+                       f"tels={[_mascara_tel(t) for t, _ in telefones]} auto={bool(report and body.auto)} "
+                       f"variacoes={body.variacoes_nome} prof={body.profundidade} job={jid}"),
+              ip=request.client.host if request.client else None)
+    except Exception:
+        pass
+    return {"job_id": jid, "nada_encontrado": False, "maigret_disponivel": pegada.ferramenta_disponivel(),
+            "descobertos": {k: [{"origem": o} for _, o in v] for k, v in descobertos.items()}}
+
+
+@router.get("/pegada-digital/{job_id}", summary="Estado/resultado da pegada digital")
+async def ver_pegada(job_id: str, user: dict = Depends(_GATE)) -> dict:
+    job = pegada.obter(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job não encontrado (reiniciou o backend ou expirou).")
+    rep = _report_cache.get(job.get("report_id") or "")
+    if rep and job["estado"] != "executando":
+        rep.pegada_digital = job   # fica no relatório (e no PDF)
+    return job
+
+
+class ConfirmarConta(BaseModel):
+    url: str
+    confirmar: bool = True
+
+
+@router.post("/pegada-digital/{job_id}/confirmar", summary="Analista confirma (ou desfaz) que a conta é da pessoa")
+async def confirmar_conta(job_id: str, body: ConfirmarConta, user: dict = Depends(_GATE)) -> dict:
+    contas = pegada.contas_do_job(job_id)
+    conta = next((c for c in contas if c.get("url") == body.url), None)
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta não encontrada neste job.")
+    conta["confirmada"] = body.confirmar
+    conta["confirmada_por"] = user.get("sub") if body.confirmar else None
+    job = pegada.obter(job_id) or {}
+    rep = _report_cache.get(job.get("report_id") or "")
+    if rep and conta.get("foto_id"):
+        rep.fotos = [f for f in rep.fotos if f.get("id") != conta["foto_id"]]
+        if body.confirmar:
+            rep.fotos.append({"id": conta["foto_id"], "fonte": f"Perfil confirmado pelo analista — {conta['site']}",
+                              "legenda": conta.get("nome_perfil") or conta["username"],
+                              "confianca": None, "nivel": "confirmado_analista", "url": conta["url"]})
+    if rep:
+        rep.pegada_digital = pegada.obter(job_id) or {}
+    return {"ok": True, "confirmada": conta["confirmada"]}
+
+
+@router.get("/foto/{foto_id}", summary="Imagem (rota autenticada; aceita ?token= para <img>)")
+async def get_foto(foto_id: str, user: dict = Depends(get_current_user_media)):
+    from fastapi.responses import Response
+    if "osint" not in user.get("modules", []):
+        raise HTTPException(status_code=403, detail="Acesso ao módulo 'osint' não autorizado")
+    f = fotos_mod.obter(foto_id)
+    if not f:
+        raise HTTPException(status_code=404, detail="Foto expirada ou inexistente.")
+    return Response(content=f["bytes"], media_type=f["mime"], headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get(
@@ -281,10 +476,50 @@ async def get_status(user: dict = Depends(_GATE)) -> dict:
         },
         "groq": {
             "api_key_configurada": bool(os.getenv("GROQ_API_KEY")),
-            "modelo": "llama-3.3-70b-versatile",
+            "modelo": GROQ_MODEL_CHAT,
             "gratuito": True,
             "nota": "Free tier generoso",
         },
+    }
+
+    from modules.osint.receita_cnpj import info_base
+    fontes["receita_cnpj"] = {
+        **info_base(),
+        "gratuito": True,
+        "nota": "Base local de sócios PF. Carga: scripts/carregar_cnpj_receita.py",
+    }
+
+    from modules.osint.tse import info_base as info_tse
+    fontes["tse"] = {
+        **info_tse(),
+        "gratuito": True,
+        "nota": "Base local de candidaturas e bens. Carga: scripts/carregar_tse.py",
+    }
+
+    from modules.osint.sancoes_cgu import info_base as info_sanc
+    fontes["pep_cgu"] = fontes["sancoes_cgu"] = {
+        **info_sanc(), "gratuito": True,
+        "nota": "PEP/CEIS/CNEP/CEAF (CGU). Carga: scripts/carregar_sancoes_cgu.py",
+    }
+    fontes["diario_am"] = {
+        "api_key_configurada": True, "url": "https://diario.imprensaoficial.am.gov.br", "gratuito": True,
+        "nota": "Diário Oficial do Estado do Amazonas (1956-hoje). Nome enviado a serviço externo.",
+    }
+    fontes["noticias"] = {
+        "api_key_configurada": True, "url": "https://news.google.com/rss", "gratuito": True,
+        "nota": "Alertas do monitor + feed de crimes (AM) + Google News pelo nome. Nome enviado a serviço externo.",
+    }
+    fontes["pegada_digital"] = {
+        "maigret_instalado": pegada.ferramenta_disponivel(), "gratuito": True,
+        "nota": "Maigret isolado em tools/osint_venv; telefone offline (phonenumbers); e-mail só Gravatar (sem Holehe).",
+    }
+    fontes["querido_diario"] = {
+        "api_key_configurada": True, "url": "https://api.queridodiario.ok.org.br", "gratuito": True,
+        "nota": "Diários oficiais municipais (só municípios raspados). Nome enviado a serviço externo.",
+    }
+    fontes["djen"] = {
+        "api_key_configurada": True, "url": "https://comunicaapi.pje.jus.br", "gratuito": True,
+        "nota": "Publicações a partir de mai/2022. API do CNJ lenta/instável; nome enviado ao CNJ.",
     }
 
     modo_mock = os.getenv("OSINT_USE_MOCK", "false").lower() == "true"

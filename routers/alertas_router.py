@@ -36,7 +36,7 @@ from services.alertas_service import (
     ALERTAS_OSINT_PATH,
 )
 from fastapi import BackgroundTasks
-from dependencies import get_current_user, require_module
+from dependencies import get_current_user, require_module, require_module_or_scheduler
 from services.rate_limit_service import limiter, LIMIT_VARREDURA, LIMIT_IA_PESADA, LIMIT_ESCRITA
 from services.logging_service import get_logger
 import services.alvos_service as alvos_service
@@ -155,24 +155,35 @@ async def salvar_alerta_osint(alerta: dict, user: dict = Depends(require_module(
     return {"status": "salvo", "total": len(alertas)}
 
 
+def _marcar_local(alerta_id: str | None = None) -> None:
+    """Marca como lido no JSON local (fonte que GET /alertas lê quando o Firestore falha)."""
+    for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
+        alertas = ler_alertas(caminho)
+        mudou = False
+        for a in alertas:
+            if (alerta_id is None or a.get("id") == alerta_id) and not a.get("lido"):
+                a["lido"] = True
+                mudou = True
+        if mudou:
+            salvar_alertas(caminho, alertas)
+
+
 @router.patch("/alertas/{alerta_id}/lido")
 def marcar_alerta_lido(alerta_id: str, user: dict = Depends(get_current_user)):
+    # Sempre grava no local: o GET /alertas cai nele quando a query do Firestore
+    # falha (índice composto ausente), então só o Firestore não persistia o "lido".
+    _marcar_local(alerta_id)
     try:
         db = _get_firestore_safe()
         db.collection("alertas").document(alerta_id).update({"lido": True})
-        return {"ok": True}
     except Exception:
-        for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
-            alertas = ler_alertas(caminho)
-            for a in alertas:
-                if a.get("id") == alerta_id:
-                    a["lido"] = True
-            salvar_alertas(caminho, alertas)
-        return {"ok": True, "id": alerta_id}
+        pass
+    return {"ok": True, "id": alerta_id}
 
 
 @router.patch("/alertas/marcar-todos-lidos")
 def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
+    _marcar_local()
     try:
         db        = _get_firestore_safe()
         nao_lidos = db.collection("alertas").where("lido", "==", False).stream()
@@ -180,20 +191,15 @@ def marcar_todos_lidos(user: dict = Depends(require_module("alertas"))):
         for doc in nao_lidos:
             batch.update(doc.reference, {"lido": True})
         batch.commit()
-        return {"ok": True}
     except Exception:
-        for caminho in (ALERTAS_PATH, ALERTAS_OSINT_PATH):
-            alertas = ler_alertas(caminho)
-            for a in alertas:
-                a["lido"] = True
-            salvar_alertas(caminho, alertas)
-        return {"ok": True}
+        pass
+    return {"ok": True}
 
 
 @router.post("/alertas/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_realtime(request: Request, alvo_id: str | None = None,
-                             user: dict = Depends(require_module("alertas"))):
+                             user: dict = Depends(require_module_or_scheduler("alertas"))):
     from modules.monitor import varrer_realtime
     _log_audit.info("varrer realtime", extra={"username": user.get("sub"), "alvo_id": alvo_id})
     return varrer_realtime(alvo_id=alvo_id)
@@ -202,7 +208,7 @@ def varrer_alertas_realtime(request: Request, alvo_id: str | None = None,
 @router.post("/alertas/osint/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_osint(request: Request, alvo_id: str | None = None,
-                          user: dict = Depends(require_module("osint"))):
+                          user: dict = Depends(require_module_or_scheduler("osint"))):
     from modules.monitor import varrer_osint
     _log_audit.info("varrer osint", extra={"username": user.get("sub"), "alvo_id": alvo_id})
     return varrer_osint(alvo_id=alvo_id)
@@ -221,7 +227,7 @@ def analisar_alertas_pendentes(request: Request, limite: int = 20,
 @router.post("/alertas/telegram/varrer")
 @limiter.limit(LIMIT_VARREDURA)
 def varrer_alertas_telegram(request: Request, alvo_id: str | None = None,
-                             user: dict = Depends(require_module("osint"))):
+                             user: dict = Depends(require_module_or_scheduler("osint"))):
     """Varre canais públicos do Telegram em busca de menções aos alvos (salva como OSINT)."""
     from modules.telegram_monitor import varrer_telegram
     _log_audit.info("varrer telegram", extra={"username": user.get("sub"), "alvo_id": alvo_id})

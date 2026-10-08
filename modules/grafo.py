@@ -793,6 +793,25 @@ def limpar_extrato(extrato_id: str) -> None:
         )
 
 
+def remover_extrato(extrato_id: str) -> dict:
+    """Exclusão definitiva: remove nós/vínculos auto do extrato e também as
+    pessoas criadas só por ele que ficaram órfãs (sem nenhum vínculo restante).
+    Pessoas de lideranças/manuais e as ligadas a outros extratos são preservadas."""
+    limpar_extrato(extrato_id)
+    origem = f"auto:extrato:{extrato_id}"
+    orfaos = 0
+    with _conn() as con:
+        ids = [r["id"] for r in con.execute("SELECT id FROM nos WHERE origem = ?", (origem,))]
+        for nid in ids:
+            tem = con.execute(
+                "SELECT 1 FROM arestas WHERE origem_id = ? OR destino_id = ? LIMIT 1",
+                (nid, nid)).fetchone()
+            if not tem:
+                con.execute("DELETE FROM nos WHERE id = ?", (nid,))
+                orfaos += 1
+    return {"orfaos_removidos": orfaos}
+
+
 def ingerir_extrato(extrato_id: str, entidades: list[dict],
                     conexoes: list[dict], rotulo_extrato: str = None) -> dict:
     """

@@ -42,7 +42,8 @@ goto waitback
 echo       backend PRONTO em %BACK%
 
 echo  [2/4] Iniciando n8n (automacao)...
-start "Agent Bastos - n8n" cmd /k "n8n start"
+REM Dois n8n na mesma pasta (.n8n) corrompem o banco: so sobe se a porta 5678 estiver livre
+netstat -ano | findstr ":5678 " | findstr "LISTENING" >nul && (echo       n8n ja esta rodando - nao vou iniciar outro.) || start "Agent Bastos - n8n" cmd /k "n8n start"
 timeout /t 4 /nobreak >nul
 
 echo  [3/4] Iniciando interface (Vite)...
