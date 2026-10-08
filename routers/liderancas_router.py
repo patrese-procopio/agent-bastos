@@ -36,6 +36,7 @@ from modules.liderancas import (
     criar_lider_rua, atualizar_lider_rua, deletar_lider_rua, buscar_lider_rua,
     listar_lideres_agrupados, listar_lideres_por_faccao,
     salvar_foto_rua, carregar_foto_rua,
+    previa_copia, copiar_competencia, listar_copias, desfazer_copia,
 )
 from dependencies import get_current_user, get_current_user_media, require_module
 
@@ -95,6 +96,67 @@ def _cor_faccao(faccao: str):
     return _FACCAO_PDF_COR.get(faccao, {
         "bg": (0.97, 0.98, 0.99), "text": (0.28, 0.34, 0.41), "dot": (0.58, 0.64, 0.72)
     })
+
+
+# ── Cópia de lideranças entre meses ───────────────────────────────────────────
+from pydantic import BaseModel
+from typing import Optional
+
+
+class CopiaIn(BaseModel):
+    origem: str
+    destino: str
+    unidades: Optional[list[str]] = None      # None = todas
+
+
+def _unidades_param(unidades: str):
+    return None if (not unidades or unidades == "todas") else [u for u in unidades.split(",") if u]
+
+
+@liderancas_router.get("/copia/previa")
+def get_copia_previa(origem: str, destino: str, unidades: str = "todas",
+                     user: dict = Depends(require_module("alertas"))):
+    """Quantos líderes seriam copiados / já existem no destino. Não grava nada."""
+    try:
+        return previa_copia(origem, destino, _unidades_param(unidades))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@liderancas_router.post("/copia")
+def post_copia(body: CopiaIn, user: dict = Depends(require_module("alertas"))):
+    """Copia as lideranças de um mês para outro, pulando quem já existe no destino."""
+    try:
+        res = copiar_competencia(body.origem, body.destino, body.unidades, usuario=user.get("sub", "?"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        from services.audit_service import registrar as audit
+        audit("liderancas_copiadas", "liderancas", usuario=user.get("sub", "?"), alvo=res.get("lote") or "-",
+              detalhe=f"{body.origem} -> {body.destino} · {res['copiados']} copiados · {res['ignorados']} já existiam")
+    except Exception:
+        pass
+    return res
+
+
+@liderancas_router.get("/copia/lotes")
+def get_copia_lotes(user: dict = Depends(require_module("alertas"))):
+    return {"lotes": listar_copias()}
+
+
+@liderancas_router.delete("/copia/lotes/{lote_id}")
+def delete_copia_lote(lote_id: str, user: dict = Depends(require_module("alertas"))):
+    """Desfaz uma cópia: remove só o que ela criou e não foi editado depois."""
+    res = desfazer_copia(lote_id, usuario=user.get("sub", "?"))
+    if not res.get("ok"):
+        raise HTTPException(status_code=404, detail="Cópia não encontrada.")
+    try:
+        from services.audit_service import registrar as audit
+        audit("liderancas_copia_desfeita", "liderancas", usuario=user.get("sub", "?"), alvo=lote_id,
+              detalhe=f"{res['removidos']} removidos · {res['mantidos_por_edicao']} mantidos (editados)")
+    except Exception:
+        pass
+    return res
 
 
 # ── Estrutura e metadados ─────────────────────────────────────────────────────

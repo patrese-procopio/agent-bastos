@@ -167,6 +167,26 @@ def init_db():
                 WHERE competencia = ''
             """)
 
+        # Cópia de mês: marca de origem (some ao editar) e lote da cópia (para desfazer)
+        if "copiado_de" not in cols:
+            con.execute("ALTER TABLE liderancas ADD COLUMN copiado_de TEXT")
+        if "lote_copia" not in cols:
+            con.execute("ALTER TABLE liderancas ADD COLUMN lote_copia TEXT")
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS liderancas_copias (
+                id          TEXT PRIMARY KEY,
+                criado_em   TEXT NOT NULL,
+                usuario     TEXT,
+                origem      TEXT NOT NULL,
+                destino     TEXT NOT NULL,
+                unidades    TEXT,
+                copiados    INTEGER NOT NULL DEFAULT 0,
+                ignorados   INTEGER NOT NULL DEFAULT 0,
+                desfeito_em TEXT,
+                desfeito_por TEXT
+            )
+        """)
+
         con.execute("CREATE INDEX IF NOT EXISTS idx_unidade     ON liderancas(unidade)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_competencia ON liderancas(competencia)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_loc         ON liderancas(unidade, pavilhao, ala, cela)")
@@ -229,6 +249,7 @@ def atualizar_lider(lider_id: str, dados: dict) -> dict:
         "faccao", "cargo", "nome", "vulgo", "foto_ext", "observacao", "competencia",
     )}
     campos["atualizado_em"] = agora
+    campos["copiado_de"] = None      # editado por uma pessoa: deixa de ser "cópia pura"
     sets    = ", ".join(f"{k} = ?" for k in campos)
     valores = list(campos.values()) + [lider_id]
     with _conn() as con:
@@ -613,6 +634,154 @@ def carregar_foto_rua(lider_id: str, foto_ext: str) -> bytes | None:
     with open(path, "rb") as f:
         return f.read()
     
+# ── Cópia de lideranças entre competências (meses) ───────────────────────────
+# Regras:
+#  • Quem já existe no destino é PULADO (nunca duplica). "Mesma pessoa" = unidade + facção +
+#    vulgo + nome (normalizados). Sem vulgo e sem nome, vale a posição (pavilhão/ala/cela/cargo).
+#  • A foto é duplicada junto (arquivo próprio para o novo registro).
+#  • Cada cópia vira um LOTE: dá para desfazer. Registros que alguém editou depois ficam.
+
+import re as _re
+import shutil as _shutil
+import unicodedata as _ud
+
+_RX_COMP = _re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def _nk(s) -> str:
+    t = "".join(c for c in _ud.normalize("NFKD", str(s or "")) if not _ud.combining(c))
+    return _re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+
+def _chave_lider(r: dict) -> tuple:
+    v, n = _nk(r.get("vulgo")), _nk(r.get("nome"))
+    if v or n:
+        return ("p", r["unidade"], _nk(r["faccao"]), v, n)
+    return ("l", r["unidade"], r["pavilhao"], r["ala"], r.get("cela") or "", _nk(r["faccao"]), _nk(r["cargo"]))
+
+
+def _validar_copia(origem: str, destino: str, unidades) -> list[str]:
+    if not _RX_COMP.match(origem or "") or not _RX_COMP.match(destino or ""):
+        raise ValueError("Mês inválido (use AAAA-MM).")
+    if origem == destino:
+        raise ValueError("Origem e destino são o mesmo mês.")
+    if not unidades or unidades == "todas":
+        return list(ESTRUTURA.keys())
+    inval = [u for u in unidades if u not in ESTRUTURA]
+    if inval:
+        raise ValueError(f"Unidade inválida: {', '.join(inval)}")
+    return list(unidades)
+
+
+def _rows_comp(con, comp: str, unidades: list[str]) -> list[dict]:
+    q = ",".join("?" * len(unidades))
+    return [dict(r) for r in con.execute(
+        f"SELECT * FROM liderancas WHERE competencia = ? AND unidade IN ({q}) "
+        f"ORDER BY unidade, pavilhao, ala, cela, cargo", (comp, *unidades)).fetchall()]
+
+
+def previa_copia(origem: str, destino: str, unidades=None) -> dict:
+    uns = _validar_copia(origem, destino, unidades)
+    with _conn() as con:
+        src = _rows_comp(con, origem, uns)
+        dst = {_chave_lider(r) for r in _rows_comp(con, destino, uns)}
+    por: dict = {}
+    for r in src:
+        d = por.setdefault(r["unidade"], {"unidade": r["unidade"], "label": ESTRUTURA[r["unidade"]]["label"],
+                                          "na_origem": 0, "a_copiar": 0, "ja_existem": 0, "pavilhoes": {}})
+        pv = d["pavilhoes"].setdefault(r["pavilhao"], {"a_copiar": 0, "ja_existem": 0})
+        d["na_origem"] += 1
+        if _chave_lider(r) in dst:
+            d["ja_existem"] += 1; pv["ja_existem"] += 1
+        else:
+            d["a_copiar"] += 1; pv["a_copiar"] += 1
+    lista = sorted(por.values(), key=lambda x: x["label"])
+    return {"origem": origem, "destino": destino, "unidades": uns,
+            "na_origem": sum(d["na_origem"] for d in lista),
+            "a_copiar": sum(d["a_copiar"] for d in lista),
+            "ja_existem": sum(d["ja_existem"] for d in lista),
+            "por_unidade": lista}
+
+
+def copiar_competencia(origem: str, destino: str, unidades=None, usuario: str = "") -> dict:
+    uns = _validar_copia(origem, destino, unidades)
+    lote = datetime.now().strftime("%Y%m%d%H%M%S%f")[:17]
+    agora = datetime.now(timezone.utc).isoformat()
+    copiados = ignorados = fotos = 0
+    fotos_criadas: list[str] = []
+    try:
+        with _conn() as con:
+            src = _rows_comp(con, origem, uns)
+            dst = {_chave_lider(r) for r in _rows_comp(con, destino, uns)}
+            for r in src:
+                if _chave_lider(r) in dst:
+                    ignorados += 1
+                    continue
+                novo_id = str(uuid.uuid4())
+                foto_ext = None
+                if r.get("foto_ext"):
+                    origem_p = os.path.join(FOTOS_DIR, f"{r['id']}{r['foto_ext']}")
+                    if os.path.exists(origem_p):
+                        dest_p = os.path.join(FOTOS_DIR, f"{novo_id}{r['foto_ext']}")
+                        _shutil.copy2(origem_p, dest_p)
+                        fotos_criadas.append(dest_p)
+                        foto_ext = r["foto_ext"]; fotos += 1
+                con.execute("""
+                    INSERT INTO liderancas
+                      (id, unidade, pavilhao, ala, cela, faccao, cargo, nome, vulgo, foto_ext,
+                       observacao, competencia, criado_em, atualizado_em, copiado_de, lote_copia)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (novo_id, r["unidade"], r["pavilhao"], r["ala"], r.get("cela") or "", r["faccao"], r["cargo"],
+                      r.get("nome"), r.get("vulgo"), foto_ext, r.get("observacao"), destino, agora, agora,
+                      origem, lote))
+                copiados += 1
+            if copiados:
+                con.execute("""INSERT INTO liderancas_copias
+                    (id, criado_em, usuario, origem, destino, unidades, copiados, ignorados)
+                    VALUES (?,?,?,?,?,?,?,?)""",
+                    (lote, agora, usuario, origem, destino, ",".join(uns), copiados, ignorados))
+    except Exception:
+        for f in fotos_criadas:          # nada pela metade: desfaz as fotos já duplicadas
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        raise
+    return {"ok": True, "lote": lote if copiados else None, "copiados": copiados,
+            "ignorados": ignorados, "fotos": fotos, "destino": destino}
+
+
+def listar_copias(limite: int = 8) -> list[dict]:
+    with _conn() as con:
+        rows = con.execute("""
+            SELECT c.*,
+              (SELECT COUNT(*) FROM liderancas l WHERE l.lote_copia = c.id AND l.copiado_de IS NOT NULL) AS intactos,
+              (SELECT COUNT(*) FROM liderancas l WHERE l.lote_copia = c.id AND l.copiado_de IS NULL)     AS editados
+            FROM liderancas_copias c ORDER BY c.criado_em DESC LIMIT ?""", (limite,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def desfazer_copia(lote_id: str, usuario: str = "") -> dict:
+    """Remove só o que a cópia criou e ninguém mexeu depois; o que foi editado permanece."""
+    with _conn() as con:
+        lote = con.execute("SELECT * FROM liderancas_copias WHERE id = ?", (lote_id,)).fetchone()
+        if not lote:
+            return {"ok": False, "erro": "lote_nao_encontrado"}
+        alvo = con.execute("SELECT id, foto_ext FROM liderancas WHERE lote_copia = ? AND copiado_de IS NOT NULL",
+                           (lote_id,)).fetchall()
+        mantidos = con.execute("SELECT COUNT(*) FROM liderancas WHERE lote_copia = ? AND copiado_de IS NULL",
+                               (lote_id,)).fetchone()[0]
+        for r in alvo:
+            if r["foto_ext"]:
+                p = os.path.join(FOTOS_DIR, f"{r['id']}{r['foto_ext']}")
+                if os.path.exists(p):
+                    os.remove(p)
+        con.execute("DELETE FROM liderancas WHERE lote_copia = ? AND copiado_de IS NOT NULL", (lote_id,))
+        con.execute("UPDATE liderancas_copias SET desfeito_em = ?, desfeito_por = ? WHERE id = ?",
+                    (datetime.now(timezone.utc).isoformat(), usuario, lote_id))
+    return {"ok": True, "removidos": len(alvo), "mantidos_por_edicao": mantidos}
+
+
 # Inicializa banco ao importar
 init_db()
 init_db_faccoes()
