@@ -100,6 +100,7 @@ O menu do aplicativo é dividido em três grupos. Cada item é protegido por um 
 |---|---|---|
 | **Dashboard** | Produção documental real (SQLite): KPIs, ranking por núcleo, por tipo, evolução mensal e lançamento de documentos. | `dashboard` |
 | **Transcrição** | Áudio → texto (Whisper) → laudo estruturado com falantes, linha do tempo, classificação de risco e *red flags*; exporta TXT, PDF e DOCX. Risco alto abre aprovação HITL e dispara o cruzamento com alvos e lideranças. | `transcricao` |
+| **Acervo de Áudios** | Extrator em lote: fila de gravações (upload múltiplo ou pasta monitorada), áudios longos cortados em pausas de fala, transcrição com tempo, **busca em texto integral**, player sincronizado com a transcrição, correção humana (original preservado), laudo e **cadeia de custódia** (SHA-256 do original + trilha com hash encadeado). Material sensível **nunca** vai para a nuvem: sem transcrição local, fica bloqueado. | `transcricao` |
 | **Análise Grafoscópica** | Transcrição forense e parecer de manuscritos (bilhetes, cartas, códigos) via visão computacional. | `grafoscopia` |
 | **Notícias** | Feed de crimes e ocorrências, atualizado por automação. | `noticias` |
 | **Operações Drone** | Missões, importação e upload de mídias com trajeto, **ortomosaico** (GeoTIFF), comparação temporal de imagens/mosaicos com mapa de calor e relatório da missão. | `drone` |
@@ -181,7 +182,7 @@ Os fluxos ficam em [`automacao_n8n/`](./automacao_n8n) e [`n8n_workflows/`](./n8
 | Monitor de Crimes (Notícias) | Diária | Atualiza o feed de notícias |
 | Sync do Drive | Diária, 03h | Reindexa os documentos do Google Drive |
 | Atualização de bases OSINT | Diária, 03h30 | Recarrega bases públicas se houver dado novo |
-| Extrator de Áudio | 5 min | Transcreve áudios novos de `data/audios`, gera relatório e move para `processados/` |
+| Extrator de Áudio | 5 min | Enfileira no Acervo os áudios novos de `data/audios` (o worker transcreve em segundo plano) e move o arquivo para `processados/` |
 | BDI — Boletim Diário | Diária | Gera o briefing em PDF |
 | Human-in-the-Loop (WhatsApp) | Evento | Notifica aprovações pendentes via Evolution API |
 | Extrato (webhook) | Evento | Recebe extrato, processa e alerta se risco ≥ 8 |
