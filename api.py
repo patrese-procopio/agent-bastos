@@ -46,6 +46,7 @@ from routers.feedback_router    import router as feedback_router
 from routers.risco_score_router import router as risco_score_router
 from routers.subint_router      import router as subint_router
 from routers.drone_router       import router as drone_router
+from routers.audio_router import router as audio_router
 from routers.bases_router       import router as bases_router
 
 # ── Seeds ─────────────────────────────────────────────────────────────────────
@@ -152,6 +153,7 @@ app.include_router(feedback_router,    prefix="/api")  # Feedback Loop de Correl
 app.include_router(risco_score_router, prefix="/api")  # Score de Risco Dinâmico (Missão 28)
 app.include_router(subint_router,      prefix="/api")  # SUBINT Automatizado (Missão 29)
 app.include_router(drone_router,       prefix="/api")  # Operações Drone (Missão 31)
+app.include_router(audio_router,       prefix="/api")  # Acervo de Áudios (extrator de áudio, Fase 1)
 
 # ── Health endpoint ───────────────────────────────────────────────────────────
 # Endpoint dedicado para HEALTHCHECK do Docker — não expõe informações da API.
@@ -176,6 +178,8 @@ from services.briefing_service import iniciar_scheduler as _iniciar_briefing
 def _startup():
     start_scheduler()
     _iniciar_briefing()   # BDI automático: todo dia às BRIEFING_HORA (padrão 06:00 UTC)
+    from modules.audio_acervo import iniciar_worker as _iniciar_audio
+    _iniciar_audio()      # fila do acervo de áudios (transcrição em lote)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

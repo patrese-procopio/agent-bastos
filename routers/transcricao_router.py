@@ -323,33 +323,22 @@ async def transcribe(
 
 # ─── Rota: Processar pasta de áudios (usada pelo n8n "Extrator de Audio") ─────
 # O n8n 2.x só lê arquivos dentro de ~/.n8n-files, então a pasta data/audios é
-# varrida aqui no backend: cada áudio novo é transcrito pelo MESMO fluxo de
-# /transcribe, gera um relatório .txt em data/relatorios e é movido para
-# data/audios/processados (nunca é processado duas vezes).
-
-def _relatorio_txt(res: dict, filename: str) -> str:
-    linhas = [
-        "RELATÓRIO DE INTELIGÊNCIA — TRANSCRIÇÃO DE ÁUDIO",
-        f"Laudo: {res.get('laudo_number', '')}    Data: {res.get('date', '')}",
-        f"Arquivo: {filename}    Duração: {res.get('duration', '')}",
-        f"Risco: {res.get('risk_level', '')}    Classificação: {res.get('classification', '')}",
-        "", "RESUMO", res.get("summary", ""), "", "PONTOS DE ATENÇÃO",
-    ]
-    flags = res.get("red_flags") or []
-    linhas += [f"- {f.get('title', '')}: {f.get('text', '')}" for f in flags] or ["(nenhum)"]
-    linhas += ["", "TRANSCRIÇÃO INTEGRAL"]
-    linhas += [f"[{s.get('ts', '')}] {s.get('speaker', '')}: {s.get('text', '')}"
-               for s in res.get("segments") or []]
-    return "\n".join(linhas) + "\n"
-
+# varrida aqui no backend e cada áudio novo entra na fila do Acervo de Áudios
+# (modules/audio_acervo.py); o arquivo é movido para data/audios/processados.
 
 @router.post("/transcricao/processar-pasta")
 async def processar_pasta_audios(
-    limite: int = 3,
+    limite: int = 50,
     user: dict = Depends(require_module_or_scheduler("transcricao")),
 ):
-    from config.paths import DIR_RELATORIOS
-    pasta      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "audios")
+    """
+    Varre data/audios e ENFILEIRA cada áudio novo no Acervo (modules/audio_acervo): o original é
+    guardado com SHA-256, o arquivo é movido para data/audios/processados e o worker transcreve
+    em segundo plano (esta chamada retorna na hora, sem segurar o n8n).
+    A classificação segue AUDIO_CLASSIF_PADRAO (padrão 'reservado' = só transcrição local).
+    """
+    from modules import audio_acervo as ac
+    pasta       = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "audios")
     processados = os.path.join(pasta, "processados")
     os.makedirs(processados, exist_ok=True)
 
@@ -358,29 +347,21 @@ async def processar_pasta_audios(
         if os.path.isfile(os.path.join(pasta, f)) and os.path.splitext(f)[1].lower() in _AUDIO_EXTS
     )[:max(1, limite)]
 
-    feitos, erros = [], []
+    itens, erros = [], []
     for nome in pendentes:
         origem = os.path.join(pasta, nome)
         try:
-            bg = BackgroundTasks()
-            with open(origem, "rb") as fh:
-                res = await transcribe(UploadFile(file=fh, filename=nome), bg, user)
-            await bg()   # roda HITL + cruzamento que /transcribe agenda em background
-
+            r = ac.ingerir_arquivo(origem, nome, {"observacoes": "pasta monitorada"}, user.get("sub", "agendador"))
             stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            base  = os.path.splitext(_sanitize_filename(nome))[0]
-            rel   = os.path.join(str(DIR_RELATORIOS), f"relatorio_audio_{stamp}_{base}.txt")
-            with open(rel, "w", encoding="utf-8") as f:
-                f.write(_relatorio_txt(res, nome))
-
             os.replace(origem, os.path.join(processados, f"{stamp}_{nome}"))
-            feitos.append({"arquivo": nome, "risco": res.get("risk_level"), "relatorio": os.path.basename(rel)})
+            itens.append({"arquivo": nome, "id": r["id"], "duplicado": r["duplicado"]})
         except Exception as e:
-            # Arquivo fica na pasta para nova tentativa; o erro aparece na resposta e no log.
-            _log.error(f"processar-pasta: falha em {nome}: {e}")
-            erros.append({"arquivo": nome, "erro": str(getattr(e, "detail", e))[:200]})
+            _log.error(f"processar-pasta: falha ao enfileirar {nome}: {e}")
+            erros.append({"arquivo": nome, "erro": str(e)[:200]})
 
-    return {"ok": not erros, "processados": len(feitos), "erros": erros, "itens": feitos}
+    novos = sum(1 for i in itens if not i["duplicado"])
+    return {"ok": not erros, "processados": novos, "enfileirados": novos,
+            "duplicados": len(itens) - novos, "erros": erros, "itens": itens}
 
 
 # ─── Rota: Exportação de Laudos ───────────────────────────────────────────────
