@@ -9,7 +9,7 @@ Como funciona:
   1. Solicita a senha duas vezes (confirmacao).
   2. Aplica regras de qualidade (>= 12 chars, mix de classes).
   3. Gera hash bcrypt (custo 12).
-  4. Grava ADMIN_PASSWORD_HASH= ou ANALISTA_PASSWORD_HASH= no .env
+  4. Grava ADMIN_/ANALISTA_/CHEFE_PASSWORD_HASH= no .env
      (sobrescrevendo o valor anterior se existir).
 
 Uso:
@@ -35,6 +35,7 @@ ENV_PATH = os.path.join(BASE, ".env")
 VARS = {
     "admin":    "ADMIN_PASSWORD_HASH",
     "analista": "ANALISTA_PASSWORD_HASH",
+    "chefe":    "CHEFE_PASSWORD_HASH",   # login do chefe na Agenda de Missao
 }
 
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -85,7 +86,7 @@ def _atualizar_env(chave: str, valor: str) -> bool:
 
 def main() -> int:
     if len(sys.argv) != 2 or sys.argv[1] not in VARS:
-        print("Uso: python scripts/setar_senha.py <admin|analista>")
+        print("Uso: python scripts/setar_senha.py <admin|analista|chefe>")
         return 1
 
     usuario = sys.argv[1]
