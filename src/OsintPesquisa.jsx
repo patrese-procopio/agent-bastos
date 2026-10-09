@@ -66,6 +66,20 @@ const FONTES = [
   { key:"gnews",          label:"GNews",    icon:"📰" },
 ]
 
+const FONTES_INTERNAS = [
+  { key:"lista_negra", label:"Lista Negra", icon:"⛔" },
+  { key:"liderancas",  label:"Lideranças",  icon:"👥" },
+  { key:"referencias", label:"Referências", icon:"📁" },
+  { key:"receita_cnpj",label:"Receita (sócios)", icon:"🏢" },
+  { key:"tse",         label:"TSE (candidaturas)", icon:"🗳" },
+  { key:"djen",        label:"DJEN (CNJ)", icon:"⚖" },
+  { key:"querido_diario",label:"Diários Oficiais", icon:"📰" },
+  { key:"diario_am",   label:"DOE-AM", icon:"🏛" },
+  { key:"pep_cgu",     label:"PEP (CGU)", icon:"🎖" },
+  { key:"sancoes_cgu", label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
+  { key:"noticias",    label:"Notícias", icon:"📰" },
+]
+
 const TRIBUNAIS = [
   { value: "",     label: "Auto-detectar pelo número CNJ" },
   { value: "tjam", label: "TJAM — Amazonas" },
@@ -146,11 +160,460 @@ const SecLabel = ({ children, color=C.gold }) => (
   </div>
 )
 
+// Resultados com precisão abaixo deste valor ficam atrás do botão "Resultados imprecisos"
+const LIMIAR = 50
+
+// Abas por TIPO de resultado (cada uma filtra os achados da pesquisa)
+const ABAS_ACHADOS = [
+  { key:"liderancas",label:"Lideranças",       fontes:["liderancas"] },
+  { key:"processos", label:"Processos",        fontes:["djen"] },
+  { key:"noticias",  label:"Notícias",         fontes:["noticias"] },
+  { key:"interno",   label:"Bases internas",   fontes:["lista_negra","referencias"] },
+  { key:"empresas",  label:"Empresas",         fontes:["receita_cnpj"], extra:a=>a.fonte==="sancoes_cgu"&&a.dados?.tipo==="empresa" },
+  { key:"diarios",   label:"Diários oficiais", fontes:["diario_am","querido_diario"] },
+  { key:"tse",       label:"TSE",              fontes:["tse"] },
+  { key:"sancoes",   label:"PEP e sanções",    fontes:["pep_cgu"], extra:a=>a.fonte==="sancoes_cgu"&&a.dados?.tipo!=="empresa" },
+]
+const doGrupo = (g, a) => g.fontes.includes(a.fonte) || (g.extra ? g.extra(a) : false)
+const NIVEL_RISCO = {
+  critico:{ label:"CRÍTICO", cor:"#EF4444", bg:"rgba(239,68,68,0.14)" },
+  alto:   { label:"ALTO",    cor:"#F97316", bg:"rgba(249,115,22,0.14)" },
+  medio:  { label:"MÉDIO",   cor:"#E8A020", bg:"rgba(232,160,32,0.14)" },
+  baixo:  { label:"BAIXO",   cor:"#4ADE80", bg:"rgba(74,222,128,0.12)" },
+}
+const PAPEL_NOTICIA = { autor:{ label:"AUTOR / SUSPEITO", cor:"#EF4444" }, vitima:{ label:"VÍTIMA", cor:"#60A5FA" }, citado:{ label:"APENAS CITADO", cor:"#94A3B8" } }
+const RISCO_RESULTADOS = { border:"#60A5FA", badge:"#60A5FA", badgeBg:"rgba(96,165,250,0.10)", text:"#93C5FD", label:"● COM RESULTADOS" }
+
+const NIVEL = {
+  confirmado: { cor:"#4ADE80", bg:"rgba(74,222,128,0.12)",  label:"CONFIRMADO" },
+  provavel:   { cor:"#E8A020", bg:"rgba(232,160,32,0.12)",  label:"PROVÁVEL"   },
+  possivel:   { cor:"#94A3B8", bg:"rgba(148,163,184,0.12)", label:"POSSÍVEL — VERIFICAR HOMÔNIMO" },
+}
+const FONTE_INT = {
+  lista_negra: { label:"Lista Negra",  icon:"⛔" },
+  liderancas:  { label:"Lideranças",   icon:"👥" },
+  referencias: { label:"Referências",  icon:"📁" },
+  receita_cnpj:{ label:"Receita (sócios)", icon:"🏢" },
+  tse:         { label:"TSE (candidaturas)", icon:"🗳" },
+  djen:        { label:"DJEN (CNJ)", icon:"⚖" },
+  querido_diario:{ label:"Diários Oficiais", icon:"📰" },
+  diario_am:   { label:"DOE-AM", icon:"🏛" },
+  pep_cgu:     { label:"PEP (CGU)", icon:"🎖" },
+  sancoes_cgu: { label:"Sanções (CEIS/CNEP/CEAF)", icon:"🚫" },
+  noticias:    { label:"Notícias", icon:"📰" },
+}
+const STATUS_INT = {
+  nao_carregada: { cor:C.gold,    txt:"base não carregada" },
+  nao_aplicavel: { cor:C.textMid, txt:"requer nome" },
+  ok:            { cor:C.green,   txt:"ok" },
+  vazio:         { cor:C.textMid, txt:"sem registro" },
+  erro:          { cor:C.red,     txt:"erro" },
+  sem_permissao: { cor:C.gold,    txt:"sem permissão" },
+}
+
+// Campos exibidos por fonte (rótulo, chave em `dados`)
+const CAMPOS_INT = {
+  lista_negra: [["Situação","situacao"],["Unidade","unidade"],["Empresa","empresa"],["Data","data"],["Referência","referencia"],["CPF","cpf"],["Ano","ano"],["Descrição","descricao"]],
+  liderancas:  [["Facção","faccao"],["Cargo","cargo"],["Vulgo","vulgo"],["Status","status"],["Observação","observacao"]],
+  referencias: [["Tipo","tipo"],["Nº","numero"],["Ano","ano"],["Assunto","assunto"],["Arquivo","arquivo"]],
+  tse:         [["Nascimento","nascimento"],["CPF","cpf"],["E-mail de campanha (TSE)","emails_txt"]],
+  diario_am:   [["Data","data"],["Edição","edicao"],["Página","pagina"],["Matéria","materia"],["Órgão","orgao"],["Caderno","caderno"],["Tipo de ato","ato"]],
+  querido_diario:[["Município","municipio"],["UF","uf"],["Data","data"],["Edição","edicao"],["Tipo de ato","ato"]],
+  djen:        [["Tribunal","tribunal"],["Órgão","orgao"],["Classe","classe"],["Polo","polo"],["Parte (como consta)","parte"],["Primeira publicação","primeira"],["Última publicação","ultima"],["Publicações","publicacoes"],["Advogados","advogados"],["Outras partes","outras_partes"]],
+  receita_cnpj:[["Empresa","empresa"],["CNPJ (matriz)","cnpj"],["Qualificação","qualificacao"],["Entrada na sociedade","data_entrada"],["Situação","situacao"],["UF","uf"],["Município","municipio"],["Atividade","atividade"],["Abertura","abertura"],["Capital social","capital_social"],["Outros sócios","outros_socios"]],
+}
+
+const AchadoCard = ({ a }) => {
+  const nv = NIVEL[a.nivel] || NIVEL.possivel
+  const f  = FONTE_INT[a.fonte] || { label:a.fonte, icon:"•" }
+  const d  = a.dados || {}
+  const campos = (CAMPOS_INT[a.fonte]||[]).filter(([,k])=>d[k])
+  const loc = d.atual
+  const rot = {fontSize:11,color:C.textDim,fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.06em"}
+  return (
+    <div style={{padding:"12px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderLeft:`3px solid ${nv.cor}`,borderRadius:8,display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:12,fontWeight:800,padding:"3px 8px",borderRadius:4,background:nv.bg,color:nv.cor,fontFamily:MONO,letterSpacing:"0.06em"}}>{nv.label}</span>
+        <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO}}>{a.confianca}%</span>
+        <span style={{fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>{f.icon} {f.label.toUpperCase()}</span>
+        {a.fonte==="noticias" && d.link
+          ? <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:14,fontWeight:700,color:C.text,textDecoration:"none"}}>{a.titulo} <span style={{color:C.blue,fontSize:12}}>↗</span></a>
+          : <span style={{fontSize:14,fontWeight:700,color:C.text}}>{a.titulo}</span>}
+        {d.seap && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.goldSoft,border:`1px solid ${C.goldBorder}`,color:C.gold,fontFamily:MONO}}>SEAP</span>}
+        {d.criminal && <span style={{fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:4,background:C.redSoft,border:"1px solid rgba(239,68,68,0.3)",color:C.red,fontFamily:MONO}}>⚠ CRIMINAL</span>}
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {(a.motivos||[]).map((m,i)=>(
+          <span key={i} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.textMid,fontFamily:MONO}}>{m}</span>
+        ))}
+      </div>
+      {(campos.length>0 || loc) && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:"6px 16px"}}>
+          {loc && (
+            <div>
+              <div style={rot}>Localização atual</div>
+              <div style={{fontSize:13,color:C.text}}>{[loc.unidade,loc.pavilhao,loc.ala,loc.cela&&`cela ${loc.cela}`].filter(Boolean).join(" · ")} <span style={{color:C.textDim,fontFamily:MONO}}>({loc.competencia})</span></div>
+            </div>
+          )}
+          {campos.map(([r,k])=>(
+            <div key={k}>
+              <div style={rot}>{r}</div>
+              <div style={{fontSize:13,color:C.text,wordBreak:"break-word"}}>{String(d[k])}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {a.fonte==="noticias" && (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:"6px 16px"}}>
+            <div>
+              <div style={rot}>Tema</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:2}}>
+                {(d.crime_tipos||[]).length>0
+                  ? d.crime_tipos.map((t,i)=><span key={i} style={{fontSize:12,padding:"2px 8px",borderRadius:10,background:d.grave?"rgba(239,68,68,0.12)":"rgba(255,255,255,0.05)",border:`1px solid ${d.grave?"rgba(239,68,68,0.3)":C.border}`,color:d.grave?"#FCA5A5":C.text}}>{t}</span>)
+                  : <span style={{fontSize:13,color:C.textMid}}>sem crime identificado — veja o título</span>}
+              </div>
+            </div>
+            <div>
+              <div style={rot}>Papel da pessoa</div>
+              {d.papel && <span style={{display:"inline-block",marginTop:2,fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,color:(PAPEL_NOTICIA[d.papel]||{}).cor,border:`1px solid ${(PAPEL_NOTICIA[d.papel]||{}).cor}55`,fontFamily:MONO}}>{(PAPEL_NOTICIA[d.papel]||{}).label}</span>}
+            </div>
+            <div><div style={rot}>Fonte</div><div style={{fontSize:13,color:C.text}}>{d.fonte||"—"}</div></div>
+            <div><div style={rot}>Data</div><div style={{fontSize:13,color:C.text}}>{d.data||"—"}</div></div>
+            <div><div style={rot}>Origem</div><div style={{fontSize:13,color:C.text}}>{d.origem||"—"}</div></div>
+            {d.risco_monitor && <div><div style={rot}>Risco do monitor</div><div style={{fontSize:13,color:C.gold}}>{d.risco_monitor}</div></div>}
+          </div>
+          {d.resumo && d.resumo.replace(/\s+/g," ").trim()!==String(a.titulo||"").replace(/\s+/g," ").trim() && (
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.6,padding:"8px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6}}>{d.resumo}</div>
+          )}
+          {d.analise_ia && <div style={{fontSize:12,color:C.textMid,fontStyle:"italic"}}>Análise do monitor: {d.analise_ia}</div>}
+          {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ Ler a notícia completa (abre no navegador)</a>}
+        </div>
+      )}
+      {d.linhas?.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <div style={rot}>{d.tipo==="empresa"?"Empresa vinculada":"Registros"} {d.lista?`· ${d.lista}`:""} {d.total_registros>d.linhas.length?`(${d.total_registros} no total)`:""}</div>
+          {d.tipo==="empresa" && <div style={{fontSize:13,color:C.text}}>{d.nome} {d.cnpj?<span style={{color:C.textDim,fontFamily:MONO}}>({d.cnpj})</span>:null}</div>}
+          {d.linhas.map((l,i)=>(
+            <div key={i} style={{fontSize:13,color:C.textMid,padding:"6px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6,border:`1px solid ${C.border}`,lineHeight:1.5}}>{l}</div>
+          ))}
+        </div>
+      )}
+      {d.candidaturas?.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={rot}>Candidaturas</div>
+          {d.candidaturas.map((c,i)=>(
+            <div key={i} style={{padding:"8px 10px",background:"rgba(0,0,0,0.22)",borderRadius:6,border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",gap:8,alignItems:"baseline",flexWrap:"wrap"}}>
+                <span style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:MONO}}>{c.ano}</span>
+                <span style={{fontSize:13,fontWeight:600,color:C.text}}>{c.cargo}</span>
+                <span style={{fontSize:12,color:C.textMid}}>{[c.partido,c.municipio&&c.municipio!==c.uf?c.municipio:null,c.uf].filter(Boolean).join(" · ")}</span>
+                {(c.resultado||c.situacao) && <span style={{fontSize:11,fontFamily:MONO,color:C.textMid}}>[{c.resultado||c.situacao}]</span>}
+                {c.ocupacao && <span style={{fontSize:12,color:C.textDim}}>{c.ocupacao}</span>}
+              </div>
+              <div style={{fontSize:12,color:C.textMid,fontFamily:MONO,marginTop:3}}>
+                patrimônio declarado: <span style={{color:c.patrimonio>0?C.text:C.textDim,fontWeight:700}}>{c.patrimonio>0?c.patrimonio.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"não declarado"}</span>
+                {c.qtd_bens>0 && <> · {c.qtd_bens} bem(ns)</>}
+              </div>
+              {c.bens_top?.length>0 && (
+                <details style={{marginTop:4}}>
+                  <summary style={{fontSize:11,color:C.textDim,cursor:"pointer",fontFamily:MONO}}>maiores bens</summary>
+                  {c.bens_top.map((b,j)=>(
+                    <div key={j} style={{fontSize:12,color:C.textMid,padding:"2px 0",display:"flex",justifyContent:"space-between",gap:12}}>
+                      <span>{b.bem}</span><span style={{fontFamily:MONO,color:C.text,whiteSpace:"nowrap"}}>{b.valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.historico?.length>0 && (
+        <div style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>
+          histórico: {d.historico.map(h=>`${h.competencia} ${h.unidade}/${h.pavilhao}`).join(" · ")}
+        </div>
+      )}
+      {d.url && (a.fonte==="querido_diario" || a.fonte==="diario_am") && (
+        <a href={d.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ abrir diário oficial (PDF{a.fonte==="diario_am"?", na página citada":""})</a>
+      )}
+      {d.trecho && (
+        <div style={{fontSize:13,color:C.textMid,lineHeight:1.6,padding:"8px 10px",background:"rgba(0,0,0,0.25)",borderRadius:6,fontStyle:"italic"}}>“…{d.trecho}…”</div>
+      )}
+    </div>
+  )
+}
+
+// ── Imagem autenticada (a rota /osint/foto exige token; busca como blob) ─────
+const FotoAuth = ({ id, w=64, h=80, radius=6, onClick }) => {
+  const [src, setSrc] = useState(null)
+  useEffect(() => {
+    let url = null, vivo = true
+    api.get(`/osint/foto/${id}`).then(r => (r.ok ? r.blob() : null)).then(b => {
+      if (b && vivo) { url = URL.createObjectURL(b); setSrc(url) }
+    }).catch(() => {})
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url) }
+  }, [id])
+  const base = { width:w, height:h, borderRadius:radius, objectFit:"cover", border:`1px solid ${C.border}`, background:"rgba(255,255,255,0.04)", flexShrink:0 }
+  return src
+    ? <img src={src} alt="" onClick={onClick} style={{...base, cursor:onClick?"zoom-in":"default"}}/>
+    : <div style={{...base, display:"flex", alignItems:"center", justifyContent:"center", color:C.textDim, fontSize:11}}>…</div>
+}
+
+const NIVEL_FOTO = { confirmado:"IDENTIDADE CONFIRMADA", provavel:"IDENTIDADE PROVÁVEL", confirmado_analista:"CONFIRMADA PELO ANALISTA" }
+
+const GaleriaFotos = ({ fotos }) => {
+  const [aberta, setAberta] = useState(null)
+  if (!fotos?.length) return null
+  return (
+    <div style={{padding:"12px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em",marginBottom:10}}>◈ FOTOS (fontes oficiais, internas e perfis confirmados)</div>
+      <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+        {fotos.map(f=>(
+          <div key={f.id} style={{display:"flex",gap:10,alignItems:"flex-start",maxWidth:300}}>
+            <FotoAuth id={f.id} w={72} h={92} onClick={()=>setAberta(f)}/>
+            <div style={{fontSize:12,lineHeight:1.45}}>
+              <div style={{color:C.text,fontWeight:600}}>{f.fonte}</div>
+              <div style={{color:C.textMid}}>{f.legenda}</div>
+              <div style={{color:C.textDim,fontFamily:MONO,fontSize:11,marginTop:2}}>{NIVEL_FOTO[f.nivel]||""}{f.confianca?` · ${f.confianca}%`:""}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO}}>A foto não é prova de identidade por si só: compare com os demais dados. Sem reconhecimento facial.</div>
+      {aberta && (
+        <div onClick={()=>setAberta(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",cursor:"zoom-out"}}>
+          <div style={{textAlign:"center"}}>
+            <FotoAuth id={aberta.id} w={360} h={460} radius={10}/>
+            <div style={{color:C.text,marginTop:8,fontSize:13}}>{aberta.fonte} — {aberta.legenda}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const mmss = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`
+
+// ── Cards do topo: total por tipo, com os imprecisos à vista (o operador confere manualmente) ──
+const CardResumo = ({ label, rel, imp, onClick, aviso }) => {
+  const confere = rel===0 && imp>0
+  return (
+    <button onClick={onClick} title={imp>0?`${imp} resultado(s) abaixo de ${LIMIAR}% de precisão — podem ser relevantes. Confira manualmente.`:""}
+      style={{textAlign:"center",padding:"10px 14px",background:C.surfaceUp,borderRadius:8,minWidth:132,flex:1,cursor:"pointer",fontFamily:SANS,
+              border:`1px solid ${confere?C.goldBorder:C.border}`}}>
+      <div style={{fontSize:28,fontWeight:800,color:rel>0?C.gold:C.text,fontFamily:MONO,lineHeight:1}}>{rel}</div>
+      <div style={{fontSize:12,fontWeight:700,color:C.textDim,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:5,fontFamily:MONO}}>{label}</div>
+      {imp>0
+        ? <div style={{fontSize:11,fontWeight:700,color:C.gold,marginTop:4,fontFamily:MONO}}>+{imp} impreciso{imp>1?"s":""} · conferir</div>
+        : <div style={{fontSize:11,color:C.textDim,marginTop:4,fontFamily:MONO}}>{aviso||"\u00a0"}</div>}
+    </button>
+  )
+}
+
+// ── Lista de resultados de uma aba: ≥50% em destaque; o resto atrás de um botão ──
+const AbaAchados = ({ achados, vazioMsg, children }) => {
+  const [aberto, setAberto] = useState(false)
+  const ord = [...achados].sort((x,y)=>y.confianca-x.confianca)
+  const rel = ord.filter(a=>a.confianca>=LIMIAR)
+  const imp = ord.filter(a=>a.confianca<LIMIAR)
+  return (
+    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:10}}>
+      {rel.length===0 && !children && (
+        <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO,padding:"8px 0"}}>
+          {vazioMsg || `Nenhum resultado com ${LIMIAR}% ou mais de precisão.`}{imp.length>0 ? " Há resultados imprecisos abaixo." : ""}
+        </div>
+      )}
+      {rel.map((a,i)=><AchadoCard key={"r"+i} a={a}/>)}
+      {children}
+      {imp.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:4}}>
+          <div>
+            <button style={{...S.btnSecondary,fontSize:12,padding:"7px 14px"}} onClick={()=>setAberto(v=>!v)}>
+              {aberto?"▲":"▼"} Resultados imprecisos ({imp.length})
+            </button>
+            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO,marginLeft:10}}>abaixo de {LIMIAR}% de precisão — podem ser de outras pessoas</span>
+          </div>
+          {aberto && imp.map((a,i)=><AchadoCard key={"i"+i} a={a}/>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Aba "Pegada Digital" ──────────────────────────────────────────────────────
+const PainelPegada = ({ job, nada, onIniciar, onVariacoes, onConfirmar, iniciando, erro }) => {
+  const [mostrarPossiveis, setMostrarPossiveis] = useState(false)
+  const et = job?.etapas || {}
+  const mg = et.maigret || {}
+  const contas = mg.contas || []
+  const fortes = contas.filter(c => c.confirmada || c.confianca >= LIMIAR)
+  const fracas = contas.filter(c => !(c.confirmada || c.confianca >= LIMIAR))
+  const lista = mostrarPossiveis ? [...fortes, ...fracas] : fortes
+  const cartao = {padding:"12px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:8}
+  const rot = {fontSize:11,color:C.textDim,fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.06em"}
+  const usados = job ? ["usernames","emails","telefones"].flatMap(k => (job.entrada?.[k]||[]).map(x => ({tipo:k.slice(0,-1), ...x}))) : []
+
+  return (
+    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
+      {!job && !iniciando && (
+        <div style={{...cartao, borderLeft:`3px solid ${C.gold}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8}}>◈ PEGADA DIGITAL — REDES SOCIAIS, E-MAIL E TELEFONE</div>
+          <p style={{fontSize:13,color:C.textMid,lineHeight:1.7,margin:"0 0 10px"}}>
+            Roda <b>automaticamente</b> após a pesquisa quando ela encontra <b>vulgo, e-mail ou telefone</b> nos achados (Lideranças, documentos, publicações),
+            além do que você informar no formulário. Leva de 1 a 4 minutos, em segundo plano.
+            Uma conta só é "provável" quando o <b>nome do perfil</b> bate com o pesquisado; username igual não prova identidade.
+            O e-mail NÃO é testado em sites de cadastro (isso poderia alertar o dono).
+          </p>
+          {nada && (
+            <div style={{fontSize:13,color:C.gold,marginBottom:10,lineHeight:1.6}}>
+              {nada} Você pode informar um username, e-mail ou telefone em "Identificadores digitais" (formulário acima) e pesquisar de novo.
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <button style={S.btnPrimary} onClick={onIniciar}>Rodar de novo com os dados do formulário</button>
+            <button style={S.btnSecondary} onClick={onVariacoes} title="Gera usernames a partir do nome (ex.: nome.sobrenome). Muito ruído: use só se não houver outro caminho.">
+              Tentar variações do nome (baixíssima precisão)
+            </button>
+          </div>
+          {erro && <div style={{fontSize:12,color:C.red,marginTop:8}}>{erro}</div>}
+        </div>
+      )}
+      {iniciando && !job && <div style={{...cartao,color:C.textMid,fontSize:13}}>Procurando identificadores digitais nos achados…</div>}
+
+      {usados.length>0 && (
+        <div style={cartao}>
+          <div style={rot}>Identificadores usados {job?.auto && "(descobertos automaticamente + informados)"}</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+            {usados.map((u,i)=>(
+              <span key={i} style={{fontSize:12,padding:"3px 9px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.text,fontFamily:MONO}}>
+                {u.tipo==="username"?"@":u.tipo==="email"?"✉ ":"☎ "}{u.valor} <span style={{color:C.textDim}}>· {u.origem}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {job && job.estado==="executando" && (
+        <div style={{...cartao, display:"flex", alignItems:"center", gap:10}}>
+          <span className="o-spin" style={{display:"inline-block",width:14,height:14,border:"2px solid rgba(232,160,32,0.3)",borderTopColor:C.gold,borderRadius:"50%"}}/>
+          <span style={{fontSize:13,color:C.text}}>
+            {mg.estado==="executando"
+              ? <>Procurando contas… <b>{mg.progresso?.encontradas||0}</b> encontradas · {mmss(mg.progresso?.decorrido_s||0)}</>
+              : "Analisando telefones e e-mails…"}
+          </span>
+        </div>
+      )}
+
+      {(et.telefones||[]).map((t,i)=>(
+        <div key={i} style={cartao}>
+          <div style={rot}>Telefone (análise offline) · {t.origem}</div>
+          {t.erro && !t.formatado
+            ? <div style={{fontSize:13,color:C.red}}>{t.erro}</div>
+            : <>
+                <div style={{fontSize:14,color:C.text,margin:"4px 0"}}>
+                  <b>{t.formatado}</b> · {t.valido?"válido":"INVÁLIDO"} · {t.tipo}
+                  {t.regiao && <> · {t.regiao}{t.uf?` (${t.uf})`:""}</>}
+                </div>
+                <div style={{fontSize:12,color:C.textMid}}>Operadora de origem: {t.operadora_origem||"n/d"} <span style={{color:C.textDim}}>({t.nota_operadora})</span></div>
+                <div style={{display:"flex",gap:12,marginTop:6,flexWrap:"wrap"}}>
+                  {(t.links||[]).map((l,k)=><a key={k} href={l.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none"}}>↗ {l.rotulo}</a>)}
+                </div>
+              </>}
+        </div>
+      ))}
+
+      {(et.emails||[]).map((e,i)=>(
+        <div key={i} style={{...cartao, display:"flex", gap:12, alignItems:"flex-start"}}>
+          {e.gravatar?.foto_id && <FotoAuth id={e.gravatar.foto_id} w={56} h={56}/>}
+          <div>
+            <div style={rot}>E-mail · {e.origem}</div>
+            {e.valido===false
+              ? <div style={{fontSize:13,color:C.red}}>{e.erro}</div>
+              : <>
+                  <div style={{fontSize:13,color:C.text,margin:"4px 0"}}>{e.email_mascarado} · {e.tipo} · domínio <b>{e.dominio}</b></div>
+                  <div style={{fontSize:12,color:C.textMid}}>
+                    Gravatar: {e.gravatar?.existe ? <b style={{color:C.green}}>avatar/perfil público encontrado</b> : "nenhum"}
+                    {e.gravatar?.nome && <> · {e.gravatar.nome}</>}
+                    {e.gravatar?.local && <> · {e.gravatar.local}</>}
+                  </div>
+                </>}
+          </div>
+        </div>
+      ))}
+
+      {mg.estado==="ferramenta_ausente" && <div style={{...cartao,color:C.gold,fontSize:13}}>Maigret não está instalado neste computador (veja scripts/instalar_ferramentas_osint.md). Telefone e e-mail funcionam sem ele.</div>}
+      {mg.estado==="sem_username" && job && <div style={{...cartao,color:C.textMid,fontSize:13}}>Nenhum username para pesquisar nas redes (só telefone/e-mail foram analisados).</div>}
+
+      {contas.length>0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+            <SecLabel>Contas encontradas ({contas.length})</SecLabel>
+            <span style={{fontSize:12,color:C.textDim,fontFamily:MONO}}>
+              {fortes.length} com {LIMIAR}% ou mais · {fracas.length} imprecisas (só o username bate)
+            </span>
+          </div>
+          {fortes.length===0 && <div style={{fontSize:13,color:C.textDim,fontStyle:"italic",fontFamily:MONO}}>Nenhuma conta com {LIMIAR}% ou mais de precisão.</div>}
+          {lista.map((c,i)=>{
+            const nv = NIVEL[c.nivel]||NIVEL.possivel
+            return (
+              <div key={c.url||i} style={{display:"flex",gap:12,padding:"10px 12px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderLeft:`3px solid ${c.confirmada?C.green:nv.cor}`,borderRadius:8}}>
+                {c.foto_id ? <FotoAuth id={c.foto_id} w={52} h={52}/> : <div style={{width:52,height:52,borderRadius:6,background:"rgba(255,255,255,0.04)",flexShrink:0}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:4,background:nv.bg,color:nv.cor,fontFamily:MONO}}>{c.confirmada?"CONFIRMADA":nv.label.split(" — ")[0]} · {c.confianca}%</span>
+                    <span style={{fontSize:13,fontWeight:700,color:C.text}}>{c.site}</span>
+                    {c.nome_perfil && <span style={{fontSize:13,color:C.text}}>{c.nome_perfil}</span>}
+                    {c.local && <span style={{fontSize:12,color:C.textMid}}>📍 {c.local}</span>}
+                    {c.origem_username && c.origem_username!=="informado" && <span style={{fontSize:11,color:C.gold,fontFamily:MONO}}>via {c.origem_username}</span>}
+                  </div>
+                  <a href={c.url} target="_blank" rel="noreferrer" style={{fontSize:12,color:C.blue,fontFamily:MONO,textDecoration:"none",wordBreak:"break-all"}}>↗ {c.url}</a>
+                  {c.bio && <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{String(c.bio).slice(0,160)}</div>}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+                    {(c.motivos||[]).map((m,j)=><span key={j} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,color:C.textMid,fontFamily:MONO}}>{m}</span>)}
+                  </div>
+                </div>
+                <button style={{...S.btnSecondary,alignSelf:"center",fontSize:12,padding:"6px 10px",whiteSpace:"nowrap",...(c.confirmada?{color:C.green,borderColor:"rgba(74,222,128,0.4)"}:{})}} onClick={()=>onConfirmar(c.url,!c.confirmada)}>
+                  {c.confirmada ? "✓ Confirmada (desfazer)" : "Confirmar que é a pessoa"}
+                </button>
+              </div>
+            )
+          })}
+          {fracas.length>0 && (
+            <div>
+              <button style={{...S.btnSecondary,fontSize:12,padding:"7px 14px"}} onClick={()=>setMostrarPossiveis(v=>!v)}>
+                {mostrarPossiveis?"▲":"▼"} Resultados imprecisos ({fracas.length})
+              </button>
+              <span style={{fontSize:11,color:C.textDim,fontFamily:MONO,marginLeft:10}}>só o username bate — podem ser de outras pessoas</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {job?.estado==="concluido" && contas.length===0 && mg.estado==="concluido" && <div style={{...cartao,color:C.textDim,fontStyle:"italic",fontSize:13}}>Nenhuma conta encontrada para o(s) username(s) pesquisado(s).</div>}
+      {(job?.avisos||[]).map((a,i)=><div key={i} style={{fontSize:12,color:C.gold,padding:"6px 10px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:6}}>{a}</div>)}
+    </div>
+  )
+}
+
 export default function OsintPesquisa({ onNavigate }) {
   const [nome,       setNome]       = useState("")
   const [cpf,        setCpf]        = useState("")
   const [finalidade, setFinalidade] = useState("seguranca_publica")
-  const [operador,   setOperador]   = useState("agente_001")
+  const [dataNasc,   setDataNasc]   = useState("")
+  const [nomeMae,    setNomeMae]    = useState("")
+  const [nomePai,    setNomePai]    = useState("")
+  const [username,   setUsername]   = useState("")
+  const [email,      setEmail]      = useState("")
+  const [telefone,   setTelefone]   = useState("")
+  const [usarVulgo,  setUsarVulgo]  = useState(true)
+  const [identAberto, setIdentAberto] = useState(true)
+  const [pegNada,    setPegNada]    = useState("")
+  const [profund,    setProfund]    = useState("padrao")
+  const [jobId,      setJobId]      = useState(null)
+  const [job,        setJob]        = useState(null)
+  const [pegIniciando, setPegIniciando] = useState(false)
+  const [pegErro,    setPegErro]    = useState("")
   const [loading,    setLoading]    = useState(false)
   const [erro,       setErro]       = useState("")
   const [resultado,  setResultado]  = useState(null)
@@ -178,21 +641,76 @@ export default function OsintPesquisa({ onNavigate }) {
     if (resultado) resultRef.current?.scrollIntoView({ behavior:"smooth", block:"start" })
   }, [resultado])
 
+  const temIdentDigital = () => !!(username.trim() || email.trim() || telefone.trim() || usarVulgo)
+
+  async function iniciarPegada(reportId, extra = {}) {
+    setPegErro(""); setPegNada(""); setPegIniciando(true); setJob(null); setJobId(null)
+    try {
+      const res = await api.post("/osint/pegada-digital", {
+        report_id: reportId, auto: true,
+        username: username.trim()||undefined, email: email.trim()||undefined, telefone: telefone.trim()||undefined,
+        usar_vulgo: usarVulgo, profundidade: profund, ...extra,
+      })
+      const d = await res.json()
+      if (!res.ok) { setPegErro(Array.isArray(d.detail) ? d.detail.map(x=>x.msg).join("; ") : (d.detail||"Erro ao iniciar.")); return }
+      if (d.nada_encontrado || !d.job_id) { setPegNada(d.mensagem || "Nenhum identificador digital encontrado."); return }
+      setJobId(d.job_id)
+    } catch { setPegErro("Falha de conexão com o backend.") }
+    finally { setPegIniciando(false) }
+  }
+
+  async function atualizarRelatorio(reportId) {
+    try { const r = await api.get(`/osint/relatorio/${reportId}`); if (r.ok) setRelatorio(await r.json()) } catch {}
+  }
+
+  async function confirmarConta(url, confirmar) {
+    if (!jobId) return
+    try {
+      await api.post(`/osint/pegada-digital/${jobId}/confirmar`, { url, confirmar })
+      const r = await api.get(`/osint/pegada-digital/${jobId}`); if (r.ok) setJob(await r.json())
+      if (resultado?.report_id) atualizarRelatorio(resultado.report_id)
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (!jobId) return
+    let parar = false
+    const tick = async () => {
+      try {
+        const r = await api.get(`/osint/pegada-digital/${jobId}`)
+        if (r.ok && !parar) {
+          const j = await r.json(); setJob(j)
+          if (j.estado !== "executando") { parar = true; clearInterval(t); if (resultado?.report_id) atualizarRelatorio(resultado.report_id) }
+        } else if (r.status === 404) { parar = true; clearInterval(t) }
+      } catch {}
+    }
+    const t = setInterval(tick, 3000); tick()
+    return () => { parar = true; clearInterval(t) }
+  }, [jobId])
+
   async function pesquisar() {
     if (!nome.trim() && !cpf.trim()) { setErro("Informe nome ou CPF para pesquisar."); return }
-    setErro(""); setLoading(true); setResultado(null); setRelatorio(null)
+    if (cpf.trim() && cpf.replace(/\D/g,"").length !== 11) { setErro("CPF deve ter 11 dígitos."); return }
+    setErro(""); setLoading(true); setResultado(null); setRelatorio(null); setJobId(null); setJob(null); setPegErro(""); setPegNada("")
     try {
       const res = await api.post("/osint/pesquisar", {
-        operator_id: operador||"agente_anonimo",
         lgpd_purpose: finalidade,
         nome: nome.trim()||undefined,
         cpf: cpf.replace(/\D/g,"")||undefined,
+        data_nascimento: dataNasc||undefined,
+        nome_mae: nomeMae.trim()||undefined,
+        nome_pai: nomePai.trim()||undefined,
       })
       const data = await res.json()
-      if (!res.ok) { setErro(data.detail||"Erro na pesquisa."); return }
+      if (!res.ok) {
+        const det = Array.isArray(data.detail) ? data.detail.map(d=>d.msg).join("; ") : data.detail
+        setErro(det||"Erro na pesquisa."); return
+      }
       setResultado(data)
+      setActiveTab("sumario")
       const r2 = await api.get(`/osint/relatorio/${data.report_id}`)
       if (r2.ok) setRelatorio(await r2.json())
+      iniciarPegada(data.report_id)
     } catch {
       setErro("Falha de conexão com o backend.")
     } finally {
@@ -241,16 +759,29 @@ export default function OsintPesquisa({ onNavigate }) {
   }
 
   function limpar() {
-    setNome(""); setCpf(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
+    setNome(""); setCpf(""); setDataNasc(""); setNomeMae(""); setNomePai(""); setUsername(""); setEmail(""); setTelefone(""); setUsarVulgo(true); setJobId(null); setJob(null); setPegErro(""); setPegNada(""); setResultado(null); setRelatorio(null); setErro(""); setActiveTab("sumario")
     setNumProc(""); setTribunalProc(""); setProcResultado(null); setProcErro("")
   }
 
-  const risco = resultado ? (RISCO[resultado.risk_level]||RISCO.sem_dado) : null
+  const achados = relatorio?.achados_internos || []
+  const relTotal = achados.filter(a=>a.confianca>=LIMIAR).length
+  const impTotal = achados.length - relTotal
+  const grupos = ABAS_ACHADOS.map(g => {
+    const itens = achados.filter(a=>doGrupo(g,a))
+    return { ...g, itens, rel: itens.filter(a=>a.confianca>=LIMIAR).length, imp: itens.filter(a=>a.confianca<LIMIAR).length }
+  })
+  const temLegProc = !!(relatorio?.mandados_prisao?.length || relatorio?.processos_criminais?.length || relatorio?.processos_civeis?.length)
+  const temLegEmp = !!(relatorio?.vinculos_empresariais?.length || relatorio?.mencoes_dou?.length)
+  const risco = resultado
+    ? ((resultado.risk_level==="sem_dado" && relTotal>0) ? RISCO_RESULTADOS : (RISCO[resultado.risk_level]||RISCO.sem_dado))
+    : null
 
   const TABS = [
-    {key:"sumario",   label:"Sumário"   },
-    {key:"processos", label:"Processos" },
-    {key:"empresas",  label:"Empresas"  },
+    {key:"sumario", label:"Sumário"},
+    ...grupos
+      .filter(g => g.itens.length>0 || (g.key==="processos" && temLegProc) || (g.key==="empresas" && temLegEmp))
+      .map(g => ({ key:g.key, label:`${g.label} (${g.rel})` })),
+    {key:"pegada",    label:`Pegada Digital${job?.etapas?.maigret?.contas?.length?` (${job.etapas.maigret.contas.filter(c=>c.confirmada||c.confianca>=LIMIAR).length})`:(job?.estado==="executando"||pegIniciando)?" …":""}` },
     {key:"timeline",  label:"Timeline"  },
     {key:"grafo",     label:"Grafo"     },
     {key:"processo",  label:"Processo CNJ" },
@@ -288,7 +819,7 @@ export default function OsintPesquisa({ onNavigate }) {
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICAÇÃO DO SUJEITO</span>
             </div>
-            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>nome e/ou CPF</span>
+            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>quanto mais dados, menos homônimos</span>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
@@ -302,23 +833,32 @@ export default function OsintPesquisa({ onNavigate }) {
             </div>
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr 1.4fr",gap:12,marginBottom:12}}>
             <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
-              <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
-                {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Data de Nascimento</label>
+              <input style={{...S.input,colorScheme:"dark"}} type="date" max={new Date().toISOString().slice(0,10)} value={dataNasc} onChange={e=>setDataNasc(e.target.value)}/>
             </div>
             <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>ID do Operador <span style={{color:C.red}}>*</span></label>
-              <input style={S.input} placeholder="Ex: agente_001" value={operador} onChange={e=>setOperador(e.target.value)}/>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Filiação — Mãe</label>
+              <input style={S.input} placeholder="Nome da mãe" value={nomeMae} onChange={e=>setNomeMae(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
             </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Filiação — Pai</label>
+              <input style={S.input} placeholder="Nome do pai" value={nomePai} onChange={e=>setNomePai(e.target.value)} onKeyDown={e=>e.key==="Enter"&&pesquisar()}/>
+            </div>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Finalidade LGPD <span style={{color:C.red}}>*</span></label>
+            <select style={S.select} value={finalidade} onChange={e=>setFinalidade(e.target.value)}>
+              {FINALIDADES.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
           </div>
 
           <div style={{marginBottom:14}}>
             <label style={{display:"block",fontSize: 11,fontWeight:700,color:C.textMid,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Fontes Ativas</label>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {FONTES.map(f=>(
+              {[...FONTES, ...FONTES_INTERNAS].map(f=>(
                 <div key={f.key} className="o-chip" style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,cursor:"default",transition:"all 0.12s"}}>
                   <span style={{fontSize:11}}>{f.icon}</span>
                   <span style={{fontSize:11,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{f.label}</span>
@@ -326,6 +866,35 @@ export default function OsintPesquisa({ onNavigate }) {
               ))}
             </div>
           </div>
+
+          <details style={{marginBottom:14}} open={identAberto} onToggle={e=>setIdentAberto(e.currentTarget.open)}>
+            <summary style={{cursor:"pointer",fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,letterSpacing:"0.08em"}}>◈ IDENTIFICADORES DIGITAIS (opcional — a busca também os procura sozinha nos achados)</summary>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginTop:12}}>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Username / apelido</label>
+                <input style={S.input} placeholder="ex.: joaosilva92" value={username} onChange={e=>setUsername(e.target.value)}/></div>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>E-mail</label>
+                <input style={S.input} placeholder="pessoa@exemplo.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+              <div><label style={{display:"block",fontSize:11,fontWeight:700,color:C.textMid,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:MONO}}>Telefone</label>
+                <input style={S.input} placeholder="(92) 99999-9999" value={telefone} onChange={e=>setTelefone(e.target.value)}/></div>
+            </div>
+            <div style={{display:"flex",gap:18,alignItems:"center",marginTop:10,flexWrap:"wrap"}}>
+              <label style={{fontSize:12,color:C.textMid,display:"flex",gap:6,alignItems:"center",cursor:"pointer"}}>
+                <input type="checkbox" checked={usarVulgo} onChange={e=>setUsarVulgo(e.target.checked)}/>
+                incluir o vulgo encontrado nas Lideranças como username <span style={{color:C.gold}}>(baixa precisão)</span>
+              </label>
+              <label style={{fontSize:12,color:C.textMid,display:"flex",gap:6,alignItems:"center"}}>
+                profundidade
+                <select style={{...S.select,width:"auto",padding:"5px 10px",fontSize:12}} value={profund} onChange={e=>setProfund(e.target.value)}>
+                  <option value="rapida">rápida (~100 sites · ~1 min)</option>
+                  <option value="padrao">padrão (~250 sites · ~2 min)</option>
+                  <option value="completa">completa (~500 sites · ~4 min)</option>
+                </select>
+              </label>
+            </div>
+            <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO}}>
+              Parte de identificadores informados por você ou encontrados nos achados (vulgo, e-mails e telefones em documentos). O e-mail não é testado em sites de cadastro. Cada uso é registrado no audit LGPD.
+            </div>
+          </details>
 
           {erro && (
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:C.redSoft,border:"1px solid rgba(239,68,68,0.25)",borderRadius:7,marginBottom:12,color:C.red}}>
@@ -372,21 +941,29 @@ export default function OsintPesquisa({ onNavigate }) {
               </div>
             </div>
 
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <StatBadge label="Processos Criminais" value={resultado.total_processos} accent/>
-              <StatBadge label="Mandados Ativos"     value={resultado.tem_mandado_ativo?1:0} accent/>
-              <StatBadge label="Empresas"            value={resultado.total_empresas}/>
-              <StatBadge label="Notícias"            value={resultado.total_noticias}/>
-              <StatBadge label="D.O.U."              value={resultado.total_dou}/>
-              <StatBadge label="Nós no Grafo"        value={resultado.nos_grafo}/>
-            </div>
+            <GaleriaFotos fotos={relatorio?.fotos}/>
 
-            {resultado.fontes_com_erro?.length>0 && (
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",background:"rgba(232,160,32,0.06)",border:`1px solid ${C.goldBorder}`,borderRadius:7,flexWrap:"wrap"}}>
-                <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0}}>FONTES INDISPONÍVEIS:</span>
-                {resultado.fontes_com_erro.map(f=>(
-                  <span key={f} style={{fontSize: 12,fontWeight:700,padding:"3px 8px",borderRadius:3,background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",color:C.red,fontFamily:MONO}}>{f}</span>
-                ))}
+            {relatorio ? (
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {grupos.filter(g=>g.itens.length>0||["processos","liderancas","noticias"].includes(g.key)).map(g=>(
+                    <CardResumo key={g.key} label={g.label} rel={g.rel} imp={g.imp} onClick={()=>setActiveTab(g.key)}/>
+                  ))}
+                  {(job||pegIniciando) && (()=>{
+                    const cs = job?.etapas?.maigret?.contas||[]
+                    const r = cs.filter(c=>c.confirmada||c.confianca>=LIMIAR).length
+                    return <CardResumo label="Pegada digital" rel={r} imp={cs.length-r} onClick={()=>setActiveTab("pegada")} aviso={job?.estado==="executando"||pegIniciando?"buscando…":""}/>
+                  })()}
+                  {resultado.tem_mandado_ativo && <CardResumo label="Mandado ativo" rel={1} imp={0} onClick={()=>setActiveTab("processos")}/>}
+                </div>
+                <div style={{fontSize:11,color:C.textDim,fontFamily:MONO,lineHeight:1.6}}>
+                  Número grande = resultados com {LIMIAR}% ou mais de precisão. “+N imprecisos” = resultados abaixo de {LIMIAR}% que <b style={{color:C.gold}}>não entram no risco</b>,
+                  mas podem ser relevantes: <b style={{color:C.gold}}>confira-os manualmente</b> (aba do tipo → “Resultados imprecisos”).
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <StatBadge label="Resultados" value={resultado.achados_internos} accent/>
               </div>
             )}
 
@@ -410,9 +987,52 @@ export default function OsintPesquisa({ onNavigate }) {
                   {/* Sumário */}
                   {activeTab==="sumario" && (
                     <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:12}}>
-                      {relatorio.risk_summary && (
+                      {relatorio.risco_pilares && Object.keys(relatorio.risco_pilares).length>0 && (
+                        <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${risco.border}`}}>
+                          <div style={{fontSize:12,fontWeight:700,color:risco.badge,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ AVALIAÇÃO DE RISCO — PROCESSOS · LIDERANÇAS · NOTÍCIAS DE CRIME</div>
+                          {relatorio.resumo_risco && <p style={{fontSize:14,color:C.text,lineHeight:1.7,margin:"0 0 10px"}}>{relatorio.resumo_risco}</p>}
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:10}}>
+                            {[["processos","Processos"],["liderancas","Lideranças"],["noticias","Notícias de crime"]].map(([k,rot])=>{
+                              const pl = relatorio.risco_pilares[k]||{}
+                              const nv = NIVEL_RISCO[pl.nivel]
+                              return (
+                                <button key={k} className="o-chip" onClick={()=>setActiveTab(k)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:SANS}}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                                    <span style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.06em"}}>{rot.toUpperCase()}</span>
+                                    <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:4,background:nv?nv.bg:"rgba(255,255,255,0.05)",color:nv?nv.cor:C.textDim,fontFamily:MONO}}>{nv?nv.label:"SEM OCORRÊNCIA"}</span>
+                                  </div>
+                                  {(pl.motivos||[]).length>0
+                                    ? (pl.motivos||[]).map((m,i)=><div key={i} style={{fontSize:12,color:C.text,lineHeight:1.5}}>• {m}</div>)
+                                    : <div style={{fontSize:12,color:C.textDim}}>nada com {relatorio.risco_pilares.limiar||50}% ou mais</div>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div style={{fontSize:11,color:C.textDim,marginTop:8,fontFamily:MONO,lineHeight:1.6}}>
+                            {relatorio.risco_pilares.convergencia && "Dois ou mais pilares em nível alto/crítico elevam o risco a CRÍTICO. "}
+                            {relatorio.risco_pilares.imprecisos_nao_considerados>0 && `${relatorio.risco_pilares.imprecisos_nao_considerados} resultado(s) impreciso(s) (<${relatorio.risco_pilares.limiar||50}%) não entram no cálculo. `}
+                            Lista Negra, sanções, PEP, empresas, TSE e diários oficiais são informativos e não alteram o nível.
+                          </div>
+                        </div>
+                      )}
+                      {relTotal>0 && (
+                        <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.blue}`}}>
+                          <div style={{fontSize:12,fontWeight:700,color:C.blue,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ RESUMO DOS RESULTADOS (≥{LIMIAR}% de precisão)</div>
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                            {grupos.filter(g=>g.rel>0).map(g=>(
+                              <button key={g.key} className="o-chip" onClick={()=>setActiveTab(g.key)} style={{fontSize:13,padding:"6px 12px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,color:C.text,cursor:"pointer",fontFamily:SANS}}>
+                                {g.label}: <b style={{color:C.gold}}>{g.rel}</b>
+                              </button>
+                            ))}
+                          </div>
+                          {impTotal>0 && <div style={{fontSize:12,color:C.textDim,marginTop:8,fontFamily:MONO}}>+ {impTotal} resultado(s) imprecisos (&lt;{LIMIAR}%) disponíveis em cada aba, no botão "Resultados imprecisos".</div>}
+                        </div>
+                      )}
+                      {relatorio.risk_summary && !/nenhum dado|impossibilit/i.test(relatorio.risk_summary) && (
                         <div style={{padding:"12px 14px",background:C.surfaceMid,borderRadius:8,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
-                          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}</div>
+                          <div style={{fontSize:12,fontWeight:700,color:C.gold,fontFamily:MONO,marginBottom:8,letterSpacing:"0.1em"}}>
+                            ◈ ANÁLISE IA — GROQ · {relatorio.lgpd_purpose}{relTotal>0 ? " · considera só as fontes externas antigas (as bases novas estão no resumo acima)" : ""}
+                          </div>
                           <p style={{fontSize:14,color:C.text,lineHeight:1.8,margin:0}}>{relatorio.risk_summary}</p>
                         </div>
                       )}
@@ -428,43 +1048,106 @@ export default function OsintPesquisa({ onNavigate }) {
                           </div>
                         </div>
                       )}
+                      {relatorio.contexto_busca?.principais?.length>0 && (
+                        <div style={{padding:"8px 12px",background:C.blueSoft,border:"1px solid rgba(96,165,250,0.25)",borderRadius:7,display:"flex",gap:10,alignItems:"baseline",flexWrap:"wrap"}}>
+                          <span style={{fontSize:11,fontWeight:700,color:C.blue,fontFamily:MONO,letterSpacing:"0.08em"}}>CONTEXTO CRUZADO</span>
+                          <span style={{fontSize:13,color:C.text}}>
+                            UF provável: <b>{relatorio.contexto_busca.principais.join(", ")}</b> <span style={{color:C.textMid}}>(via {relatorio.contexto_busca.fontes.join(", ")})</span>
+                          </span>
+                          {relatorio.contexto_busca.nascimento_adotado && (
+                            <span style={{fontSize:12,color:C.textMid,fontFamily:MONO}}>nascimento obtido do TSE: {relatorio.contexto_busca.nascimento_adotado.split("-").reverse().join("/")}</span>
+                          )}
+                          <span style={{fontSize:12,color:C.textDim}}>Achados de fontes externas na mesma UF sobem; em UF diferente, descem.</span>
+                        </div>
+                      )}
+                      <div>
+                        <SecLabel>Fontes consultadas</SecLabel>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {Object.entries(resultado.fontes_internas||{}).map(([k,v])=>{
+                            const st = STATUS_INT[v.status]||STATUS_INT.vazio
+                            return (
+                              <div key={k} title={v.erro||""} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`}}>
+                                <span style={{fontSize:11}}>{FONTE_INT[k]?.icon}</span>
+                                <span style={{fontSize:12,fontWeight:600,color:C.textMid,fontFamily:MONO}}>{FONTE_INT[k]?.label}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:st.cor,fontFamily:MONO}}>{st.txt}{v.total>0?` · ${v.total}`:""}</span>
+                                {v.descartados_homonimo>0 && <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>· {v.descartados_homonimo} homônimo(s) descartado(s) por CPF</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {resultado.fontes_com_erro?.length>0 && (
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
+                            <span style={{fontSize:11,color:C.textDim,fontFamily:MONO}}>coletores antigos indisponíveis (não afetam as bases acima):</span>
+                            {resultado.fontes_com_erro.map(f=>(
+                              <span key={f} style={{fontSize:11,padding:"2px 8px",borderRadius:3,background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#FCA5A5",fontFamily:MONO}}>{f}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Processos */}
+                  {/* Pegada Digital */}
+                  {activeTab==="pegada" && (
+                    <PainelPegada job={job} nada={pegNada} iniciando={pegIniciando} erro={pegErro}
+                      onIniciar={()=>iniciarPegada(resultado.report_id)}
+                      onVariacoes={()=>iniciarPegada(resultado.report_id, { variacoes_nome: true })}
+                      onConfirmar={confirmarConta}/>
+                  )}
+
+                  {/* Abas por tipo de resultado */}
+                  {["interno","liderancas","noticias","diarios","tse","sancoes"].includes(activeTab) && (
+                    <AbaAchados key={activeTab} achados={grupos.find(g=>g.key===activeTab)?.itens||[]}/>
+                  )}
+
+                  {/* Processos: achados do DJEN + processos das fontes antigas (se houver) */}
                   {activeTab==="processos" && (
-                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
-                      {relatorio.mandados_prisao?.length>0 && (
-                        <div>
-                          <SecLabel color={C.red}>⚠ Mandados de Prisão</SecLabel>
-                          <Tabela cols={["Nº Mandado","Tipo","Status","Data"]} rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])} gridCols="2fr 1.5fr 1fr 1.2fr"/>
+                    <AbaAchados key="processos" achados={grupos.find(g=>g.key==="processos")?.itens||[]}>
+                      {temLegProc && (
+                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                          {relatorio.mandados_prisao?.length>0 && (
+                            <div>
+                              <SecLabel color={C.red}>⚠ Mandados de Prisão</SecLabel>
+                              <Tabela cols={["Nº Mandado","Tipo","Status","Data"]} rows={relatorio.mandados_prisao.map(m=>[m.numero,m.tipo,m.status,m.data_expedicao])} gridCols="2fr 1.5fr 1fr 1.2fr"/>
+                            </div>
+                          )}
+                          {relatorio.processos_criminais?.length>0 && (
+                            <div>
+                              <SecLabel>Processos Criminais (fontes antigas)</SecLabel>
+                              <Tabela cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]} rows={relatorio.processos_criminais.map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])} gridCols="2.2fr 1fr 2fr 1fr 1fr"/>
+                            </div>
+                          )}
+                          {relatorio.processos_civeis?.length>0 && (
+                            <div>
+                              <SecLabel>Processos Cíveis (fontes antigas)</SecLabel>
+                              <Tabela cols={["Nº Processo","Tribunal","Assunto","Data"]} rows={relatorio.processos_civeis.map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])} gridCols="2.2fr 1fr 2.5fr 1fr"/>
+                            </div>
+                          )}
                         </div>
                       )}
-                      <div>
-                        <SecLabel>Processos Criminais</SecLabel>
-                        <Tabela cols={["Nº Processo","Tribunal","Crime/Classe","Data","Status"]} rows={(relatorio.processos_criminais||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data,p.status])} gridCols="2.2fr 1fr 2fr 1fr 1fr"/>
-                      </div>
-                      <div>
-                        <SecLabel>Processos Cíveis</SecLabel>
-                        <Tabela cols={["Nº Processo","Tribunal","Assunto","Data"]} rows={(relatorio.processos_civeis||[]).map(p=>[p.numero,p.tribunal,(p.assuntos||[]).join(", "),p.data_ajuizamento||p.data])} gridCols="2.2fr 1fr 2.5fr 1fr"/>
-                      </div>
-                    </div>
+                    </AbaAchados>
                   )}
 
-                  {/* Empresas */}
+                  {/* Empresas: sócios (Receita), empresas sancionadas e vínculos das fontes antigas (se houver) */}
                   {activeTab==="empresas" && (
-                    <div className="o-fade" style={{display:"flex",flexDirection:"column",gap:14}}>
-                      <div>
-                        <SecLabel>Vínculos Empresariais</SecLabel>
-                        <Tabela cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]} rows={(relatorio.vinculos_empresariais||[]).map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])} gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"/>
-                      </div>
-                      {relatorio.mencoes_dou?.length>0 && (
-                        <div>
-                          <SecLabel>Diário Oficial da União</SecLabel>
-                          <Tabela cols={["Data","Tipo","Órgão","Título"]} rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])} gridCols="0.8fr 1fr 1.2fr 3fr"/>
+                    <AbaAchados key="empresas" achados={grupos.find(g=>g.key==="empresas")?.itens||[]}>
+                      {temLegEmp && (
+                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                          {relatorio.vinculos_empresariais?.length>0 && (
+                            <div>
+                              <SecLabel>Vínculos Empresariais (fontes antigas)</SecLabel>
+                              <Tabela cols={["CNPJ","Razão Social","Qualificação","Situação","UF"]} rows={relatorio.vinculos_empresariais.map(e=>[e.cnpj,e.razao_social,e.qualificacao,e.situacao,e.uf])} gridCols="1.6fr 2fr 1.4fr 1fr 0.5fr"/>
+                            </div>
+                          )}
+                          {relatorio.mencoes_dou?.length>0 && (
+                            <div>
+                              <SecLabel>Diário Oficial da União</SecLabel>
+                              <Tabela cols={["Data","Tipo","Órgão","Título"]} rows={relatorio.mencoes_dou.map(d=>[d.data,d.tipo,d.orgao,d.titulo])} gridCols="0.8fr 1fr 1.2fr 3fr"/>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </AbaAchados>
                   )}
 
                   {/* Timeline */}
@@ -654,7 +1337,7 @@ export default function OsintPesquisa({ onNavigate }) {
             <div style={{padding:"8px 14px",background:C.surfaceMid,border:`1px solid ${C.border}`,borderRadius:7,display:"flex",gap:8,alignItems:"flex-start"}}>
               <span style={{fontSize:11,fontWeight:700,color:C.gold,fontFamily:MONO,flexShrink:0,marginTop:1,letterSpacing:"0.08em"}}>LGPD · ART.37</span>
               <span style={{fontSize:12,color:C.textDim,lineHeight:1.6,fontFamily:MONO}}>
-                operador: <span style={{color:C.textMid}}>{operador}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
+                operador: <span style={{color:C.textMid}}>{relatorio?.operator_id||"sessão atual"}</span> · finalidade: <span style={{color:C.textMid}}>{finalidade}</span> · {new Date().toLocaleString("pt-BR")}
               </span>
             </div>
 

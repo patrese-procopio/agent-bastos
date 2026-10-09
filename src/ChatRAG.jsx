@@ -45,6 +45,36 @@ function scoreLabel(s) {
   return "Baixa confiança"
 }
 
+// Texto da resposta: respeita parágrafos e listas simples ("- item" / "1. item").
+function TextoResposta({ text }) {
+  const blocos = String(text || "").split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
+  const item = l => /^(?:- |\d{1,2}\. )/.test(l)
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {blocos.map((bloco, i) => {
+        const linhas = bloco.split("\n").map(l => l.trim()).filter(Boolean)
+        return (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {linhas.map((l, j) => {
+              const num = l.match(/^(\d{1,2})\. (.*)$/)
+              const marc = l.match(/^- (.*)$/)
+              if (num || marc) {
+                return (
+                  <div key={j} style={{ display: "flex", gap: 8, paddingLeft: 4 }}>
+                    <span style={{ color: "#E8A020", fontWeight: 700, flexShrink: 0, minWidth: num ? 20 : 10 }}>{num ? num[1] + "." : "•"}</span>
+                    <span>{num ? num[2] : marc[1]}</span>
+                  </div>
+                )
+              }
+              return <div key={j}>{l}</div>
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ChatRAG({ onNavigate }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
@@ -58,7 +88,7 @@ export default function ChatRAG({ onNavigate }) {
   function falar(id, texto) {
     window.speechSynthesis.cancel()
     if (falando === id) { setFalando(null); return }
-    const utter = new SpeechSynthesisUtterance(texto)
+    const utter = new SpeechSynthesisUtterance(String(texto || "").replace(/^(?:- |\d{1,2}\. )/gm, "").replace(/\n+/g, ". "))
     utter.lang = "pt-BR"
     utter.rate = 0.95
     utter.pitch = 0.8
@@ -410,7 +440,7 @@ export default function ChatRAG({ onNavigate }) {
                     </button>
                   </div>
                 )}
-                {m.text}
+                {m.role === "bastos" ? <TextoResposta text={m.text}/> : m.text}
               </div>
 
               {m.role === "bastos" && m.confianca != null && (

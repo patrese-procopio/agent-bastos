@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import api from "./api"
 import { toast } from "./Toast"
+import { confirm } from "./ConfirmModal"
 
 // Líderes Gerais agora vive como aba interna — lazy-loaded on demand
 const LideresGerais = lazy(() => import("./LideresGerais"))
@@ -96,6 +97,434 @@ function Campo({ label, children, required }) {
   )
 }
 
+// ── Tempo na liderança ────────────────────────────────────────────────────────
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` }
+const fmtDia = iso => iso ? iso.slice(0, 10).split("-").reverse().join("/") : "—"
+const MOTIVOS = [["saiu", "Saiu da liderança"], ["transferido", "Transferido"], ["alvara", "Alvará"], ["falecido", "Falecido"]]
+const inicioPadrao = comp => { const h = hojeISO(); return comp && /^\d{4}-\d{2}$/.test(comp) && comp < h.slice(0, 7) ? `${comp}-01` : h }
+const motivoNome = k => (MOTIVOS.find(m => m[0] === k) || [])[1] || k || "—"
+const diasTxt = n => `${n} ${n === 1 ? "dia" : "dias"}`
+const erroDe = async res => { let t = await res.text(); try { const j = JSON.parse(t); if (typeof j.detail === "string") t = j.detail } catch {} return t }
+
+// ── Modal: o que aconteceu com este líder? (substitui o ✕ direto) ─────────────
+function ModalSaida({ lider, onFechar, onConcluido }) {
+  const t = lider.tempo
+  const [modo, setModo] = useState("saiu")
+  const [data, setData] = useState(hojeISO())
+  const [salvando, setSalvando] = useState(false)
+  const engano = modo === "engano"
+
+  async function confirmar() {
+    setSalvando(true)
+    try {
+      const q = engano ? "motivo=engano" : `motivo=${modo}&data=${data}`
+      const r = await api.delete(`/liderancas/${lider.id}?${q}`)
+      if (!r.ok) throw new Error(await erroDe(r))
+      toast.success(engano ? "Cadastro apagado (não conta tempo)." : `Saída registrada em ${fmtDia(data)}: ${motivoNome(modo)}.`)
+      onConcluido()
+    } catch (e) { toast.error(e.message || "Falha ao remover.") }
+    finally { setSalvando(false) }
+  }
+  const chip = (ativo, cor = C.accent) => ({ padding: "8px 14px", borderRadius: 4, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: MONO,
+    border: `1px solid ${ativo ? cor : C.border}`, background: ativo ? cor + "22" : "transparent", color: ativo ? cor : C.textMid })
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1150,padding:20}}>
+      <div style={{background:C.surface,borderRadius:8,width:"100%",maxWidth:520,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"14px 20px",background:C.surfaceUp,borderBottom:`1px solid ${C.border}`}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>O QUE ACONTECEU COM ESTE LÍDER?</div>
+          <div style={{fontSize:13,color:C.textMid,marginTop:4}}>
+            <b style={{color:C.accent}}>{lider.vulgo || "—"}</b>{lider.nome ? ` · ${lider.nome}` : ""} · {lider.cargo}
+          </div>
+          {t && <div style={{fontSize:12,color:C.textDim,fontFamily:MONO,marginTop:4}}>
+            {t.ativo ? `Até agora: ${diasTxt(t.dias_hoje)} na liderança (desde ${fmtDia(t.desde)}${t.estimado ? ", desde o registro" : ""}).` : `Saída já registrada em ${fmtDia(t.ultima_saida)}.`}
+          </div>}
+        </div>
+        <div style={{padding:20,display:"flex",flexDirection:"column",gap:16}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.1em",marginBottom:8}}>SAÍDA DA LIDERANÇA (encerra a contagem)</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {MOTIVOS.map(([k, nome]) => <button key={k} onClick={()=>setModo(k)} style={chip(modo === k)}>{nome}</button>)}
+            </div>
+          </div>
+          {!engano && (
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>DATA DA SAÍDA</div>
+              <input type="date" value={data} max={hojeISO()} onChange={e=>setData(e.target.value)} style={{...iStyle,colorScheme:"dark",maxWidth:220}}/>
+              <div style={{fontSize:11,color:C.textDim,marginTop:6}}>Pode ser uma data anterior (retroativa). O dia da saída entra na contagem.</div>
+            </div>
+          )}
+          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.1em",marginBottom:8}}>OU, SE FOI UM ERRO DE LANÇAMENTO</div>
+            <button onClick={()=>setModo("engano")} style={chip(engano, "#F87171")}>Lançado por engano (apagar sem contar tempo)</button>
+          </div>
+          <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>
+            {engano ? "O cadastro é apagado. Se esta pessoa não tiver outros registros, o tempo dela também é apagado."
+              : "O cartão sai deste mês. O histórico de tempo fica guardado, e se a pessoa voltar a contagem continua de onde parou."}
+          </div>
+        </div>
+        <div style={{padding:"12px 20px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"flex-end",gap:8,background:C.surfaceUp}}>
+          <button onClick={onFechar} style={{padding:"8px 16px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textMid,fontSize:12,cursor:"pointer",fontFamily:MONO}}>Cancelar</button>
+          <button disabled={salvando || (!engano && !data)} onClick={confirmar}
+            style={{padding:"8px 18px",borderRadius:4,border:"none",fontSize:12,fontWeight:700,fontFamily:MONO,cursor:salvando?"not-allowed":"pointer",
+              background:engano?"#DC2626":`linear-gradient(135deg,${C.accent},${C.accentHover})`,color:"#FFF",opacity:salvando?0.6:1}}>
+            {salvando ? "Salvando…" : engano ? "Apagar cadastro" : "Registrar saída e remover do mês"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: tempo na liderança (passagens, saída/retorno, ajustar datas) ───────
+function ModalTempo({ lider, onFechar, onMudou }) {
+  const [d, setD] = useState(null)
+  const [acao, setAcao] = useState(null)       // "saida" | "retorno" | { passagem }
+  const [f, setF] = useState({ motivo: "saiu", data: hojeISO(), inicio: "", fim: "" })
+  const [erro, setErro] = useState("")
+  const [salvando, setSalvando] = useState(false)
+
+  const carregar = () => api.get(`/liderancas/pessoa/${lider.pessoa_id}`).then(r => r.ok ? r.json() : null).then(setD).catch(() => {})
+  useEffect(() => { carregar() }, [])
+
+  async function enviar() {
+    setErro(""); setSalvando(true)
+    try {
+      let r
+      if (acao === "saida")        r = await api.post(`/liderancas/pessoa/${lider.pessoa_id}/saida`, { motivo: f.motivo, data: f.data })
+      else if (acao === "retorno") r = await api.post(`/liderancas/pessoa/${lider.pessoa_id}/retorno`, { data: f.data })
+      else                         r = await api.put(`/liderancas/passagem/${acao.passagem.id}`, { inicio: f.inicio || null, fim: acao.passagem.fim ? (f.fim || null) : null })
+      if (!r.ok) throw new Error(await erroDe(r))
+      setAcao(null); await carregar(); onMudou?.()
+    } catch (e) { setErro(e.message || "Falha ao salvar.") }
+    finally { setSalvando(false) }
+  }
+  const rot = { fontSize: 11, fontWeight: 700, color: C.textMid, fontFamily: MONO, letterSpacing: "0.1em", marginBottom: 6 }
+  const btn = (cor) => ({ padding: "7px 14px", borderRadius: 4, border: `1px solid ${cor}66`, background: cor + "18", color: cor, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: MONO })
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
+      <div style={{background:C.surface,borderRadius:8,width:"100%",maxWidth:600,maxHeight:"92vh",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"14px 20px",background:C.surfaceUp,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>TEMPO NA LIDERANÇA</div>
+            <div style={{fontSize:13,color:C.textMid,marginTop:3}}><b style={{color:C.accent}}>{lider.vulgo || "—"}</b>{lider.nome ? ` · ${lider.nome}` : ""}</div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,width:30,height:30,cursor:"pointer",color:C.textMid,fontSize:16}}>×</button>
+        </div>
+        <div style={{padding:20,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
+          {!d && <div style={{fontSize:13,color:C.textMid}}>Carregando…</div>}
+          {d && <>
+            <div style={{display:"flex",alignItems:"flex-end",gap:14,flexWrap:"wrap"}}>
+              <div>
+                <div style={{fontSize:42,fontWeight:800,color:C.accent,fontFamily:MONO,lineHeight:1}}>{d.total_dias}</div>
+                <div style={{fontSize:12,color:C.textMid,fontFamily:MONO,marginTop:4}}>{d.total_dias === 1 ? "dia" : "dias"} na liderança (total)</div>
+              </div>
+              <span style={{fontSize:12,fontWeight:800,fontFamily:MONO,padding:"4px 12px",borderRadius:20,
+                color:d.ativo?"#4ADE80":"#FBBF24",background:d.ativo?"rgba(74,222,128,0.12)":"rgba(251,191,36,0.12)",border:`1px solid ${d.ativo?"rgba(74,222,128,0.35)":"rgba(251,191,36,0.35)"}`}}>
+                {d.ativo ? "ATIVO" : "FORA DA LIDERANÇA"}
+              </span>
+            </div>
+            <div style={{fontSize:12.5,color:C.textMid}}>{d.cargo} · {d.faccao} · {d.unidade}</div>
+
+            <div>
+              <div style={rot}>PASSAGENS</div>
+              {d.passagens.map((p, i) => (
+                <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",border:`1px solid ${C.border}`,borderRadius:6,marginBottom:6,fontSize:12.5,fontFamily:MONO,color:C.textMid}}>
+                  <span style={{color:C.textDim,width:22}}>#{i + 1}</span>
+                  <span style={{flex:1}}>
+                    <b style={{color:C.text}}>{fmtDia(p.inicio)}</b> → <b style={{color:C.text}}>{p.fim ? fmtDia(p.fim) : "hoje"}</b>
+                    {p.motivo_saida && <span style={{color:"#FBBF24"}}> · {motivoNome(p.motivo_saida)}</span>}
+                    {p.inicio_estimado && <span title="A data real em que assumiu não era conhecida: a contagem começa no registro. Use ✎ para informar a data real." style={{color:C.textDim,cursor:"help"}}> · desde o registro</span>}
+                  </span>
+                  <b style={{color:C.accent}}>{diasTxt(p.dias)}</b>
+                  <button title="Ajustar datas" onClick={()=>{ setAcao({ passagem: p }); setF(x => ({ ...x, inicio: p.inicio, fim: p.fim || "" })); setErro("") }}
+                    style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,color:C.textMid,cursor:"pointer",width:28,height:26}}>✎</button>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:C.textDim,marginTop:4}}>Dias corridos; conta o dia de início e o dia da saída. Quando volta, o total continua somando.</div>
+            </div>
+
+            {acao && (
+              <div style={{border:`1px solid ${C.accent}55`,borderRadius:6,padding:14,background:"rgba(232,160,32,0.05)",display:"flex",flexDirection:"column",gap:12}}>
+                {acao === "saida" && <>
+                  <div style={rot}>REGISTRAR SAÍDA (o cartão continua nos meses onde já existe)</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {MOTIVOS.map(([k, nome]) => <button key={k} onClick={()=>setF(x=>({...x,motivo:k}))} style={{...btn(f.motivo===k?C.accent:"#94A3B8"),opacity:f.motivo===k?1:0.7}}>{nome}</button>)}
+                  </div>
+                  <input type="date" max={hojeISO()} value={f.data} onChange={e=>setF(x=>({...x,data:e.target.value}))} style={{...iStyle,colorScheme:"dark",maxWidth:220}}/>
+                </>}
+                {acao === "retorno" && <>
+                  <div style={rot}>REGISTRAR RETORNO À LIDERANÇA</div>
+                  <input type="date" max={hojeISO()} value={f.data} onChange={e=>setF(x=>({...x,data:e.target.value}))} style={{...iStyle,colorScheme:"dark",maxWidth:220}}/>
+                </>}
+                {acao?.passagem && <>
+                  <div style={rot}>AJUSTAR DATAS DA PASSAGEM</div>
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                    <div><div style={{...rot,marginBottom:4}}>ASSUMIU EM</div><input type="date" max={hojeISO()} value={f.inicio} onChange={e=>setF(x=>({...x,inicio:e.target.value}))} style={{...iStyle,colorScheme:"dark"}}/></div>
+                    {acao.passagem.fim && <div><div style={{...rot,marginBottom:4}}>SAIU EM</div><input type="date" max={hojeISO()} value={f.fim} onChange={e=>setF(x=>({...x,fim:e.target.value}))} style={{...iStyle,colorScheme:"dark"}}/></div>}
+                  </div>
+                </>}
+                {erro && <div style={{fontSize:12.5,color:"#FCA5A5"}}>{erro}</div>}
+                <div style={{display:"flex",gap:8}}>
+                  <button disabled={salvando} onClick={enviar} style={{...btn("#4ADE80"),opacity:salvando?0.6:1}}>{salvando ? "Salvando…" : "Salvar"}</button>
+                  <button onClick={()=>{ setAcao(null); setErro("") }} style={btn("#94A3B8")}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {!acao && (
+              <div style={{display:"flex",gap:8}}>
+                {d.ativo
+                  ? <button onClick={()=>{ setAcao("saida"); setF(x=>({...x,data:hojeISO()})); setErro("") }} style={btn("#FBBF24")}>Registrar saída</button>
+                  : <button onClick={()=>{ setAcao("retorno"); setF(x=>({...x,data:hojeISO()})); setErro("") }} style={btn("#4ADE80")}>Registrar retorno</button>}
+              </div>
+            )}
+          </>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: "é o mesmo líder?" (sugestões — quem une é você) ───────────────────
+function ModalMesmoLider({ onFechar, onMudou }) {
+  const [pares, setPares] = useState(null)
+  const carregar = async () => { try { const r = await api.get("/liderancas/pessoas/sugestoes"); setPares(r.ok ? (await r.json()).pares : []) } catch { setPares([]) } }
+  useEffect(() => { carregar() }, [])
+
+  async function decidir(par, mesmo) {
+    try {
+      const a = par.a, b = par.b
+      const manter = (a.desde || "9999") <= (b.desde || "9999") ? a : b
+      const unir = manter === a ? b : a
+      const r = mesmo
+        ? await api.post("/liderancas/pessoas/unir", { manter: manter.pessoa_id, unir: unir.pessoa_id })
+        : await api.post("/liderancas/pessoas/nao-iguais", { manter: a.pessoa_id, unir: b.pessoa_id })
+      if (!r.ok) throw new Error(await erroDe(r))
+      toast.success(mesmo ? "Unidos: o histórico agora é um só." : "Anotado: são pessoas diferentes.")
+      await carregar(); onMudou?.()
+    } catch (e) { toast.error(e.message || "Falha.") }
+  }
+  const Ficha = ({ x }) => (
+    <div style={{flex:1,minWidth:0,display:"flex",gap:10,alignItems:"center"}}>
+      <div style={{width:54,height:68,borderRadius:6,overflow:"hidden",flexShrink:0,background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,position:"relative"}}>
+        {x.foto_url && <FotoLider liderId={x.foto_url.split("/").pop()} alt={x.vulgo}/>}
+      </div>
+      <div style={{minWidth:0,fontSize:12.5,color:C.textMid}}>
+        <div style={{fontWeight:800,color:C.accent,fontSize:14}}>{x.vulgo || "—"}</div>
+        <div style={{color:C.text}}>{x.nome || "(sem nome)"}</div>
+        <div style={{fontFamily:MONO,fontSize:11}}>{x.cargo} · {fmtComp(x.competencia)}</div>
+      </div>
+    </div>
+  )
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
+      <div style={{background:C.surface,borderRadius:8,width:"100%",maxWidth:680,maxHeight:"92vh",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"14px 20px",background:C.surfaceUp,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>É O MESMO LÍDER?</div>
+            <div style={{fontSize:12,color:C.textMid,marginTop:3}}>Cadastros que parecem ser a mesma pessoa. Nada é unido sem a sua confirmação.</div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,width:30,height:30,cursor:"pointer",color:C.textMid,fontSize:16}}>×</button>
+        </div>
+        <div style={{padding:20,overflowY:"auto",display:"flex",flexDirection:"column",gap:12}}>
+          {pares === null && <div style={{fontSize:13,color:C.textMid}}>Carregando…</div>}
+          {pares && pares.length === 0 && <div style={{fontSize:13,color:C.textMid,textAlign:"center",padding:20}}>Nenhuma sugestão no momento.</div>}
+          {pares && pares.map((par, i) => (
+            <div key={i} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:14}}>
+              <div style={{fontSize:11,color:"#FBBF24",fontFamily:MONO,marginBottom:10}}>{par.a.unidade} · {par.a.faccao} · motivo da sugestão: {par.motivo}</div>
+              <div style={{display:"flex",gap:14,alignItems:"center"}}>
+                <Ficha x={par.a}/><span style={{color:C.accent,fontSize:18}}>⇄</span><Ficha x={par.b}/>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:12,justifyContent:"flex-end"}}>
+                <button onClick={()=>decidir(par, false)} style={{padding:"6px 14px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textMid,fontSize:12,cursor:"pointer",fontFamily:MONO}}>Não é a mesma pessoa</button>
+                <button onClick={()=>decidir(par, true)} style={{padding:"6px 14px",borderRadius:4,border:"1px solid rgba(74,222,128,0.4)",background:"rgba(74,222,128,0.1)",color:"#4ADE80",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>É a mesma pessoa</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal Copiar para outro mês ───────────────────────────────────────────────
+const proxMes = c => {
+  try { const [a, m] = c.split("-").map(Number); const d = new Date(a, m, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` } catch { return "" }
+}
+
+function ModalCopiar({ unidade, unidadeLabel, competencia, competencias, onFechar, onConcluido }) {
+  const [origem,  setOrigem]  = useState(competencia)
+  const [destino, setDestino] = useState(proxMes(competencia))
+  const [escopo,  setEscopo]  = useState("unidade")        // "unidade" | "todas"
+  const [previa,  setPrevia]  = useState(null)
+  const [carregando, setCarregando] = useState(false)
+  const [copiando,   setCopiando]   = useState(false)
+  const [lotes, setLotes] = useState([])
+  const [erroPrevia, setErroPrevia] = useState(null)
+  const [recarga, setRecarga] = useState(0)     // força recalcular a prévia após copiar/desfazer
+
+  const valido = /^\d{4}-(0[1-9]|1[0-2])$/.test(destino) && !!origem && origem !== destino
+  const param  = escopo === "todas" ? "todas" : unidade
+
+  const carregarLotes = async () => {
+    try { const r = await api.get("/liderancas/copia/lotes"); if (r.ok) setLotes((await r.json()).lotes || []) } catch {}
+  }
+  useEffect(() => { carregarLotes() }, [])
+
+  useEffect(() => {
+    if (!valido) { setPrevia(null); return }
+    let vivo = true
+    setCarregando(true); setErroPrevia(null)
+    api.get(`/liderancas/copia/previa?origem=${origem}&destino=${destino}&unidades=${param}`)
+      .then(r => { if (!r.ok) { if (vivo) setErroPrevia(r.status); return null } return r.json() })
+      .then(d => { if (vivo) { setPrevia(d); setCarregando(false) } })
+      .catch(() => { if (vivo) { setErroPrevia(0); setCarregando(false) } })
+    return () => { vivo = false }
+  }, [origem, destino, escopo, unidade, recarga])
+
+  async function copiar() {
+    setCopiando(true)
+    try {
+      const r = await api.post("/liderancas/copia", { origem, destino, unidades: escopo === "todas" ? null : [unidade] })
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Falha ao copiar.") }
+      const d = await r.json()
+      toast.success(d.copiados
+        ? `${d.copiados} líder(es) copiado(s) para ${fmtComp(destino)}` + (d.ignorados ? ` · ${d.ignorados} já existiam e foram pulados` : "")
+        : "Nada novo para copiar: todos já existem no destino.")
+      await carregarLotes()
+      setRecarga(n => n + 1)
+      if (d.copiados) onConcluido?.(destino)
+    } catch (e) { toast.error(e.message || "Erro ao copiar.") }
+    finally { setCopiando(false) }
+  }
+
+  function desfazer(l) {
+    confirm({
+      title: "Desfazer cópia",
+      description: `Remove os líderes que esta cópia criou em ${fmtComp(l.destino)}. Quem foi editado depois fica como está, e os meses de origem não são afetados.`,
+      confirmLabel: "Desfazer", destructive: true,
+      onConfirm: async () => {
+        try {
+          const r = await api.delete(`/liderancas/copia/lotes/${l.id}`)
+          if (!r.ok) throw new Error()
+          const d = await r.json()
+          toast.success(`${d.removidos} removido(s)` + (d.mantidos_por_edicao ? ` · ${d.mantidos_por_edicao} mantido(s) por já terem sido editados` : ""))
+          await carregarLotes(); setRecarga(n => n + 1); onConcluido?.(l.destino)
+        } catch { toast.error("Falha ao desfazer a cópia.") }
+      },
+    })
+  }
+
+  const rotulo = { fontSize: 11, fontWeight: 700, color: C.textMid, fontFamily: MONO, letterSpacing: "0.1em", marginBottom: 6 }
+  const chip = ativo => ({ padding: "7px 14px", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: MONO,
+    border: `1px solid ${ativo ? C.accent : C.border}`, background: ativo ? "rgba(232,160,32,0.14)" : "transparent", color: ativo ? C.accent : C.textMid })
+  const aCopiar = previa?.a_copiar ?? 0
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:20}}>
+      <div style={{background:C.surface,borderRadius:8,width:"100%",maxWidth:600,maxHeight:"92vh",border:`1px solid ${C.border}`,
+        display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.6)"}}>
+        <div style={{padding:"14px 20px",background:C.surfaceUp,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:MONO}}>COPIAR LIDERANÇAS PARA OUTRO MÊS</div>
+            <div style={{fontSize:12,color:C.textMid,marginTop:3}}>Quem já está no mês de destino é pulado — nada é duplicado.</div>
+          </div>
+          <button onClick={onFechar} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,width:30,height:30,cursor:"pointer",color:C.textMid,fontSize:16}}>×</button>
+        </div>
+
+        <div style={{padding:20,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <div style={rotulo}>COPIAR DE</div>
+              <select value={origem} onChange={e=>setOrigem(e.target.value)} style={iStyle}>
+                {(competencias.length ? competencias : [competencia]).map(c => <option key={c} value={c}>{fmtComp(c)}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={rotulo}>PARA O MÊS</div>
+              <input type="month" value={destino} onChange={e=>setDestino(e.target.value)} style={{...iStyle,colorScheme:"dark"}}/>
+            </div>
+          </div>
+
+          <div>
+            <div style={rotulo}>O QUE COPIAR</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setEscopo("unidade")} style={chip(escopo==="unidade")}>Só {unidadeLabel}</button>
+              <button onClick={()=>setEscopo("todas")}   style={chip(escopo==="todas")}>Todas as unidades</button>
+            </div>
+          </div>
+
+          <div style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"14px 16px",minHeight:70}}>
+            {!valido && <div style={{fontSize:13,color:C.textMid}}>{origem === destino ? "Escolha um mês de destino diferente do de origem." : "Escolha o mês de destino."}</div>}
+            {valido && carregando && <div style={{fontSize:13,color:C.textMid}}>Calculando…</div>}
+            {valido && !carregando && !previa && erroPrevia !== null && (
+              <div style={{fontSize:13,color:"#FBBF24",lineHeight:1.5}}>
+                {erroPrevia === 404
+                  ? "O servidor ainda não tem esta função ativada. Reinicie o backend (iniciar.bat) e abra esta janela de novo."
+                  : erroPrevia === 0 ? "Sem conexão com o servidor." : `Não foi possível calcular a prévia (erro ${erroPrevia}).`}
+              </div>
+            )}
+            {valido && !carregando && previa && (
+              previa.na_origem === 0
+                ? <div style={{fontSize:13,color:"#FBBF24"}}>Não há líderes em {fmtComp(origem)} {escopo==="unidade" ? `na unidade ${unidadeLabel}` : ""} para copiar.</div>
+                : <>
+                    <div style={{fontSize:15,color:C.text,lineHeight:1.5}}>
+                      <b style={{color:C.accent}}>{previa.a_copiar}</b> líder(es) serão copiados de {fmtComp(origem)} para {fmtComp(destino)}
+                      {previa.ja_existem > 0 && <> · <b>{previa.ja_existem}</b> já existem no destino e serão pulados</>}.
+                    </div>
+                    <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
+                      {previa.por_unidade.map(d => (
+                        <div key={d.unidade} style={{display:"flex",justifyContent:"space-between",fontSize:12.5,fontFamily:MONO,color:C.textMid}}>
+                          <span>{d.label}</span>
+                          <span><b style={{color:d.a_copiar?"#4ADE80":C.textDim}}>{d.a_copiar}</b> a copiar · {d.ja_existem} já existem</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+            )}
+            {valido && destino < origem && (
+              <div style={{marginTop:10,fontSize:11,color:C.textDim}}>Mês anterior: os cartões copiados ficam com uma marca discreta de origem.</div>
+            )}
+          </div>
+
+          {lotes.length > 0 && (
+            <div>
+              <div style={rotulo}>CÓPIAS RECENTES</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {lotes.map(l => (
+                  <div key={l.id} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",border:`1px solid ${C.border}`,borderRadius:4,fontSize:12,color:C.textMid,fontFamily:MONO}}>
+                    <span style={{flex:1}}>
+                      {new Date(l.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · {fmtComp(l.origem)} → <b style={{color:C.text}}>{fmtComp(l.destino)}</b> · {l.copiados} líder(es) · {l.usuario||"—"}
+                      {l.desfeito_em && <span style={{color:C.textDim}}> · desfeita</span>}
+                    </span>
+                    {!l.desfeito_em && l.intactos > 0 && (
+                      <button onClick={()=>desfazer(l)} style={{padding:"3px 10px",borderRadius:4,border:"1px solid rgba(248,113,113,0.35)",background:"rgba(248,113,113,0.08)",color:"#F87171",fontSize:11,cursor:"pointer",fontFamily:MONO}}>↶ desfazer</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"flex-end",gap:8,background:C.surfaceUp}}>
+          <button onClick={onFechar} style={{padding:"8px 16px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textMid,fontSize:12,cursor:"pointer",fontFamily:MONO}}>Fechar</button>
+          <button disabled={!valido || copiando || carregando || aCopiar === 0} onClick={copiar}
+            style={{padding:"8px 20px",borderRadius:4,border:"none",fontSize:12,fontWeight:700,fontFamily:MONO,
+              background:(!valido||copiando||carregando||aCopiar===0)?C.surfaceUp:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+              color:(!valido||copiando||carregando||aCopiar===0)?C.textDim:"#FFF",
+              cursor:(!valido||copiando||carregando||aCopiar===0)?"not-allowed":"pointer"}}>
+            {copiando ? "Copiando…" : `Copiar ${aCopiar} líder(es)`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Modal PDF ─────────────────────────────────────────────────────────────────
 function ModalPDF({ unidade, unidadeLabel, competencia, competencias, onFechar }) {
   const [tipo, setTipo] = useState("unidade")
@@ -182,7 +611,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
   const [form, setForm] = useState({
     unidade:unidadeAtiva, pavilhao:pavilhaoInicial||"", ala:alaInicial||"",
     cela:"", faccao:"", cargo:"", nome:"", vulgo:"", observacao:"",
-    competencia:competenciaAtiva||"", ...(isEdicao?lider:{}),
+    competencia:competenciaAtiva||"", inicio_lideranca:"", pessoa_id:"", ...(isEdicao?lider:{}),
   })
   const [fotoFile, setFotoFile] = useState(null)
   const [fotoBlob, setFotoBlob] = useState(null)
@@ -198,6 +627,20 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
       .catch(() => {})
     return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
   }, [])
+
+  const [similares, setSimilares] = useState([])
+  const [mesmo, setMesmo] = useState(null)     // pessoa escolhida em "é o mesmo"
+  useEffect(() => {
+    if (isEdicao || mesmo) return
+    const q = (form.vulgo || "").trim().length >= 3 ? form.vulgo.trim() : (form.nome || "").trim().length >= 3 ? form.nome.trim() : ""
+    if (!q) { setSimilares([]); return }
+    const t = setTimeout(async () => {
+      try { const r = await api.get(`/liderancas/pessoas/buscar?q=${encodeURIComponent(q)}`); if (r.ok) setSimilares((await r.json()).pessoas || []) } catch {}
+    }, 500)
+    return () => clearTimeout(t)
+  }, [form.vulgo, form.nome, mesmo])
+  const escolherMesmo = p => { setMesmo(p); setForm(prev => ({ ...prev, pessoa_id: p.pessoa_id })) }
+  const desfazerMesmo = () => { setMesmo(null); setForm(prev => ({ ...prev, pessoa_id: "" })) }
 
   const est       = estrutura||{}
   const pavilhoes = Object.keys(est[form.unidade]?.pavilhoes||{})
@@ -227,7 +670,7 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
       Object.entries(form).forEach(([k,v])=>fd.append(k,v||""))
       if(fotoFile) fd.append("foto",fotoFile)
       const res=isEdicao ? await api.uploadPut(`/liderancas/${lider.id}`,fd) : await api.upload("/liderancas",fd)
-      if(!res.ok) throw new Error(await res.text())
+      if(!res.ok) throw new Error(await erroDe(res))
       onSalvar(await res.json())
     } catch(e){setErro("Erro: "+e.message)}
     finally{setSalvando(false)}
@@ -273,6 +716,40 @@ function ModalLider({ lider, estrutura, faccoes, cargosPorFaccao, unidadeAtiva,
           </div>
 
           <div style={{height:1,background:C.border}}/>
+
+          {!isEdicao && !mesmo && similares.length > 0 && (
+            <div style={{padding:"10px 14px",background:"rgba(96,165,250,0.07)",border:"1px solid rgba(96,165,250,0.25)",borderRadius:6}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#93C5FD",fontFamily:MONO,letterSpacing:"0.1em",marginBottom:6}}>JÁ EXISTE UM LÍDER PARECIDO?</div>
+              {similares.map(p => (
+                <div key={p.pessoa_id} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderTop:`1px solid ${C.border}`}}>
+                  <div style={{flex:1,minWidth:0,fontSize:12.5,color:C.text}}>
+                    <b>{p.vulgo || "—"}</b>{p.nome ? ` · ${p.nome}` : ""}
+                    <div style={{fontSize:11,color:C.textMid,fontFamily:MONO}}>
+                      {p.faccao} · {p.unidade} · {p.ativo ? `ativo · ${diasTxt(p.total_dias)}` : `saiu em ${fmtDia(p.ultima_saida)} (${motivoNome(p.motivo)}) · ${diasTxt(p.total_dias)}`}
+                    </div>
+                  </div>
+                  <button type="button" onClick={()=>escolherMesmo(p)} style={{padding:"5px 12px",borderRadius:4,border:"1px solid rgba(96,165,250,0.4)",background:"rgba(96,165,250,0.12)",color:"#93C5FD",fontSize:11.5,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>É o mesmo</button>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:C.textDim,marginTop:6}}>Se for outra pessoa (homônimo), ignore e continue o cadastro.</div>
+            </div>
+          )}
+          {!isEdicao && mesmo && (
+            <div style={{padding:"9px 14px",background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:6,fontSize:12.5,color:"#86EFAC",display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+              <span>Mesmo líder de <b>{mesmo.vulgo || mesmo.nome}</b>: o tempo na liderança continua somando.</span>
+              <button type="button" onClick={desfazerMesmo} style={{background:"transparent",border:"none",color:C.textMid,cursor:"pointer",fontSize:11,fontFamily:MONO,textDecoration:"underline"}}>desfazer</button>
+            </div>
+          )}
+          {!isEdicao && (
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:C.textMid,fontFamily:MONO,letterSpacing:"0.15em",marginBottom:6}}>NA LIDERANÇA DESDE</div>
+              <input type="date" max={hojeISO()} value={form.inicio_lideranca || inicioPadrao(form.competencia)} onChange={e=>set("inicio_lideranca",e.target.value)} style={{...iStyle,colorScheme:"dark",maxWidth:220}}/>
+              <div style={{fontSize:11,color:C.textDim,marginTop:5}}>
+                {form.inicio_lideranca ? "Data em que assumiu (pode ser anterior). Alimenta o contador de dias na liderança."
+                  : "Sem informar, conta desde o 1º dia do mês lançado (ou hoje, se for o mês atual). Se souber a data real em que assumiu, preencha."}
+              </div>
+            </div>
+          )}
 
           {/* Competência */}
           <div style={{padding:"10px 14px",background:"rgba(245,158,11,0.08)",
@@ -395,9 +872,8 @@ const lblMini  = { fontSize: 11,fontWeight:700,color:"#7C8AA6",fontFamily:MONO,l
 const chipMeta = { background:"rgba(255,255,255,0.05)",border:`1px solid ${C.border}`,padding:"1px 9px",borderRadius:20 }
 
 // ── Card-figurinha do líder (dark premium, moldura dourada) ───────────────────
-function CardLider({ lider, onEditar, onDeletar }) {
+function CardLider({ lider, onEditar, onDeletar, onTempo }) {
   const cor = corF(lider.faccao)
-  const [conf, setConf] = useState(false)
   const inicial = (lider.vulgo || lider.nome || "?").trim()[0]?.toUpperCase() || "?"
 
   return (
@@ -452,6 +928,19 @@ function CardLider({ lider, onEditar, onDeletar }) {
           {lider.ala && <span style={chipMeta}>{lider.ala}</span>}
           {lider.cela && <span style={chipMeta}>Cela {lider.cela}</span>}
           {lider.competencia && <span style={{color:"#E8A020",fontWeight:700}}>{fmtComp(lider.competencia)}</span>}
+          {lider.copiado_de && (
+            <span title={`Copiado de ${fmtComp(lider.copiado_de)}. A marca some quando o cartão é editado.`}
+              style={{fontSize:10.5,color:"#64748B",opacity:0.75,cursor:"help"}}>↳ {fmtComp(lider.copiado_de)}</span>
+          )}
+          {lider.tempo && (
+            <button onClick={()=>onTempo?.(lider)}
+              title={`Tempo na liderança${lider.tempo.estimado ? " (desde o registro)" : ""}: desde ${fmtDia(lider.tempo.desde)}${lider.tempo.passagens > 1 ? ` · ${lider.tempo.passagens} passagens` : ""}. Clique para ver o histórico.`}
+              style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,cursor:"pointer",fontFamily:MONO,fontSize:11.5,fontWeight:800,
+                color:lider.tempo.ativo?"#E8A020":"#94A3B8",background:"rgba(232,160,32,0.08)",
+                border:`1px ${lider.tempo.estimado?"dashed":"solid"} rgba(232,160,32,0.35)`,borderRadius:12,padding:"2px 9px"}}>
+              ⏱ {diasTxt(lider.tempo.dias)}{!lider.tempo.ativo && lider.tempo.ultima_saida ? ` · saiu ${fmtDia(lider.tempo.ultima_saida).slice(0,5)}` : ""}
+            </button>
+          )}
         </div>
 
         {lider.observacao && (
@@ -464,17 +953,14 @@ function CardLider({ lider, onEditar, onDeletar }) {
       {/* Ações (hover) */}
       <div className="lu-acoes" style={{position:"absolute",top:12,right:12,display:"flex",gap:6}}>
         <button onClick={()=>onEditar(lider)} title="Editar" style={{...btnAcao,color:C.textMid}}>✎</button>
-        {conf
-          ? <button onClick={()=>onDeletar(lider.id)} style={{height:30,borderRadius:8,border:"none",padding:"0 11px",
-              background:"#DC2626",cursor:"pointer",fontSize:11,fontWeight:800,color:"#FFF",fontFamily:MONO}}>excluir?</button>
-          : <button onClick={()=>setConf(true)} title="Excluir" style={{...btnAcao,color:"#F87171"}}>✕</button>}
+        <button onClick={()=>onDeletar(lider)} title="Remover do mês (saída ou erro de lançamento)" style={{...btnAcao,color:"#F87171"}}>✕</button>
       </div>
     </div>
   )
 }
 
 // ── Seção Pavilhão (cards do pavilhão na MESMA linha; 1 líder por ala) ─────────
-function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
+function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar, onTempo }) {
   const [aberto, setAberto] = useState(true)
   const entradas = Object.entries(alas).map(([ala,celas])=>[ala, Object.values(celas).flat()])
   const todos    = entradas.flatMap(([,l])=>l)
@@ -507,7 +993,7 @@ function SecaoPavilhao({ pavilhao, alas, onNovo, onEditar, onDeletar }) {
         <>
           {total>0
             ? <div style={{display:"grid",gridTemplateColumns:umCard?"minmax(0,560px)":"repeat(2, minmax(0,1fr))",gap:16}}>
-                {todos.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar}/>)}
+                {todos.map(l=><CardLider key={l.id} lider={l} onEditar={onEditar} onDeletar={onDeletar} onTempo={onTempo}/>)}
               </div>
             : <div style={{padding:"22px",textAlign:"center",color:C.textDim,fontFamily:MONO,fontSize:13,
                 background:"rgba(255,255,255,0.015)",border:`1px dashed ${C.border}`,borderRadius:12}}>
@@ -542,6 +1028,11 @@ export default function LiderancasUnidade({ onNavigate }) {
   const [loading,     setLoading]     = useState(true)
   const [modal,       setModal]       = useState(null)
   const [modalPDF,    setModalPDF]    = useState(false)
+  const [modalCopia,  setModalCopia]  = useState(false)
+  const [modalSaida,  setModalSaida]  = useState(null)     // líder a remover (saída / erro)
+  const [modalTempo,  setModalTempo]  = useState(null)     // líder cujo histórico de tempo está aberto
+  const [modalMesmo,  setModalMesmo]  = useState(false)
+  const [sugCount,    setSugCount]    = useState(0)
   const [busca,       setBusca]       = useState("")
   // [toast local removido — usa toast global de ./Toast]
   const [compAtual,   setCompAtual]   = useState("")
@@ -584,13 +1075,15 @@ export default function LiderancasUnidade({ onNavigate }) {
   }
 
   useEffect(()=>{ carregarEstrutura() },[])
+  async function carregarSug() {
+    try { const r = await api.get("/liderancas/pessoas/sugestoes"); if (r.ok) setSugCount(((await r.json()).pares || []).length) } catch {}
+  }
+  useEffect(()=>{ carregarSug() },[])
   useEffect(()=>{ setCompetencia(""); carregarCompetencias(unidade).then(()=>carregarDados(unidade)) },[unidade])
   useEffect(()=>{ if(competencia) carregarDados(unidade,competencia) },[competencia])
 
-  async function deletar(id) {
-    try { await api.delete(`/liderancas/${id}`); toast$("Líder removido."); carregarDados() }
-    catch { toast$("Erro ao remover.","erro") }
-  }
+  // ✕ agora pergunta o motivo: saída (encerra a contagem de tempo) ou erro de lançamento
+  function deletar(lider) { setModalSaida(lider) }
 
   function aoSalvar() { toast$("Líder salvo!"); setModal(null); carregarDados(); carregarCompetencias() }
 
@@ -701,6 +1194,17 @@ export default function LiderancasUnidade({ onNavigate }) {
             fontSize:12,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",gap:5}}>
             <span style={{color:"#EF4444"}}>PDF</span>
           </button>
+          <button onClick={()=>setModalCopia(true)} title="Copiar as lideranças deste mês para outro mês (pula quem já existe)"
+            style={{padding:"7px 12px",borderRadius:4,border:`1px solid ${C.border}`,background:C.surface,color:C.textMid,
+              fontSize:12,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",gap:5}}>
+            <span style={{color:"#E8A020"}}>⧉</span> Copiar p/ outro mês
+          </button>
+          <button onClick={()=>setModalMesmo(true)} title="Cadastros que parecem ser a mesma pessoa — confirme para juntar o histórico de tempo"
+            style={{padding:"7px 12px",borderRadius:4,border:`1px solid ${C.border}`,background:C.surface,color:C.textMid,
+              fontSize:12,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",gap:6}}>
+            Mesmo líder?
+            {sugCount > 0 && <span style={{fontSize:10.5,fontWeight:800,color:"#0B1120",background:"#FBBF24",borderRadius:10,padding:"1px 7px"}}>{sugCount}</span>}
+          </button>
           <button onClick={()=>setModal({pavilhao:"",ala:""})} style={{
             padding:"7px 16px",borderRadius:4,border:"none",
             background:`linear-gradient(135deg,${C.accent},${C.accentHover})`,
@@ -772,7 +1276,7 @@ export default function LiderancasUnidade({ onNavigate }) {
             {Object.entries(dadosFiltrados).map(([pav,alas])=>(
               <SecaoPavilhao key={pav} pavilhao={pav} alas={alas}
                 onNovo={(p,a)=>setModal({pavilhao:p,ala:a||""})}
-                onEditar={l=>setModal({lider:l})} onDeletar={deletar}/>
+                onEditar={l=>setModal({lider:l})} onDeletar={deletar} onTempo={setModalTempo}/>
             ))}
           </div>
         ) : (
@@ -787,6 +1291,26 @@ export default function LiderancasUnidade({ onNavigate }) {
           cargosPorFaccao={cargosPorFaccao} unidadeAtiva={unidade}
           pavilhaoInicial={modal.pavilhao} alaInicial={modal.ala}
           competenciaAtiva={competencia||compAtual} onSalvar={aoSalvar} onFechar={()=>setModal(null)}/>
+      )}
+
+      {modalCopia && (
+        <ModalCopiar unidade={unidade} unidadeLabel={unidadesLabel[unidade]||unidade}
+          competencia={competencia||compAtual} competencias={competencias}
+          onFechar={()=>setModalCopia(false)}
+          onConcluido={async (dest)=>{ await carregarCompetencias(unidade); setCompetencia(dest); carregarDados(unidade,dest) }}/>
+      )}
+
+      {modalSaida && (
+        <ModalSaida lider={modalSaida} onFechar={()=>setModalSaida(null)}
+          onConcluido={()=>{ setModalSaida(null); carregarDados(); carregarSug() }}/>
+      )}
+
+      {modalTempo && (
+        <ModalTempo lider={modalTempo} onFechar={()=>setModalTempo(null)} onMudou={()=>carregarDados()}/>
+      )}
+
+      {modalMesmo && (
+        <ModalMesmoLider onFechar={()=>{ setModalMesmo(false); carregarSug() }} onMudou={()=>{ carregarDados(); carregarSug() }}/>
       )}
 
       {modalPDF && (

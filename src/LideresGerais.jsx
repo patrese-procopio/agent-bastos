@@ -30,7 +30,7 @@ const FACCAO_COR = {
   "Neutros":{ dot:"#94A3B8", bg:"rgba(148,163,184,0.08)", border:"rgba(148,163,184,0.2)", text:"#E2E8F0" },
   "CDN":    { dot:"#F59E0B", bg:"rgba(245,158,11,0.12)",  border:"rgba(245,158,11,0.3)",  text:"#FCD34D" },
 }
-const corF = f => FACCAO_COR[f] || { dot:"#94A3B8", bg:"rgba(148,163,184,0.08)", border:"rgba(148,163,184,0.2)", text:"#E2E8F0" }
+const corF = f => FACCAO_COR[/CVAM/i.test(f||"") ? "CV/AM" : f] || { dot:"#94A3B8", bg:"rgba(148,163,184,0.08)", border:"rgba(148,163,184,0.2)", text:"#E2E8F0" }
 
 const STATUS_COR = {
   "Ativo":    { bg:"rgba(34,197,94,0.12)",  border:"rgba(34,197,94,0.3)",   text:"#86EFAC", dot:"#22C55E" },
@@ -117,7 +117,10 @@ function ModalNovaFaccao({ onSalvar, onFechar }) {
       fd.append("nome", nome.trim())
       fd.append("sigla", sigla.trim().toUpperCase())
       const res = await api.upload("/liderancas/rua/faccoes", fd)
-      if(!res.ok) { const err = await res.json(); throw new Error(err.detail || "Erro ao criar facção.") }
+      if(!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || `Erro ao criar facção (HTTP ${res.status}).`)
+      }
       onSalvar(await res.json())
     } catch(e) { setErro(e.message) }
     finally { setSalvando(false) }
@@ -482,7 +485,29 @@ export default function LideresGerais({ onNavigate }) {
   const [busca,      setBusca]      = useState("")
   const [faccaoSel,  setFaccaoSel]  = useState("todas")
   const [modal,      setModal]      = useState(null)
+  const [baixandoPdf, setBaixandoPdf] = useState(false)
   // toast global via Toast.jsx
+
+  async function exportarPDF(faccao) {
+    if (faccoes.every(f => f.lideres.length === 0)) { toast.warn("Nenhum dado para exportar."); return }
+    if (faccao && faccao.lideres.length === 0) { toast.warn("Este grupo não tem líderes cadastrados."); return }
+    setBaixandoPdf(true)
+    try {
+      const qs  = faccao ? `?faccao_id=${encodeURIComponent(faccao.id)}` : ""
+      const res = await api.get(`/liderancas/rua/pdf${qs}`)
+      if (!res.ok) throw new Error(await res.text())
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement("a")
+      const sufixo = faccao ? faccao.sigla.replace(/[^\w]/g, "_") : "todos"
+      a.href     = url
+      a.download = `lideres_gerais_${sufixo}_${new Date().toISOString().slice(0,10)}.pdf`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success("Relatório PDF gerado.")
+    } catch { toast.error("Falha ao gerar o PDF. Tente novamente.") }
+    finally { setBaixandoPdf(false) }
+  }
 
   async function carregar() {
     setLoading(true)
@@ -704,6 +729,26 @@ export default function LideresGerais({ onNavigate }) {
                 boxShadow:"0 0 6px rgba(22,163,74,0.8)"}}/>
               <span style={{fontSize:13,color:"#4ADE80",fontWeight:600}}>Sistema Ativo</span>
             </div>
+            <button
+              title={faccaoAtual ? `Relatório PDF — ${faccaoAtual.nome}` : "Relatório PDF — todos os grupos"}
+              disabled={baixandoPdf}
+              onClick={()=>exportarPDF(faccaoAtual)}
+              style={{
+                display:"flex",alignItems:"center",gap:7,
+                padding:"5px 13px",borderRadius:20,
+                cursor:baixandoPdf?"not-allowed":"pointer",
+                background:baixandoPdf?"rgba(255,255,255,0.04)":`linear-gradient(135deg,${C.accent},${C.accentHover})`,
+                border:"1px solid rgba(232,160,32,0.45)",
+                color:baixandoPdf?C.textDim:"#FFF",fontSize:13,fontWeight:700,
+              }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <polyline points="9 15 12 18 15 15"/>
+              </svg>
+              {baixandoPdf ? "Gerando..." : "Exportar PDF"}
+            </button>
             <button
               title="Exportar lista como CSV (LGPD — uso interno)"
               onClick={()=>{

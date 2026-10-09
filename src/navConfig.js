@@ -20,6 +20,7 @@ export const NAV_PERMISSIONS = {
   "Agenda de Missão":        "agenda",
   "Dashboard":               "dashboard",
   "Transcrição":             "transcricao",
+  "Acervo de Áudios":        "transcricao",
   "Análise Grafoscópica":    "grafoscopia",
   "Notícias":                "noticias",
   "Operações Drone":         "drone",
@@ -48,6 +49,7 @@ export const NAV_GROUPS_ALL = [
   { title: "FERRAMENTAS", items: [
     { label: "Dashboard",             color: "#34D399" },
     { label: "Transcrição",           color: "#818CF8" },
+    { label: "Acervo de Áudios",      color: "#A78BFA" },
     { label: "Análise Grafoscópica",  color: "#FBBF24" },
     { label: "Notícias",              color: "#FB923C" },
     { label: "Operações Drone",       color: "#22D3EE" },

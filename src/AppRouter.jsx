@@ -7,6 +7,7 @@ import { C, MONO } from "./shellTheme"
 const ChatRAG          = lazy(() => import("./ChatRAG"))
 const Dashboard        = lazy(() => import("./Dashboard"))
 const Transcricao      = lazy(() => import("./Transcricao"))
+const AcervoAudio      = lazy(() => import("./AcervoAudio"))
 const Alertas          = lazy(() => import("./Alertas"))
 const Noticias         = lazy(() => import("./Noticias"))
 const Referencias      = lazy(() => import("./Referencias"))
@@ -27,7 +28,7 @@ const OperacoesDrone   = lazy(() => import("./OperacoesDrone"))
 // GerenciarUsuarios e AuditoriaLog movidos para dentro de Configuracoes (admin tabs)
 
 const TELAS_CONHECIDAS = [
-  "Painel","Chat RAG","Dashboard","Transcrição","Alertas","Notícias","Referências",
+  "Painel","Chat RAG","Dashboard","Transcrição","Acervo de Áudios","Alertas","Notícias","Referências",
   "Configurações","Agenda de Missão","Lista Negra","Controle de Grupos",
   "Lideranças por Unidade","Análise de Vínculo","Análise Grafoscópica",
   "Extrato","Inteligência Preditiva","OSINT Pessoas","ORÁCULO",
@@ -50,6 +51,7 @@ export default function AppRouter({ active, onNavigate, tema, setTema, user, pai
         {active==="Chat RAG"               && <ErrorBoundary modulo="Chat RAG"><ChatRAG      onNavigate={onNavigate}/></ErrorBoundary>}
         {active==="Dashboard"              && <ErrorBoundary modulo="Dashboard"><Dashboard    onNavigate={onNavigate}/></ErrorBoundary>}
         {active==="Transcrição"            && <ErrorBoundary modulo="Transcrição"><Transcricao  onNavigate={onNavigate}/></ErrorBoundary>}
+        {active==="Acervo de Áudios"       && <ErrorBoundary modulo="Acervo de Áudios"><AcervoAudio/></ErrorBoundary>}
         {active==="Análise Grafoscópica"   && <ErrorBoundary modulo="Análise Grafoscópica"><Grafoscopia  onNavigate={onNavigate}/></ErrorBoundary>}
         {active==="Alertas"                && <ErrorBoundary modulo="Alertas"><Alertas      onNavigate={onNavigate}/></ErrorBoundary>}
         {active==="Notícias"               && <ErrorBoundary modulo="Notícias"><Noticias     onNavigate={onNavigate}/></ErrorBoundary>}
